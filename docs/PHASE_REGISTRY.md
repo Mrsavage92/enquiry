@@ -28,8 +28,8 @@ Do not tell Grok to "continue through the phases".
 |---|---|---|---|---|
 | 0 | Complete | Product/build management guardrails | — | Required |
 | 1 | Complete | Reposition public site around decision layer | 0 | Required |
-| 2A | Active when CURRENT_PHASE says so | Build signature cross-channel decision demo | 1 | Required |
-| 2B | Prepared | Place signature demo into public sales journey | 2A reviewed | Required |
+| 2A | Complete | Build signature cross-channel decision demo | 1 | Required |
+| 2B | Active | Place signature demo into public sales journey | 2A reviewed | Required |
 | 3 | Prepared | Remove universal price/commercial assumptions | 2B preferred | Required |
 | 4 | Prepared | Curate public roadmap into sales/trust narrative | 2B + preferably 3 | Required before public waitlist push |
 | 5 | Prepared | Polish Early Access + Updates trust copy | 4 preferred | Required before public waitlist push |
@@ -37,6 +37,8 @@ Do not tell Grok to "continue through the phases".
 | 7A | Prepared | Future-safe identity/contact-point model + deterministic match | 2A | Can defer until after first beta if needed |
 | 7B | Prepared | Reviewable possible-match UX | 7A reviewed | Can defer until evidence requires it |
 | 8 | Prepared | Final coherence/release QA | chosen phases complete | Required before first beta release candidate |
+
+`CURRENT_PHASE.md` remains authoritative if this table ever lags behind a phase transition.
 
 ---
 
