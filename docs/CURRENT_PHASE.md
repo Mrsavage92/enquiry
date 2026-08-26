@@ -2,7 +2,7 @@
 
 ## Current phase
 
-**Phase 2A — Build the signature cross-channel decision demo**
+**Phase 2A — Signature cross-channel decision demo — CORRECTION GATE**
 
 Source of truth:
 
@@ -12,102 +12,104 @@ Source of truth:
 
 ## Phase 1 status
 
-**SIGNED OFF.**
+**SIGNED OFF.** Do not revisit unless a regression is introduced.
 
-Phase 1 repositioned the public site around the Enquiry decision-layer thesis and passed the correction gate:
+## Phase 2A review status
 
-- public copy no longer frames Enquiry primarily as a phone-first quoting assistant;
-- cross-channel copy no longer overclaims arbitrary production-safe identity merging;
-- review-first language leaves room for future Earned Autopilot;
-- cross-industry examples now include a clearly different service-business category.
+The interaction pattern itself passes the intended product story:
 
-Do not revisit Phase 1 unless a regression is introduced.
+- website form → later text;
+- explicit same-phone linking rather than magical identity matching;
+- changed scope/deadline are visible;
+- the next action changes;
+- price is secondary;
+- the demo is isolated at `/demo` and Phase 2B has not been started.
+
+However, product management has **not signed off Phase 2A yet** because the flagship decision currently overstates the Business Brain evidence.
 
 ---
 
-## Execute Phase 2A only
+# Required corrections only
 
-Read the full detailed brief:
+Do not begin Phase 2B.
 
-`docs/phases/PHASE_2_SIGNATURE_CROSS_CHANNEL_DEMO.md`
+## 1. Ground the capacity conclusion in explicit Ridge & Co business truth
 
-Phase 2A is the **demo itself only**.
+Current public demo claims:
 
-Do not begin Phase 2B placement / homepage restructuring until product management reviews Phase 2A and updates this file.
+- initial scope is `Feasible with the two-person weekday crew`;
+- after the deadline/scope change it becomes `Feasible with condition — third contractor required`.
 
-### Objective
+The existing Ridge & Co Business Brain currently establishes only that:
 
-Build the signature demonstration that communicates:
+- there are two painters on weekdays;
+- a third contractor can be booked with 48 hours notice;
+- feasibility needs scope/access/deadline facts.
 
-> **The conversation can move. The enquiry stays coherent.**
+That is **not enough** to deterministically conclude that the first job fits two painters or that the revised job specifically requires a third painter.
 
-Use the Ridge & Co Painting scenario specified in the Phase 2 brief.
+This matters because Enquiry's product contract says **Unknown beats guessing** and material recommendations must be grounded in business truth.
 
-The customer begins via a website form, then later sends a text from the same known mobile number with a material scope/deadline change.
+### Correct implementation
 
-The demo must visibly show:
+Add the smallest explicit, fixture-level Ridge capacity knowledge needed to make this particular demonstration valid.
 
-1. initial enquiry received;
-2. Enquiry reconstructs the request;
-3. initial business decision/checks;
-4. later text linked to the same enquiry for an explicit, trustworthy reason;
-5. fact changes / diff;
-6. relevant business checks re-run;
-7. meaningful decision consequence;
-8. next action changes.
+Preferred shape:
 
-The punchline is **not price**. The punchline is that Enquiry maintains and re-evaluates the business decision as the customer changes the request across channels.
+- a confirmed/active operational or capacity rule attributed to Tom / setup;
+- enough detail to explain the initial provisional crew fit and why the revised deadline + ceilings changes the crew requirement;
+- preserve that the living areas still require a site measure for the final quote;
+- if the capacity assessment is provisional pending the measure, say so rather than presenting certainty that the rule does not justify.
 
-### Trust rule
+Do **not** build a generic scheduling/capacity engine.
 
-Do not imply general AI identity matching exists.
+Do **not** invent an invisible rule only inside JSX. The decision must be traceable to explicit demo/business truth.
 
-For this fixture, the later text is linked because the phone number is already known from the original form. Make that provenance visible enough that the demo feels trustworthy rather than magical.
+Where practical, make the public `Why?` wording reflect that grounded rule without exposing internal IDs.
 
-### Scope rule
+Add/adjust a focused test so the demo's capacity conclusion cannot drift away from the Ridge knowledge that supports it.
 
-Build the reusable/demo component and fixture/state needed to prove the interaction.
+## 2. Remove the phone-number collision in fixture/demo data
 
-Do **not**:
+The demo currently uses `0412 880 441` for Maya. That number is already present elsewhere in the repository as a business SMS contact.
 
-- replace the homepage Priya demo yet;
-- restructure `/how` around the new demo yet;
-- build production Instagram/SMS integrations;
-- build a generic identity-resolution engine;
-- alter the public roadmap;
-- start Phase 3;
-- broaden into adjacent product work.
+Give Maya a distinct fictional/example mobile value that is not already used by another fixture or integration, while preserving the same-number linking proof between her form and later text.
 
-Those are later gates.
+Add a small fixture/test guard if it is cheap and local; do not build global contact validation infrastructure.
 
-## Acceptance criteria
+## 3. Keep everything else stable
 
-- [ ] Demo begins on website form and continues via text.
-- [ ] Both messages visibly belong to one enquiry for a defensible reason.
-- [ ] The original request and updated request are understandable without reading internal architecture language.
-- [ ] Material facts visibly change.
-- [ ] Relevant evaluator/decision state changes as a consequence.
-- [ ] The next action changes.
-- [ ] The demo does not rely on price as its primary proof.
-- [ ] The experience makes sense to a service-business owner in under ~15 seconds.
-- [ ] Existing app behaviour remains stable.
-- [ ] Reduced-motion behaviour remains usable.
-- [ ] Desktop and mobile visual QA pass.
+Do not redesign the demo.
+Do not place it on the homepage yet.
+Do not modify `/how` yet.
+Do not start Phase 3.
+Do not add real integrations or identity resolution.
+
+---
+
+# Correction acceptance criteria
+
+- [ ] Initial/revised capacity claims are supported by explicit Ridge business truth rather than an unstated assumption.
+- [ ] Any remaining uncertainty from the site measure is represented honestly.
+- [ ] `Why?` explains the decision using customer-facing language grounded in that rule.
+- [ ] Maya's mobile no longer collides with another fixture/integration value.
+- [ ] Website form and later SMS still match on the same known mobile.
+- [ ] Existing Phase 2A interaction/visual behaviour remains intact.
+- [ ] Focused signature-demo tests pass.
 - [ ] Typecheck passes.
-- [ ] Relevant tests pass, with any pre-existing platform failures clearly separated from new failures.
+- [ ] Desktop/mobile/reduced-motion QA remains clean.
 
 ## Required handoff
 
-When Phase 2A is complete, report:
+Report only:
 
-- the exact scenario implemented;
-- interaction sequence;
-- files changed;
-- fixture/state changes;
-- tests/typecheck results;
-- desktop/mobile visual QA;
-- any unresolved product or implementation risk.
+1. explicit Ridge rule/truth added or changed;
+2. capacity/demo wording changed;
+3. phone value changed;
+4. files changed;
+5. tests/typecheck/QA results;
+6. any remaining uncertainty.
 
 Then stop.
 
-**Do not begin Phase 2B until this file is updated by product management.**
+**Do not begin Phase 2B until product management updates this file.**
