@@ -15,7 +15,7 @@ export const Route = createRootRoute({
       {
         name: "description",
         content:
-          "An AI enquiry copilot that learns how a service business works and turns messy inbound enquiries into the correct next decision.",
+          "Enquiry learns how a service business works and turns messy inbound enquiries into the correct next decision.",
       },
       { name: "theme-color", content: "#faf7f1" },
       { name: "apple-mobile-web-app-capable", content: "yes" },

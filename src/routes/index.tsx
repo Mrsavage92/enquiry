@@ -15,7 +15,7 @@ export const Route = createFileRoute("/")({
       {
         name: "description",
         content:
-          "Enquiry learns how your business works, understands what every customer is asking for and works out what needs to happen next.",
+          "However the enquiry arrives, Enquiry puts the request together, understands what matters for this business, and prepares the next action.",
       },
       { property: "og:image", content: "/product/phone-job.png" },
     ],
@@ -37,8 +37,9 @@ function Home() {
         </HeroIn>
         <HeroIn delay={160}>
           <p className="mt-5 max-w-2xl text-base leading-relaxed text-ink-2 sm:mt-7 sm:text-xl">
-            Enquiry learns how your business works, understands what every customer is asking for and
-            works out what needs to happen next. On the phone, between jobs. You approve. You send.
+            However the enquiry arrives, Enquiry puts the request together, understands what
+            matters for this business, works out what can safely be decided now, and prepares the
+            next action.
           </p>
         </HeroIn>
         <HeroIn delay={240}>
@@ -63,11 +64,13 @@ function Home() {
             className="aspect-[9/16] w-[min(100%,18.5rem)] rounded-2xl object-cover shadow-float sm:w-[min(100%,22rem)]"
             src="/product/send-phone.mp4?v=15"
             poster="/product/poster-phone.jpg"
-            label="A woman opens Enquiry on her phone. A new enquiry is already drafted. She sends the quote."
+            label="A woman opens Enquiry on her phone. A new enquiry is already understood. She sends the reply."
           />
         </div>
         <div className="mx-auto max-w-6xl px-5 pb-8">
-          <p className="text-center text-sm text-paper/70">New enquiry. Reply already written. Sent.</p>
+          <p className="text-center text-sm text-paper/70">
+            New enquiry. Request understood. Next action prepared.
+          </p>
         </div>
       </section>
 
@@ -76,7 +79,7 @@ function Home() {
           <Reveal>
             <p className="eyebrow">Try it</p>
             <h2 className="mt-3 max-w-2xl text-3xl font-semibold tracking-tight">
-              Same job. On the phone. You send.
+              Same job. Already understood. You send.
             </h2>
             <p className="mt-3 max-w-xl text-sm leading-relaxed text-ink-2">
               One enquiry. Not a gallery of the same screen.
@@ -94,11 +97,11 @@ function Home() {
               </div>
               <span className="shrink-0 text-sm font-medium text-mark">Open</span>
             </Link>
-            <p className="mt-3 text-sm text-stone">The live app. Quote already drafted.</p>
+            <p className="mt-3 text-sm text-stone">The live app. Next action already prepared.</p>
           </div>
           {desk ? (
             <Reveal delay={80} className="mt-10">
-              <LivePhone />
+              <LivePhone caption="This is the app. Priya’s next action is ready." />
             </Reveal>
           ) : null}
         </div>
@@ -114,7 +117,7 @@ function Home() {
         <ol className="mt-8 max-w-xl space-y-0">
           {[
             "A customer writes in — form, text, Instagram, or mail.",
-            "You reconstruct what they want, what you charge, and whether you can do it.",
+            "You reconstruct what they want, what matters for this job, and whether you can do it.",
             "You reply. Then you remember to follow up.",
           ].map((line, i) => (
             <Reveal key={line} delay={i * 60}>
@@ -134,11 +137,12 @@ function Home() {
           <Reveal>
             <p className="eyebrow">Who it’s for</p>
             <h2 className="mt-3 max-w-2xl text-3xl font-semibold tracking-tight">
-              The shape of the enquiry is the product. Not the niche.
+              If customers ask before they book.
             </h2>
             <p className="mt-3 max-w-xl text-sm leading-relaxed text-ink-2">
-              Makeup today. Photography tomorrow. Painting the day after. Same object: a messy
-              message, a number, a letter, send.
+              Makeup, photography, painting, cleaning — the trade changes. The problem does not: a
+              messy request, a decision that depends on how you work, and a next step that should
+              not wait.
             </p>
           </Reveal>
           <ul className="mt-10 max-w-xl">
@@ -163,19 +167,19 @@ function Home() {
             {[
               {
                 title: "Business Brain",
-                body: "Services, prices, rules and voice — learned from how you actually work. A correction can fix this job, or teach Enquiry the business.",
+                body: "Services, rules, voice, and prices where they apply — learned from how you actually work. A correction can fix this job, or teach Enquiry the business.",
               },
               {
                 title: "The case file",
-                body: "Known facts, missing facts, the checks that matter, the next action, and why. You approve. You send.",
+                body: "Known facts, missing facts, the checks that matter for this request, the next action, and why. Ambiguity stays visible. Enquiry does not guess to fill the gaps.",
               },
               {
-                title: "The quote is a document",
-                body: "Not a number in a chat. Editing the letter does not change the figure on file.",
+                title: "Only the checks that matter",
+                body: "Price when price matters. Availability when the date matters. If a check does not apply, it does not appear. Unknown is a valid answer.",
               },
               {
-                title: "On the phone, and at the desk",
-                body: "Today, a job, send — when you’re on your feet. The same product on a computer is the full case file.",
+                title: "Prepared, not automatic",
+                body: "Enquiry knows the next action and why. It does not send, book, or refuse until you say so.",
               },
             ].map((f, i) => (
               <Reveal key={f.title} delay={i * 60}>
@@ -302,12 +306,13 @@ function Home() {
         <div className="mx-auto max-w-5xl px-5 py-10 sm:py-16">
           <Reveal>
             <h2 className="max-w-2xl text-3xl font-semibold tracking-tight">
-              The enquiries aren’t going to quote themselves.
+              The enquiries aren’t going to decide themselves.
             </h2>
             <p className="mt-3 max-w-xl text-sm leading-relaxed text-ink-2">
               Join early access. Open the app when you want to see a real case file. We’re building
-              with service businesses — makeup, photography, painting, cleaning — because the shape of
-              the enquiry is the product, not the niche.
+              with service businesses — makeup, photography, painting, cleaning — because someone
+              interested still has to become booked, or lost, without you reconstructing every job
+              by hand.
             </p>
             <div className="mt-8 max-w-xl">
               <WaitlistForm compact />

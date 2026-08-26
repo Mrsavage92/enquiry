@@ -155,7 +155,8 @@ export function SiteShell({ children, notebook }: { children: ReactNode; noteboo
           <div>
             <Wordmark />
             <p className="mt-3 max-w-sm text-sm leading-relaxed text-ink-2">
-              An enquiry copilot for service businesses. The app is the desk. The website is how you get in.
+              Enquiry puts the request together and prepares the next action. The app is the desk.
+              The website is how you get in.
             </p>
           </div>
           <div className="flex flex-wrap gap-x-5 gap-y-2 text-sm">

@@ -13,7 +13,7 @@ export const Route = createFileRoute("/how")({
       {
         name: "description",
         content:
-          "Enquiry reads the job, drafts the reply in your voice, and you send. On the phone, between jobs.",
+          "Work arrives from any channel. Enquiry reconstructs the request, applies how your business works, and prepares the next action.",
       },
     ],
   }),
@@ -24,11 +24,13 @@ function How() {
     <SiteShell>
       <article className="mx-auto max-w-3xl px-5 py-10 sm:py-20">
         <p className="eyebrow">How it works</p>
-        <h1 className="mt-3 text-4xl font-semibold tracking-tight sm:text-5xl">You review. You send.</h1>
+        <h1 className="mt-3 text-4xl font-semibold tracking-tight sm:text-5xl">
+          Work arrives. The next action is ready.
+        </h1>
         <p className="mt-4 text-lg leading-relaxed text-ink-2">
-          Enquiry decides what the request means and what should happen next. You approve. The
-          system may do many operations underneath. You should mainly make judgement calls — not CRM
-          data entry.
+          Enquiry reconstructs the request, applies how this business works, and works out what can
+          safely be decided now. You approve. You should mainly make judgement calls — not CRM data
+          entry.
         </p>
       </article>
 
@@ -43,23 +45,27 @@ function How() {
           {[
             {
               t: "Work arrives",
-              b: "A form, a text, an Instagram message, a Facebook DM, or an email. Public comments are not quotes. Enquiry opens a case file on the channel they used.",
+              b: "A form, a text, an Instagram message, a Facebook DM, or an email. However the customer writes in, it becomes the same enquiry — not a new thread to reconstruct later.",
             },
             {
-              t: "It reads the Business Brain",
-              b: "Services, prices, rules, voice. Customer-specific facts stay on that enquiry. A correction can teach the business, or stay on this job.",
+              t: "Enquiry reconstructs the request",
+              b: "What they want. What’s known. What’s missing, ambiguous, or conflicting. Enquiry does not guess to fill the gaps.",
             },
             {
-              t: "The recommendation is ready",
-              b: "What they want. What can be decided. What’s missing. The next action, and why. The quote is a sheet.",
+              t: "Business Brain supplies the truth",
+              b: "Services, rules, voice, and prices where they apply. Customer-specific facts stay on that enquiry. A correction can teach the business, or stay on this job.",
             },
             {
-              t: "You send from the phone or the desk",
-              b: "Today, a job, send — when you’re on your feet. On a computer, the full case file: queue, correspondence, decision.",
+              t: "What can be decided now",
+              b: "Enquiry runs only the checks that matter for this request. What can be decided. What’s blocking the next decision. Why. Unknown is a valid answer.",
             },
             {
-              t: "It follows up if they go quiet",
-              b: "Two working days. Silence is not a decline. The sent quote stays on file. You still send the chase.",
+              t: "You review, then you send",
+              b: "The next action is prepared — the reply, the hold, the question that unblocks the rest. Enquiry does not send until you say so.",
+            },
+            {
+              t: "The enquiry stays current",
+              b: "If they write again, or go quiet, the case file stays up to date until the work is booked or lost. Follow-up returns only when something needs you.",
             },
           ].map((s, i) => (
             <Reveal key={s.t}>
