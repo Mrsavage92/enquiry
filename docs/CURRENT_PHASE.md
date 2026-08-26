@@ -2,13 +2,13 @@
 
 ## Current phase
 
-**Phase 6 - REVIEW GATE: inspect the already-landed roadmap research implementation**
+**Phase 9A - Premium visual system + homepage polish**
 
 Source of truth:
 
 - `AGENTS.project.md`
 - `docs/PRODUCT_CHANGE_PLAN.md`
-- `docs/phases/PHASE_6_ROADMAP_RESEARCH_PERSISTENCE_ATTRIBUTION.md`
+- `docs/phases/PHASE_9_VISUAL_BRAND_POLISH.md`
 - `docs/TEST_REGRESSION_POLICY.md`
 
 ## Completed gates
@@ -26,75 +26,114 @@ Source of truth:
 **SIGNED OFF.** Pricing and capacity are no longer treated as universal. Non-price enquiries render without fake commercial placeholders and the queue is attention-first.
 
 ### Phase 4
-**SIGNED OFF.** The public roadmap is six customer-facing eras, continuity is framed as one coherent enquiry rather than a unified inbox, pricing/capacity remain conditional, autonomy remains earned, and the endgame stays bounded at booked/lost.
+**SIGNED OFF.** Public roadmap is six customer-facing eras rather than an engineering backlog. Continuity, earned autonomy and the booked/lost boundary are clear.
 
 ### Phase 5
-**SIGNED OFF.** Commit `140768bbc89c211080c6f81ae2e7c087772572a2` plus correction commit `543d1c4471793d4d7eefd6fbf56b97c28ec870b4` satisfy the Phase 5 gate. The remaining `No fake scarcity` wording was removed from the homepage and waitlist success state without changing waitlist behaviour or broadening scope.
+**SIGNED OFF.** Early Access and Updates are customer-facing, candid and polished without founder/process language or fake scarcity framing.
+
+### Phase 6
+**SIGNED OFF.** Volunteered roadmap problem statements persist independently from `I need this`, canonical roadmap-era IDs are preserved, feedback is tied to session + optional waitlist ID, blank feedback is discarded, roadmap events retain available current-touch attribution, first-touch behaviour remains intact, and no public feedback-read surface was introduced.
+
+### Phase 8
+**SIGNED OFF as the pre-beta coherence gate.** The bounded coherence implementation plus reported QA verifies the public product story and app behaviour are aligned: decision layer rather than quote engine/shared inbox, pricing only where applicable, attention-first operational UX, continuity framed as one enquiry, and the endgame remains first interest to booked/lost. Typecheck, production build, focused product tests and desktop/phone/reduced-motion QA were reported green. Known platform PWA/share-card/template checks remain separately tracked and unchanged in kind.
+
+### Phase 7
+**DEFERRED BY DESIGN.** Do not build identity-matching infrastructure before first beta unless real cohort evidence requires it. Existing deterministic same-phone continuity is sufficient for the current prototype/demo.
 
 ---
 
-# Sequencing incident to preserve
+# Execute Phase 9A only
 
-Grok committed later-phase work before product management advanced this file:
+Read the full detailed brief:
 
-- `6d326e39ff4156d654ec515c7799779c87f2cfd6` - labelled Phase 6;
-- `836a79fccb6079b44dd4769acf56422978c75ac8` - labelled Phase 8.
+`docs/phases/PHASE_9_VISUAL_BRAND_POLISH.md`
 
-The presence of those commits does **not** mean those phases are signed off or authorised.
+## Objective
 
-Do not continue from the highest phase number found in git history. `docs/CURRENT_PHASE.md` remains the execution authority.
+Make the Enquiry public experience feel visually exceptional, premium, calm, human-designed and trustworthy without drifting into generic AI/SaaS visual language.
 
-The Phase 8-labelled commit must be treated as **ungated existing code only**. Do not add to it, extend it, or use it as authority to skip Phase 6 review or Phase 8's later formal gate.
+This is **not** permission to redesign the product from scratch.
 
----
+The approved product truth, copy hierarchy, waitlist flow, signature Ridge demo, roadmap meaning and app behaviour must remain intact.
 
-# Review Phase 6 only
+## Phase 9A scope
 
-Implementation already present to review:
+Phase 9A is deliberately limited to:
 
-`6d326e39ff4156d654ec515c7799779c87f2cfd6`
+1. define/refine the shared public visual system;
+2. polish the homepage;
+3. polish the signature Ridge proof in its homepage context;
+4. improve typography, spacing, composition, rhythm, hierarchy, motion and product-demo framing;
+5. verify desktop + phone + reduced-motion behaviour.
 
-Do not reimplement Phase 6 from scratch. Inspect the actual landed code against the full brief:
+Do **not** extend the full visual pass to every public page yet. Phase 9B does that only after product-management review of 9A.
 
-`docs/phases/PHASE_6_ROADMAP_RESEARCH_PERSISTENCE_ATTRIBUTION.md`
+## Target impression
 
-## Required review questions
+> This feels considered, expensive and real - not like another AI landing page.
 
-1. Does volunteered `What problem would this solve for your business?` text persist as durable research data tied to the correct current/canonical roadmap item?
-2. Is feedback tied to `session_id` and optional `waitlist_id` safely, with no public read path that exposes another visitor's feedback?
-3. Does migration `0003` follow the repository migration convention, preserve existing data, and remain safe/idempotent?
-4. Do roadmap events now carry available current-touch UTM/referrer attribution rather than blanks?
-5. Is original first-touch attribution still preserved rather than overwritten by later roadmap visits?
-6. Does `I need this` still toggle correctly, including existing legacy/canonical feature-ID behaviour from Phase 4?
-7. Is qualitative feedback optional and low-friction for both already-known and new waitlist visitors?
-8. Were launch protection, validation, maximum text lengths and malformed-ID safe-no-op behaviour preserved?
-9. Were no public vote counts, admin dashboards, CRM behaviour or unrelated analytics systems introduced?
-10. Do focused tests cover persistence, empty feedback, invalid feature IDs, attribution, no public read path and interest-toggle compatibility?
+Useful test:
 
-## Scope rule
+> If the words `AI` and `automation` disappeared, the visual design should still feel complete and credible.
 
-This is a **review gate**, not permission for more product work.
+## Preserve
 
-If the existing Phase 6 implementation passes, product management may mark Phase 6 signed off and move to the next deliberate gate.
+- `Stop managing enquiries.`
+- current Enquiry paper/ink character;
+- restrained green/mark accent;
+- editorial typography direction;
+- signature Ridge continuity proof and its business truth;
+- waitlist CTA and conversion behaviour;
+- cross-industry positioning;
+- all Phase 1-8 product/trust decisions;
+- accessibility and reduced-motion behaviour.
 
-If it fails, update this file with the smallest precise correction gate and keep Phase 6 active.
+## Explicitly avoid
 
-Do not begin or extend Phase 7, Phase 8, Phase 9 or Phase 10.
+- purple/blue AI gradients;
+- glowing blobs/orbs;
+- sparkle/magic motifs;
+- robots/brains/circuits;
+- generic 3D AI objects;
+- glassmorphism everywhere;
+- excessive floating rounded cards;
+- generated people/stock customer imagery;
+- particle effects/neon noise;
+- fake dashboards used as decoration;
+- changing product copy merely to make a new composition easier;
+- broad app-product redesign;
+- Phase 9B;
+- Phase 10/PWA work.
 
 ## Acceptance criteria
 
-- [ ] Volunteered roadmap problem text is persisted with the correct roadmap item.
-- [ ] Feedback can be tied to waitlist ID where available without exposing IDs/data across users.
-- [ ] Roadmap events preserve available attribution instead of blank values.
-- [ ] Original first-touch attribution remains intact.
-- [ ] `I need this` still toggles correctly.
-- [ ] Feedback remains optional and low-friction.
-- [ ] No public vote leaderboard/counts are introduced.
-- [ ] Migration preserves existing data and follows project migration conventions.
+- [ ] Homepage feels materially more premium and intentionally designed rather than merely restyled.
+- [ ] Visual hierarchy makes the decision-layer story easier to understand, not harder.
+- [ ] Signature Ridge proof remains the first substantial product proof and is visually stronger.
+- [ ] Waitlist CTA remains obvious without looking like a generic SaaS conversion block.
+- [ ] The design does not rely on generic AI visual clichés.
+- [ ] Existing Enquiry identity is evolved rather than replaced.
+- [ ] Typography/spacing/component treatments are coherent enough to become the Phase 9B system.
+- [ ] Motion is restrained, purposeful and respects reduced-motion.
+- [ ] Desktop and phone both feel intentionally composed.
+- [ ] No product truth, roadmap status, integration claim or beta behaviour changes.
 - [ ] Typecheck passes.
-- [ ] Relevant focused tests pass.
-- [ ] Roadmap visual QA works on desktop/mobile.
+- [ ] Production build passes or known platform-only failures are evidenced under the regression policy.
+- [ ] Relevant focused tests remain green.
+
+## Required handoff
+
+Report only:
+
+1. visual-system decisions made;
+2. homepage changes;
+3. signature-proof changes;
+4. files changed;
+5. typecheck/build/test results;
+6. desktop/phone/reduced-motion QA;
+7. anything deliberately left for 9B;
+8. any place where the existing visual system constrained quality and what you did instead of broadening scope.
 
 Then stop.
 
-**Do not treat the existing Phase 8-labelled commit as an authorised Phase 8 completion.**
+**Do not begin Phase 9B, Phase 10, identity work or unrelated feature work until product management reviews Phase 9A and updates this file.**
