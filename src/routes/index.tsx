@@ -29,25 +29,26 @@ function Home() {
 
   return (
     <SiteShell>
-      <section className="mx-auto max-w-5xl px-5 pb-10 pt-10 sm:pb-24 sm:pt-28">
+      <section className="mx-auto max-w-5xl px-5 pb-12 pt-8 sm:pb-28 sm:pt-32">
         <HeroIn>
           <p className="eyebrow">The app</p>
+          <span className="page-rule" aria-hidden />
         </HeroIn>
         <HeroIn delay={80}>
-          <h1 className="site-hero mt-4 max-w-4xl">Stop managing enquiries.</h1>
+          <h1 className="site-hero mt-6 max-w-4xl">Stop managing enquiries.</h1>
         </HeroIn>
         <HeroIn delay={160}>
-          <p className="mt-5 max-w-2xl text-base leading-relaxed text-ink-2 sm:mt-7 sm:text-xl">
+          <p className="site-lede mt-6 sm:mt-8 sm:text-xl sm:leading-relaxed">
             However the enquiry arrives, Enquiry puts the request together, understands what
             matters for this business, works out what can safely be decided now, and prepares the
             next action.
           </p>
         </HeroIn>
         <HeroIn delay={240}>
-          <div className="mt-8 max-w-xl sm:mt-10">
+          <div className="site-well mt-8 max-w-xl sm:mt-12">
             <WaitlistForm compact />
           </div>
-          <p className="mt-4 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-stone">
+          <p className="mt-4 flex flex-wrap items-center gap-x-2 gap-y-1 px-1 text-sm text-stone">
             Building with service businesses.
             <Link
               to="/enquiries"
@@ -59,33 +60,35 @@ function Home() {
         </HeroIn>
       </section>
 
-      <section className="border-t border-line">
-        <div className="mx-auto max-w-5xl px-5 py-10 sm:py-16">
+      <section className="border-t border-line bg-raised/60">
+        <div className="mx-auto max-w-5xl px-5 py-14 sm:py-24">
           <CrossChannelDecisionDemo />
         </div>
       </section>
 
-      <section className="site-film border-t border-line bg-ink">
-        <div className="pointer-events-none mx-auto flex justify-center px-5 py-8 sm:py-14">
-          <SiteVideo
-            className="aspect-[9/16] w-[min(100%,18.5rem)] rounded-2xl object-cover shadow-float sm:w-[min(100%,22rem)]"
-            src="/product/send-phone.mp4?v=15"
-            poster="/product/poster-phone.jpg"
-            label="A woman opens Enquiry on her phone. A new enquiry is already understood. She sends the reply."
-          />
-        </div>
-        <div className="mx-auto max-w-6xl px-5 pb-8">
-          <p className="text-center text-sm text-paper/70">
-            New enquiry. Request understood. Next action prepared.
-          </p>
+      <section className="border-t border-line">
+        <div className="mx-auto max-w-5xl px-5 py-12 sm:py-20">
+          <div className="site-plate px-5 py-10 sm:px-12 sm:py-14">
+            <div className="pointer-events-none mx-auto flex justify-center">
+              <SiteVideo
+                className="aspect-[9/16] w-[min(100%,16.5rem)] rounded-md object-cover shadow-plate outline outline-1 -outline-offset-1 outline-white/10 sm:w-[min(100%,19rem)]"
+                src="/product/send-phone.mp4?v=15"
+                poster="/product/poster-phone.jpg"
+                label="A woman opens Enquiry on her phone. A new enquiry is already understood. She sends the reply."
+              />
+            </div>
+            <p className="site-caption mt-8 text-center text-paper/80">
+              New enquiry. Request understood. Next action prepared.
+            </p>
+          </div>
         </div>
       </section>
 
-      <section className="border-t border-line bg-paper-2">
-        <div className="mx-auto max-w-5xl px-5 py-10 sm:py-16">
+      <section className="border-t border-line">
+        <div className="mx-auto max-w-5xl px-5 py-12 sm:py-20">
           <Reveal>
             <p className="eyebrow">Try it</p>
-            <h2 className="mt-3 max-w-2xl text-3xl font-semibold tracking-tight">
+            <h2 className="site-display mt-3 max-w-2xl">
               Same job. Already understood. You send.
             </h2>
             <p className="mt-3 max-w-xl text-sm leading-relaxed text-ink-2">
@@ -114,10 +117,10 @@ function Home() {
         </div>
       </section>
 
-      <section className="mx-auto max-w-5xl px-5 py-10 sm:py-16">
+      <section className="mx-auto max-w-5xl px-5 py-12 sm:py-20">
         <Reveal>
           <p className="eyebrow">The problem</p>
-          <h2 className="mt-3 max-w-2xl text-3xl font-semibold tracking-tight">
+          <h2 className="site-display mt-3 max-w-2xl">
             Messy inbound. Then you reconstruct the job from memory.
           </h2>
         </Reveal>
@@ -140,10 +143,10 @@ function Home() {
       </section>
 
       <section className="border-t border-line">
-        <div className="mx-auto max-w-5xl px-5 py-10 sm:py-16">
+        <div className="mx-auto max-w-5xl px-5 py-12 sm:py-20">
           <Reveal>
             <p className="eyebrow">Who it’s for</p>
-            <h2 className="mt-3 max-w-2xl text-3xl font-semibold tracking-tight">
+            <h2 className="site-display mt-3 max-w-2xl">
               If customers ask before they book.
             </h2>
             <p className="mt-3 max-w-xl text-sm leading-relaxed text-ink-2">
@@ -163,10 +166,10 @@ function Home() {
       </section>
 
       <section className="border-t border-line">
-        <div className="mx-auto max-w-5xl px-5 py-10 sm:py-16">
+        <div className="mx-auto max-w-5xl px-5 py-12 sm:py-20">
           <Reveal>
             <p className="eyebrow">What Enquiry does instead</p>
-            <h2 className="mt-3 max-w-2xl text-3xl font-semibold tracking-tight">
+            <h2 className="site-display mt-3 max-w-2xl">
               It learns the business. Then every enquiry arrives understood.
             </h2>
           </Reveal>
@@ -190,8 +193,8 @@ function Home() {
               },
             ].map((f, i) => (
               <Reveal key={f.title} delay={i * 60}>
-                <li>
-                  <h3 className="text-lg font-semibold tracking-tight">{f.title}</h3>
+                <li className="border-t border-line pt-5">
+                  <h3 className="font-serif text-xl font-semibold tracking-tight">{f.title}</h3>
                   <p className="mt-2 text-sm leading-relaxed text-ink-2">{f.body}</p>
                 </li>
               </Reveal>
@@ -201,26 +204,28 @@ function Home() {
       </section>
 
       {desk ? (
-      <section className="site-film border-t border-line bg-ink">
-        <div className="mx-auto max-w-6xl px-5 py-10 sm:py-14">
+      <section className="border-t border-line">
+        <div className="mx-auto max-w-5xl px-5 py-12 sm:py-20">
           <Reveal>
-            <p className="eyebrow text-paper/50">At the desk</p>
-            <p className="mt-2 max-w-xl text-sm text-paper/70">
+            <p className="eyebrow">At the desk</p>
+            <p className="mt-3 max-w-xl text-sm leading-relaxed text-ink-2">
               Same job. Full case file. The website is here if you sit down.
             </p>
           </Reveal>
-          <SiteVideo
-            className="mt-8 aspect-video w-full object-cover"
-            src="/product/send.mp4?v=14"
-            poster="/product/poster-desk.jpg"
-            label="The same send on a laptop — full case file, drafted reply, sent."
-          />
+          <div className="site-plate mt-8 overflow-hidden">
+            <SiteVideo
+              className="aspect-video w-full object-cover outline outline-1 -outline-offset-1 outline-white/10"
+              src="/product/send.mp4?v=14"
+              poster="/product/poster-desk.jpg"
+              label="The same send on a laptop — full case file, drafted reply, sent."
+            />
+          </div>
         </div>
       </section>
       ) : null}
 
       <section className="border-t border-line bg-raised">
-        <div className="mx-auto max-w-5xl px-5 py-10 sm:py-16">
+        <div className="mx-auto max-w-5xl px-5 py-12 sm:py-20">
           <Reveal>
             <p className="eyebrow">What it does not require</p>
           </Reveal>
@@ -239,10 +244,10 @@ function Home() {
         </div>
       </section>
 
-      <section className="mx-auto max-w-5xl px-5 py-10 sm:py-16">
+      <section className="mx-auto max-w-5xl px-5 py-12 sm:py-20">
         <Reveal>
           <p className="eyebrow">Early access</p>
-          <h2 className="mt-3 max-w-2xl text-3xl font-semibold tracking-tight">
+          <h2 className="site-display mt-3 max-w-2xl">
             We’re starting small.
           </h2>
           <p className="mt-3 max-w-xl text-sm text-ink-2">
@@ -281,12 +286,12 @@ function Home() {
       </section>
 
       <section className="border-t border-line">
-        <div className="mx-auto max-w-5xl px-5 py-10 sm:py-16">
+        <div className="mx-auto max-w-5xl px-5 py-12 sm:py-20">
           <Reveal>
             <div className="flex items-end justify-between gap-4">
               <div>
                 <p className="eyebrow">Roadmap</p>
-                <h2 className="mt-3 text-3xl font-semibold tracking-tight">What’s in motion</h2>
+                <h2 className="site-display mt-3">What’s in motion</h2>
               </div>
               <Button variant="secondary" asChild>
                 <Link to="/roadmap">Full roadmap</Link>
@@ -310,9 +315,9 @@ function Home() {
       </section>
 
       <section className="border-t border-line">
-        <div className="mx-auto max-w-5xl px-5 py-10 sm:py-16">
+        <div className="mx-auto max-w-5xl px-5 py-12 sm:py-20">
           <Reveal>
-            <h2 className="max-w-2xl text-3xl font-semibold tracking-tight">
+            <h2 className="site-display max-w-2xl">
               The enquiries aren’t going to decide themselves.
             </h2>
             <p className="mt-3 max-w-xl text-sm leading-relaxed text-ink-2">
@@ -321,7 +326,7 @@ function Home() {
               interested still has to become booked, or lost, without you reconstructing every job
               by hand.
             </p>
-            <div className="mt-8 max-w-xl">
+            <div className="site-well mt-8 max-w-xl">
               <WaitlistForm compact />
             </div>
           </Reveal>
