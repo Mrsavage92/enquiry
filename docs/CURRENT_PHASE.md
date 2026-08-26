@@ -2,142 +2,187 @@
 
 ## Current phase
 
-**Phase 2B — Place and integrate the signature cross-channel proof**
+**Phase 3 — Remove universal commercial / quote assumptions**
 
 Source of truth:
 
 - `AGENTS.project.md`
 - `docs/PRODUCT_CHANGE_PLAN.md`
-- `docs/phases/PHASE_2_SIGNATURE_CROSS_CHANNEL_DEMO.md`
+- `docs/phases/PHASE_3_NON_UNIVERSAL_COMMERCIAL_UX.md`
+- `docs/TEST_REGRESSION_POLICY.md`
 
 ## Completed gates
 
 ### Phase 1
-**SIGNED OFF.** Do not revisit unless a regression is introduced.
+**SIGNED OFF.** Public positioning now leads with the decision layer rather than phone-first quoting.
 
 ### Phase 2A
+**SIGNED OFF.** Ridge & Co / Maya signature demo is grounded in explicit business truth and deterministic same-phone continuity.
+
+### Phase 2B
 **SIGNED OFF.**
 
-The Ridge & Co / Maya demo now passes the product-truth gate:
+The signature demo is now the first substantial public proof on the homepage and `/how`:
 
-- website form → later text;
-- same-enquiry link is grounded in the same known mobile number;
-- Maya uses a distinct fixture phone value;
-- scope and deadline visibly change;
-- initial capacity is explicitly provisional;
-- revised crew condition is grounded in an active Tom-sourced Ridge capacity rule;
-- living-area measurement uncertainty remains visible;
-- price is not the proof moment;
-- changed facts change the business decision and next action.
+- hero and waitlist remain intact;
+- Ridge appears immediately after the hero/intro on the homepage;
+- same enquiry → changed facts → changed business decision is visible before quote-first proof;
+- current phone/app proof remains secondary evidence;
+- Priya remains as a deliberately secondary example of a job where exact pricing can be decided;
+- `/how` reuses the same signature component rather than creating another visual system;
+- no Phase 3 product work was bundled into Phase 2B.
 
-Do not redesign the Phase 2A interaction unless integration exposes a genuine layout problem.
+Do not revisit Phase 2 unless Phase 3 exposes an actual regression.
 
 ---
 
-# Execute Phase 2B only
+# Execute Phase 3 only
+
+Read the full detailed brief:
+
+`docs/phases/PHASE_3_NON_UNIVERSAL_COMMERCIAL_UX.md`
 
 ## Objective
 
-Make the signature cross-channel decision demo the primary public proof of what Enquiry is.
+Make the app visibly agree with Enquiry's modular Decision Engine:
 
-A first-time visitor should encounter this story before the simple exact-price Priya proof:
+> **Pricing is one possible evaluator. It is not a universal property of every enquiry.**
 
-> same enquiry → customer changes material facts on another channel → Enquiry re-applies the business truth → the decision and next action change.
+A non-price enquiry must not look incomplete merely because there is no price.
 
-The homepage must still feel like the current Enquiry site, not a redesign.
+## Confirmed current-code problems
 
-## Homepage
+These have been re-verified after Phase 2.
 
-Update `src/routes/index.tsx` and only supporting site components required for placement.
+### 1. Enquiry detail still forces commercial UI
 
-Required order/direction:
+`src/components/enquiry/intelligence.tsx` currently does:
 
-1. Keep the existing hero: **Stop managing enquiries.**
-2. Keep the waitlist CTA prominent.
-3. Place the Ridge & Co signature demo as the primary/near-primary proof immediately after the hero/intro area.
-4. Keep the existing phone/video/app proof as secondary evidence of the current product.
-5. Keep the Priya `$625` proof only if it adds distinct evidence, but it must no longer be the main explanation of Enquiry.
+- show quote sheets if present;
+- otherwise, on desktop/non-compact, render a universal `Commercial value` section.
 
-Do not turn the homepage into a long feature catalogue.
+This means an enquiry can receive a commercial panel even when pricing is not applicable.
 
-## `/how`
+### 2. `commercialValue()` conflates NOT_APPLICABLE with unresolved pricing
 
-The page must no longer lead with a proof case that makes Enquiry look primarily like a quote generator.
+`src/domain/labels.ts` currently maps pricing statuses including `NOT_APPLICABLE` into:
 
-Preferred:
+> `Price not ready`
 
-- reuse `CrossChannelDecisionDemo` in a compact/editorial form near the top; or
-- use the same component/story with minimal wrapper changes.
+That is semantically wrong.
 
-Do not create a second bespoke cross-channel visual system.
+Required distinction:
 
-The existing Priya proof may remain lower down only if page rhythm benefits and it demonstrates a distinct behaviour.
+- pricing applies + exact → exact;
+- pricing applies + estimate/range → estimate;
+- pricing applies but cannot yet be decided → price not ready;
+- pricing does not apply → **no price/commercial UI**.
 
-## Public truth / copy
+Do not use `$0`, `N/A`, `No price`, or `Price not ready` for a genuinely non-applicable evaluator.
 
-Preserve:
+### 3. Desktop queue still makes money the universal headline
 
-- `One enquiry. Even when the conversation moves.`
-- explicit same-phone linking evidence;
-- provisional capacity wording;
-- site-measure uncertainty;
-- customer language rather than internal architecture terms.
+`src/components/enquiry/queue.tsx` currently leads with:
 
-Do not imply real production SMS/form integrations or arbitrary cross-channel identity matching are already generally available.
+- `Open exact`;
+- aggregate exact-dollar amount;
+- `N exact · N active`.
+
+Phone already leads with `N need you`, which is much closer to the universal operator question.
+
+Desktop should become attention-first/adaptive without turning into a KPI dashboard.
+
+## Required implementation direction
+
+Use the smallest domain/UI change that makes applicability explicit.
+
+A typed `not_applicable` commercial result or a dedicated applicability helper is acceptable.
+
+Do **not** infer applicability only from whether an amount exists.
+
+Preserve quote sheets and all commercial behaviour where pricing really applies.
+
+### Detail behaviour
+
+- If quote sheets exist and pricing is relevant, keep them.
+- If pricing is applicable but unresolved, keep honest unresolved price language.
+- If pricing is NOT_APPLICABLE, render no commercial-value section at all.
+- If the pricing evaluator is absent, inspect the enquiry semantics rather than blindly treating absence as either price-ready or non-applicable.
+
+### Queue behaviour
+
+The desktop header should first answer attention/state, for example:
+
+- `N need you`;
+- useful waiting / at-risk context where appropriate.
+
+A compact commercial aggregate may remain only when it is genuinely useful for the current business/filter and based on applicable values.
+
+Do not replace the current header with a row of generic dashboard cards.
+
+## Proof requirement
+
+Use an existing clearly non-price-centric fixture if available. Inspect F17 / Atelier Field and choose the smallest valid proof.
+
+The proof must visibly demonstrate that an enquiry can be complete/actionable without any price panel.
+
+Do not create a new industry unless no existing fixture can prove it.
 
 ## Preserve
 
-- waitlist flow;
-- `Open the app` links;
-- current visual identity;
-- site navigation;
-- mobile usability;
-- reduced-motion behaviour;
-- Phase 1 positioning improvements.
+Do not regress:
+
+- exact pricing;
+- estimate/range pricing;
+- unresolved-but-applicable pricing;
+- quote versioning;
+- quote sheet vs draft-letter separation;
+- price-drift / mismatch detection;
+- evaluator visibility;
+- queue filters;
+- mobile Today flow;
+- Phase 2 public signature demo.
 
 ## Do not do
 
-- do not start Phase 3;
-- do not change app commercial/pricing UX;
-- do not rewrite `/roadmap`;
-- do not change Early Access copy;
-- do not build real channel integrations;
-- do not build identity resolution;
-- do not redesign the entire homepage;
-- do not alter Ridge decision truth merely to make placement easier.
+- no reporting dashboard;
+- no revenue analytics;
+- no removal of pricing functionality;
+- no whole-workspace redesign;
+- no roadmap work;
+- no Early Access copy work;
+- no Phase 4;
+- no unrelated refactors.
 
----
+## Acceptance criteria
 
-# Acceptance criteria
-
-- [ ] Signature Ridge demo appears before the simple exact-price Priya proof on the homepage.
-- [ ] The homepage's first substantial product proof is decision continuity, not quoting.
-- [ ] A visitor can understand `message changed → facts changed → decision changed → next action changed` without architecture language.
-- [ ] `/how` no longer leads with the Priya/exact-price proof as the primary mental model.
-- [ ] The same reusable signature-demo component/story is used rather than duplicated into another visual system.
-- [ ] The Ridge demo retains explicit identity provenance and grounded capacity wording.
-- [ ] Waitlist CTA remains prominent.
-- [ ] `Open the app` remains available.
-- [ ] Existing app behaviour is unchanged.
-- [ ] Desktop visual QA passes.
-- [ ] Mobile visual QA passes with no horizontal overflow.
-- [ ] Reduced-motion presentation remains understandable.
-- [ ] No new console/runtime errors are introduced.
+- [ ] Pricing `NOT_APPLICABLE` cannot become `Price not ready`.
+- [ ] An enquiry with genuinely non-applicable pricing renders no commercial-value placeholder/panel.
+- [ ] Applicable unresolved pricing still renders an honest unresolved state.
+- [ ] Exact pricing remains exact.
+- [ ] Range/estimate pricing remains estimate/range.
+- [ ] Desktop queue no longer universally presents `Open exact` / exact-dollar value as the primary object.
+- [ ] Desktop queue remains useful when zero visible enquiries have applicable commercial values.
+- [ ] Price-centric business/filter views still look intentional.
+- [ ] At least one existing non-price-centric fixture visibly proves the behaviour.
+- [ ] Mobile Today flow remains coherent.
+- [ ] Focused tests cover not-applicable, unresolved-applicable, exact, estimate/range, and non-commercial queue behaviour.
 - [ ] Typecheck passes.
-- [ ] Relevant focused tests pass; pre-existing platform failures, if any, are clearly separated from new regressions.
+- [ ] Relevant tests pass under the regression policy.
+- [ ] Desktop/mobile QA passes.
 
 ## Required handoff
 
 Report only:
 
-1. homepage placement/order changes;
-2. `/how` changes;
-3. what happened to the Priya proof;
-4. files changed;
-5. typecheck/tests/build results;
-6. desktop/mobile/reduced-motion QA;
-7. any remaining product or visual risk.
+1. how commercial applicability is represented;
+2. detail-page behaviour changed;
+3. desktop queue behaviour changed;
+4. fixture used to prove non-applicable pricing;
+5. files changed;
+6. tests/typecheck/QA results;
+7. any remaining UI location that still assumes every enquiry has a price.
 
 Then stop.
 
-**Do not begin Phase 3 until product management reviews Phase 2B and updates this file.**
+**Do not begin Phase 4 until product management reviews Phase 3 and updates this file.**
