@@ -2,7 +2,7 @@
 
 ## Current phase
 
-**Phase 5 - Public trust copy: Early Access + Updates**
+**Phase 5 - CORRECTION GATE: finish public trust copy cleanup**
 
 Source of truth:
 
@@ -26,126 +26,86 @@ Source of truth:
 **SIGNED OFF.** Pricing and capacity are no longer treated as universal. Non-price enquiries render without fake commercial placeholders and the queue is attention-first.
 
 ### Phase 4
-**SIGNED OFF.**
-
-The public roadmap is now a curated sales/trust narrative rather than an engineering backlog:
-
-- six customer-facing eras replace the old detailed stage structure;
-- the eras are Understand the enquiry, Understand your business, One enquiry even when the conversation moves, Keep enquiries moving, Trusted action, and the self-maintaining enquiry layer;
-- Connect, Leak, evaluator architecture and other internal implementation concepts are no longer top-level public roadmap stages;
-- continuity is explicitly framed as one coherent enquiry, not a unified inbox;
-- channel support is described progressively and the page states that not every production integration is live;
-- pricing/capacity remain conditional rather than universal;
-- autonomy remains earned per action class and permission-based;
-- the endgame remains bounded at first enquiry to booked or lost;
-- `I need this` remains on continuity, keep-moving and trusted-action only;
-- legacy roadmap-interest IDs map to the new canonical public-era IDs so existing intent does not become orphaned;
-- the homepage roadmap preview is reduced to three meaningful states.
-
-GitHub exposes no Actions/check status for the Phase 4 commit, so local typecheck/test execution cannot be independently verified from repository status. Source review found no implementation regression that warrants holding the product gate, and focused tests were added for the six-era structure, public statuses, intent placement, legacy-ID compatibility, non-universal pricing language, continuity framing and permission-based autonomy.
-
-Do not revisit Phases 1-4 unless Phase 5 reveals a real regression.
+**SIGNED OFF.** The public roadmap is now six customer-facing eras, continuity is framed as one coherent enquiry rather than a unified inbox, pricing/capacity remain conditional, autonomy remains earned, and the endgame stays bounded at booked/lost.
 
 ---
 
-# Execute Phase 5 only
+# Phase 5 review result
 
-Read the full detailed brief:
+Commit reviewed: `140768bbc89c211080c6f81ae2e7c087772572a2`.
 
-`docs/phases/PHASE_5_PUBLIC_TRUST_AND_EARLY_ACCESS_COPY.md`
+The Phase 5 implementation is materially correct and remains within scope:
 
-## Objective
+- Early Access now leads with gradual access and working closely with early businesses rather than internal cohort mechanics;
+- exact cohort sizes, `not pad a list`, `learning can absorb`, feature-vote language and speculative founding-discount wording were removed;
+- intended paid nature is stated without a price or permanent discount promise;
+- `/updates` was reduced to curated product/trust notes rather than quote-sheet trivia or engineering release notes;
+- continuity is described as one enquiry, not a unified inbox;
+- unknown/not-applicable pricing is represented as a trust behaviour;
+- the waitlist remains email-first and qualification remains optional with `Skip for now`;
+- no Phase 6 schema/attribution work was bundled in.
 
-Polish the customer-facing trust/access language so Enquiry remains unusually candid without sounding like an internal founder or product-management memo.
+GitHub exposes no Actions/check status for the implementation commit, so local typecheck/visual-QA claims cannot be independently verified from GitHub status.
 
-The result should feel deliberate, confident and early - not apologetic, amateur, artificially scarce or over-marketed.
+## Why Phase 5 is not signed off yet
 
-## Early Access
+Two public surfaces still use the phrase:
 
-Preserve:
+> `No fake scarcity.`
 
-- email-first waitlist conversion;
-- optional qualification after signup;
-- gradual cohort rollout;
-- no fake scarcity or queue-position gimmicks;
-- no unsupported price or permanent founding-discount promise;
-- clear intent that Enquiry is expected to become a paid product.
+It appears in:
 
-Replace process-heavy wording such as `not pad a list`, `learning can absorb`, feature-vote language and speculative founding-user pricing with plain customer language.
+- the homepage Early Access heading;
+- the waitlist success state.
 
-Preferred message:
+The principle is correct, but the wording still sounds like founder/startup meta-commentary. Phase 5 exists specifically to express the same trust principle in calm customer language rather than telling visitors about marketing tactics we are not using.
 
-- access opens gradually because Enquiry is making business decisions, not merely drafting text;
-- early businesses can tell us where Enquiry helps and where it still gets in the way;
-- pricing will be communicated before any paid access begins.
+This is a copy correction only. Do not reinterpret it as permission for further site changes.
 
-Do not make exact cohort sizes prominent unless there is a current operational reason.
+---
 
-## Updates
+# Execute this correction only
 
-`/updates` must behave as curated meaningful build-in-public progress, not release notes.
+Replace the remaining customer-facing `No fake scarcity` wording with positive, plain language that communicates gradual access without artificial urgency.
 
-Keep or create only entries that materially help a prospective customer understand:
+Good direction:
 
-- a meaningful product behaviour becoming real;
-- an important product decision and why;
-- a material correction or learning;
-- first-user evidence when it actually exists;
-- a major customer-visible roadmap milestone.
+- `We’re starting small.`
+- `Access opens gradually.`
+- `We invite businesses in small groups as the product is ready.`
 
-Do not publish routine implementation phases, dependency/database work, minor UI changes, test counts or quote-sheet trivia simply because they happened.
+Do not use all three mechanically. Fit the surrounding sentence/heading naturally.
 
-Do not manufacture historic dates or claim milestones that have not occurred.
+## Preserve exactly
 
-## Cross-page consistency
-
-Review only trust/access wording where relevant in:
-
-- `/early-access`;
-- `/updates`;
-- homepage access/cohort wording if inconsistent;
-- waitlist success copy or footer snippets if they repeat stale process language.
-
-Do not launch a broad site rewrite. Preserve Phase 1 positioning, the Phase 2 continuity proof, Phase 3 non-universal evaluator behaviour and the Phase 4 roadmap narrative.
+- email-first waitlist;
+- optional qualification mechanics;
+- gradual-access positioning;
+- intended paid-product statement;
+- current curated Updates entries unless a factual correction is required;
+- Phase 1-4 positioning and product contract;
+- roadmap structure and roadmap interactions.
 
 ## Do not do
 
-- no Phase 6 persistence/attribution/schema work;
-- no pricing-model design;
-- no waitlist CRM/admin system;
-- no email automation;
-- no referral system;
-- no roadmap architecture changes;
-- no identity engine;
-- no PWA/mobile productisation;
-- no Phase 9 visual redesign;
-- no unrelated app changes.
+- no new update posts;
+- no Phase 6 persistence or attribution work;
+- no waitlist backend changes;
+- no pricing-model work;
+- no visual redesign;
+- no roadmap edits;
+- no unrelated copy sweep outside the two identified surfaces unless the exact same phrase is found elsewhere.
 
-## Acceptance criteria
+## Correction acceptance criteria
 
-- [ ] Early Access feels honest and polished rather than like an internal experiment description.
-- [ ] Gradual access is clear without fake scarcity.
-- [ ] Enquiry's intended paid nature is clear without an unvalidated price/discount promise.
-- [ ] Current cohort mechanics are not over-explained.
-- [ ] `/updates` is visibly curated meaningful progress, not release notes.
-- [ ] Quote-specific implementation trivia no longer dominates public update history.
-- [ ] Public copy remains consistent with the decision-layer positioning and Phase 4 roadmap truth.
-- [ ] Waitlist remains email-first with optional qualification and no new required fields.
-- [ ] No fabricated milestone/date/user evidence is introduced.
+- [ ] `No fake scarcity` no longer appears in customer-facing copy.
+- [ ] Homepage Early Access language still clearly communicates gradual rollout.
+- [ ] Waitlist success copy still clearly communicates gradual rollout.
+- [ ] No fake urgency, queue-position promise, countdown or permanent discount language is introduced.
+- [ ] No product implementation behaviour changes.
 - [ ] Typecheck passes.
-- [ ] Desktop/mobile QA is completed.
-
-## Required handoff
-
-Report only:
-
-1. public copy sections changed;
-2. update entries retained/removed/rewritten and why;
-3. files changed;
-4. typecheck/test results;
-5. desktop/mobile QA;
-6. any remaining public text that still sounds like internal strategy language.
+- [ ] Relevant desktop/mobile visual QA completed.
 
 Then stop.
 
-**Do not begin Phase 6 until product management reviews Phase 5 and updates this file.**
+**Do not begin Phase 6 until product management reviews this correction and updates this file.**
