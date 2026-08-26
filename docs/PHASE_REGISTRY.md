@@ -36,7 +36,11 @@ Do not tell Grok to "continue through the phases".
 | 6 | Prepared | Persist roadmap qualitative feedback + attribution | 4 | Strongly recommended before meaningful traffic |
 | 7A | Prepared | Future-safe identity/contact-point model + deterministic match | 2A | Can defer until after first beta if needed |
 | 7B | Prepared | Reviewable possible-match UX | 7A reviewed | Can defer until evidence requires it |
-| 8 | Prepared | Final coherence/release QA | chosen phases complete | Required before first beta release candidate |
+| 8 | Prepared | Pre-beta coherence/release QA gate | chosen phases complete | Required before first beta candidate |
+| 9A | Prepared | Premium visual system + homepage polish; non-AI art direction | 8 preferred | Can follow first cohort, but required before broader polished launch |
+| 9B | Prepared | Extend approved visual system across remaining public surfaces | 9A reviewed | Same as 9A |
+| 10A | Prepared | Productise existing PWA installability + Enquiry branding | 9 preferred | Required before claiming Enquiry is installable |
+| 10B | Prepared | Installed standalone mobile shell + operator-flow polish | 10A reviewed | Strongly recommended before mobile-first expansion |
 
 `CURRENT_PHASE.md` remains authoritative if this table ever lags behind a phase transition.
 
@@ -85,11 +89,39 @@ Do not collapse this into a production identity graph.
 ## Phase 8
 `docs/phases/PHASE_8_FINAL_COHERENCE_QA.md`
 
-Release gate, not a feature phase.
+Pre-beta release/coherence gate, not a feature phase. Phase 8 proves the product and sales surfaces are coherent before later aesthetic/productisation work.
+
+## Phase 9
+`docs/phases/PHASE_9_VISUAL_BRAND_POLISH.md`
+
+Premium visual polish and non-AI art direction.
+
+The design should feel considered, expensive, calm and real without relying on generic AI/SaaS clichés. Preserve the existing Enquiry identity and product truth rather than redesigning from scratch.
+
+May be split:
+
+- **9A:** visual system + homepage + signature proof;
+- **9B:** remaining public surfaces after 9A review.
+
+## Phase 10
+`docs/phases/PHASE_10_INSTALLABLE_PWA_MOBILE.md`
+
+Installable/PWA-first mobile productisation.
+
+Important: the repo already contains Grok platform PWA/manifest/install infrastructure. Phase 10 audits and productises that existing capability rather than blindly building a new PWA stack.
+
+May be split:
+
+- **10A:** installability, Enquiry app identity, manifest/icon/install flow and real-device evidence;
+- **10B:** standalone mobile shell, safe areas, keyboard/back/network behaviour and operator-flow polish.
+
+Native iOS/Android packaging remains a later evidence-based decision, not automatic Phase 10 scope.
 
 ---
 
-# Recommended first-beta critical path
+# Recommended sequencing
+
+## Lean first-beta critical path
 
 Unless product evidence changes priorities:
 
@@ -99,9 +131,19 @@ Phase 7 can be inserted before Phase 8 if cross-channel identity behaviour becom
 
 Why:
 
-- Phase 2 demo can truthfully use deterministic same-phone continuity without a general identity graph.
+- Phase 2 demo can truthfully use deterministic same-phone continuity without a general identity graph;
 - first beta can begin with controlled channel/input paths;
 - real identity ambiguity should be validated before building a larger system.
+
+## Productisation path
+
+After the product is coherent — and either before a broader public launch or after the first cohort, depending on evidence:
+
+> Phase 8 → 9A → review → 9B → 10A → review → 10B
+
+Product management may choose to run Phase 9 before the first five businesses if public visual quality is judged important enough to justify the delay. Phase 10 should not block learning unless installability is specifically required by the cohort.
+
+Do not claim Enquiry is installable until Phase 10A has verified the real production install experience.
 
 ---
 
@@ -114,7 +156,9 @@ Pause sequencing and return to product management if any phase reveals:
 - a phase requires turning Enquiry into a CRM/workflow builder/shared inbox;
 - cross-industry behaviour requires niche hard-coding;
 - a meaningful security/privacy issue is discovered;
-- Grok proposes broad refactoring unrelated to the phase acceptance criteria.
+- Grok proposes broad refactoring unrelated to the phase acceptance criteria;
+- visual polish starts changing product truth rather than presentation;
+- installability work starts becoming an unjustified native/mobile-platform rewrite.
 
 ---
 
@@ -133,7 +177,9 @@ Do not pull these into an active phase without a new decision:
 - paid acquisition;
 - tenant fine-tuning;
 - complex ML identity resolution;
-- post-booking project/fulfilment management.
+- post-booking project/fulfilment management;
+- native iOS/Android app or wrapper unless Phase 10 evidence justifies it;
+- push notifications unless a real cohort need is proven.
 
 ---
 

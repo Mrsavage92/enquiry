@@ -1,4 +1,4 @@
-# Phase 8 — Final Coherence + QA Gate
+# Phase 8 — Pre-Beta Coherence + QA Gate
 
 **Status:** PREPARED — NOT ACTIVE YET
 
@@ -9,7 +9,9 @@ Sources:
 - `docs/PRODUCT_CHANGE_PLAN.md`
 - `docs/TEST_REGRESSION_POLICY.md`
 
-This is not a feature phase. It is a release-coherence gate.
+This is not a feature phase. It is the **pre-beta release-coherence gate** for the core product/story work completed through the selected earlier phases.
+
+Phase 9 (premium visual polish) and Phase 10 (installable/PWA mobile productisation) are deliberately separate later phases. Do not pull either into Phase 8 merely because a visual or install opportunity is noticed during QA.
 
 ---
 
@@ -19,7 +21,7 @@ Verify that the public site, roadmap, waitlist and prototype app now tell the **
 
 The phase should find contradictions and regressions, fix bounded ones, and stop.
 
-Do not use this as permission for a redesign or new roadmap.
+Do not use this as permission for a redesign, a new roadmap, Phase 9 visual art direction, or Phase 10 installability work.
 
 ---
 
@@ -289,9 +291,11 @@ If a finding requires a meaningful new product feature, do **not** implement it.
 
 Add it to the handoff as a proposed next-phase item.
 
+Visual-quality ideas that are not actual defects belong in Phase 9. Installability/mobile-productisation ideas belong in Phase 10.
+
 ---
 
-## 12. Final release report
+## 12. Pre-beta release report
 
 Produce a structured handoff containing:
 
@@ -309,7 +313,9 @@ Only real unresolved work, ranked:
 
 - blocker before beta;
 - should fix during first cohort;
-- later hypothesis.
+- later hypothesis;
+- appropriate Phase 9 visual-polish item;
+- appropriate Phase 10 install/mobile item.
 
 ### Current truth statement
 One short paragraph stating what this build can honestly claim today.
@@ -332,5 +338,6 @@ One short paragraph stating what this build can honestly claim today.
 - [ ] Every remaining red broad check is classified with baseline evidence; there are no unexplained failures.
 - [ ] Desktop/mobile/reduced-motion/keyboard QA completed.
 - [ ] No new major scope was introduced during QA.
+- [ ] Phase 9/10 opportunities were not silently implemented inside this QA phase.
 
-Then stop. Product management decides what becomes the first beta build.
+Then stop. Product management decides whether to begin the first beta immediately or continue into Phase 9 product polish first.
