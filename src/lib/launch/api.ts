@@ -11,6 +11,7 @@ import {
   isUuid,
   sanitizePath,
 } from "./guard";
+import { persistRoadmapFeedback, prepareRoadmapFeedback } from "./feedback";
 
 export const joinWaitlist = createServerFn({ method: "POST" })
   .validator((raw: unknown) => {
@@ -157,6 +158,11 @@ export const toggleRoadmapNeed = createServerFn({ method: "POST" })
       feature_id: asString(d.feature_id, 80),
       sessionId: asString(d.sessionId, 80),
       waitlist_id: asString(d.waitlist_id, 80),
+      utm_source: asString(d.utm_source, 80),
+      utm_medium: asString(d.utm_medium, 80),
+      utm_campaign: asString(d.utm_campaign, 120),
+      utm_content: asString(d.utm_content, 120),
+      referrer: asString(d.referrer, 400),
     };
   })
   .handler(async ({ data }) => {
@@ -188,8 +194,15 @@ export const toggleRoadmapNeed = createServerFn({ method: "POST" })
       values (${crypto.randomUUID()}, ${canonical}, ${data.sessionId}, ${waitlistId})
     `;
     await sql`
-      insert into launch_events (id, session_id, event_name, feature_id, landing_path)
-      values (${crypto.randomUUID()}, ${data.sessionId}, ${"roadmap_vote"}, ${canonical}, ${"/roadmap"})
+      insert into launch_events (
+        id, session_id, event_name, feature_id,
+        utm_source, utm_medium, utm_campaign, utm_content, referrer, landing_path
+      )
+      values (
+        ${crypto.randomUUID()}, ${data.sessionId}, ${"roadmap_vote"}, ${canonical},
+        ${data.utm_source}, ${data.utm_medium}, ${data.utm_campaign}, ${data.utm_content},
+        ${data.referrer}, ${"/roadmap"}
+      )
     `;
     return { needed: true };
   });
@@ -208,4 +221,29 @@ export const listMyRoadmapNeeds = createServerFn({ method: "POST" })
       select feature_id from roadmap_interest where session_id = ${data.sessionId}
     `;
     return { ids: [...new Set(rows.map((r) => canonicalFeatureId(r.feature_id)).filter(isAllowedFeature))] };
+  });
+
+export const saveRoadmapFeedback = createServerFn({ method: "POST" })
+  .validator((raw: unknown) => {
+    const d = (raw ?? {}) as Record<string, unknown>;
+    return {
+      feature_id: asString(d.feature_id, 80),
+      sessionId: asString(d.sessionId, 80),
+      waitlist_id: asString(d.waitlist_id, 80),
+      problem_text: asString(d.problem_text, 800),
+      utm_source: asString(d.utm_source, 80),
+      utm_medium: asString(d.utm_medium, 80),
+      utm_campaign: asString(d.utm_campaign, 120),
+      utm_content: asString(d.utm_content, 120),
+      referrer: asString(d.referrer, 400),
+    };
+  })
+  .handler(async ({ data }) => {
+    const { protectLaunch } = await import("./protect.server");
+    protectLaunch("roadmap");
+    const prepared = prepareRoadmapFeedback(data);
+    if (!prepared) return { ok: true as const, saved: false as const };
+    const sql = await getSql();
+    await persistRoadmapFeedback(sql, prepared);
+    return { ok: true as const, saved: true as const };
   });

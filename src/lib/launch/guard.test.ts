@@ -45,6 +45,9 @@ test("paths cannot be protocols or protocol-relative", () => {
 test("events and features are allowlisted", () => {
   assert.equal(isAllowedEvent("page_view"), true);
   assert.equal(isAllowedEvent("drop_table"), false);
+  assert.equal(isAllowedEvent("roadmap_feedback_submitted"), true);
+  assert.equal(isAllowedEvent("roadmap_vote"), true);
+  assert.equal(isAllowedEvent("roadmap_view"), true);
   assert.equal(isAllowedFeature("understand"), true);
   assert.equal(isAllowedFeature("continuity"), true);
   assert.equal(isAllowedFeature("keep-moving"), true);

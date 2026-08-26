@@ -7,7 +7,7 @@ import {
   type RoadmapStage,
   type RoadmapStatus,
 } from "@/lib/launch/roadmap";
-import { joinWaitlist, listMyRoadmapNeeds, toggleRoadmapNeed, trackLaunchEvent } from "@/lib/launch/api";
+import { joinWaitlist, listMyRoadmapNeeds, saveRoadmapFeedback, toggleRoadmapNeed, trackLaunchEvent } from "@/lib/launch/api";
 import {
   currentTouch,
   firstTouch,
@@ -21,6 +21,17 @@ import { RoadmapVisual } from "@/components/site/roadmap-visuals";
 import { Reveal } from "@/components/site/motion";
 import { Button } from "@/components/ui/button";
 
+function touchFields() {
+  const touch = currentTouch();
+  return {
+    utm_source: touch.utm_source,
+    utm_medium: touch.utm_medium,
+    utm_campaign: touch.utm_campaign,
+    utm_content: touch.utm_content,
+    referrer: touch.referrer,
+  };
+}
+
 function track(name: string, feature = "") {
   void trackLaunchEvent({
     data: {
@@ -28,11 +39,7 @@ function track(name: string, feature = "") {
       event_name: name,
       feature_id: feature,
       landing_path: "/roadmap",
-      utm_source: "",
-      utm_medium: "",
-      utm_campaign: "",
-      utm_content: "",
-      referrer: "",
+      ...touchFields(),
     },
   }).catch(() => undefined);
 }
@@ -68,25 +75,102 @@ function Feedback({
   id: string;
   needed: boolean;
   busy: boolean;
-  onNeed: (id: string, waitlistId?: string) => void;
+  onNeed: (id: string, waitlistId?: string) => Promise<boolean>;
 }) {
   const known = Boolean(storedWaitlistId());
   const [open, setOpen] = useState(false);
+  const [whyOpen, setWhyOpen] = useState(false);
+  const [whySaved, setWhySaved] = useState(false);
   const [email, setEmail] = useState("");
   const [problem, setProblem] = useState("");
   const [error, setError] = useState("");
   const [joining, setJoining] = useState(false);
 
+  const saveWhy = async (waitlistId?: string) => {
+    const text = problem.trim();
+    if (!text) return false;
+    const result = await saveRoadmapFeedback({
+      data: {
+        feature_id: id,
+        sessionId: launchSessionId(),
+        waitlist_id: waitlistId || storedWaitlistId() || "",
+        problem_text: text,
+        ...touchFields(),
+      },
+    });
+    return result.saved;
+  };
+
   if (needed) {
     return (
-      <button
-        type="button"
-        disabled={busy}
-        onClick={() => onNeed(id)}
-        className="mt-6 min-h-11 text-sm font-medium text-ink underline-offset-4 hover:underline"
-      >
-        I’m interested
-      </button>
+      <div className="mt-6 space-y-3">
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => void onNeed(id)}
+            className="min-h-11 text-sm font-medium text-ink underline-offset-4 hover:underline"
+          >
+            I’m interested
+          </button>
+          {whySaved ? (
+            <p className="text-sm text-stone">Thanks — that helps us decide what to build next.</p>
+          ) : (
+            <button
+              type="button"
+              onClick={() => {
+                track("roadmap_feedback_click", id);
+                setWhyOpen((v) => !v);
+              }}
+              className="min-h-11 text-sm text-stone underline-offset-4 transition-colors duration-150 hover:text-ink hover:underline"
+            >
+              Tell us why
+            </button>
+          )}
+        </div>
+        {whyOpen && !whySaved ? (
+          <form
+            className="max-w-sm space-y-3"
+            onSubmit={(e) => {
+              e.preventDefault();
+              setError("");
+              void saveWhy()
+                .then((saved) => {
+                  if (saved) {
+                    setWhySaved(true);
+                    setWhyOpen(false);
+                    setProblem("");
+                  } else {
+                    setWhyOpen(false);
+                  }
+                })
+                .catch((err) => {
+                  setError(err instanceof Error ? err.message : "Could not save that.");
+                });
+            }}
+          >
+            <label className="block text-sm">
+              <span className="mb-1 block text-stone">What problem would this solve for your business?</span>
+              <textarea
+                className="field min-h-20"
+                rows={2}
+                value={problem}
+                onChange={(e) => setProblem(e.target.value)}
+                placeholder="Optional."
+              />
+            </label>
+            {error ? <p className="text-sm text-danger">{error}</p> : null}
+            <div className="flex flex-wrap gap-2">
+              <Button type="submit" size="sm" className="min-h-11">
+                Send
+              </Button>
+              <Button type="button" size="sm" variant="ghost" className="min-h-11" onClick={() => setWhyOpen(false)}>
+                Cancel
+              </Button>
+            </div>
+          </form>
+        ) : null}
+      </div>
     );
   }
 
@@ -113,9 +197,10 @@ function Feedback({
       });
       storeWaitlistId(result.id);
       track("roadmap_waitlist_signup", id);
-      onNeed(id, result.id);
+      await onNeed(id, result.id);
       if (problem.trim()) {
-        track("roadmap_stage_engaged", id);
+        const saved = await saveWhy(result.id);
+        if (saved) setWhySaved(true);
       }
       setOpen(false);
     } catch (e) {
@@ -201,7 +286,7 @@ function StageBlock({
   stage: RoadmapStage;
   needed: Set<string>;
   busy: string | null;
-  onNeed: (id: string, waitlistId?: string) => void;
+  onNeed: (id: string, waitlistId?: string) => Promise<boolean>;
 }) {
   const endgame = stage.visual === "endgame";
   const later = !stage.current && stage.status.every((s) => s === "later");
@@ -396,6 +481,7 @@ export function RoadmapBoard() {
           feature_id: id,
           sessionId: launchSessionId(),
           waitlist_id: waitlistId || storedWaitlistId() || "",
+          ...touchFields(),
         },
       });
       setNeeded((prev) => {
@@ -404,7 +490,7 @@ export function RoadmapBoard() {
         else next.delete(id);
         return next;
       });
-      if (result.needed) track("roadmap_feedback_submitted", id);
+      return result.needed;
     } finally {
       setBusy(null);
     }
