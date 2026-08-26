@@ -4,7 +4,10 @@
 
 **Do not execute until `docs/CURRENT_PHASE.md` explicitly points to Phase 8.**
 
-Source: `docs/PRODUCT_CHANGE_PLAN.md`.
+Sources:
+
+- `docs/PRODUCT_CHANGE_PLAN.md`
+- `docs/TEST_REGRESSION_POLICY.md`
 
 This is not a feature phase. It is a release-coherence gate.
 
@@ -159,7 +162,9 @@ Do not build an internal waitlist dashboard in this phase.
 
 ## 7. Technical QA matrix
 
-Run the repository’s actual supported checks. Do not claim a generic `npm test` pass if the repo has known platform-specific failures.
+Follow `docs/TEST_REGRESSION_POLICY.md`.
+
+Run the repository’s actual supported checks. Do not claim a generic `npm test` pass if the repo has known platform-specific failures, and do not accept the label `pre-existing` without baseline evidence.
 
 ### Required
 
@@ -167,7 +172,20 @@ Run the repository’s actual supported checks. Do not claim a generic `npm test
 - focused unit/domain tests touched by Phases 2–7;
 - production build;
 - existing launch/app-data/gate/identity tests as relevant;
-- inspect any known pre-existing test failures and distinguish them from regressions.
+- inspect any known pre-existing test failures and distinguish them from regressions using a pre-phase/release baseline.
+
+### If a broad check remains red
+
+Record:
+
+- exact command;
+- exact failing test/check names;
+- baseline commit used for comparison;
+- whether the failure signature is unchanged;
+- whether any release-phase changed file participates in the failing path;
+- focused tests that prove the changed product behaviour remains green.
+
+An unexplained red check is a release blocker. A demonstrated platform/environment failure may be accepted only when the release-critical product paths are independently green.
 
 ### Visual QA
 
@@ -284,7 +302,7 @@ List the major product/UX guarantees verified.
 Files/issues changed.
 
 ### Known pre-existing platform/test issues
-Clearly distinguish from product regressions.
+For each remaining red check, include the baseline evidence required by `docs/TEST_REGRESSION_POLICY.md`. Do not merely label a failure pre-existing.
 
 ### Deferred
 Only real unresolved work, ranked:
@@ -309,9 +327,9 @@ One short paragraph stating what this build can honestly claim today.
 - [ ] Early Access remains simple and trustworthy.
 - [ ] Instrumentation/research flows chosen for this release function.
 - [ ] Typecheck passes.
-- [ ] Production build passes.
+- [ ] Production build passes or any environment-only blocker is demonstrated with baseline evidence.
 - [ ] Focused product tests pass.
-- [ ] Known platform failures are documented rather than hidden.
+- [ ] Every remaining red broad check is classified with baseline evidence; there are no unexplained failures.
 - [ ] Desktop/mobile/reduced-motion/keyboard QA completed.
 - [ ] No new major scope was introduced during QA.
 
