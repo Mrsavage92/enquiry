@@ -1,4 +1,4 @@
-# Enquiry — Implementation Phase Registry
+# Enquiry - Implementation Phase Registry
 
 This file is the management index for the sequenced Enquiry build.
 
@@ -26,13 +26,13 @@ Do not tell Grok to "continue through the phases".
 
 | Phase | Status | Purpose | Dependency | First-beta importance |
 |---|---|---|---|---|
-| 0 | Complete | Product/build management guardrails | — | Required |
+| 0 | Complete | Product/build management guardrails | - | Required |
 | 1 | Complete | Reposition public site around decision layer | 0 | Required |
 | 2A | Complete | Build signature cross-channel decision demo | 1 | Required |
 | 2B | Complete | Place signature demo into public sales journey | 2A reviewed | Required |
 | 3 | Complete | Remove universal price/commercial assumptions | 2B | Required |
-| 4 | Active | Curate public roadmap into sales/trust narrative | 2B + 3 | Required before public waitlist push |
-| 5 | Prepared | Polish Early Access + Updates trust copy | 4 preferred | Required before public waitlist push |
+| 4 | Complete | Curate public roadmap into sales/trust narrative | 2B + 3 | Required before public waitlist push |
+| 5 | Active | Polish Early Access + Updates trust copy | 4 | Required before public waitlist push |
 | 6 | Prepared | Persist roadmap qualitative feedback + attribution | 4 | Strongly recommended before meaningful traffic |
 | 7A | Prepared | Future-safe identity/contact-point model + deterministic match | 2A | Can defer until after first beta if needed |
 | 7B | Prepared | Reviewable possible-match UX | 7A reviewed | Can defer until evidence requires it |
@@ -125,7 +125,7 @@ Native iOS/Android packaging remains a later evidence-based decision, not automa
 
 Unless product evidence changes priorities:
 
-> Phase 1 → 2A → review → 2B → 3 → 4 → 5 → 6 → 8 → first 5 businesses
+> Phase 1 -> 2A -> review -> 2B -> 3 -> 4 -> 5 -> 6 -> 8 -> first 5 businesses
 
 Phase 7 can be inserted before Phase 8 if cross-channel identity behaviour becomes necessary for the first cohort, but should **not** delay first beta merely to build infrastructure for hypothetical channel ambiguity.
 
@@ -137,9 +137,9 @@ Why:
 
 ## Productisation path
 
-After the product is coherent — and either before a broader public launch or after the first cohort, depending on evidence:
+After the product is coherent - and either before a broader public launch or after the first cohort, depending on evidence:
 
-> Phase 8 → 9A → review → 9B → 10A → review → 10B
+> Phase 8 -> 9A -> review -> 9B -> 10A -> review -> 10B
 
 Product management may choose to run Phase 9 before the first five businesses if public visual quality is judged important enough to justify the delay. Phase 10 should not block learning unless installability is specifically required by the cohort.
 
@@ -162,7 +162,7 @@ Pause sequencing and return to product management if any phase reveals:
 
 ---
 
-# Parking lot — not part of this sequence
+# Parking lot - not part of this sequence
 
 Do not pull these into an active phase without a new decision:
 
@@ -189,6 +189,6 @@ The internal plan can be detailed.
 
 The public product should feel simple:
 
-> enquiry arrives → Enquiry understands → business-specific decision → next action → booked or lost.
+> enquiry arrives -> Enquiry understands -> business-specific decision -> next action -> booked or lost.
 
 Never copy this registry or implementation detail onto the public roadmap.
