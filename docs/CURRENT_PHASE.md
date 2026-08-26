@@ -1,14 +1,14 @@
-# Enquiry — Current Implementation Phase
+# Enquiry - Current Implementation Phase
 
 ## Current phase
 
-**Phase 4 — Public roadmap as a sales / trust page**
+**Phase 5 - Public trust copy: Early Access + Updates**
 
 Source of truth:
 
 - `AGENTS.project.md`
 - `docs/PRODUCT_CHANGE_PLAN.md`
-- `docs/phases/PHASE_4_PUBLIC_ROADMAP_SALES_PAGE.md`
+- `docs/phases/PHASE_5_PUBLIC_TRUST_AND_EARLY_ACCESS_COPY.md`
 - `docs/TEST_REGRESSION_POLICY.md`
 
 ## Completed gates
@@ -23,99 +23,99 @@ Source of truth:
 **SIGNED OFF.** The Ridge decision-continuity proof is the first substantial public proof on the homepage and `/how`; Priya remains secondary exact-price evidence.
 
 ### Phase 3
+**SIGNED OFF.** Pricing and capacity are no longer treated as universal. Non-price enquiries render without fake commercial placeholders and the queue is attention-first.
+
+### Phase 4
 **SIGNED OFF.**
 
-The visible app now agrees with the modular Decision Engine:
+The public roadmap is now a curated sales/trust narrative rather than an engineering backlog:
 
-- pricing `NOT_APPLICABLE` is represented as a true `not_applicable` commercial result rather than `Price not ready`;
-- non-price enquiries render no commercial placeholder or fake value;
-- Rowan / F17 proves qualification and package selection can be the active decision while pricing is explicitly not applicable;
-- applicable unresolved pricing still remains `Price not ready`;
-- exact and estimate/range behaviour are preserved;
-- desktop queue now leads with attention (`N need you`) rather than `Open exact` / a dollar aggregate;
-- waiting / at-risk context remains visible;
-- exact commercial aggregate remains secondary only when exact values actually exist;
-- queue rows hide commercial marks when pricing is not applicable;
-- mobile queue retains its attention-first model;
-- no public-site Phase 4 work was bundled into Phase 3.
+- six customer-facing eras replace the old detailed stage structure;
+- the eras are Understand the enquiry, Understand your business, One enquiry even when the conversation moves, Keep enquiries moving, Trusted action, and the self-maintaining enquiry layer;
+- Connect, Leak, evaluator architecture and other internal implementation concepts are no longer top-level public roadmap stages;
+- continuity is explicitly framed as one coherent enquiry, not a unified inbox;
+- channel support is described progressively and the page states that not every production integration is live;
+- pricing/capacity remain conditional rather than universal;
+- autonomy remains earned per action class and permission-based;
+- the endgame remains bounded at first enquiry to booked or lost;
+- `I need this` remains on continuity, keep-moving and trusted-action only;
+- legacy roadmap-interest IDs map to the new canonical public-era IDs so existing intent does not become orphaned;
+- the homepage roadmap preview is reduced to three meaningful states.
 
-The current `pricingApplicability()` treatment of an absent pricing evaluator is accepted for this prototype because dynamic evaluator selection means an unselected evaluator is not currently applicable, while `EVALUATING` enquiries are presented as Reading rather than as a completed commercial result. Revisit only if a future engine state needs to distinguish `not selected yet` from `not applicable` after evaluation.
+GitHub exposes no Actions/check status for the Phase 4 commit, so local typecheck/test execution cannot be independently verified from repository status. Source review found no implementation regression that warrants holding the product gate, and focused tests were added for the six-era structure, public statuses, intent placement, legacy-ID compatibility, non-universal pricing language, continuity framing and permission-based autonomy.
 
-Do not revisit Phases 1–3 unless Phase 4 reveals a real regression.
+Do not revisit Phases 1-4 unless Phase 5 reveals a real regression.
 
 ---
 
-# Execute Phase 4 only
+# Execute Phase 5 only
 
 Read the full detailed brief:
 
-`docs/phases/PHASE_4_PUBLIC_ROADMAP_SALES_PAGE.md`
+`docs/phases/PHASE_5_PUBLIC_TRUST_AND_EARLY_ACCESS_COPY.md`
 
 ## Objective
 
-Turn `/roadmap` into a high-trust customer-facing sales narrative rather than a public engineering backlog.
+Polish the customer-facing trust/access language so Enquiry remains unusually candid without sounding like an internal founder or product-management memo.
 
-A prospective customer should be able to understand:
+The result should feel deliberate, confident and early - not apologetic, amateur, artificially scarce or over-marketed.
 
-1. what Enquiry can genuinely do now;
-2. what major capability is being built;
-3. what meaningful customer outcomes come next;
-4. the long-term endgame;
-5. that future direction is communicated honestly rather than overpromised.
+## Early Access
 
-## Canonical public structure
+Preserve:
 
-Use approximately six customer-facing eras:
+- email-first waitlist conversion;
+- optional qualification after signup;
+- gradual cohort rollout;
+- no fake scarcity or queue-position gimmicks;
+- no unsupported price or permanent founding-discount promise;
+- clear intent that Enquiry is expected to become a paid product.
 
-1. **NOW — Understand the enquiry**
-2. **BUILDING — Understand your business**
-3. **NEXT — One enquiry, even when the conversation moves**
-4. **NEXT — Keep enquiries moving**
-5. **LATER — Trusted action**
-6. **ENDGAME — The self-maintaining enquiry layer**
+Replace process-heavy wording such as `not pad a list`, `learning can absorb`, feature-vote language and speculative founding-user pricing with plain customer language.
 
-Exact supporting copy may be refined, but do not turn these back into implementation stages.
+Preferred message:
 
-## Required principles
+- access opens gradually because Enquiry is making business decisions, not merely drafting text;
+- early businesses can tell us where Enquiry helps and where it still gets in the way;
+- pricing will be communicated before any paid access begins.
 
-- preserve the current editorial Enquiry visual identity;
-- preserve a strong journey/progress feeling;
-- retain `I need this` only where it provides useful intent evidence;
-- keep honesty such as `Some of this works today. Some of it is being built. Some of it still needs to earn its place.`;
-- explicitly keep the endgame boundary `first enquiry → booked or lost`;
-- supported/production channel connections must be described progressively rather than implying every integration is live;
-- future autonomy must remain permission-based / earned rather than a giant AI-on switch;
-- roadmap items must describe outcomes a buyer cares about.
+Do not make exact cohort sizes prominent unless there is a current operational reason.
 
-## Remove / demote from public roadmap
+## Updates
 
-Do not expose top-level roadmap stages for:
+`/updates` must behave as curated meaningful build-in-public progress, not release notes.
 
-- evaluator architecture;
-- state-model implementation;
-- database/API plumbing;
-- quote drift;
-- internal identity-model work;
-- individual integration plumbing;
-- bug fixes;
-- technical refactors;
-- internal implementation phases 0–10.
+Keep or create only entries that materially help a prospective customer understand:
 
-Those remain internal.
+- a meaningful product behaviour becoming real;
+- an important product decision and why;
+- a material correction or learning;
+- first-user evidence when it actually exists;
+- a major customer-visible roadmap milestone.
 
-## Preserve
+Do not publish routine implementation phases, dependency/database work, minor UI changes, test counts or quote-sheet trivia simply because they happened.
 
-- homepage and `/how` Phase 2 positioning;
-- Phase 3 non-universal pricing behaviour;
-- waitlist flow;
-- current navigation;
-- roadmap intent capture where still appropriate;
-- accessibility and reduced-motion behaviour.
+Do not manufacture historic dates or claim milestones that have not occurred.
+
+## Cross-page consistency
+
+Review only trust/access wording where relevant in:
+
+- `/early-access`;
+- `/updates`;
+- homepage access/cohort wording if inconsistent;
+- waitlist success copy or footer snippets if they repeat stale process language.
+
+Do not launch a broad site rewrite. Preserve Phase 1 positioning, the Phase 2 continuity proof, Phase 3 non-universal evaluator behaviour and the Phase 4 roadmap narrative.
 
 ## Do not do
 
-- no Phase 5 Early Access / Updates rewrite;
-- no Phase 6 persistence/schema work beyond what is strictly necessary to keep current roadmap interactions functioning;
+- no Phase 6 persistence/attribution/schema work;
+- no pricing-model design;
+- no waitlist CRM/admin system;
+- no email automation;
+- no referral system;
+- no roadmap architecture changes;
 - no identity engine;
 - no PWA/mobile productisation;
 - no Phase 9 visual redesign;
@@ -123,32 +123,29 @@ Those remain internal.
 
 ## Acceptance criteria
 
-- [ ] Public roadmap has materially fewer, larger customer-facing eras than the old detailed plan.
-- [ ] Every visible era expresses a customer capability/outcome rather than an implementation task.
-- [ ] `Working now` / `Building` / `Next` / `Later` status language is understandable without decoding internal planning mechanics.
-- [ ] The signature continuity story appears in the roadmap without overclaiming production channel support.
-- [ ] Pricing/capacity are not described as universal.
-- [ ] Trusted action remains earned and explicitly permission-based.
-- [ ] Endgame is clear and bounded at booked/lost.
-- [ ] The page still feels substantial, visionary and visually Enquiry — not stripped down or generic.
-- [ ] `I need this` remains functional where retained.
-- [ ] Homepage roadmap preview, if affected, remains coherent with the new public structure.
-- [ ] Typecheck and relevant tests pass.
-- [ ] Desktop/mobile/reduced-motion QA passes.
+- [ ] Early Access feels honest and polished rather than like an internal experiment description.
+- [ ] Gradual access is clear without fake scarcity.
+- [ ] Enquiry's intended paid nature is clear without an unvalidated price/discount promise.
+- [ ] Current cohort mechanics are not over-explained.
+- [ ] `/updates` is visibly curated meaningful progress, not release notes.
+- [ ] Quote-specific implementation trivia no longer dominates public update history.
+- [ ] Public copy remains consistent with the decision-layer positioning and Phase 4 roadmap truth.
+- [ ] Waitlist remains email-first with optional qualification and no new required fields.
+- [ ] No fabricated milestone/date/user evidence is introduced.
+- [ ] Typecheck passes.
+- [ ] Desktop/mobile QA is completed.
 
 ## Required handoff
 
 Report only:
 
-1. old public roadmap structure removed/reduced;
-2. final customer-facing eras and statuses;
-3. how current vs future capability is communicated;
-4. what happened to `I need this`;
-5. files changed;
-6. tests/typecheck/build results;
-7. desktop/mobile/reduced-motion QA;
-8. any remaining roadmap claim that may be ahead of implemented reality.
+1. public copy sections changed;
+2. update entries retained/removed/rewritten and why;
+3. files changed;
+4. typecheck/test results;
+5. desktop/mobile QA;
+6. any remaining public text that still sounds like internal strategy language.
 
 Then stop.
 
-**Do not begin Phase 5 until product management reviews Phase 4 and updates this file.**
+**Do not begin Phase 6 until product management reviews Phase 5 and updates this file.**
