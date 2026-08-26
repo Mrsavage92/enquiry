@@ -2,7 +2,7 @@
 
 ## Current phase
 
-**Phase 2A — Signature cross-channel decision demo — CORRECTION GATE**
+**Phase 2B — Place and integrate the signature cross-channel proof**
 
 Source of truth:
 
@@ -10,106 +10,134 @@ Source of truth:
 - `docs/PRODUCT_CHANGE_PLAN.md`
 - `docs/phases/PHASE_2_SIGNATURE_CROSS_CHANNEL_DEMO.md`
 
-## Phase 1 status
+## Completed gates
 
+### Phase 1
 **SIGNED OFF.** Do not revisit unless a regression is introduced.
 
-## Phase 2A review status
+### Phase 2A
+**SIGNED OFF.**
 
-The interaction pattern itself passes the intended product story:
+The Ridge & Co / Maya demo now passes the product-truth gate:
 
 - website form → later text;
-- explicit same-phone linking rather than magical identity matching;
-- changed scope/deadline are visible;
-- the next action changes;
-- price is secondary;
-- the demo is isolated at `/demo` and Phase 2B has not been started.
+- same-enquiry link is grounded in the same known mobile number;
+- Maya uses a distinct fixture phone value;
+- scope and deadline visibly change;
+- initial capacity is explicitly provisional;
+- revised crew condition is grounded in an active Tom-sourced Ridge capacity rule;
+- living-area measurement uncertainty remains visible;
+- price is not the proof moment;
+- changed facts change the business decision and next action.
 
-However, product management has **not signed off Phase 2A yet** because the flagship decision currently overstates the Business Brain evidence.
-
----
-
-# Required corrections only
-
-Do not begin Phase 2B.
-
-## 1. Ground the capacity conclusion in explicit Ridge & Co business truth
-
-Current public demo claims:
-
-- initial scope is `Feasible with the two-person weekday crew`;
-- after the deadline/scope change it becomes `Feasible with condition — third contractor required`.
-
-The existing Ridge & Co Business Brain currently establishes only that:
-
-- there are two painters on weekdays;
-- a third contractor can be booked with 48 hours notice;
-- feasibility needs scope/access/deadline facts.
-
-That is **not enough** to deterministically conclude that the first job fits two painters or that the revised job specifically requires a third painter.
-
-This matters because Enquiry's product contract says **Unknown beats guessing** and material recommendations must be grounded in business truth.
-
-### Correct implementation
-
-Add the smallest explicit, fixture-level Ridge capacity knowledge needed to make this particular demonstration valid.
-
-Preferred shape:
-
-- a confirmed/active operational or capacity rule attributed to Tom / setup;
-- enough detail to explain the initial provisional crew fit and why the revised deadline + ceilings changes the crew requirement;
-- preserve that the living areas still require a site measure for the final quote;
-- if the capacity assessment is provisional pending the measure, say so rather than presenting certainty that the rule does not justify.
-
-Do **not** build a generic scheduling/capacity engine.
-
-Do **not** invent an invisible rule only inside JSX. The decision must be traceable to explicit demo/business truth.
-
-Where practical, make the public `Why?` wording reflect that grounded rule without exposing internal IDs.
-
-Add/adjust a focused test so the demo's capacity conclusion cannot drift away from the Ridge knowledge that supports it.
-
-## 2. Remove the phone-number collision in fixture/demo data
-
-The demo currently uses `0412 880 441` for Maya. That number is already present elsewhere in the repository as a business SMS contact.
-
-Give Maya a distinct fictional/example mobile value that is not already used by another fixture or integration, while preserving the same-number linking proof between her form and later text.
-
-Add a small fixture/test guard if it is cheap and local; do not build global contact validation infrastructure.
-
-## 3. Keep everything else stable
-
-Do not redesign the demo.
-Do not place it on the homepage yet.
-Do not modify `/how` yet.
-Do not start Phase 3.
-Do not add real integrations or identity resolution.
+Do not redesign the Phase 2A interaction unless integration exposes a genuine layout problem.
 
 ---
 
-# Correction acceptance criteria
+# Execute Phase 2B only
 
-- [ ] Initial/revised capacity claims are supported by explicit Ridge business truth rather than an unstated assumption.
-- [ ] Any remaining uncertainty from the site measure is represented honestly.
-- [ ] `Why?` explains the decision using customer-facing language grounded in that rule.
-- [ ] Maya's mobile no longer collides with another fixture/integration value.
-- [ ] Website form and later SMS still match on the same known mobile.
-- [ ] Existing Phase 2A interaction/visual behaviour remains intact.
-- [ ] Focused signature-demo tests pass.
+## Objective
+
+Make the signature cross-channel decision demo the primary public proof of what Enquiry is.
+
+A first-time visitor should encounter this story before the simple exact-price Priya proof:
+
+> same enquiry → customer changes material facts on another channel → Enquiry re-applies the business truth → the decision and next action change.
+
+The homepage must still feel like the current Enquiry site, not a redesign.
+
+## Homepage
+
+Update `src/routes/index.tsx` and only supporting site components required for placement.
+
+Required order/direction:
+
+1. Keep the existing hero: **Stop managing enquiries.**
+2. Keep the waitlist CTA prominent.
+3. Place the Ridge & Co signature demo as the primary/near-primary proof immediately after the hero/intro area.
+4. Keep the existing phone/video/app proof as secondary evidence of the current product.
+5. Keep the Priya `$625` proof only if it adds distinct evidence, but it must no longer be the main explanation of Enquiry.
+
+Do not turn the homepage into a long feature catalogue.
+
+## `/how`
+
+The page must no longer lead with a proof case that makes Enquiry look primarily like a quote generator.
+
+Preferred:
+
+- reuse `CrossChannelDecisionDemo` in a compact/editorial form near the top; or
+- use the same component/story with minimal wrapper changes.
+
+Do not create a second bespoke cross-channel visual system.
+
+The existing Priya proof may remain lower down only if page rhythm benefits and it demonstrates a distinct behaviour.
+
+## Public truth / copy
+
+Preserve:
+
+- `One enquiry. Even when the conversation moves.`
+- explicit same-phone linking evidence;
+- provisional capacity wording;
+- site-measure uncertainty;
+- customer language rather than internal architecture terms.
+
+Do not imply real production SMS/form integrations or arbitrary cross-channel identity matching are already generally available.
+
+## Preserve
+
+- waitlist flow;
+- `Open the app` links;
+- current visual identity;
+- site navigation;
+- mobile usability;
+- reduced-motion behaviour;
+- Phase 1 positioning improvements.
+
+## Do not do
+
+- do not start Phase 3;
+- do not change app commercial/pricing UX;
+- do not rewrite `/roadmap`;
+- do not change Early Access copy;
+- do not build real channel integrations;
+- do not build identity resolution;
+- do not redesign the entire homepage;
+- do not alter Ridge decision truth merely to make placement easier.
+
+---
+
+# Acceptance criteria
+
+- [ ] Signature Ridge demo appears before the simple exact-price Priya proof on the homepage.
+- [ ] The homepage's first substantial product proof is decision continuity, not quoting.
+- [ ] A visitor can understand `message changed → facts changed → decision changed → next action changed` without architecture language.
+- [ ] `/how` no longer leads with the Priya/exact-price proof as the primary mental model.
+- [ ] The same reusable signature-demo component/story is used rather than duplicated into another visual system.
+- [ ] The Ridge demo retains explicit identity provenance and grounded capacity wording.
+- [ ] Waitlist CTA remains prominent.
+- [ ] `Open the app` remains available.
+- [ ] Existing app behaviour is unchanged.
+- [ ] Desktop visual QA passes.
+- [ ] Mobile visual QA passes with no horizontal overflow.
+- [ ] Reduced-motion presentation remains understandable.
+- [ ] No new console/runtime errors are introduced.
 - [ ] Typecheck passes.
-- [ ] Desktop/mobile/reduced-motion QA remains clean.
+- [ ] Relevant focused tests pass; pre-existing platform failures, if any, are clearly separated from new regressions.
 
 ## Required handoff
 
 Report only:
 
-1. explicit Ridge rule/truth added or changed;
-2. capacity/demo wording changed;
-3. phone value changed;
+1. homepage placement/order changes;
+2. `/how` changes;
+3. what happened to the Priya proof;
 4. files changed;
-5. tests/typecheck/QA results;
-6. any remaining uncertainty.
+5. typecheck/tests/build results;
+6. desktop/mobile/reduced-motion QA;
+7. any remaining product or visual risk.
 
 Then stop.
 
-**Do not begin Phase 2B until product management updates this file.**
+**Do not begin Phase 3 until product management reviews Phase 2B and updates this file.**
