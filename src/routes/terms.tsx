@@ -29,8 +29,8 @@ function Terms() {
           <h2 className="text-lg font-semibold tracking-tight text-ink">The waitlist</h2>
           <p>
             Joining early access is a request, not a purchase and not a guarantee of a place.
-            We invite in small cohorts when the product and support can absorb them. Fit matters
-            more than queue position. Founding-user pricing is not promised in advance.
+            We invite businesses in small groups as the product is ready. Enquiry is intended to
+            become a paid product; pricing is not promised in advance.
           </p>
           <h2 className="text-lg font-semibold tracking-tight text-ink">The prototype</h2>
           <p>

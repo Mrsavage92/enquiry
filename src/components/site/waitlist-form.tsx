@@ -152,8 +152,8 @@ export function WaitlistForm({ compact = false }: { compact?: boolean }) {
         </p>
         <p className="mt-2 text-sm leading-relaxed text-ink-2">
           Enquiry learns how your business works, understands what every customer is asking for, and
-          works out what needs to happen next. Access is gradual — we invite the number we can
-          actually support. No fake scarcity.
+          works out what needs to happen next. Access opens gradually so we can work closely with
+          the first businesses. No fake scarcity.
         </p>
         <div className="mt-5 flex flex-col gap-2 sm:flex-row">
           {compact && !storedQualified() ? (

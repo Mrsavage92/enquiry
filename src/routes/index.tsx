@@ -241,28 +241,28 @@ function Home() {
 
       <section className="mx-auto max-w-5xl px-5 py-10 sm:py-16">
         <Reveal>
-          <p className="eyebrow">How we roll out access</p>
+          <p className="eyebrow">Early access</p>
           <h2 className="mt-3 max-w-2xl text-3xl font-semibold tracking-tight">
-            Small cohorts. No fake scarcity.
+            We’re starting small. No fake scarcity.
           </h2>
           <p className="mt-3 max-w-xl text-sm text-ink-2">
-            Preparing Cohort 1 — five businesses. Fit over queue position. We only invite the number
-            the product and support can absorb.
+            Access opens gradually so we can work closely with the first businesses and make Enquiry
+            trustworthy before opening it more widely.
           </p>
         </Reveal>
         <ol className="mt-8 max-w-xl">
           {[
             {
-              t: "Reserve a place",
-              b: "Join early access with an email. Optional questions help us invite the right businesses first.",
+              t: "Join with an email",
+              b: "Optional questions help us invite the right businesses first.",
             },
             {
-              t: "We invite in cohorts",
-              b: "Five, then about twenty, then more — only as many as the product and support can absorb.",
+              t: "We invite in small groups",
+              b: "As the product is ready — not as a countdown or a queue position.",
             },
             {
               t: "You open the app",
-              b: "Business Brain, first enquiry, you send. Founding-user pricing only if we later know it is real.",
+              b: "Review the next action, then send. Enquiry is intended to become a paid product. We’ll share pricing before any paid access begins.",
             },
           ].map((s, i) => (
             <Reveal key={s.t} delay={i * 60}>

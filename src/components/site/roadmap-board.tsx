@@ -541,7 +541,7 @@ export function RoadmapBoard() {
             Want to help shape what gets built?
           </h2>
           <p className="mt-4 text-sm leading-relaxed text-ink-2">
-            Join early access. We’ll invite strong-fit service businesses gradually as Enquiry becomes ready for real-world use.
+            Join early access. We’ll invite businesses gradually as Enquiry is ready for real-world use.
           </p>
           <div className="mt-8">
             <WaitlistForm compact />
