@@ -204,7 +204,7 @@ function StageBlock({
   onNeed: (id: string, waitlistId?: string) => void;
 }) {
   const endgame = stage.visual === "endgame";
-  const later = !stage.current && stage.status.every((s) => s === "later" || s === "exploring");
+  const later = !stage.current && stage.status.every((s) => s === "later");
   return (
     <article
       id={`stage-${stage.id}`}
@@ -226,12 +226,11 @@ function StageBlock({
           <Reveal>
             {stage.current ? <p className="eyebrow mb-3">Where we are</p> : null}
             <StatusPills status={stage.status} />
-            <p className="mt-3 font-mono text-xs tabular-nums text-stone">Stage {stage.number}</p>
             <h2
               className={cn(
-                "text-halo mt-2 font-serif font-semibold tracking-tight",
+                "text-halo mt-3 font-serif font-semibold tracking-tight",
                 endgame
-                  ? "text-5xl sm:text-6xl md:text-7xl"
+                  ? "max-w-xl text-5xl sm:text-6xl md:text-7xl"
                   : "text-4xl sm:text-5xl md:text-[3.25rem]",
               )}
             >
@@ -317,7 +316,7 @@ function StageBlock({
 export function RoadmapBoard() {
   const [needed, setNeeded] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState<string | null>(null);
-  const [active, setActive] = useState(STAGES[0]?.id ?? "prove");
+  const [active, setActive] = useState(STAGES[0]?.id ?? "understand");
   const [fill, setFill] = useState(0);
   const rail = useRef<HTMLDivElement>(null);
   const seen = useRef(new Set<string>());

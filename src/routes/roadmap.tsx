@@ -79,7 +79,7 @@ function RoadmapPage() {
               </Link>
             </Button>
             <Button variant="secondary" asChild className="min-h-12 shrink-0 sm:min-h-10">
-              <a href="#stage-prove">See where we are now</a>
+              <a href="#stage-understand">See where we are now</a>
             </Button>
           </div>
         </HeroIn>

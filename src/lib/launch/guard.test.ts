@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
   asString,
+  canonicalFeatureId,
+  featureIdFamily,
   honeypotFilled,
   isAllowedEvent,
   isAllowedFeature,
@@ -43,9 +45,23 @@ test("paths cannot be protocols or protocol-relative", () => {
 test("events and features are allowlisted", () => {
   assert.equal(isAllowedEvent("page_view"), true);
   assert.equal(isAllowedEvent("drop_table"), false);
+  assert.equal(isAllowedFeature("understand"), true);
+  assert.equal(isAllowedFeature("continuity"), true);
+  assert.equal(isAllowedFeature("keep-moving"), true);
   assert.equal(isAllowedFeature("prove"), true);
+  assert.equal(isAllowedFeature("pipeline"), true);
   assert.equal(isAllowedFeature(""), true);
   assert.equal(isAllowedFeature("'; drop table waitlist --"), false);
+});
+
+test("legacy roadmap interest IDs map onto current eras", () => {
+  assert.equal(canonicalFeatureId("pipeline"), "keep-moving");
+  assert.equal(canonicalFeatureId("autopilot"), "trusted-action");
+  assert.equal(canonicalFeatureId("learn"), "business-brain");
+  assert.equal(canonicalFeatureId("prove"), "understand");
+  assert.equal(canonicalFeatureId("continuity"), "continuity");
+  assert.ok(featureIdFamily("keep-moving").includes("pipeline"));
+  assert.ok(featureIdFamily("trusted-action").includes("autopilot"));
 });
 
 test("honeypot trips on any filled trap", () => {

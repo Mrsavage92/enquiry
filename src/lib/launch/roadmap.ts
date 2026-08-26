@@ -1,20 +1,11 @@
-export type RoadmapStatus =
-  | "working"
-  | "building"
-  | "testing"
-  | "next"
-  | "later"
-  | "exploring"
-  | "shipped";
+export type RoadmapStatus = "working" | "building" | "next" | "later";
 
 export type RoadmapVisual =
-  | "proof"
+  | "understand"
   | "brain"
-  | "evaluators"
-  | "states"
-  | "connect"
-  | "autopilot"
-  | "leak"
+  | "continuity"
+  | "moving"
+  | "trust"
   | "endgame";
 
 export type RoadmapOutcome = {
@@ -40,18 +31,15 @@ export type RoadmapStage = {
   feedbackEnabled?: boolean;
 };
 
-export const ROADMAP_WRITTEN = "25 August 2026";
+export const ROADMAP_WRITTEN = "26 August 2026";
 export const ROADMAP_PHASE = "Prototype / validation";
 export const ROADMAP_ACCESS = "Early access waitlist open";
 
 export const ROADMAP_LEGEND: { id: RoadmapStatus; label: string; mark: string; hint: string }[] = [
-  { id: "working", label: "Working now", mark: "■", hint: "Exists in the current prototype." },
-  { id: "building", label: "Building", mark: "▣", hint: "Actively being implemented." },
-  { id: "testing", label: "Testing", mark: "◌", hint: "Hypothesis. Evidence still being gathered." },
+  { id: "working", label: "Working now", mark: "■", hint: "In the current product." },
+  { id: "building", label: "Building", mark: "▣", hint: "Actively being made real." },
   { id: "next", label: "Next", mark: "○", hint: "Direction is clear enough to publish." },
   { id: "later", label: "Later", mark: "–", hint: "Strategic direction, not a delivery promise." },
-  { id: "exploring", label: "Exploring", mark: "·", hint: "A signal. Not a vote that ships it." },
-  { id: "shipped", label: "Shipped", mark: "✓", hint: "Released with proof." },
 ];
 
 export function statusLabel(id: RoadmapStatus) {
@@ -70,226 +58,175 @@ export const NON_GOALS = [
 
 export const STAGES: RoadmapStage[] = [
   {
-    id: "prove",
+    id: "understand",
     number: "00",
-    short: "Prove",
-    title: "Prove the idea",
-    status: ["working", "testing"],
+    short: "Understand",
+    title: "Understand the enquiry",
+    status: ["working"],
     current: true,
-    goal: "Can Enquiry understand a messy service-business enquiry and work out the correct next action — without the owner maintaining a CRM?",
+    goal: "Messy inbound becomes an understood request with the right next action.",
     narrative:
-      "First, Enquiry has to prove it can do the thinking. If the owner still has to reconstruct every enquiry manually, nothing else matters. The prototype on this site is that test: a messy message becomes a case file, a number, a letter, send.",
+      "However the enquiry arrives, Enquiry puts the request together, sees what is known, missing or ambiguous, runs only the checks that matter for this business, and prepares the next action — with a Why? you can open. You still review and send.",
     outcomes: [
       {
-        id: "prove-thinking",
-        title: "What exists in the prototype",
+        id: "understand-now",
+        title: "What this already does",
         items: [
-          "A messy inbound becomes known facts, missing facts, and the checks that matter.",
-          "A recommendation with a reason — why is a tap, not a paragraph.",
-          "A draft in the business’s voice. You still send.",
-          "A correction can stay on this job, or teach the business.",
+          "Known, missing and ambiguous facts — not a pile of empty fields.",
+          "Only the checks that change the next decision. Pricing and capacity appear when they apply, and stay out of the way when they don’t.",
+          "A recommended next action, with evidence.",
+          "A draft in the business’s voice. Enquiry does not send until you do.",
         ],
       },
     ],
     promise: "First, Enquiry has to prove it can do the thinking.",
+    caveat:
+      "The prototype is being validated across different kinds of service business. Accuracy is not claimed as production-ready for every trade.",
     notClaiming: [
       "Production-level accuracy across every business",
+      "Every channel already connected in production",
       "Hands-off Autopilot",
-      "Every email, calendar or booking integration",
-      "Perfect quoting for arbitrary businesses",
       "Product-market fit",
     ],
-    visual: "proof",
+    visual: "understand",
   },
   {
-    id: "learn",
+    id: "business-brain",
     number: "01",
-    short: "Learn",
-    title: "Learn the business",
-    status: ["building", "next"],
-    goal: "Enquiry should understand your business, not just understand English.",
+    short: "Business",
+    title: "Understand your business",
+    status: ["building"],
+    goal: "Enquiry learns the services, rules and operating preferences it needs to make the right decision for your business.",
     narrative:
-      "Glow is a worked example so the decision is visible. That is not the product. The product is your prices, your rules, your voice. Setup should feel like teaching a capable person, not configuring a CRM.",
+      "A worked example is not the product. The product is how you actually operate — what you offer, what you never do, the rules that change a job, prices where they apply, and how you like to sound. Setup should feel like teaching a capable person, not configuring a CRM.",
     outcomes: [
       {
-        id: "learn-brain",
+        id: "brain-knows",
         title: "Business Brain",
         items: [
-          "Services, aliases, prices, what you never do.",
-          "Required information, travel, operating preferences.",
-          "A change in natural language. A future-dated rule when the season shifts.",
+          "Services, aliases, and what you never take on.",
+          "Prices and pricing rules where they apply — not every enquiry is a quote.",
+          "Required information, travel, operating preferences, voice.",
         ],
       },
       {
-        id: "learn-teach",
+        id: "brain-trust",
         title: "Learning without silent corruption",
         items: [
-          "Just this enquiry, or teach Enquiry.",
+          "A correction can stay on this enquiry, or teach Enquiry.",
           "High-impact rules wait for an explicit yes.",
           "Provenance sits on what it learned.",
         ],
       },
     ],
     promise: "The setup should feel like teaching a capable assistant, not configuring a CRM.",
-    caveat: "Exit: the business reaches a useful first enquiry with little setup, and can trust what Enquiry knows.",
     visual: "brain",
-    feedbackEnabled: true,
   },
   {
-    id: "decision",
+    id: "continuity",
     number: "02",
-    short: "Decision",
-    title: "Make every enquiry decision-ready",
+    short: "Continuity",
+    title: "One enquiry, even when the conversation moves",
     status: ["next"],
-    goal: "Open Enquiry and see the decision, not the admin required to reach it.",
+    goal: "A form becomes a text or a DM. The request changes. Enquiry keeps the enquiry — and the next decision — current.",
     narrative:
-      "Not every business needs a price, a diary, or a travel check. Enquiry should run only the checks that matter for this job, and refuse to invent a number or a free Saturday.",
+      "The promise is not all your messages in one inbox. It is one coherent enquiry even when the conversation moves channels. A website form and a later text about the same job should update the same decision, when identity is safely established.",
     outcomes: [
       {
-        id: "decision-intel",
-        title: "On every enquiry",
+        id: "continuity-story",
+        title: "What this looks like",
         items: [
-          "What they want. What we know. What is missing. What is blocking the next move.",
-          "What should happen next, and why.",
+          "A website form starts the enquiry.",
+          "A later text from the same number continues it.",
+          "Changed facts — a tighter deadline, more of the house — change the business decision, not just the reply.",
         ],
       },
       {
-        id: "decision-mods",
-        title: "Only the checks that matter",
+        id: "continuity-honesty",
+        title: "How connections will arrive",
         items: [
-          "Pricing, eligibility, qualification, travel, availability, capacity — when they change the decision.",
-          "Exact, estimate, or unknown. No fabricated prices. No false availability.",
+          "Supported channels will roll out progressively. Not every integration is live.",
+          "Email, forms, text and social DMs are the direction, named as direction.",
+          "Ambiguous identity stays a proposed match. Enquiry does not silently merge people.",
         ],
       },
     ],
-    promise: "Every enquiry arrives already understood.",
-    visual: "evaluators",
+    promise: "One enquiry. Even when the conversation moves.",
+    caveat:
+      "The current product can show this behaviour in the prototype. Production inboxes and social accounts are not all wired yet.",
+    visual: "continuity",
     feedbackEnabled: true,
   },
   {
-    id: "pipeline",
+    id: "keep-moving",
     number: "03",
-    short: "Pipeline",
-    title: "Stop managing the pipeline",
-    status: ["next", "later"],
-    goal: "The useful parts of a CRM should maintain themselves.",
+    short: "Moving",
+    title: "Keep enquiries moving",
+    status: ["next"],
+    goal: "The useful parts of the pipeline maintain themselves, and follow-up comes back only when something genuinely needs attention.",
     narrative:
       "Silence is not a decline. A reply is not a booking. Enquiry should know which, keep the record current, and bring back only what needs you — without a board you drag cards across.",
     outcomes: [
       {
-        id: "pipeline-state",
+        id: "moving-state",
         title: "State that keeps itself",
         items: [
-          "Waiting on them. Waiting on you. Ready to book. Lost, declined, cancelled — recorded, not guessed.",
+          "Waiting on them. Needs you. Ready to progress. Lost, declined, cancelled — recorded, not guessed.",
           "Search over automatically structured enquiries. No manual stage hygiene.",
         ],
       },
       {
-        id: "pipeline-follow",
-        title: "Smart follow-up",
+        id: "moving-follow",
+        title: "Follow-up that earns the interruption",
         items: [
           "Whether a response is actually due. What changed since last contact.",
-          "A letter that does not rewrite the sent sheet. And when not to follow up.",
+          "A letter that does not rewrite a sent quote. And when not to follow up.",
         ],
       },
     ],
     promise: "You shouldn’t have to remember which enquiries need attention.",
-    visual: "states",
+    visual: "moving",
     feedbackEnabled: true,
   },
   {
-    id: "connect",
+    id: "trusted-action",
     number: "04",
-    short: "Connect",
-    title: "Connect what already runs the business",
-    status: ["later", "exploring"],
-    goal: "Enquiry becomes useful without forcing the business to migrate everything else.",
-    narrative:
-      "Integrate first. Replace selectively. Mail, calendar, forms and a booking handoff are the direction — named as direction, not as a logo wall of things we do not have. Two-way SMS is a real ask. It only ships if it improves conversion without turning Enquiry into another inbox.",
-    outcomes: [
-      {
-        id: "connect-tools",
-        title: "Direction, not a promise of availability",
-        items: [
-          "Mail and calendar where they change the decision.",
-          "Forms and website intake. A booking handoff when the job is ready.",
-          "Webhooks and a private intake remain first-class.",
-        ],
-      },
-      {
-        id: "connect-sms",
-        title: "SMS",
-        items: [
-          "We’re testing whether a text in, a text out, materially improves conversion before we turn Enquiry into another inbox.",
-        ],
-      },
-    ],
-    promise: "Integrate first. Replace selectively.",
-    visual: "connect",
-    feedbackEnabled: true,
-  },
-  {
-    id: "autopilot",
-    number: "05",
-    short: "Autopilot",
-    title: "Earned Autopilot",
+    short: "Trust",
+    title: "Trusted action",
     status: ["later"],
-    goal: "Let Enquiry handle the safe, boring decisions — only after it has earned that trust.",
+    goal: "Enquiry handles selected routine actions only after the business has explicitly allowed them.",
     narrative:
-      "There is no giant AI-on switch. Autonomy is a class of action, on a business that has earned Trust, after the recommendation is already good. Asking for a missing date can go. A large quote cannot. A complaint cannot. Pause outbound still wins.",
+      "There is no giant AI-on switch. Autonomy is earned per class of action, on a business that has allowed it, after the recommendation is already good. Asking for one known missing fact can go. A large quote cannot. A complaint cannot. Pause outbound still wins.",
     outcomes: [
       {
-        id: "auto-early",
-        title: "Early, only when safe",
+        id: "trust-path",
+        title: "Observe → Assist → selected authorised actions",
         items: [
           "Acknowledge receipt. Ask one missing fact that is already determined.",
           "Prepare or send an approved low-risk follow-up.",
         ],
       },
       {
-        id: "auto-later",
-        title: "Later, only with evidence",
+        id: "trust-permission",
+        title: "Permission is the product",
         items: [
-          "A validated quote send. A narrow decline. Selected booking actions.",
-          "Permission, validation, health, a reason, an audit — every time.",
+          "A correct recommendation is not permission to send it.",
+          "Each class of action is granted separately. High-risk and ambiguous work stays with you.",
         ],
       },
     ],
     promise: "Enquiry does more only when the business is comfortable letting it do more.",
-    visual: "autopilot",
-    feedbackEnabled: true,
-  },
-  {
-    id: "leak",
-    number: "06",
-    short: "Leak",
-    title: "Understand where enquiries leak",
-    status: ["later"],
-    goal: "Turn the enquiry layer into measurable commercial intelligence.",
-    narrative:
-      "Show the owner where good enquiries are being mishandled before asking them to buy more leads. We will not call pipeline value lost revenue unless the causality is actually supportable.",
-    outcomes: [
-      {
-        id: "leak-signals",
-        title: "Signals, not theatre",
-        items: [
-          "Response-readiness. Follow-up coverage. Open enquiry value.",
-          "Enquiries with no recorded follow-up. Conversion by type and source, where the numbers are honest.",
-        ],
-      },
-    ],
-    promise: "Show the owner where good enquiries are being mishandled before asking them to buy more leads.",
-    caveat: "We will not call pipeline value lost revenue unless the causality is actually supportable.",
-    visual: "leak",
+    caveat: "Autonomous quoting, declines and booking are not a near-term fact. They have to be earned, then allowed.",
+    visual: "trust",
     feedbackEnabled: true,
   },
   {
     id: "endgame",
-    number: "07",
+    number: "05",
     short: "Endgame",
     title: "The self-maintaining enquiry layer",
     status: ["later"],
-    goal: "A customer sends an enquiry. The business does almost nothing administrative.",
+    goal: "From first interest to booked or lost, the business does almost nothing administrative.",
     narrative:
       "Enquiry becomes the intelligence layer between “someone is interested” and “the work is booked”. The owner handles exceptions, judgement, relationships, and the unusual commercial call. Enquiry interprets, remembers, checks, prepares, follows up, and executes only the routine it has been allowed.",
     outcomes: [
@@ -307,7 +244,7 @@ export const STAGES: RoadmapStage[] = [
   },
 ];
 
-export const ROADMAP_PREVIEW = STAGES.slice(0, 4).map((s) => ({
+export const ROADMAP_PREVIEW = STAGES.slice(0, 3).map((s) => ({
   id: s.id,
   title: s.title,
   lede: s.goal,

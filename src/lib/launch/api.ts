@@ -2,6 +2,8 @@ import { createServerFn } from "@tanstack/react-start";
 import { getSql } from "@/lib/db";
 import {
   asString,
+  canonicalFeatureId,
+  featureIdFamily,
   honeypotFilled,
   isAllowedEvent,
   isAllowedFeature,
@@ -164,22 +166,30 @@ export const toggleRoadmapNeed = createServerFn({ method: "POST" })
     if (!isUuid(data.sessionId)) return { needed: false };
     const waitlistId = isUuid(data.waitlist_id) ? data.waitlist_id : null;
     const sql = await getSql();
-    const existing = await sql<{ id: string }>`
-      select id from roadmap_interest
-      where feature_id = ${data.feature_id} and session_id = ${data.sessionId}
-      limit 1
-    `;
-    if (existing[0]) {
-      await sql`delete from roadmap_interest where id = ${existing[0].id}`;
+    const canonical = canonicalFeatureId(data.feature_id);
+    const family = featureIdFamily(canonical);
+    const existing: { id: string }[] = [];
+    for (const fid of family) {
+      const rows = await sql<{ id: string }>`
+        select id from roadmap_interest
+        where feature_id = ${fid} and session_id = ${data.sessionId}
+        limit 1
+      `;
+      if (rows[0]) existing.push(rows[0]);
+    }
+    if (existing.length > 0) {
+      for (const row of existing) {
+        await sql`delete from roadmap_interest where id = ${row.id}`;
+      }
       return { needed: false };
     }
     await sql`
       insert into roadmap_interest (id, feature_id, session_id, waitlist_id)
-      values (${crypto.randomUUID()}, ${data.feature_id}, ${data.sessionId}, ${waitlistId})
+      values (${crypto.randomUUID()}, ${canonical}, ${data.sessionId}, ${waitlistId})
     `;
     await sql`
       insert into launch_events (id, session_id, event_name, feature_id, landing_path)
-      values (${crypto.randomUUID()}, ${data.sessionId}, ${"roadmap_vote"}, ${data.feature_id}, ${"/roadmap"})
+      values (${crypto.randomUUID()}, ${data.sessionId}, ${"roadmap_vote"}, ${canonical}, ${"/roadmap"})
     `;
     return { needed: true };
   });
@@ -197,5 +207,5 @@ export const listMyRoadmapNeeds = createServerFn({ method: "POST" })
     const rows = await sql<{ feature_id: string }>`
       select feature_id from roadmap_interest where session_id = ${data.sessionId}
     `;
-    return { ids: rows.map((r) => r.feature_id).filter(isAllowedFeature) };
+    return { ids: [...new Set(rows.map((r) => canonicalFeatureId(r.feature_id)).filter(isAllowedFeature))] };
   });

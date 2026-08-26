@@ -16,7 +16,14 @@ export const LAUNCH_EVENTS = new Set([
   "roadmap_feedback_submitted",
 ]);
 
+/** Public eras, plus retained legacy IDs so stored interest still validates. */
 export const ROADMAP_FEATURE_IDS = new Set([
+  "understand",
+  "business-brain",
+  "continuity",
+  "keep-moving",
+  "trusted-action",
+  "endgame",
   "prove",
   "learn",
   "decision",
@@ -24,8 +31,28 @@ export const ROADMAP_FEATURE_IDS = new Set([
   "connect",
   "autopilot",
   "leak",
-  "endgame",
 ]);
+
+/** Old public-stage IDs that map onto a current era. Unmapped IDs stay themselves. */
+export const ROADMAP_FEATURE_CANONICAL: Record<string, string> = {
+  prove: "understand",
+  learn: "business-brain",
+  pipeline: "keep-moving",
+  autopilot: "trusted-action",
+};
+
+export function canonicalFeatureId(id: string) {
+  return ROADMAP_FEATURE_CANONICAL[id] ?? id;
+}
+
+export function featureIdFamily(id: string) {
+  const canonical = canonicalFeatureId(id);
+  const family = new Set<string>([canonical, id]);
+  for (const [legacy, target] of Object.entries(ROADMAP_FEATURE_CANONICAL)) {
+    if (target === canonical) family.add(legacy);
+  }
+  return [...family];
+}
 
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;

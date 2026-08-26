@@ -3,20 +3,16 @@ import type { RoadmapVisual } from "@/lib/launch/roadmap";
 
 export function RoadmapVisual({ type }: { type: RoadmapVisual }) {
   switch (type) {
-    case "proof":
-      return <ProofVisual />;
+    case "understand":
+      return <UnderstandVisual />;
     case "brain":
       return <BrainVisual />;
-    case "evaluators":
-      return <EvaluatorVisual />;
-    case "states":
-      return <StateVisual />;
-    case "connect":
-      return <ConnectVisual />;
-    case "autopilot":
-      return <AutopilotVisual />;
-    case "leak":
-      return <LeakVisual />;
+    case "continuity":
+      return <ContinuityVisual />;
+    case "moving":
+      return <MovingVisual />;
+    case "trust":
+      return <TrustVisual />;
     case "endgame":
       return <EndgameVisual />;
   }
@@ -52,24 +48,27 @@ function Arrow() {
   );
 }
 
-function ProofVisual() {
-  const steps = ["Messy enquiry", "Facts · missing", "Next action", "Reply ready"];
+function UnderstandVisual() {
+  const steps = ["Messy enquiry", "Understood", "Next action"];
   return (
-    <ol className="flex flex-wrap items-center gap-y-2" aria-hidden>
-      {steps.map((s, i) => (
-        <li key={s} className="flex items-center">
-          {i > 0 ? <Arrow /> : null}
-          <Cell>{s}</Cell>
-        </li>
-      ))}
-    </ol>
+    <div aria-hidden>
+      <ol className="flex flex-wrap items-center gap-y-2">
+        {steps.map((s, i) => (
+          <li key={s} className="flex items-center">
+            {i > 0 ? <Arrow /> : null}
+            <Cell>{s}</Cell>
+          </li>
+        ))}
+      </ol>
+      <p className="mt-3 text-xs text-stone">Known, missing, ambiguous. Then the next action.</p>
+    </div>
   );
 }
 
 function BrainVisual() {
   const rows = [
-    ["Services", "Prices", "What you never do"],
-    ["Required info", "Travel", "Voice"],
+    ["Services", "Rules", "What you never do"],
+    ["Prices where they apply", "Required info", "Voice"],
   ];
   return (
     <div className="grid gap-2 sm:grid-cols-2" aria-hidden>
@@ -87,33 +86,27 @@ function BrainVisual() {
   );
 }
 
-function EvaluatorVisual() {
-  const chips = [
-    { t: "Pricing", on: true },
-    { t: "Travel", on: true },
-    { t: "Qualification", on: true },
-    { t: "Availability", on: false },
-    { t: "Eligibility", on: false },
-    { t: "Capacity", on: false },
+function ContinuityVisual() {
+  const steps = [
+    { t: "Website form", s: "Starts the enquiry" },
+    { t: "Text message", s: "Same person, later" },
+    { t: "Fact changes", s: "Deadline, scope" },
+    { t: "Decision updates", s: "Next action current" },
   ];
   return (
-    <div className="max-w-md" aria-hidden>
-      <div className="flex justify-center">
-        <span className="rounded-md bg-mark px-4 py-2 text-sm text-mark-fg">This enquiry</span>
-      </div>
-      <ul className="mt-4 flex flex-wrap justify-center gap-2">
-        {chips.map((c) => (
-          <li key={c.t}>
-            <Cell quiet={!c.on}>{c.t}</Cell>
-          </li>
-        ))}
-      </ul>
-      <p className="mt-3 text-center text-xs text-stone">Only the checks that change the decision light up.</p>
-    </div>
+    <ol className="grid gap-2 sm:grid-cols-2" aria-hidden>
+      {steps.map((step, i) => (
+        <li key={step.t} className="rounded-lg bg-raised px-4 py-3 shadow-border">
+          <p className="font-mono text-2xs tabular-nums text-stone">{String(i + 1).padStart(2, "0")}</p>
+          <p className="mt-1 text-sm font-medium">{step.t}</p>
+          <p className="mt-0.5 text-xs text-stone">{step.s}</p>
+        </li>
+      ))}
+    </ol>
   );
 }
 
-function StateVisual() {
+function MovingVisual() {
   const steps = ["Waiting on them", "They replied", "Needs you", "Ready to book"];
   return (
     <ol className="flex flex-wrap items-center gap-y-2" aria-hidden>
@@ -127,27 +120,7 @@ function StateVisual() {
   );
 }
 
-function ConnectVisual() {
-  const nodes = [
-    { t: "Mail", s: "Later" },
-    { t: "Calendar", s: "Later" },
-    { t: "Forms", s: "Working" },
-    { t: "Booking handoff", s: "Later" },
-    { t: "SMS", s: "Exploring" },
-  ];
-  return (
-    <ul className="flex flex-wrap gap-2" aria-hidden>
-      {nodes.map((n) => (
-        <li key={n.t} className="rounded-md bg-raised px-3 py-2 shadow-border">
-          <p className="text-sm">{n.t}</p>
-          <p className="mt-0.5 text-2xs uppercase tracking-wider text-stone">{n.s}</p>
-        </li>
-      ))}
-    </ul>
-  );
-}
-
-function AutopilotVisual() {
+function TrustVisual() {
   return (
     <div aria-hidden>
       <div className="flex flex-wrap items-center gap-y-2">
@@ -166,24 +139,6 @@ function AutopilotVisual() {
       </ul>
       <p className="mt-3 text-xs text-stone">No master switch. Permission is per class of action.</p>
     </div>
-  );
-}
-
-function LeakVisual() {
-  const stats = [
-    { n: "7", l: "enquiries with no recorded follow-up" },
-    { n: "$2,160", l: "open enquiry value on file" },
-    { n: "3", l: "bookings after an Enquiry follow-up" },
-  ];
-  return (
-    <ul className="grid gap-3 sm:grid-cols-3" aria-hidden>
-      {stats.map((s) => (
-        <li key={s.l} className="rounded-lg bg-raised px-4 py-3 shadow-border">
-          <p className="font-serif text-2xl font-semibold tracking-tight">{s.n}</p>
-          <p className="mt-1 text-xs leading-snug text-ink-2">{s.l}</p>
-        </li>
-      ))}
-    </ul>
   );
 }
 
