@@ -243,7 +243,7 @@ function Home() {
         <Reveal>
           <p className="eyebrow">Early access</p>
           <h2 className="mt-3 max-w-2xl text-3xl font-semibold tracking-tight">
-            We’re starting small. No fake scarcity.
+            We’re starting small.
           </h2>
           <p className="mt-3 max-w-xl text-sm text-ink-2">
             Access opens gradually so we can work closely with the first businesses and make Enquiry
