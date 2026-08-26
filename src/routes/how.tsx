@@ -45,7 +45,7 @@ function How() {
           {[
             {
               t: "Work arrives",
-              b: "A form, a text, an Instagram message, a Facebook DM, or an email. However the customer writes in, it becomes the same enquiry — not a new thread to reconstruct later.",
+              b: "A form, a text, an Instagram message, a Facebook DM, or an email. Those are ways an enquiry can arrive. Enquiry reconstructs the request from what came in.",
             },
             {
               t: "Enquiry reconstructs the request",
@@ -61,7 +61,7 @@ function How() {
             },
             {
               t: "You review, then you send",
-              b: "The next action is prepared — the reply, the hold, the question that unblocks the rest. Enquiry does not send until you say so.",
+              b: "The next action is prepared — the reply, the hold, the question that unblocks the rest. Nothing goes out unless that kind of action is allowed. Early access is review-first.",
             },
             {
               t: "The enquiry stays current",

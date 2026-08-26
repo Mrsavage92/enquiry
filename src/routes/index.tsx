@@ -140,13 +140,13 @@ function Home() {
               If customers ask before they book.
             </h2>
             <p className="mt-3 max-w-xl text-sm leading-relaxed text-ink-2">
-              Makeup, photography, painting, cleaning — the trade changes. The problem does not: a
+              Makeup, photography, painting, consulting — the trade changes. The problem does not: a
               messy request, a decision that depends on how you work, and a next step that should
               not wait.
             </p>
           </Reveal>
           <ul className="mt-10 max-w-xl">
-            {["Makeup", "Photography", "Painting", "Cleaning"].map((t, i) => (
+            {["Makeup", "Photography", "Painting", "Consulting"].map((t, i) => (
               <Reveal key={t} delay={i * 50}>
                 <li className="border-t border-line py-4 text-sm last:border-b">{t}</li>
               </Reveal>
@@ -179,7 +179,7 @@ function Home() {
               },
               {
                 title: "Prepared, not automatic",
-                body: "Enquiry knows the next action and why. It does not send, book, or refuse until you say so.",
+                body: "Enquiry knows the next action and why. Nothing goes out unless that kind of action is allowed. Early access is review-first.",
               },
             ].map((f, i) => (
               <Reveal key={f.title} delay={i * 60}>
@@ -310,7 +310,7 @@ function Home() {
             </h2>
             <p className="mt-3 max-w-xl text-sm leading-relaxed text-ink-2">
               Join early access. Open the app when you want to see a real case file. We’re building
-              with service businesses — makeup, photography, painting, cleaning — because someone
+              with service businesses — makeup, photography, painting, consulting — because someone
               interested still has to become booked, or lost, without you reconstructing every job
               by hand.
             </p>
