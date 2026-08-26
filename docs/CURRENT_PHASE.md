@@ -2,13 +2,13 @@
 
 ## Current phase
 
-**Phase 5 - CORRECTION GATE: finish public trust copy cleanup**
+**Phase 6 - REVIEW GATE: inspect the already-landed roadmap research implementation**
 
 Source of truth:
 
 - `AGENTS.project.md`
 - `docs/PRODUCT_CHANGE_PLAN.md`
-- `docs/phases/PHASE_5_PUBLIC_TRUST_AND_EARLY_ACCESS_COPY.md`
+- `docs/phases/PHASE_6_ROADMAP_RESEARCH_PERSISTENCE_ATTRIBUTION.md`
 - `docs/TEST_REGRESSION_POLICY.md`
 
 ## Completed gates
@@ -26,86 +26,75 @@ Source of truth:
 **SIGNED OFF.** Pricing and capacity are no longer treated as universal. Non-price enquiries render without fake commercial placeholders and the queue is attention-first.
 
 ### Phase 4
-**SIGNED OFF.** The public roadmap is now six customer-facing eras, continuity is framed as one coherent enquiry rather than a unified inbox, pricing/capacity remain conditional, autonomy remains earned, and the endgame stays bounded at booked/lost.
+**SIGNED OFF.** The public roadmap is six customer-facing eras, continuity is framed as one coherent enquiry rather than a unified inbox, pricing/capacity remain conditional, autonomy remains earned, and the endgame stays bounded at booked/lost.
+
+### Phase 5
+**SIGNED OFF.** Commit `140768bbc89c211080c6f81ae2e7c087772572a2` plus correction commit `543d1c4471793d4d7eefd6fbf56b97c28ec870b4` satisfy the Phase 5 gate. The remaining `No fake scarcity` wording was removed from the homepage and waitlist success state without changing waitlist behaviour or broadening scope.
 
 ---
 
-# Phase 5 review result
+# Sequencing incident to preserve
 
-Commit reviewed: `140768bbc89c211080c6f81ae2e7c087772572a2`.
+Grok committed later-phase work before product management advanced this file:
 
-The Phase 5 implementation is materially correct and remains within scope:
+- `6d326e39ff4156d654ec515c7799779c87f2cfd6` - labelled Phase 6;
+- `836a79fccb6079b44dd4769acf56422978c75ac8` - labelled Phase 8.
 
-- Early Access now leads with gradual access and working closely with early businesses rather than internal cohort mechanics;
-- exact cohort sizes, `not pad a list`, `learning can absorb`, feature-vote language and speculative founding-discount wording were removed;
-- intended paid nature is stated without a price or permanent discount promise;
-- `/updates` was reduced to curated product/trust notes rather than quote-sheet trivia or engineering release notes;
-- continuity is described as one enquiry, not a unified inbox;
-- unknown/not-applicable pricing is represented as a trust behaviour;
-- the waitlist remains email-first and qualification remains optional with `Skip for now`;
-- no Phase 6 schema/attribution work was bundled in.
+The presence of those commits does **not** mean those phases are signed off or authorised.
 
-GitHub exposes no Actions/check status for the implementation commit, so local typecheck/visual-QA claims cannot be independently verified from GitHub status.
+Do not continue from the highest phase number found in git history. `docs/CURRENT_PHASE.md` remains the execution authority.
 
-## Why Phase 5 is not signed off yet
-
-Two public surfaces still use the phrase:
-
-> `No fake scarcity.`
-
-It appears in:
-
-- the homepage Early Access heading;
-- the waitlist success state.
-
-The principle is correct, but the wording still sounds like founder/startup meta-commentary. Phase 5 exists specifically to express the same trust principle in calm customer language rather than telling visitors about marketing tactics we are not using.
-
-This is a copy correction only. Do not reinterpret it as permission for further site changes.
+The Phase 8-labelled commit must be treated as **ungated existing code only**. Do not add to it, extend it, or use it as authority to skip Phase 6 review or Phase 8's later formal gate.
 
 ---
 
-# Execute this correction only
+# Review Phase 6 only
 
-Replace the remaining customer-facing `No fake scarcity` wording with positive, plain language that communicates gradual access without artificial urgency.
+Implementation already present to review:
 
-Good direction:
+`6d326e39ff4156d654ec515c7799779c87f2cfd6`
 
-- `We’re starting small.`
-- `Access opens gradually.`
-- `We invite businesses in small groups as the product is ready.`
+Do not reimplement Phase 6 from scratch. Inspect the actual landed code against the full brief:
 
-Do not use all three mechanically. Fit the surrounding sentence/heading naturally.
+`docs/phases/PHASE_6_ROADMAP_RESEARCH_PERSISTENCE_ATTRIBUTION.md`
 
-## Preserve exactly
+## Required review questions
 
-- email-first waitlist;
-- optional qualification mechanics;
-- gradual-access positioning;
-- intended paid-product statement;
-- current curated Updates entries unless a factual correction is required;
-- Phase 1-4 positioning and product contract;
-- roadmap structure and roadmap interactions.
+1. Does volunteered `What problem would this solve for your business?` text persist as durable research data tied to the correct current/canonical roadmap item?
+2. Is feedback tied to `session_id` and optional `waitlist_id` safely, with no public read path that exposes another visitor's feedback?
+3. Does migration `0003` follow the repository migration convention, preserve existing data, and remain safe/idempotent?
+4. Do roadmap events now carry available current-touch UTM/referrer attribution rather than blanks?
+5. Is original first-touch attribution still preserved rather than overwritten by later roadmap visits?
+6. Does `I need this` still toggle correctly, including existing legacy/canonical feature-ID behaviour from Phase 4?
+7. Is qualitative feedback optional and low-friction for both already-known and new waitlist visitors?
+8. Were launch protection, validation, maximum text lengths and malformed-ID safe-no-op behaviour preserved?
+9. Were no public vote counts, admin dashboards, CRM behaviour or unrelated analytics systems introduced?
+10. Do focused tests cover persistence, empty feedback, invalid feature IDs, attribution, no public read path and interest-toggle compatibility?
 
-## Do not do
+## Scope rule
 
-- no new update posts;
-- no Phase 6 persistence or attribution work;
-- no waitlist backend changes;
-- no pricing-model work;
-- no visual redesign;
-- no roadmap edits;
-- no unrelated copy sweep outside the two identified surfaces unless the exact same phrase is found elsewhere.
+This is a **review gate**, not permission for more product work.
 
-## Correction acceptance criteria
+If the existing Phase 6 implementation passes, product management may mark Phase 6 signed off and move to the next deliberate gate.
 
-- [ ] `No fake scarcity` no longer appears in customer-facing copy.
-- [ ] Homepage Early Access language still clearly communicates gradual rollout.
-- [ ] Waitlist success copy still clearly communicates gradual rollout.
-- [ ] No fake urgency, queue-position promise, countdown or permanent discount language is introduced.
-- [ ] No product implementation behaviour changes.
+If it fails, update this file with the smallest precise correction gate and keep Phase 6 active.
+
+Do not begin or extend Phase 7, Phase 8, Phase 9 or Phase 10.
+
+## Acceptance criteria
+
+- [ ] Volunteered roadmap problem text is persisted with the correct roadmap item.
+- [ ] Feedback can be tied to waitlist ID where available without exposing IDs/data across users.
+- [ ] Roadmap events preserve available attribution instead of blank values.
+- [ ] Original first-touch attribution remains intact.
+- [ ] `I need this` still toggles correctly.
+- [ ] Feedback remains optional and low-friction.
+- [ ] No public vote leaderboard/counts are introduced.
+- [ ] Migration preserves existing data and follows project migration conventions.
 - [ ] Typecheck passes.
-- [ ] Relevant desktop/mobile visual QA completed.
+- [ ] Relevant focused tests pass.
+- [ ] Roadmap visual QA works on desktop/mobile.
 
 Then stop.
 
-**Do not begin Phase 6 until product management reviews this correction and updates this file.**
+**Do not treat the existing Phase 8-labelled commit as an authorised Phase 8 completion.**

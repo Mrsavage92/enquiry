@@ -4,7 +4,7 @@ This file is the management index for the sequenced Enquiry build.
 
 **Execution authority remains `docs/CURRENT_PHASE.md`.**
 
-A phase being `PREPARED` here does not mean Grok may execute it.
+A phase being `PREPARED` here does not mean Grok may execute it. A commit labelled with a later phase number also does not authorise or sign off that phase.
 
 ---
 
@@ -20,6 +20,8 @@ A phase being `PREPARED` here does not mean Grok may execute it.
 
 Do not tell Grok to "continue through the phases".
 
+If later-phase code lands before authorisation, treat it as **ungated existing code**. Do not infer completion from git history. Product management must still review phases in the deliberate sequence and may require corrections before any later work continues.
+
 ---
 
 # Registry
@@ -32,17 +34,22 @@ Do not tell Grok to "continue through the phases".
 | 2B | Complete | Place signature demo into public sales journey | 2A reviewed | Required |
 | 3 | Complete | Remove universal price/commercial assumptions | 2B | Required |
 | 4 | Complete | Curate public roadmap into sales/trust narrative | 2B + 3 | Required before public waitlist push |
-| 5 | Active | Polish Early Access + Updates trust copy | 4 | Required before public waitlist push |
-| 6 | Prepared | Persist roadmap qualitative feedback + attribution | 4 | Strongly recommended before meaningful traffic |
+| 5 | Complete | Polish Early Access + Updates trust copy | 4 | Required before public waitlist push |
+| 6 | Active review gate | Persist roadmap qualitative feedback + attribution | 5 signed off | Strongly recommended before meaningful traffic |
 | 7A | Prepared | Future-safe identity/contact-point model + deterministic match | 2A | Can defer until after first beta if needed |
 | 7B | Prepared | Reviewable possible-match UX | 7A reviewed | Can defer until evidence requires it |
-| 8 | Prepared | Pre-beta coherence/release QA gate | chosen phases complete | Required before first beta candidate |
+| 8 | Prepared - ungated code present | Pre-beta coherence/release QA gate | chosen phases complete | Required before first beta candidate |
 | 9A | Prepared | Premium visual system + homepage polish; non-AI art direction | 8 preferred | Can follow first cohort, but required before broader polished launch |
 | 9B | Prepared | Extend approved visual system across remaining public surfaces | 9A reviewed | Same as 9A |
 | 10A | Prepared | Productise existing PWA installability + Enquiry branding | 9 preferred | Required before claiming Enquiry is installable |
 | 10B | Prepared | Installed standalone mobile shell + operator-flow polish | 10A reviewed | Strongly recommended before mobile-first expansion |
 
 `CURRENT_PHASE.md` remains authoritative if this table ever lags behind a phase transition.
+
+Current sequencing incident:
+
+- Phase 6 implementation commit `6d326e39ff4156d654ec515c7799779c87f2cfd6` landed before Phase 5 was formally advanced. It is now the subject of the active Phase 6 review gate.
+- A Phase 8-labelled commit `836a79fccb6079b44dd4769acf56422978c75ac8` also landed early. It is not signed off and must not be extended or treated as Phase 8 completion until the formal Phase 8 gate is reached.
 
 ---
 
@@ -158,7 +165,8 @@ Pause sequencing and return to product management if any phase reveals:
 - a meaningful security/privacy issue is discovered;
 - Grok proposes broad refactoring unrelated to the phase acceptance criteria;
 - visual polish starts changing product truth rather than presentation;
-- installability work starts becoming an unjustified native/mobile-platform rewrite.
+- installability work starts becoming an unjustified native/mobile-platform rewrite;
+- Grok implements a later phase before `CURRENT_PHASE.md` authorises it.
 
 ---
 
