@@ -43,15 +43,18 @@ function InsightsPage() {
         </dl>
       </section>
 
+      {b.openExact > 0 ? (
       <section className="mt-10">
-        <p className="eyebrow">Open exact</p>
+        <p className="eyebrow">Exact prices still open</p>
         <p className="mt-2 font-serif text-4xl tabular-nums tracking-tight commercial-exact">
           {formatAud(b.openExactValue)}
         </p>
         <p className="mt-2 text-sm text-stone">
-          {b.openExact} exact · estimates and unready prices are not in this total.
+          {b.openExact} priced {b.openExact === 1 ? "enquiry" : "enquiries"} · estimates and unready
+          prices are not in this total.
         </p>
       </section>
+      ) : null}
 
       <section className="mt-10">
         <p className="eyebrow">Composition</p>
@@ -135,7 +138,9 @@ function InsightsPage() {
                     {slice.needsYou} need you · {slice.quotedWaiting} waiting
                   </span>
                 </span>
-                <span className="font-serif tabular-nums">{formatAud(slice.openExactValue)}</span>
+                <span className="font-serif tabular-nums">
+                  {slice.openExact > 0 ? formatAud(slice.openExactValue) : null}
+                </span>
               </li>
             ))}
           </ul>

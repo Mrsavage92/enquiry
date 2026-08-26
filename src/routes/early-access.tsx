@@ -18,7 +18,7 @@ export const Route = createFileRoute("/early-access")({
 
 const PROMISES = [
   {
-    t: "Early access when your cohort opens",
+    t: "Early access as the product is ready",
     b: "We invite businesses in small groups as the product is ready for them.",
   },
   {

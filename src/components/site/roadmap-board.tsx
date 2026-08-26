@@ -633,7 +633,7 @@ export function RoadmapBoard() {
             <WaitlistForm compact />
           </div>
           <p className="mt-4 text-xs text-stone">
-            No fake launch countdown. We’ll email when there’s something worth showing you.
+            We’ll email when there’s something worth showing you.
           </p>
         </div>
       </section>
