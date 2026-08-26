@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AppRouteImport } from './routes/_app'
+import { Route as DemoRouteImport } from './routes/demo'
 import { Route as EarlyAccessRouteImport } from './routes/early-access'
 import { Route as HowRouteImport } from './routes/how'
 import { Route as OnboardingRouteImport } from './routes/onboarding'
@@ -41,6 +42,11 @@ const IndexRoute = IndexRouteImport.update({
 } as any)
 const AppRoute = AppRouteImport.update({
   id: '/_app',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DemoRoute = DemoRouteImport.update({
+  id: '/demo',
+  path: '/demo',
   getParentRoute: () => rootRouteImport,
 } as any)
 const EarlyAccessRoute = EarlyAccessRouteImport.update({
@@ -156,6 +162,7 @@ const AppTrustAutomationRoute = AppTrustAutomationRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/demo': typeof DemoRoute
   '/early-access': typeof EarlyAccessRoute
   '/how': typeof HowRoute
   '/onboarding': typeof OnboardingRoute
@@ -181,6 +188,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/demo': typeof DemoRoute
   '/early-access': typeof EarlyAccessRoute
   '/how': typeof HowRoute
   '/onboarding': typeof OnboardingRoute
@@ -206,6 +214,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/_app': typeof AppRouteWithChildren
+  '/demo': typeof DemoRoute
   '/early-access': typeof EarlyAccessRoute
   '/how': typeof HowRoute
   '/onboarding': typeof OnboardingRoute
@@ -233,6 +242,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/demo'
     | '/early-access'
     | '/how'
     | '/onboarding'
@@ -258,6 +268,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/demo'
     | '/early-access'
     | '/how'
     | '/onboarding'
@@ -282,6 +293,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/_app'
+    | '/demo'
     | '/early-access'
     | '/how'
     | '/onboarding'
@@ -309,6 +321,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AppRoute: typeof AppRouteWithChildren
+  DemoRoute: typeof DemoRoute
   EarlyAccessRoute: typeof EarlyAccessRoute
   HowRoute: typeof HowRoute
   OnboardingRoute: typeof OnboardingRoute
@@ -334,6 +347,13 @@ declare module '@tanstack/react-router' {
       path: ''
       fullPath: '/'
       preLoaderRoute: typeof AppRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/demo': {
+      id: '/demo'
+      path: '/demo'
+      fullPath: '/demo'
+      preLoaderRoute: typeof DemoRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/early-access': {
@@ -549,6 +569,7 @@ const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AppRoute: AppRouteWithChildren,
+  DemoRoute: DemoRoute,
   EarlyAccessRoute: EarlyAccessRoute,
   HowRoute: HowRoute,
   OnboardingRoute: OnboardingRoute,

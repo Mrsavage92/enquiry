@@ -659,6 +659,9 @@ html.embed .site-nav {
     translate: 0;
   }
 }
+.demo-arrive {
+  animation: rise-in 0.32s var(--ease-smooth-out) both;
+}
 @keyframes pulse-quiet {
   0%,
   to {
