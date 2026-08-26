@@ -508,6 +508,17 @@ export const BUSINESSES: Business[] = [
         version: "Crew v1",
       }),
       k({
+        id: "rd-crew-window",
+        businessId: "ridge",
+        section: "capacity",
+        title: "Empty-house crew window",
+        body: "A two-person weekday crew can finish up to four standard bedrooms plus living areas in a five-weekday empty-house window. That crew-size call is provisional until the living areas are measured. Adding ceilings, or compressing the window to three weekdays or fewer, needs the third contractor (48 hours notice). Living areas are still quoted on measure.",
+        class: "operational",
+        state: "Active",
+        source: src("user", "Tom"),
+        version: "Crew window v1",
+      }),
+      k({
         id: "rd-start",
         businessId: "ridge",
         section: "operating",

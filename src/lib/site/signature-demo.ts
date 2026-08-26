@@ -30,11 +30,19 @@ export type SignatureState = {
   link?: { label: string; reason: string };
 };
 
+/** Tom's active Ridge capacity rule. Demo copy must stay grounded in this body. */
+export const RIDGE_CREW_WINDOW_RULE = {
+  id: "rd-crew-window",
+  title: "Empty-house crew window",
+  body: "A two-person weekday crew can finish up to four standard bedrooms plus living areas in a five-weekday empty-house window. That crew-size call is provisional until the living areas are measured. Adding ceilings, or compressing the window to three weekdays or fewer, needs the third contractor (48 hours notice). Living areas are still quoted on measure.",
+  sourceLabel: "Tom",
+} as const;
+
 export const SIGNATURE_DEMO = {
   business: "Ridge & Co Painting",
   owner: "Tom Ridge",
   customer: "Maya Chen",
-  phone: "0412 880 441",
+  phone: "0431 559 208",
   headline: "One enquiry. Even when the conversation moves.",
   supporting:
     "A form becomes a text. The scope changes. Enquiry keeps the request, the business checks and the next action current.",
@@ -63,13 +71,14 @@ export const SIGNATURE_DEMO = {
       {
         id: "capacity",
         label: "Capacity",
-        value: "Feasible with the two-person weekday crew",
+        value: "Provisional — two-person crew can cover this window",
         tone: "ok",
+        why: RIDGE_CREW_WINDOW_RULE.body,
       },
     ],
     nextAction: "Offer a site measure",
     nextReason:
-      "The current scope fits the crew window, but the living areas need measuring before a final quote can be confirmed.",
+      "The current window looks like a two-person job, but the living areas need measuring before a final quote can be confirmed.",
     commercialNote: "Final quote follows site measure.",
   } satisfies SignatureState,
   text: {
@@ -103,12 +112,12 @@ export const SIGNATURE_DEMO = {
         value: "Feasible with condition — third contractor required",
         tone: "warn",
         changed: true,
-        why: "Standard weekday crew: two painters. A third contractor can be booked with 48 hours notice.",
+        why: RIDGE_CREW_WINDOW_RULE.body,
       },
     ],
     nextAction: "Confirm the extra crew option and keep the site measure",
     nextReason:
-      "The earlier deadline plus ceilings changes the crew requirement. Ridge & Co can still make it work if the third contractor is secured in time.",
+      "The earlier deadline plus ceilings needs the third contractor. Keep the site measure — the quote still isn’t final until then.",
     commercialNote: "Final quote follows site measure.",
     link: {
       label: "Linked to Maya’s existing enquiry",
