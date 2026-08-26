@@ -10,6 +10,8 @@ export function CommercialValueMark({
   size?: "sm" | "md" | "lg";
   className?: string;
 }) {
+  if (value.kind === "not_applicable") return null;
+
   const notReady = value.kind === "not_ready";
 
   if (size === "sm") {
@@ -52,7 +54,7 @@ export function CommercialValueMark({
         {value.amountLabel}
       </p>
       <p className="mt-1.5 flex flex-wrap items-center gap-2">
-        {notReady ? (
+        {value.kind === "not_ready" ? (
           <span className="text-xs leading-snug text-stone">{value.caption}</span>
         ) : (
           <KindMark kind={value.kind} caption={value.caption} />
@@ -62,7 +64,7 @@ export function CommercialValueMark({
   );
 }
 
-function KindMark({ kind, caption }: { kind: CommercialValue["kind"]; caption: string }) {
+function KindMark({ kind, caption }: { kind: Exclude<CommercialValue["kind"], "not_ready" | "not_applicable">; caption: string }) {
   return (
     <span
       className={cn(

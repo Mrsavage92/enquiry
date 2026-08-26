@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Segmented } from "@/components/ui/segmented";
-import { derivedLabel, commercialValue, formatAud, queueSection } from "@/domain/labels";
+import { derivedLabel, commercialValue, formatAud, queueSection, queueSummary, queueHeadline } from "@/domain/labels";
 import { CommercialValueMark } from "@/components/ui/commercial-value";
 import { enquirySituation, queueSituationLabel } from "@/domain/situation";
 import { statusTone } from "@/domain/status-tone";
@@ -127,13 +127,11 @@ export function Queue({ activeId, phone = false }: { activeId?: string; phone?: 
     }
     return list;
   }, [q, scoped, enquiries, businessFilter, listFilter, activeId, businesses, lastArrivalId]);
-  const open = scoped.filter((e) => e.state.lifecycle === "OPEN");
-  const exactOpen = open.filter((e) => commercialValue(e).kind === "exact");
-  const openValue = exactOpen.reduce((sum, e) => sum + (e.valueExact?.amount ?? 0), 0);
+  const summary = queueSummary(scoped);
   const counts = {
-    needs_you: scoped.filter((e) => queueSection(e) === "needs_you").length,
-    waiting: scoped.filter((e) => queueSection(e) === "waiting").length,
-    at_risk: scoped.filter((e) => queueSection(e) === "at_risk").length,
+    needs_you: summary.needsYou,
+    waiting: summary.waiting,
+    at_risk: summary.atRisk,
     closed: scoped.filter((e) => e.state.lifecycle !== "OPEN").length,
     all: scoped.length,
   };
@@ -162,7 +160,7 @@ export function Queue({ activeId, phone = false }: { activeId?: string; phone?: 
           <>
             <div className="flex items-center justify-between gap-2">
               <p className="text-3xl font-semibold leading-tight tracking-tight">
-                {counts.needs_you === 0 ? "Caught up" : `${counts.needs_you} need you`}
+                {queueHeadline(summary)}
               </p>
               <div className="flex items-center">
                 <button
@@ -187,13 +185,15 @@ export function Queue({ activeId, phone = false }: { activeId?: string; phone?: 
           </>
         ) : (
           <>
-            <p className="eyebrow">Open exact</p>
-            <p className="mt-1 font-serif text-3xl tabular-nums tracking-tight">
-              {formatAud(openValue)}
+            <p className="text-3xl font-semibold leading-tight tracking-tight">
+              {queueHeadline(summary)}
             </p>
-            <span className="page-rule" aria-hidden />
             <p className="mt-2 text-sm text-stone">
-              {exactOpen.length} exact · {open.length} active
+              {summary.waiting} waiting
+              {summary.atRisk ? ` · ${summary.atRisk} at risk` : ""}
+              {summary.exactCount > 0
+                ? ` · ${summary.exactCount} exact ${formatAud(summary.exactValue)}`
+                : ""}
             </p>
             <QueueBriefing />
           </>
@@ -279,6 +279,8 @@ export function Queue({ activeId, phone = false }: { activeId?: string; phone?: 
             const situation = enquirySituation(e, business);
             const arriving = e.id === lastArrivalId || e.state.decision === "EVALUATING";
             const blocking = situation && situation.kind !== "evaluating";
+            const commercial = commercialValue(e);
+            const showValue = commercial.kind !== "not_applicable";
             return (
               <li key={e.id} className={arriving ? "arrive-row" : undefined}>
                 <Link
@@ -314,9 +316,9 @@ export function Queue({ activeId, phone = false }: { activeId?: string; phone?: 
                         <p className="min-w-0 flex-1 truncate font-medium leading-snug">{e.customerName}</p>
                         {situation?.kind === "evaluating" ? (
                           <span className="shrink-0 text-xs text-ink-2">Reading</span>
-                        ) : (
-                          <CommercialValueMark value={commercialValue(e)} size="sm" className="shrink-0" />
-                        )}
+                        ) : showValue ? (
+                          <CommercialValueMark value={commercial} size="sm" className="shrink-0" />
+                        ) : null}
                       </div>
                       <p className="mt-0.5 truncate text-sm text-ink-2">
                         {e.serviceLabel}
@@ -344,8 +346,10 @@ export function Queue({ activeId, phone = false }: { activeId?: string; phone?: 
                       <div className="mt-2 flex items-baseline justify-between gap-2 text-xs text-stone">
                         {situation?.kind === "evaluating" ? (
                           <span className="text-ink-2">Reading</span>
+                        ) : showValue ? (
+                          <CommercialValueMark value={commercial} size="sm" />
                         ) : (
-                          <CommercialValueMark value={commercialValue(e)} size="sm" />
+                          <span />
                         )}
                         <span className="shrink-0">{queueTime(e)}</span>
                       </div>

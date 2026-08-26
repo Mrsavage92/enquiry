@@ -70,6 +70,7 @@ export function Intelligence({
   const applicable = enquiry.decision.evaluators.filter((e) => e.status !== "NOT_APPLICABLE");
   const pricing = applicable.find((e) => e.type === "pricing");
   const capacity = applicable.find((e) => e.type === "capacity");
+  const commercial = commercialValue(enquiry);
   const grounded = groundedSummary(enquiry);
   const situation = enquirySituation(enquiry, business);
   const evaluating = situation?.kind === "evaluating";
@@ -252,12 +253,12 @@ export function Intelligence({
 
       {quoteSheets(enquiry).length > 0 ? (
         <QuoteSheets enquiry={enquiry} business={business} compact={compact} />
-      ) : compact ? null : (
+      ) : compact || commercial.kind === "not_applicable" ? null : (
       <section className="border-b border-line px-5 py-5" aria-labelledby="value-heading">
         <p id="value-heading" className="eyebrow">
           Commercial value
         </p>
-        <CommercialValueMark className="mt-3" value={commercialValue(enquiry)} size="lg" />
+        <CommercialValueMark className="mt-3" value={commercial} size="lg" />
       </section>
       )}
 
@@ -505,7 +506,8 @@ export function Intelligence({
               <p className="text-sm text-danger">{rec.blockedReason}</p>
             ) : sendable && !compact ? (
               <p className="text-xs text-stone">
-                One primary action. Editing the draft does not change the price or feasibility.
+                One primary action. Editing the draft does not change
+                {commercial.kind === "not_applicable" ? " the decision." : " the price or feasibility."}
               </p>
             ) : null}
             {sendable || enquiry.state.lifecycle === "OPEN" ? (

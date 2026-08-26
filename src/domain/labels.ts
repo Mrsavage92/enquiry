@@ -99,17 +99,37 @@ export const EVALUATOR_LABELS: Record<EvaluatorType, string> = {
   deposit_booking_readiness: "Booking readiness",
 };
 
-export type CommercialKind = "exact" | "estimate" | "not_ready";
+export type CommercialKind = "exact" | "estimate" | "not_ready" | "not_applicable";
 
 export type CommercialValue = {
   kind: CommercialKind;
-  /** Visible amount, or the words “Price not ready”. */
+  /** Visible amount, or “Price not ready” when pricing applies but cannot be decided. Empty when not applicable. */
   amountLabel: string;
   /** Human caption — Exact quote / Estimate / why it is not ready. */
   caption: string;
 };
 
+export type PricingApplicability = "applicable" | "not_applicable";
+
+/** Pricing is one evaluator family. Applicability comes from that result, not from whether an amount exists. */
+export function pricingApplicability(enquiry: Enquiry): PricingApplicability {
+  const pricing = enquiry.decision.evaluators.find((e) => e.type === "pricing");
+  if (pricing) {
+    return pricing.status === "NOT_APPLICABLE" ? "not_applicable" : "applicable";
+  }
+  // No pricing family selected — either still reading, or this enquiry does not use price.
+  return "not_applicable";
+}
+
 export function commercialValue(enquiry: Enquiry): CommercialValue {
+  if (pricingApplicability(enquiry) === "not_applicable") {
+    return {
+      kind: "not_applicable",
+      amountLabel: "",
+      caption: "",
+    };
+  }
+
   const pricing = enquiry.decision.evaluators.find((e) => e.type === "pricing");
   const status = pricing?.status;
   const blocking = enquiry.decision.missing.some((m) => m.blocking);
@@ -135,7 +155,7 @@ export function commercialValue(enquiry: Enquiry): CommercialValue {
     };
   }
 
-  if (status === "NOT_QUOTABLE" || status === "ERROR" || status === "NOT_APPLICABLE") {
+  if (status === "NOT_QUOTABLE" || status === "ERROR") {
     return {
       kind: "not_ready",
       amountLabel: "Price not ready",
@@ -182,4 +202,30 @@ export function formatAud(amount: number): string {
 
 export function isExactValue(enquiry: Enquiry): boolean {
   return commercialValue(enquiry).kind === "exact";
+}
+
+export type QueueSummary = {
+  needsYou: number;
+  waiting: number;
+  atRisk: number;
+  open: number;
+  exactCount: number;
+  exactValue: number;
+};
+
+export function queueSummary(enquiries: Enquiry[]): QueueSummary {
+  const open = enquiries.filter((e) => e.state.lifecycle === "OPEN");
+  const exact = open.filter((e) => commercialValue(e).kind === "exact");
+  return {
+    needsYou: enquiries.filter((e) => queueSection(e) === "needs_you").length,
+    waiting: enquiries.filter((e) => queueSection(e) === "waiting").length,
+    atRisk: enquiries.filter((e) => queueSection(e) === "at_risk").length,
+    open: open.length,
+    exactCount: exact.length,
+    exactValue: exact.reduce((sum, e) => sum + (e.valueExact?.amount ?? 0), 0),
+  };
+}
+
+export function queueHeadline(summary: QueueSummary): string {
+  return summary.needsYou === 0 ? "Caught up" : `${summary.needsYou} need you`;
 }
