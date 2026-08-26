@@ -20,7 +20,7 @@ A phase being `PREPARED` here does not mean Grok may execute it. A commit labell
 
 Do not tell Grok to "continue through the phases".
 
-If later-phase code lands before authorisation, treat it as **ungated existing code**. Do not infer completion from git history. Product management must still review phases in the deliberate sequence and may require corrections before any later work continues.
+If later-phase code lands before authorisation, treat it as **ungated existing code**. Do not infer completion from git history.
 
 ---
 
@@ -35,21 +35,16 @@ If later-phase code lands before authorisation, treat it as **ungated existing c
 | 3 | Complete | Remove universal price/commercial assumptions | 2B | Required |
 | 4 | Complete | Curate public roadmap into sales/trust narrative | 2B + 3 | Required before public waitlist push |
 | 5 | Complete | Polish Early Access + Updates trust copy | 4 | Required before public waitlist push |
-| 6 | Active review gate | Persist roadmap qualitative feedback + attribution | 5 signed off | Strongly recommended before meaningful traffic |
-| 7A | Prepared | Future-safe identity/contact-point model + deterministic match | 2A | Can defer until after first beta if needed |
-| 7B | Prepared | Reviewable possible-match UX | 7A reviewed | Can defer until evidence requires it |
-| 8 | Prepared - ungated code present | Pre-beta coherence/release QA gate | chosen phases complete | Required before first beta candidate |
-| 9A | Prepared | Premium visual system + homepage polish; non-AI art direction | 8 preferred | Can follow first cohort, but required before broader polished launch |
-| 9B | Prepared | Extend approved visual system across remaining public surfaces | 9A reviewed | Same as 9A |
+| 6 | Complete | Persist roadmap qualitative feedback + attribution | 5 reviewed | Complete before meaningful traffic |
+| 7A | Deferred | Future-safe identity/contact-point model + deterministic match | 2A | Evidence-driven; not blocking first beta |
+| 7B | Deferred | Reviewable possible-match UX | 7A reviewed | Evidence-driven; not blocking first beta |
+| 8 | Complete | Pre-beta coherence/release QA gate | 1-6 complete | Passed pre-beta candidate gate |
+| 9A | Active | Premium visual system + homepage/signature-proof polish; non-AI art direction | 8 | Chosen before wider waitlist push |
+| 9B | Prepared | Extend approved visual system across remaining public surfaces | 9A reviewed | Required before broader polished launch |
 | 10A | Prepared | Productise existing PWA installability + Enquiry branding | 9 preferred | Required before claiming Enquiry is installable |
 | 10B | Prepared | Installed standalone mobile shell + operator-flow polish | 10A reviewed | Strongly recommended before mobile-first expansion |
 
 `CURRENT_PHASE.md` remains authoritative if this table ever lags behind a phase transition.
-
-Current sequencing incident:
-
-- Phase 6 implementation commit `6d326e39ff4156d654ec515c7799779c87f2cfd6` landed before Phase 5 was formally advanced. It is now the subject of the active Phase 6 review gate.
-- A Phase 8-labelled commit `836a79fccb6079b44dd4769acf56422978c75ac8` also landed early. It is not signed off and must not be extended or treated as Phase 8 completion until the formal Phase 8 gate is reached.
 
 ---
 
@@ -58,20 +53,17 @@ Current sequencing incident:
 ## Phase 2
 `docs/phases/PHASE_2_SIGNATURE_CROSS_CHANNEL_DEMO.md`
 
-Phase 2 is deliberately split:
-
-- **2A:** build and prove the component/demo in isolation;
-- **2B:** after review, place it into homepage/How sales flow and demote quote-first proof.
+Split into 2A component proof and 2B public placement.
 
 ## Phase 3
 `docs/phases/PHASE_3_NON_UNIVERSAL_COMMERCIAL_UX.md`
 
-Key gate: price must disappear when pricing is genuinely not applicable, while exact/estimate/unresolved pricing still work for businesses where it matters.
+Key gate: price disappears when genuinely not applicable while exact/estimate/unresolved pricing remains correct where it matters.
 
 ## Phase 4
 `docs/phases/PHASE_4_PUBLIC_ROADMAP_SALES_PAGE.md`
 
-Key gate: roadmap is customer-facing sales/trust narrative, not this implementation registry or an engineering backlog.
+Key gate: roadmap is a customer-facing sales/trust narrative, not this registry or an engineering backlog.
 
 ## Phase 5
 `docs/phases/PHASE_5_PUBLIC_TRUST_AND_EARLY_ACCESS_COPY.md`
@@ -81,31 +73,24 @@ Key gate: preserve honesty without founder/process language leaking into custome
 ## Phase 6
 `docs/phases/PHASE_6_ROADMAP_RESEARCH_PERSISTENCE_ATTRIBUTION.md`
 
-Key gate: volunteered roadmap problem text becomes actual research data and roadmap events keep attribution.
+Key gate: volunteered roadmap problem text becomes durable research data and roadmap events keep attribution.
 
 ## Phase 7
 `docs/phases/PHASE_7_SAFE_IDENTITY_CONTINUITY.md`
 
-Split into:
-
-- **7A:** model + deterministic continuity only;
-- **7B:** suggestive possible-match UX after 7A review.
-
-Do not collapse this into a production identity graph.
+Deferred unless beta evidence makes broader identity continuity necessary. Do not build a production identity graph speculatively.
 
 ## Phase 8
 `docs/phases/PHASE_8_FINAL_COHERENCE_QA.md`
 
-Pre-beta release/coherence gate, not a feature phase. Phase 8 proves the product and sales surfaces are coherent before later aesthetic/productisation work.
+Pre-beta release/coherence gate. Signed off after product-management review and reported typecheck/build/focused-test/desktop/phone/reduced-motion QA.
 
 ## Phase 9
 `docs/phases/PHASE_9_VISUAL_BRAND_POLISH.md`
 
 Premium visual polish and non-AI art direction.
 
-The design should feel considered, expensive, calm and real without relying on generic AI/SaaS clichés. Preserve the existing Enquiry identity and product truth rather than redesigning from scratch.
-
-May be split:
+Split deliberately:
 
 - **9A:** visual system + homepage + signature proof;
 - **9B:** remaining public surfaces after 9A review.
@@ -113,44 +98,32 @@ May be split:
 ## Phase 10
 `docs/phases/PHASE_10_INSTALLABLE_PWA_MOBILE.md`
 
-Installable/PWA-first mobile productisation.
+Installable/PWA-first mobile productisation. Existing Grok platform PWA/manifest/install infrastructure must be audited and productised rather than rebuilt blindly.
 
-Important: the repo already contains Grok platform PWA/manifest/install infrastructure. Phase 10 audits and productises that existing capability rather than blindly building a new PWA stack.
-
-May be split:
+Split deliberately:
 
 - **10A:** installability, Enquiry app identity, manifest/icon/install flow and real-device evidence;
 - **10B:** standalone mobile shell, safe areas, keyboard/back/network behaviour and operator-flow polish.
 
-Native iOS/Android packaging remains a later evidence-based decision, not automatic Phase 10 scope.
+Native iOS/Android packaging remains a later evidence-based decision.
 
 ---
 
-# Recommended sequencing
+# Current deliberate path
 
-## Lean first-beta critical path
+The pre-beta product/coherence path is complete:
 
-Unless product evidence changes priorities:
+> 1 -> 2A -> 2B -> 3 -> 4 -> 5 -> 6 -> 8
 
-> Phase 1 -> 2A -> review -> 2B -> 3 -> 4 -> 5 -> 6 -> 8 -> first 5 businesses
+We have deliberately chosen to complete visual productisation before a broader public waitlist push:
 
-Phase 7 can be inserted before Phase 8 if cross-channel identity behaviour becomes necessary for the first cohort, but should **not** delay first beta merely to build infrastructure for hypothetical channel ambiguity.
+> **9A active -> review -> 9B -> 10A -> review -> 10B**
 
-Why:
+The first five beta candidates can be identified/recruited in parallel. Do not delay learning merely to invent additional feature phases.
 
-- Phase 2 demo can truthfully use deterministic same-phone continuity without a general identity graph;
-- first beta can begin with controlled channel/input paths;
-- real identity ambiguity should be validated before building a larger system.
+Phase 7 remains deferred unless actual cross-channel ambiguity in the cohort creates evidence for it.
 
-## Productisation path
-
-After the product is coherent - and either before a broader public launch or after the first cohort, depending on evidence:
-
-> Phase 8 -> 9A -> review -> 9B -> 10A -> review -> 10B
-
-Product management may choose to run Phase 9 before the first five businesses if public visual quality is judged important enough to justify the delay. Phase 10 should not block learning unless installability is specifically required by the cohort.
-
-Do not claim Enquiry is installable until Phase 10A has verified the real production install experience.
+Do not claim Enquiry is installable until Phase 10A verifies the production install experience on real target devices/browsers.
 
 ---
 
