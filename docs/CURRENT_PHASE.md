@@ -2,138 +2,153 @@
 
 ## Current phase
 
-**Phase 9A - Premium visual system + homepage polish**
+**R1A - Cross-platform toolchain + truthful default test command**
+
+This release-blocker gate temporarily supersedes Phase 9B.
 
 Source of truth:
 
 - `AGENTS.project.md`
-- `docs/PRODUCT_CHANGE_PLAN.md`
-- `docs/phases/PHASE_9_VISUAL_BRAND_POLISH.md`
+- `docs/phases/PHASE_R1_RELEASE_BLOCKER_STABILISATION.md`
 - `docs/TEST_REGRESSION_POLICY.md`
 
-## Completed gates
+## Completed product gates
 
-### Phase 1
-**SIGNED OFF.** Public positioning leads with the decision layer rather than phone-first quoting.
-
-### Phase 2A
-**SIGNED OFF.** Ridge & Co / Maya signature demo is grounded in explicit business truth and deterministic same-phone continuity.
-
-### Phase 2B
-**SIGNED OFF.** The Ridge decision-continuity proof is the first substantial public proof on the homepage and `/how`; Priya remains secondary exact-price evidence.
-
-### Phase 3
-**SIGNED OFF.** Pricing and capacity are no longer treated as universal. Non-price enquiries render without fake commercial placeholders and the queue is attention-first.
-
-### Phase 4
-**SIGNED OFF.** Public roadmap is six customer-facing eras rather than an engineering backlog. Continuity, earned autonomy and the booked/lost boundary are clear.
-
-### Phase 5
-**SIGNED OFF.** Early Access and Updates are customer-facing, candid and polished without founder/process language or fake scarcity framing.
-
-### Phase 6
-**SIGNED OFF.** Volunteered roadmap problem statements persist independently from `I need this`, canonical roadmap-era IDs are preserved, feedback is tied to session + optional waitlist ID, blank feedback is discarded, roadmap events retain available current-touch attribution, first-touch behaviour remains intact, and no public feedback-read surface was introduced.
+### Phases 1-6
+**SIGNED OFF.** Positioning, signature decision-continuity proof, non-universal commercial UX, public roadmap, Early Access/Updates and roadmap research persistence are complete.
 
 ### Phase 8
-**SIGNED OFF as the pre-beta coherence gate.** The bounded coherence implementation plus reported QA verifies the public product story and app behaviour are aligned: decision layer rather than quote engine/shared inbox, pricing only where applicable, attention-first operational UX, continuity framed as one enquiry, and the endgame remains first interest to booked/lost. Typecheck, production build, focused product tests and desktop/phone/reduced-motion QA were reported green. Known platform PWA/share-card/template checks remain separately tracked and unchanged in kind.
+**SIGNED OFF as the pre-beta coherence gate.** Public/product story is coherent: Enquiry is a decision layer, not a quote engine/shared inbox; pricing applies only where relevant; continuity is one enquiry; the endgame remains first interest to booked/lost.
 
 ### Phase 7
-**DEFERRED BY DESIGN.** Do not build identity-matching infrastructure before first beta unless real cohort evidence requires it. Existing deterministic same-phone continuity is sufficient for the current prototype/demo.
+**DEFERRED BY DESIGN.** Do not build broader identity matching before beta evidence requires it.
+
+### Phase 9A
+**IMPLEMENTATION LANDED; VISUAL DIRECTION ACCEPTED; FINAL SIGN-OFF HELD BY R1.**
+
+Implementation commit:
+
+`19843ee61fb7d2508bc0b810e8ead5cd58735ddc`
+
+Product-management source review accepts the direction:
+
+- Enquiry's paper/ink identity was evolved, not replaced;
+- homepage hierarchy/rhythm improved;
+- Ridge remains the first substantial proof;
+- changed facts/decision are visually clearer;
+- waitlist behaviour and approved product copy remain unchanged;
+- no generic AI-site visual clichés were introduced.
+
+Do **not** begin 9B until R1 restores the runtime/build verification loop and Phase 9A receives final sign-off.
 
 ---
 
-# Execute Phase 9A only
+# Why R1 was inserted
 
-Read the full detailed brief:
+An independent review after 9A exposed pre-existing release-engineering/security issues. Product management verified the relevant repo code directly.
 
-`docs/phases/PHASE_9_VISUAL_BRAND_POLISH.md`
+The full plan is:
+
+`docs/phases/PHASE_R1_RELEASE_BLOCKER_STABILISATION.md`
+
+R1 sequence:
+
+> **R1A -> review -> R1B -> review -> R1C -> review -> R1D -> final gate -> resume Phase 9**
+
+Do not batch later R1 slices.
+
+---
+
+# Execute R1A only
 
 ## Objective
 
-Make the Enquiry public experience feel visually exceptional, premium, calm, human-designed and trustworthy without drifting into generic AI/SaaS visual language.
+Fix the cross-platform dev/build launcher and make `npm test` execute the full intended repository test suite.
 
-This is **not** permission to redesign the product from scratch.
+This slice changes tooling only.
 
-The approved product truth, copy hierarchy, waitlist flow, signature Ridge demo, roadmap meaning and app behaviour must remain intact.
+Do not change product behaviour, visual design, auth semantics, public routes, PWA behaviour or Phase 9 copy.
 
-## Phase 9A scope
+## Verified problem 1 - Windows Vite launch
 
-Phase 9A is deliberately limited to:
+Current package scripts run commands such as:
 
-1. define/refine the shared public visual system;
-2. polish the homepage;
-3. polish the signature Ridge proof in its homepage context;
-4. improve typography, spacing, composition, rhythm, hierarchy, motion and product-demo framing;
-5. verify desktop + phone + reduced-motion behaviour.
+```text
+node scripts/with-app-env.mjs vite build
+```
 
-Do **not** extend the full visual pass to every public page yet. Phase 9B does that only after product-management review of 9A.
+`with-app-env.mjs` then uses Node `spawn("vite", ..., { shell: false })`.
 
-## Target impression
+On Windows this can fail with:
 
-> This feels considered, expensive and real - not like another AI landing page.
+```text
+spawn vite ENOENT
+```
 
-Useful test:
+because npm's Windows binary shim is not safely invoked this way.
 
-> If the words `AI` and `automation` disappeared, the visual design should still feel complete and credible.
+### Required fix
 
-## Preserve
+Use a shell-free, cross-platform launcher.
 
-- `Stop managing enquiries.`
-- current Enquiry paper/ink character;
-- restrained green/mark accent;
-- editorial typography direction;
-- signature Ridge continuity proof and its business truth;
-- waitlist CTA and conversion behaviour;
-- cross-industry positioning;
-- all Phase 1-8 product/trust decisions;
-- accessibility and reduced-motion behaviour.
+Prefer resolving/invoking the JavaScript Vite CLI through Node or another explicit executable/argv mechanism.
 
-## Explicitly avoid
+Preserve:
 
-- purple/blue AI gradients;
-- glowing blobs/orbs;
-- sparkle/magic motifs;
-- robots/brains/circuits;
-- generic 3D AI objects;
-- glassmorphism everywhere;
-- excessive floating rounded cards;
-- generated people/stock customer imagery;
-- particle effects/neon noise;
-- fake dashboards used as decoration;
-- changing product copy merely to make a new composition easier;
-- broad app-product redesign;
-- Phase 9B;
-- Phase 10/PWA work.
+- `.grok/app-env.json` merge behaviour;
+- explicit process env precedence;
+- child exit/signal forwarding;
+- existing qemu-sensitive exit-status handling.
+
+Do not solve this with shell string construction.
+
+## Verified problem 2 - default tests omit most TS tests
+
+Repo currently contains:
+
+- **7** `*.test.mjs` files;
+- **16** TypeScript test files.
+
+Current `npm test` hard-codes only two TypeScript test files.
+
+### Required fix
+
+Make the default test command discover/run the whole intended suite cross-platform.
+
+Requirements:
+
+- all current script tests execute;
+- all current TS/TSX tests execute;
+- future matching tests are picked up automatically;
+- no shell-glob dependency;
+- keep Node strip-types unless a deliberate alternative is justified;
+- do not introduce a new test framework merely for discovery.
 
 ## Acceptance criteria
 
-- [ ] Homepage feels materially more premium and intentionally designed rather than merely restyled.
-- [ ] Visual hierarchy makes the decision-layer story easier to understand, not harder.
-- [ ] Signature Ridge proof remains the first substantial product proof and is visually stronger.
-- [ ] Waitlist CTA remains obvious without looking like a generic SaaS conversion block.
-- [ ] The design does not rely on generic AI visual clichés.
-- [ ] Existing Enquiry identity is evolved rather than replaced.
-- [ ] Typography/spacing/component treatments are coherent enough to become the Phase 9B system.
-- [ ] Motion is restrained, purposeful and respects reduced-motion.
-- [ ] Desktop and phone both feel intentionally composed.
-- [ ] No product truth, roadmap status, integration claim or beta behaviour changes.
-- [ ] Typecheck passes.
-- [ ] Production build passes or known platform-only failures are evidenced under the regression policy.
-- [ ] Relevant focused tests remain green.
+- [ ] `npm run typecheck` passes.
+- [ ] `npm test` executes the complete intended suite.
+- [ ] Exact number of test files/tests executed is reported.
+- [ ] `npm run build` completes the Vite build on Windows.
+- [ ] `npm run dev` starts on Windows and can be stopped cleanly.
+- [ ] `npm run build:dev` and `npm run preview` use the same safe launcher approach.
+- [ ] Existing env merge/signal semantics remain correct.
+- [ ] No product/UI/security behaviour changes.
 
 ## Required handoff
 
 Report only:
 
-1. visual-system decisions made;
-2. homepage changes;
-3. signature-proof changes;
+1. root cause fixed;
+2. launcher strategy used;
+3. full-test discovery strategy;
 4. files changed;
-5. typecheck/build/test results;
-6. desktop/phone/reduced-motion QA;
-7. anything deliberately left for 9B;
-8. any place where the existing visual system constrained quality and what you did instead of broadening scope.
+5. exact test files/tests executed;
+6. typecheck result;
+7. build result;
+8. dev start/stop result;
+9. any newly exposed failing test that the old command never ran.
 
 Then stop.
 
-**Do not begin Phase 9B, Phase 10, identity work or unrelated feature work until product management reviews Phase 9A and updates this file.**
+**Do not begin R1B, R1C, R1D, Phase 9B or Phase 10 until product management reviews R1A and updates this file.**
