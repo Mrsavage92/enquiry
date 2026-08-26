@@ -30,8 +30,8 @@ Do not tell Grok to "continue through the phases".
 | 1 | Complete | Reposition public site around decision layer | 0 | Required |
 | 2A | Complete | Build signature cross-channel decision demo | 1 | Required |
 | 2B | Complete | Place signature demo into public sales journey | 2A reviewed | Required |
-| 3 | Active | Remove universal price/commercial assumptions | 2B | Required |
-| 4 | Prepared | Curate public roadmap into sales/trust narrative | 2B + preferably 3 | Required before public waitlist push |
+| 3 | Complete | Remove universal price/commercial assumptions | 2B | Required |
+| 4 | Active | Curate public roadmap into sales/trust narrative | 2B + 3 | Required before public waitlist push |
 | 5 | Prepared | Polish Early Access + Updates trust copy | 4 preferred | Required before public waitlist push |
 | 6 | Prepared | Persist roadmap qualitative feedback + attribution | 4 | Strongly recommended before meaningful traffic |
 | 7A | Prepared | Future-safe identity/contact-point model + deterministic match | 2A | Can defer until after first beta if needed |
