@@ -1,9 +1,11 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { SiteShell } from "@/components/site/site-shell";
 import { ProofCase } from "@/components/site/proof-case";
+import { CrossChannelDecisionDemo } from "@/components/site/cross-channel-decision-demo";
 import { WaitlistForm } from "@/components/site/waitlist-form";
 import { Button } from "@/components/ui/button";
 import { Reveal } from "@/components/site/motion";
+import { SIGNATURE_DEMO } from "@/lib/site/signature-demo";
 
 export const Route = createFileRoute("/how")({
   component: How,
@@ -36,7 +38,21 @@ function How() {
 
       <section className="border-t border-line bg-raised">
         <div className="mx-auto max-w-5xl px-5 py-10 sm:py-16">
-          <ProofCase />
+          <Reveal>
+            <p className="eyebrow">{SIGNATURE_DEMO.business}</p>
+            <h2 className="mt-3 max-w-2xl text-2xl font-semibold tracking-tight sm:text-3xl">
+              {SIGNATURE_DEMO.headline}
+            </h2>
+            <p className="mt-3 max-w-2xl text-sm leading-relaxed text-ink-2 sm:text-base">
+              {SIGNATURE_DEMO.supporting}
+            </p>
+          </Reveal>
+          <div className="mt-8">
+            <CrossChannelDecisionDemo compact />
+          </div>
+          <p className="mt-8 max-w-xl text-sm leading-relaxed text-ink-2">
+            {SIGNATURE_DEMO.takeaway}
+          </p>
         </div>
       </section>
 
@@ -79,8 +95,27 @@ function How() {
             </Reveal>
           ))}
         </ol>
+      </section>
 
-        <div className="mt-12 flex flex-col gap-3 sm:flex-row">
+      <section className="border-t border-line bg-paper-2">
+        <div className="mx-auto max-w-5xl px-5 py-10 sm:py-16">
+          <Reveal>
+            <p className="eyebrow">When the price can be decided</p>
+            <h2 className="mt-3 max-w-2xl text-2xl font-semibold tracking-tight sm:text-3xl">
+              A different job. Exact quote, ready to send.
+            </h2>
+            <p className="mt-3 max-w-xl text-sm leading-relaxed text-ink-2">
+              Some enquiries resolve to a number. That is still Enquiry — it is not the whole product.
+            </p>
+          </Reveal>
+          <div className="mt-8">
+            <ProofCase />
+          </div>
+        </div>
+      </section>
+
+      <section className="mx-auto max-w-3xl px-5 py-10 sm:py-16">
+        <div className="flex flex-col gap-3 sm:flex-row">
           <Button asChild className="min-h-12">
             <Link to="/early-access">Join early access</Link>
           </Button>

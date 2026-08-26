@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { SiteShell } from "@/components/site/site-shell";
 import { WaitlistForm } from "@/components/site/waitlist-form";
 import { LivePhone } from "@/components/site/live-phone";
+import { CrossChannelDecisionDemo } from "@/components/site/cross-channel-decision-demo";
 import { Button } from "@/components/ui/button";
 import { ROADMAP_PREVIEW } from "@/lib/launch/roadmap";
 import { HeroIn, Reveal, SiteVideo } from "@/components/site/motion";
@@ -56,6 +57,12 @@ function Home() {
             </Link>
           </p>
         </HeroIn>
+      </section>
+
+      <section className="border-t border-line">
+        <div className="mx-auto max-w-5xl px-5 py-10 sm:py-16">
+          <CrossChannelDecisionDemo />
+        </div>
       </section>
 
       <section className="site-film border-t border-line bg-ink">
