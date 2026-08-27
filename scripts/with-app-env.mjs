@@ -21,8 +21,9 @@
  */
 import { spawn } from "node:child_process";
 import { readFileSync, realpathSync } from "node:fs";
+import { createRequire } from "node:module";
 import { constants as osConstants } from "node:os";
-import { dirname, join } from "node:path";
+import { dirname, isAbsolute, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 export const APP_ENV_REL_PATH = ".grok/app-env.json";
@@ -87,6 +88,45 @@ export function projectRoot() {
   return dirname(dirname(fileURLToPath(import.meta.url)));
 }
 
+/** Whether `command` already names a file rather than a PATH lookup. */
+export function isPathLike(command) {
+  return isAbsolute(command) || command.includes("/") || command.includes("\\");
+}
+
+/**
+ * The JavaScript entry point of an installed package's bin, or null.
+ *
+ * Resolution goes through the package's own `package.json` rather than
+ * `node_modules/.bin`, because on Windows that directory holds `.cmd`/`.ps1`
+ * shims — batch files, not executables. Spawning one without a shell is the
+ * `spawn vite ENOENT` failure this wrapper existed to avoid.
+ */
+export function packageBinPath(name, root) {
+  try {
+    const require = createRequire(join(root, "package.json"));
+    const manifestPath = require.resolve(`${name}/package.json`);
+    const { bin } = JSON.parse(readFileSync(manifestPath, "utf8"));
+    const rel = typeof bin === "string" ? bin : bin?.[name];
+    return rel ? join(dirname(manifestPath), rel) : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * The explicit `(file, args)` pair to spawn — never a shell string.
+ *
+ * A package bin becomes `node <resolved-bin.js> …` so the same argv works on
+ * every platform. Anything already path-like, or not an installed package, is
+ * spawned unchanged so `process.execPath` and system binaries still work.
+ */
+export function resolveInvocation(command, args, root) {
+  if (isPathLike(command)) return { file: command, args };
+  const bin = packageBinPath(command, root);
+  if (bin) return { file: process.execPath, args: [bin, ...args] };
+  return { file: command, args };
+}
+
 /**
  * Whether `moduleUrl` is the script node was asked to run.
  *
@@ -110,8 +150,10 @@ function main(argv) {
     console.error("usage: node scripts/with-app-env.mjs <command> [args…]");
     process.exit(2);
   }
-  const env = mergeAppEnv(readAppEnv(projectRoot()), process.env);
-  const child = spawn(command, args, { stdio: "inherit", env });
+  const root = projectRoot();
+  const env = mergeAppEnv(readAppEnv(root), process.env);
+  const invocation = resolveInvocation(command, args, root);
+  const child = spawn(invocation.file, invocation.args, { stdio: "inherit", env });
   // The dev server is long-running and is stopped by signalling this wrapper.
   for (const signal of ["SIGINT", "SIGTERM", "SIGHUP"]) {
     process.on(signal, () => child.kill(signal));

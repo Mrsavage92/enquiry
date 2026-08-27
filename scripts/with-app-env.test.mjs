@@ -7,10 +7,13 @@ import { test } from "node:test";
 import { promisify } from "node:util";
 import {
   APP_ENV_REL_PATH,
+  isPathLike,
   mergeAppEnv,
+  packageBinPath,
   parseAppEnv,
   projectRoot,
   readAppEnv,
+  resolveInvocation,
 } from "./with-app-env.mjs";
 
 const execFileAsync = promisify(execFile);
@@ -111,6 +114,43 @@ test("a signal-killed command is never reported as success", async () => {
     ]),
     (err) => err.signal === "SIGTERM" || err.code !== 0,
   );
+});
+
+test("a package bin resolves to a JavaScript file, never a Windows shim", () => {
+  // The `spawn vite ENOENT` regression: node_modules/.bin/vite.cmd is a batch
+  // file, not an executable, so it cannot be spawned without a shell.
+  const bin = packageBinPath("vite", projectRoot());
+  assert.ok(bin, "vite bin did not resolve");
+  assert.match(bin, /\.js$/);
+  assert.doesNotMatch(bin, /\.cmd$|\.ps1$/i);
+  assert.doesNotMatch(bin, /[\\/]\.bin[\\/]/);
+});
+
+test("a package command is launched through node with an explicit argv", () => {
+  const { file, args } = resolveInvocation("vite", ["build"], projectRoot());
+  assert.equal(file, process.execPath);
+  assert.match(args[0], /vite[\\/]bin[\\/]vite\.js$/);
+  assert.deepEqual(args.slice(1), ["build"]);
+});
+
+test("an already-path-like command is spawned unchanged", () => {
+  const { file, args } = resolveInvocation(process.execPath, ["-e", "1"], projectRoot());
+  assert.equal(file, process.execPath);
+  assert.deepEqual(args, ["-e", "1"]);
+  assert.equal(isPathLike(process.execPath), true);
+  assert.equal(isPathLike("vite"), false);
+});
+
+test("an unresolvable command is left alone rather than guessed at", () => {
+  const { file, args } = resolveInvocation("definitely-not-installed", ["x"], projectRoot());
+  assert.equal(file, "definitely-not-installed");
+  assert.deepEqual(args, ["x"]);
+  assert.equal(packageBinPath("definitely-not-installed", projectRoot()), null);
+});
+
+test("argument boundaries stay explicit, so no shell quoting is involved", () => {
+  const { args } = resolveInvocation("vite", ["build", "--mode", "a b"], projectRoot());
+  assert.deepEqual(args.slice(1), ["build", "--mode", "a b"]);
 });
 
 test("the CLI still runs when invoked through a symlinked path", async () => {
