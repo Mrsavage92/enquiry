@@ -35,7 +35,11 @@ Concrete source-review findings that must be read before executing R2 are record
 
 `docs/R2_FOUNDATION_REVIEW.md`
 
-That review is supporting evidence; `CURRENT_PHASE.md` remains execution authority.
+Decision-engine/Business-Brain production boundaries are additionally reviewed in:
+
+`docs/R2_DECISION_ENGINE_REVIEW.md`
+
+These reviews are supporting evidence; `CURRENT_PHASE.md` remains execution authority.
 
 ---
 
@@ -219,6 +223,8 @@ Then stop.
 ## Objective
 
 Business-defining changes survive reload and are applied through tenancy-checked server mutations.
+
+R2C must also establish the minimum machine-usable Business Brain rule representation required by `docs/R2_DECISION_ENGINE_REVIEW.md`; live deterministic evaluators must not rely on repeatedly regex-parsing arbitrary Knowledge Item prose as authority.
 
 ## Minimum persistent scope
 
