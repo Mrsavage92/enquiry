@@ -38,6 +38,12 @@ The repository already contains platform-level install/PWA infrastructure, inclu
 
 **Phase 10 must audit and productise this existing capability rather than replacing platform infrastructure casually.**
 
+A source-level pre-audit has already been completed in:
+
+`docs/PHASE_10_PWA_PRE_AUDIT.md`
+
+That review confirms concrete current risks including host-dependent `Grok App` manifest fallback, Grok-branded install tutorial chrome, black manifest colours, a single visible 180px icon, and no obvious service-worker implementation. Verify these against the then-current tree rather than assuming they remain unchanged.
+
 If platform-owned PWA code has constraints, work with them. Do not delete or fork it merely for aesthetic cleanliness.
 
 ---
