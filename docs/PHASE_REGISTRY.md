@@ -79,7 +79,7 @@ Current reviewed foundation state:
 - initial server-side workspace creation is concurrency-safe;
 - product action policies no longer depend on fixture businesses;
 - the signed-in operator runtime is still not server-authoritative because operator components still use `usePrototype` broadly;
-- the current R2A correction gate remains open because the live onboarding UI still completes through prototype-store behaviour rather than the authenticated persisted server operation;
+- authenticated persisted onboarding now succeeds without mutating the fixture business, but R2A remains open because the post-onboarding live runtime can still expose preloaded fixture businesses/enquiries/bookings and can still trigger the hard-coded demo arrival outside explicit demo mode;
 - arbitrary non-fixture enquiry interpretation is not implemented.
 
 Do not infer R2A completion from the accepted server foundation above. `docs/CURRENT_PHASE.md` remains the authority for the active onboarding correction gate.
