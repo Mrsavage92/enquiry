@@ -45,8 +45,8 @@ If later-phase code lands before authorisation, treat it as **ungated existing c
 | R1C | Complete | Signed-in operator/auth boundary | R1B code | Release blocker cleared |
 | R1C1 | Complete | Same-origin auth return-path invariant | R1C review | Release blocker cleared |
 | R1D | Complete | Contain short-ID public quote/booking routes to demo/local use | R1C1 | Release blocker cleared |
-| R1 Final | **Active** | Full release/security/runtime verification + final 9A QA | R1A-D | Required before R2/public traffic |
-| R2A | Prepared | Real empty workspace bootstrap + persisted onboarding | Final R1 + 9A sign-off | Required for first beta |
+| R1 Final | Repo/runtime passed; operational close pending | Full release/security/runtime verification | R1A-D | Public traffic blocked by external rotation/visual QA |
+| R2A | **Active** | Real workspace bootstrap + persisted onboarding | R1 repo/runtime gate | Required for first beta |
 | R2B | Prepared | Cut signed-in operator reads over to persisted tenant state | R2A reviewed | Required for first beta |
 | R2C | Prepared | Persist Business Brain/trust/business mutations | R2B reviewed | Required for first beta |
 | R2D | Prepared | Persist enquiry decision-state mutations | R2C reviewed | Required for first beta |
@@ -108,7 +108,9 @@ R1 state:
 - R1C complete after R1C1;
 - R1C1 complete;
 - R1D complete;
-- **final R1 gate active**.
+- final R1 repository/runtime gate passed;
+- external credential rotation/revocation remains operationally pending for public traffic;
+- Phase 9A final browser visual QA remains pending for public traffic.
 
 ### R1C1
 `docs/phases/PHASE_R1C1_SAFE_AUTH_RETURN_PATH.md`
@@ -123,7 +125,9 @@ Complete. Fixture-backed no-account customer routes are contained; real capabili
 ### R1 Final
 `docs/phases/PHASE_R1_FINAL_STABILISATION_GATE.md`
 
-**Active.** Final toolchain/auth/public-route/tenancy/Phase-9A runtime verification.
+Repository/runtime verification passed. Result: `docs/phases/R1_FINAL_GATE_RESULT.md`.
+
+External credential rotation + browser visual/public-claim checks remain in `docs/PUBLIC_TRAFFIC_GATE.md` and do not idle R2 engineering.
 
 ## R2
 `docs/phases/PHASE_R2_PERSISTED_OPERATOR_CUTOVER.md`
@@ -134,7 +138,7 @@ R2 turns the fixture/session-storage operator prototype into a truthful first-be
 
 Split:
 
-- **R2A:** real workspace bootstrap + onboarding persistence;
+- **R2A:** real workspace bootstrap + onboarding persistence — detailed brief `docs/phases/PHASE_R2A_REAL_WORKSPACE_ONBOARDING.md`;
 - **R2B:** signed-in server-authoritative workspace read cutover;
 - **R2C:** persisted Business Brain/trust/business mutations;
 - **R2D:** persisted enquiry decision-state mutations;
@@ -156,11 +160,11 @@ The approved product/coherence path is complete:
 
 Current release/productisation path:
 
-> **9A landed -> R1A/R1C/R1C1/R1D complete -> R1B code fixed / rotation pending -> R1 Final active -> final 9A sign-off -> R2A -> R2B -> R2C -> R2D -> R2E -> R2F -> first-beta core gate -> 9B -> 10A -> 10B**
+> **9A landed/source-accepted -> R1 repo/runtime passed -> R1 public/operational items pending in parallel -> R2A active -> R2B -> R2C -> R2D -> R2E -> R2F -> first-beta core gate -> 9B -> 10A -> 10B**
 
 ### Market work in parallel
 
-After final R1 confirms the public demo/waitlist funnel is safe, qualified market traffic and asynchronous waitlist research may begin while R2 is being built.
+Qualified market traffic begins only after `docs/PUBLIC_TRAFFIC_GATE.md` passes. R2 engineering continues meanwhile.
 
 Do not wait for PWA work to start audience building.
 
