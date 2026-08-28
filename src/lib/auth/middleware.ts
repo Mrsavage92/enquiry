@@ -3,8 +3,8 @@ import { createMiddleware } from "@tanstack/react-start";
 /**
  * Auth middleware for server functions — the standard way to get the caller's
  * verified user id. When deployed the session cookie is same-origin and rides
- * along automatically. In the live preview the client also forwards the bearer
- * token (partitioned cookies) via the `.client` hook below — call sites do not
+ * along automatically. The client forwards the Supabase access
+ * token via the .client hook below - call sites do not
  * thread it themselves.
  *
  *   import { createServerFn } from "@tanstack/react-start";
@@ -18,7 +18,7 @@ import { createMiddleware } from "@tanstack/react-start";
  *       return sql`select * from todos where user_id = ${context.userId}`;
  *     });
  *
- * Signed out with auth on (live preview included) -> throws `UnauthorizedError`
+ * Signed out with auth on -> throws `UnauthorizedError`
  * (see `verify.server.ts`). With auth disabled (`VITE_AUTH_ENABLED=false`, the
  * shipped default) it resolves the shared dev user — but throws instead when a
  * `DATABASE_URL` is also set, so an app without sign-in must not use this at
@@ -27,11 +27,11 @@ import { createMiddleware } from "@tanstack/react-start";
  */
 export const authMiddleware = createMiddleware({ type: "function" })
   .client(async ({ next }) => {
-    // Live preview (partitioned iframe): the session rides a bearer token, not a
-    // cookie, so forward it to the server. Null when deployed (cookie auth), so
-    // this is a no-op there.
-    const { getBearerToken } = await import("./client");
-    return next({ sendContext: { bearerToken: getBearerToken() ?? undefined } });
+    // Supabase keeps the session client-side, so forward the access token
+    // explicitly rather than relying on cookie behaviour. Null when signed out
+    // or when auth is disabled, and the server fails closed on that.
+    const { getAccessToken } = await import("./client");
+    return next({ sendContext: { bearerToken: (await getAccessToken()) ?? undefined } });
   })
   .server(async ({ next, context }) => {
     // ONLY import `*.server` modules here. This file is dual client/server

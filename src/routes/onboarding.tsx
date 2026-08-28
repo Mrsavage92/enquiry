@@ -7,10 +7,21 @@ import { Wordmark } from "@/components/ui/wordmark";
 import { usePrototype } from "@/store/prototype-store";
 import { cn } from "@/lib/utils";
 import { useNarrow } from "@/lib/use-narrow";
+import { RequireAuth } from "@/lib/auth/gates";
 
+// Onboarding configures business/workspace state, so it is an operator surface
+// even though it sits outside the /_app layout.
 export const Route = createFileRoute("/onboarding")({
-  component: Onboarding,
+  component: GuardedOnboarding,
 });
+
+function GuardedOnboarding() {
+  return (
+    <RequireAuth>
+      <Onboarding />
+    </RequireAuth>
+  );
+}
 
 const LAST = 5;
 

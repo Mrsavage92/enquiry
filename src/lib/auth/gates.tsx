@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from "react";
-import { Navigate } from "@tanstack/react-router";
+import { Navigate, useRouterState } from "@tanstack/react-router";
 import { authEnabled, signOut } from "./client";
 import { useCurrentUser, useCurrentUserState } from "./use-current-user";
 
@@ -42,6 +42,32 @@ export function SignedOut({ children }: { children: ReactNode }) {
  */
 export function RedirectToSignIn({ to = SIGN_IN_PATH }: { to?: string }) {
   return <Navigate to={to} />;
+}
+
+/**
+ * Route guard for operator surfaces.
+ *
+ * Three states, deliberately distinct:
+ *   1. session still resolving -> render nothing. Redirecting here is what
+ *      bounces a signed-in operator to /login on every hard reload.
+ *   2. definitely signed out   -> send to /login, carrying the path they wanted
+ *      so sign-in returns them to it.
+ *   3. signed in               -> render the app.
+ *
+ * With auth disabled this passes straight through, because useCurrentUserState
+ * hands back DEV_USER and never pends - the local prototype mode keeps working.
+ *
+ * This is a UX boundary, NOT authorization. Every server function still verifies
+ * the caller and scopes its queries; nothing here is load-bearing for security.
+ */
+export function RequireAuth({ children }: { children: ReactNode }) {
+  const { user, isPending } = useCurrentUserState();
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  if (isPending) return null;
+  if (!user) {
+    return <Navigate to={SIGN_IN_PATH} search={{ redirect: pathname }} />;
+  }
+  return <>{children}</>;
 }
 
 /**

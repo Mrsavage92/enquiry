@@ -56,10 +56,16 @@ test("non-.sql entries are dropped (readdir also yields the auth/ directory)", (
   assert.deepEqual(pendingMigrations(["auth", "README.md"], []), []);
 });
 
-test("the auth schema ships outside the globbed directory", () => {
+test("the glob picks up every app migration and no bundled auth schema", () => {
+  // Was: asserted nothing was pending and that migrations/auth/0001_auth.sql
+  // shipped alongside. Both statements are now false by design. The app owns
+  // real migrations (0002 onward), and auth moved to Supabase, which owns its
+  // own schema - so there is no auth SQL in this repo to keep out of the glob.
   const migrationsDir = join(projectRoot(), "migrations");
-  assert.deepEqual(pendingMigrations(readdirSync(migrationsDir), []), []);
-  assert.ok(readdirSync(join(migrationsDir, "auth")).includes("0001_auth.sql"));
+  const pending = pendingMigrations(readdirSync(migrationsDir), []);
+  assert.ok(pending.length > 0, "the app's own migrations must be discovered");
+  assert.ok(pending.every((m) => /^\d{4}_/.test(m.name)));
+  assert.ok(!existsSync(join(migrationsDir, "auth")));
 });
 
 test("this workspace's auth schema copy is byte-identical to its source", () => {

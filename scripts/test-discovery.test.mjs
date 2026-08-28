@@ -53,9 +53,11 @@ test("discovery reaches src/domain, src/lib and scripts", () => {
 
 test("discovery finds the whole repository suite, not a subset", () => {
   const found = discoverTestFiles(projectRoot());
-  // The two files the old hard-coded command ran must still be included.
+  // The old hard-coded command ran two files. app-data is the surviving one;
+  // gate-identity.test.ts went with the Better Auth stack it covered, and
+  // access-mode.test.ts is what now guards the auth decision it protected.
   assert.ok(found.includes("src/lib/app-data/app-data.test.ts"));
-  assert.ok(found.includes("src/lib/auth/gate-identity.test.ts"));
+  assert.ok(found.includes("src/lib/auth/access-mode.test.ts"));
   // And the suite it silently skipped.
   assert.ok(found.includes("src/domain/labels.test.ts"));
   assert.ok(found.includes("src/lib/launch/guard.test.ts"));

@@ -14,6 +14,7 @@ import { Route as AppRouteImport } from './routes/_app'
 import { Route as DemoRouteImport } from './routes/demo'
 import { Route as EarlyAccessRouteImport } from './routes/early-access'
 import { Route as HowRouteImport } from './routes/how'
+import { Route as LoginRouteImport } from './routes/login'
 import { Route as OnboardingRouteImport } from './routes/onboarding'
 import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as RoadmapRouteImport } from './routes/roadmap'
@@ -57,6 +58,11 @@ const EarlyAccessRoute = EarlyAccessRouteImport.update({
 const HowRoute = HowRouteImport.update({
   id: '/how',
   path: '/how',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
   getParentRoute: () => rootRouteImport,
 } as any)
 const OnboardingRoute = OnboardingRouteImport.update({
@@ -165,6 +171,7 @@ export interface FileRoutesByFullPath {
   '/demo': typeof DemoRoute
   '/early-access': typeof EarlyAccessRoute
   '/how': typeof HowRoute
+  '/login': typeof LoginRoute
   '/onboarding': typeof OnboardingRoute
   '/privacy': typeof PrivacyRoute
   '/roadmap': typeof RoadmapRoute
@@ -191,6 +198,7 @@ export interface FileRoutesByTo {
   '/demo': typeof DemoRoute
   '/early-access': typeof EarlyAccessRoute
   '/how': typeof HowRoute
+  '/login': typeof LoginRoute
   '/onboarding': typeof OnboardingRoute
   '/privacy': typeof PrivacyRoute
   '/roadmap': typeof RoadmapRoute
@@ -217,6 +225,7 @@ export interface FileRoutesById {
   '/demo': typeof DemoRoute
   '/early-access': typeof EarlyAccessRoute
   '/how': typeof HowRoute
+  '/login': typeof LoginRoute
   '/onboarding': typeof OnboardingRoute
   '/privacy': typeof PrivacyRoute
   '/roadmap': typeof RoadmapRoute
@@ -245,6 +254,7 @@ export interface FileRouteTypes {
     | '/demo'
     | '/early-access'
     | '/how'
+    | '/login'
     | '/onboarding'
     | '/privacy'
     | '/roadmap'
@@ -271,6 +281,7 @@ export interface FileRouteTypes {
     | '/demo'
     | '/early-access'
     | '/how'
+    | '/login'
     | '/onboarding'
     | '/privacy'
     | '/roadmap'
@@ -296,6 +307,7 @@ export interface FileRouteTypes {
     | '/demo'
     | '/early-access'
     | '/how'
+    | '/login'
     | '/onboarding'
     | '/privacy'
     | '/roadmap'
@@ -324,6 +336,7 @@ export interface RootRouteChildren {
   DemoRoute: typeof DemoRoute
   EarlyAccessRoute: typeof EarlyAccessRoute
   HowRoute: typeof HowRoute
+  LoginRoute: typeof LoginRoute
   OnboardingRoute: typeof OnboardingRoute
   PrivacyRoute: typeof PrivacyRoute
   RoadmapRoute: typeof RoadmapRoute
@@ -368,6 +381,13 @@ declare module '@tanstack/react-router' {
       path: '/how'
       fullPath: '/how'
       preLoaderRoute: typeof HowRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/onboarding': {
@@ -572,6 +592,7 @@ const rootRouteChildren: RootRouteChildren = {
   DemoRoute: DemoRoute,
   EarlyAccessRoute: EarlyAccessRoute,
   HowRoute: HowRoute,
+  LoginRoute: LoginRoute,
   OnboardingRoute: OnboardingRoute,
   PrivacyRoute: PrivacyRoute,
   RoadmapRoute: RoadmapRoute,
