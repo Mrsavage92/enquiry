@@ -92,6 +92,10 @@ Required before external first-beta use:
 - [ ] Irrelevant evaluators remain not applicable rather than inventing missing fields.
 - [ ] Unknown is preserved when the product cannot safely decide.
 - [ ] Model/provider failure results in a safe human/unknown outcome.
+- [ ] Missing live service duration does not fall back to demo defaults.
+- [ ] Missing live travel data does not fall back to generic 10/15/20/25-minute guesses.
+- [ ] Missing booking date/time does not create a synthetic "now" or 09:00 booking.
+- [ ] Live real enquiries are not labelled with demo `fixtureId` values.
 
 Production Gmail/Instagram/SMS ingestion is not required for this gate.
 
