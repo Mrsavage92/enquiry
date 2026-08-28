@@ -308,6 +308,22 @@ then execute Phase 2 only.
 
 Do not also “helpfully” redesign onboarding, add another integration, change pricing strategy, or refactor unrelated code.
 
+### When you discover a later-phase defect
+
+A durable contract can reveal that existing code is wrong outside the active slice.
+
+That does **not** automatically authorise fixing it.
+
+Unless the defect is an immediate security/data-loss incident on the currently exercised path:
+
+1. record the exact conflict in the handoff or a review/status note;
+2. leave the product implementation unchanged;
+3. let product management place the correction into the correct phase.
+
+Do not use a newly-added contract sentence as permission to jump ahead of `docs/CURRENT_PHASE.md`.
+
+If the issue is an immediate security/data-loss incident that cannot safely wait, stop normal phase work, make the smallest containment only, and clearly flag the sequencing exception for product-management review.
+
 
 ---
 
