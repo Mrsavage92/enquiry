@@ -61,7 +61,7 @@ function Onboarding() {
   const setStep = usePrototype((s) => s.setOnboardingStep);
   const source = usePrototype((s) => s.onboardingSource);
   const setSource = usePrototype((s) => s.setOnboardingSource);
-  const complete = usePrototype((s) => s.completeOnboarding);
+  const markOnboarded = usePrototype((s) => s.markOnboardedLocally);
   const navigate = useNavigate();
 
   const [name, setName] = useState("");
@@ -69,7 +69,12 @@ function Onboarding() {
   const [industry, setIndustry] = useState("");
   const [timezone, setTimezone] = useState(detectTimezone);
   const [baseLocation, setBaseLocation] = useState("");
-  const [currency, setCurrency] = useState("AUD");
+  // The live money domain is AUD-only (Money.currency, MoneyRange.currency and
+  // Business.currency are all the literal "AUD"), so offering a currency field
+  // would let someone pick EUR and have it silently treated as AUD. The database
+  // columns stay currency-capable; making the domain multi-currency is a
+  // deliberate later change (R2A correction s6).
+  const currency = "AUD";
   const [team, setTeam] = useState("solo");
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
@@ -108,11 +113,17 @@ function Onboarding() {
   // Illustrative only, and built from what the operator just typed rather than
   // from a fixture customer and price. Nothing here is persisted or claimed as a
   // real quote.
-  const sampleWhere = baseLocation.trim() || "your area";
+  /**
+   * Illustrative wording only. Deliberately asserts NO business fact - no
+   * availability, coverage, price or commitment - because this screen persists
+   * nothing and the business has taught Enquiry nothing yet. An earlier version
+   * said "yes, we can cover X that weekend", which implies availability the
+   * product cannot know (R2A correction s5).
+   */
   const quoteSample =
     warmth === "Warm"
-      ? `Hi — yes, we can cover ${sampleWhere} that weekend. Here's what it would come to.`
-      : `Yes, we cover ${sampleWhere} that weekend. Here is what it would come to.`;
+      ? "Hi — thanks for getting in touch. Here's where things are."
+      : "Thanks for getting in touch. Here is where things are.";
 
   /**
    * Persist the real workspace, then continue.
@@ -149,8 +160,13 @@ function Onboarding() {
         },
       });
       if (!result?.ok) throw new Error("Workspace could not be created.");
-      // Only now is onboarding actually done.
-      complete({ name: name.trim(), city: baseLocation, timezone, suburb: "", team });
+      // Server is the authority. Deliberately does NOT call the prototype
+      // store's completeOnboarding, which selects fixture business "glow" and
+      // pulls fixture enquiries, Brain, trust and integration state into view as
+      // if they were this tenant's (R2A correction s1). The only client state is
+      // a transient "this browser finished onboarding" marker; real workspace
+      // hydration is R2B.
+      markOnboarded();
       await navigate({ to: "/enquiries" });
     } catch (err) {
       setSubmitError(
@@ -239,12 +255,6 @@ function Onboarding() {
                 value={timezone}
                 onChange={setTimezone}
                 placeholder="Detected from your browser"
-              />
-              <Field
-                label="Currency"
-                value={currency}
-                onChange={(v) => setCurrency(v.toUpperCase().slice(0, 3))}
-                placeholder="AUD"
               />
               <SelectField
                 label="Who does the work"
@@ -347,42 +357,40 @@ function Onboarding() {
               <Choice
                 selected={arrival === "email"}
                 title="Email"
-                body="Read first. Send stays off."
+                body="Not connected yet. Tells us what to build first."
                 onClick={() => setArrival("email")}
               />
               <Choice
                 selected={arrival === "sms"}
                 title="Texts"
-                body="Reply on the same number."
+                body="Not connected yet. Tells us what to build first."
                 onClick={() => setArrival("sms")}
               />
               <Choice
                 selected={arrival === "instagram"}
                 title="Instagram"
-                body="DMs become jobs. Comments are not quotes."
+                body="Not connected yet. Tells us what to build first."
                 onClick={() => setArrival("instagram")}
               />
               <Choice
                 selected={arrival === "facebook"}
                 title="Facebook"
-                body="Page DMs become jobs."
+                body="Not connected yet. Tells us what to build first."
                 onClick={() => setArrival("facebook")}
               />
             </div>
             <ul className="mt-6">
-              {(phone
-                ? [
-                    name.trim() || "Your studio",
-                    "How it sounds is on file",
-                    "You’ll still send the first enquiry",
-                  ]
-                : [
-                    name.trim() || "Your studio",
-                    "How it sounds is on file",
-                    "How work arrives is chosen",
-                    "You’ll still send the first enquiry",
-                  ]
-              ).map((item) => (
+              {/*
+                Only states what is actually persisted. Voice is not saved in
+                R2A and the channel choice is a preference, so claiming either
+                is "on file" or "chosen" would be false.
+              */}
+              {[
+                name.trim() || "Your business",
+                "Saved to your workspace",
+                "Nothing is connected yet",
+                "You’ll still send every reply",
+              ].map((item) => (
                 <li key={item} className="border-t border-line py-3 text-sm last:border-b">
                   {item}
                 </li>

@@ -15,7 +15,7 @@ export type CleanProfile = {
   baseLocation: string;
   timezone: string;
   soloOrTeam: "solo" | "team";
-  currency: string;
+  currency: SupportedCurrency;
 };
 
 const str = (v: unknown, max: number): string =>
@@ -40,15 +40,35 @@ export function normaliseTimezone(value: unknown): string {
 }
 
 /**
- * ISO-4217-shaped code, upper-cased. Anything else falls back rather than throwing.
+ * The currencies live onboarding may persist.
  *
- * Validates the WHOLE input, deliberately. Truncating to three characters first
- * turns "dollars" into the currency "DOL", which is not a currency and would be
- * stored against every price the business ever quotes.
+ * AUD only, and deliberately so. `Money.currency`, `MoneyRange.currency` and
+ * `Business.currency` are all the literal type `"AUD"`, so accepting EUR here
+ * would store a currency the evaluators, quote rendering and money formatting
+ * cannot represent - it would be shown and calculated as dollars regardless.
+ *
+ * The database columns stay currency-capable. Making the money domain genuinely
+ * multi-currency is a deliberate later change, not something to imply by
+ * accepting a code the rest of the product will quietly ignore.
  */
-export function normaliseCurrency(value: unknown, fallback = "AUD"): string {
+export const SUPPORTED_CURRENCIES = ["AUD"] as const;
+export type SupportedCurrency = (typeof SUPPORTED_CURRENCIES)[number];
+
+/**
+ * Upper-cases and checks against what the domain can actually represent.
+ *
+ * Validates the WHOLE input: truncating to three characters first turns
+ * "dollars" into "DOL", which is not a currency and would be stored against
+ * every price the business ever quotes.
+ */
+export function normaliseCurrency(
+  value: unknown,
+  fallback: SupportedCurrency = "AUD",
+): SupportedCurrency {
   const raw = (typeof value === "string" ? value : "").trim().toUpperCase();
-  return /^[A-Z]{3}$/.test(raw) ? raw : fallback;
+  return (SUPPORTED_CURRENCIES as readonly string[]).includes(raw)
+    ? (raw as SupportedCurrency)
+    : fallback;
 }
 
 /**

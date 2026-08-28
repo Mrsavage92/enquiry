@@ -125,6 +125,17 @@ type Actions = {
     suburb?: string;
     team?: string;
   }) => void;
+  /**
+   * Transient, client-only "this browser finished onboarding" marker.
+   *
+   * Used by the LIVE onboarding route once the server has created the real
+   * workspace. Deliberately narrower than `completeOnboarding`, which selects
+   * fixture business "glow" and rewrites fixture business/enquiry/booking state
+   * - pulling demo content into view as though it belonged to the new tenant.
+   * This carries onboarding UI position and nothing authoritative. Real
+   * workspace hydration is R2B.
+   */
+  markOnboardedLocally: () => void;
   startSetup: () => void;
   enterSample: () => void;
   restoreFixture: (enquiryId: string) => void;
@@ -289,6 +300,9 @@ export const usePrototype = create<PrototypeState & Actions>()(
           replyTimer = null;
         }
         set({ ...seed(), onboarded: get().onboarded });
+      },
+      markOnboardedLocally: () => {
+        set({ onboarded: true, demoMode: false, onboardingStep: 8, firstHint: true });
       },
       completeOnboarding: (profile) => {
         const s = get();

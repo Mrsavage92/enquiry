@@ -63,7 +63,18 @@ export const completeOnboarding = createServerFn({ method: "POST" })
   // Shared with the domain so the rules that are tested are the rules that run.
   .validator((raw: unknown) => cleanOnboardingProfile((raw ?? {}) as Record<string, unknown>))
   .handler(async ({ context, data }) => {
+    const { ensureAppUser } = await import("@/lib/repo/tenancy.server");
+    const { getSessionUser } = await import("@/lib/auth/verify.server");
     const { createInitialWorkspace } = await import("@/lib/repo/provision.server");
+
+    // Self-contained on purpose. business_member carries a foreign key to
+    // app_user, so onboarding reached directly - a fresh sign-in that lands on
+    // /onboarding without ever calling fetchWorkspace - would otherwise fail on
+    // that constraint. Idempotent, so the ordinary path costs nothing
+    // (R2A correction s3).
+    const session = await getSessionUser().catch(() => null);
+    await ensureAppUser(context.userId, session?.email ?? null);
+
     const { businessId, created } = await createInitialWorkspace({
       ...data,
       userId: context.userId,

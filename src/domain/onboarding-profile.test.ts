@@ -14,16 +14,17 @@ test("a real profile round-trips", () => {
     baseLocation: "Lisbon",
     timezone: "Europe/Lisbon",
     soloOrTeam: "team",
-    currency: "eur",
+    currency: "aud",
   });
   assert.deepEqual(p, {
     name: "Ridge & Co",
     ownerFirstName: "Maya",
     industry: "painting",
     baseLocation: "Lisbon",
+    // Timezone is genuinely global; currency is not yet. See the currency test.
     timezone: "Europe/Lisbon",
     soloOrTeam: "team",
-    currency: "EUR",
+    currency: "AUD",
   });
 });
 
@@ -52,9 +53,17 @@ test("an invalid or missing timezone becomes UTC, never someone else's zone", ()
   assert.equal(normaliseTimezone(42), "UTC");
 });
 
-test("currency is a validated ISO code", () => {
-  assert.equal(normaliseCurrency("gbp"), "GBP");
-  assert.equal(normaliseCurrency("USD"), "USD");
+test("only a currency the money domain can represent is persisted", () => {
+  // Money.currency, MoneyRange.currency and Business.currency are all the
+  // literal type "AUD". Accepting EUR here would store a code the evaluators,
+  // quote rendering and formatting all ignore - it would be calculated and
+  // displayed as dollars regardless, which is worse than refusing it.
+  assert.equal(normaliseCurrency("aud"), "AUD");
+  assert.equal(normaliseCurrency("AUD"), "AUD");
+  assert.equal(normaliseCurrency("EUR"), "AUD");
+  assert.equal(normaliseCurrency("gbp"), "AUD");
+  assert.equal(normaliseCurrency("USD"), "AUD");
+  // Whole-input validation: truncating first would turn "dollars" into "DOL".
   assert.equal(normaliseCurrency("dollars"), "AUD");
   assert.equal(normaliseCurrency(""), "AUD");
   assert.equal(normaliseCurrency(null), "AUD");
