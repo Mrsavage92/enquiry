@@ -56,6 +56,48 @@ The comment claiming retry/double-submit idempotency is stronger than the actual
 
 ---
 
+
+## 2A. Partial provisioning correction already landed — not R2A sign-off
+
+Commit:
+
+`ced20e14fbbb08d4b7fa493c08cb3bdbcc7bd080`
+
+improves the foundation materially:
+
+- fixture enquiries/bookings are no longer seeded;
+- the persisted placeholder business is generic rather than Glow & Co;
+- action policies start at `Ask every time`;
+- no fixture knowledge/integrations are copied.
+
+Keep that direction.
+
+However it is **not R2A-complete**.
+
+### Remaining race
+
+`provisionIfEmpty()` still:
+
+1. queries membership outside the creation transaction;
+2. if none exists, calls `provisionWorkspace()`.
+
+Two concurrent first-load requests can both observe no membership and each create a different business, because `business_member` uniqueness is on `(business_id, user_id)`, not one-business-per-user.
+
+The new comment saying a double-submit/retry cannot create two workspaces is therefore still stronger than the implementation.
+
+R2A must provide a genuine creation-once mechanism while preserving future multi-business membership.
+
+Acceptable approaches include a transaction-scoped lock/recheck or another explicit idempotency primitive. Do not add a permanent one-business-per-user constraint merely to solve bootstrap concurrency.
+
+### Fixture catalogue coupling
+
+The new provisioner imports `BUSINESSES` solely to derive the action-policy catalogue.
+
+Those values may be product definitions rather than tenant content, but live server provisioning should not depend on demo fixture objects as its canonical schema source.
+
+R2A should move/reuse a canonical domain policy catalogue and let fixtures depend on that, not the reverse.
+
+
 # 3. Real business IDs currently break parts of the UI
 
 Several operator components contain fixture-ID assumptions.
