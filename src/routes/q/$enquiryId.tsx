@@ -9,10 +9,6 @@ import { toastUndo } from "@/lib/toast-undo";
 import { fixtureLinksAllowed } from "@/lib/public-links";
 import { authEnabled } from "@/lib/auth/client";
 
-export const Route = createFileRoute("/q/$enquiryId")({
-  component: CustomerQuote,
-});
-
 /**
  * R1D containment. These links are keyed by a short internal id that ships in
  * the client bundle, so they resolve only in an explicitly opted-in local
@@ -22,6 +18,13 @@ export const Route = createFileRoute("/q/$enquiryId")({
 const FIXTURE_LINKS_OK = fixtureLinksAllowed({
   optedIn: import.meta.env.VITE_FIXTURE_PUBLIC_LINKS === "true",
   authEnabled,
+});
+
+export const Route = createFileRoute("/q/$enquiryId")({
+  // Chosen at the route boundary, not inside the component: an early return
+  // before the hooks made every later hook conditional. Selecting the
+  // component here also means the gated one never mounts at all.
+  component: FIXTURE_LINKS_OK ? CustomerQuote : LinkUnavailable,
 });
 
 function LinkUnavailable() {
@@ -44,7 +47,6 @@ function LinkUnavailable() {
 }
 
 function CustomerQuote() {
-  if (!FIXTURE_LINKS_OK) return <LinkUnavailable />;
   const { enquiryId } = Route.useParams();
   const enquiries = usePrototype((s) => s.enquiries);
   const businesses = usePrototype((s) => s.businesses);
