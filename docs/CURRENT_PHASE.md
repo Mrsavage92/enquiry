@@ -2,166 +2,180 @@
 
 ## Current phase
 
-**R1 slices R1A-R1D are all implemented. AWAITING PRODUCT-MANAGEMENT REVIEW.**
+**R1C1 - Same-origin auth return-path correction**
 
-Do not start Phase 9B or Phase 10 from this file alone. Read first:
-
-- `docs/phases/R1_STATUS.md`
-
-That file records a process divergence: R1A was executed under its brief, then
-implementation was redirected to backend work which subsumed R1B and R1C
-without executing their briefs. R1D was executed under its brief afterwards.
-Nothing below has passed a gate - the slices have landed, not been accepted.
-
-**R1B is operationally open regardless of code state:** the preview OAuth
-credential was committed, so it exists in git history and must be revoked at
-the broker. Removing it from HEAD is not containment.
-
-This release-blocker gate temporarily supersedes Phase 9B.
+This is a narrow correction gate discovered during product-management review of the already-landed R1C authentication work.
 
 Source of truth:
 
 - `AGENTS.project.md`
+- `docs/phases/PHASE_R1C1_SAFE_AUTH_RETURN_PATH.md`
 - `docs/phases/PHASE_R1_RELEASE_BLOCKER_STABILISATION.md`
 - `docs/TEST_REGRESSION_POLICY.md`
 
-## Completed product gates
+The implementation agent must execute **R1C1 only**, report, and stop.
+
+Do **not** begin R1D, R2, Phase 9B or Phase 10 until product management reviews the actual R1C1 diff.
+
+---
+
+# Product gates already signed off
 
 ### Phases 1-6
 **SIGNED OFF.** Positioning, signature decision-continuity proof, non-universal commercial UX, public roadmap, Early Access/Updates and roadmap research persistence are complete.
 
 ### Phase 8
-**SIGNED OFF as the pre-beta coherence gate.** Public/product story is coherent: Enquiry is a decision layer, not a quote engine/shared inbox; pricing applies only where relevant; continuity is one enquiry; the endgame remains first interest to booked/lost.
+**SIGNED OFF.** The pre-beta coherence pass established the public/product story: Enquiry is a decision layer, not a quote engine/shared inbox; pricing applies only where relevant; continuity is one enquiry; the endgame remains first interest to booked/lost.
 
 ### Phase 7
 **DEFERRED BY DESIGN.** Do not build broader identity matching before beta evidence requires it.
 
 ### Phase 9A
-**IMPLEMENTATION LANDED; VISUAL DIRECTION ACCEPTED; FINAL SIGN-OFF HELD BY R1.**
+**IMPLEMENTATION LANDED; VISUAL DIRECTION ACCEPTED; FINAL RUNTIME SIGN-OFF HELD BY R1.**
 
 Implementation commit:
 
 `19843ee61fb7d2508bc0b810e8ead5cd58735ddc`
 
-Product-management source review accepts the direction:
-
-- Enquiry's paper/ink identity was evolved, not replaced;
-- homepage hierarchy/rhythm improved;
-- Ridge remains the first substantial proof;
-- changed facts/decision are visually clearer;
-- waitlist behaviour and approved product copy remain unchanged;
-- no generic AI-site visual clichés were introduced.
-
-Do **not** begin 9B until R1 restores the runtime/build verification loop and Phase 9A receives final sign-off.
+The paper/ink identity, homepage hierarchy and Ridge proof direction are accepted. Final sign-off waits for the R1 final runtime/security gate.
 
 ---
 
-# Why R1 was inserted
+# R1 review state
 
-An independent review after 9A exposed pre-existing release-engineering/security issues. Product management verified the relevant repo code directly.
+## R1A - Cross-platform launcher + truthful test discovery
 
-The full plan is:
+**SIGNED OFF BY PRODUCT MANAGEMENT.**
 
-`docs/phases/PHASE_R1_RELEASE_BLOCKER_STABILISATION.md`
+Implementation:
 
-R1 sequence:
+`2f7ab669f0a1679c836941a55d4eaafab7dd9ef5`
 
-> **R1A -> review -> R1B -> review -> R1C -> review -> R1D -> final gate -> resume Phase 9**
+Source review confirms:
 
-Do not batch later R1 slices.
+- Vite package binaries are resolved to JavaScript entry points and invoked through `process.execPath`, avoiding Windows `.cmd` shim spawning;
+- command arguments remain shell-free and explicit;
+- `.grok/app-env.json` merge semantics and child signal/exit handling are preserved;
+- `npm test` now uses Node-side discovery rather than a shell glob/hard-coded two-file TypeScript list;
+- the implementation reported 24 test files executing and exposed pre-existing platform/PWA failures instead of hiding them.
+
+The final R1 gate must still rerun the current complete suite/build/runtime checks on the then-current tree.
+
+## R1B - Committed preview credential
+
+**CODE REMEDIATION ACCEPTED; EXTERNAL CREDENTIAL ROTATION/REVOCATION STILL REQUIRED.**
+
+Implementation:
+
+`e62c64be034069505623b85d58938578f14984c0`
+
+The old Better Auth/Grok-broker preview path and committed reusable secret were removed from HEAD by moving Enquiry to Supabase Auth.
+
+That is not complete containment because the credential remains in Git history. It must be revoked/rotated at the external broker/environment that issued it.
+
+Do not put the old value back into source, documentation, client configuration or a `VITE_` variable.
+
+The final R1 gate cannot close until rotation/revocation is confirmed externally.
+
+## R1C - Operator authentication boundary
+
+**IMPLEMENTATION LANDED; DIRECTION ACCEPTED; CORRECTION REQUIRED BEFORE SIGN-OFF.**
+
+Implementation:
+
+`e62c64be034069505623b85d58938578f14984c0`
+
+Accepted direction:
+
+- Supabase Auth replaces the previous auth stack;
+- `/_app` is guarded at the parent layout;
+- `/onboarding` is also guarded;
+- pending / signed-out / signed-in states are distinguished;
+- `/login` exists;
+- server functions verify the Supabase bearer token rather than trusting a client user id;
+- auth-off + real database fails closed rather than sharing a dev identity.
+
+### R1C1 correction
+
+Review found that `src/routes/login.tsx` treats any string beginning with `/` as a same-origin redirect, while the auth client later passes that value through `new URL(..., window.location.origin)`.
+
+Protocol-relative/backslash authority forms can therefore escape the intended origin.
+
+The correction is fully specified in:
+
+`docs/phases/PHASE_R1C1_SAFE_AUTH_RETURN_PATH.md`
+
+**R1C1 is the only authorised implementation work now.**
+
+## R1D - Public quote / booking link containment
+
+**PREPARED; NOT AUTHORISED YET.**
+
+The current no-account routes still use fixture/internal IDs and prototype-store state:
+
+- `/q/$enquiryId`
+- `/book/$bookingId`
+
+R1D must keep that mechanism local/demo-only in production-capable builds.
+
+Do not create fake security by replacing `f01` / `b1` with another client-bundled UUID/string.
+
+A real server-backed capability-link system is a later evidence-driven phase only if beta requires public no-account quote/booking links.
 
 ---
 
-# Execute R1A only
+# Ungated backend foundation already on main
 
-## Objective
+The following work landed ahead of management sequencing and is recorded as **ungated existing foundation**, not as a completed product phase:
 
-Fix the cross-platform dev/build launcher and make `npm test` execute the full intended repository test suite.
+- `f11c8d4a202b00c9f6b679de61810242c331b9c9` - product-core Postgres schema;
+- `7cd1ee4c57f18a365447038e11f80f15de4e4535` - RLS lockdown;
+- `43a7b287295638fc0cbbf91b88fa86f6be3e521f` - tenancy/repository/workspace server boundary and provisioning.
 
-This slice changes tooling only.
+Product-management review found two important facts:
 
-Do not change product behaviour, visual design, auth semantics, public routes, PWA behaviour or Phase 9 copy.
+1. the signed-in operator UI still uses `src/store/prototype-store.ts` heavily and does not yet use `fetchWorkspace` as its authoritative runtime state;
+2. normal first-user provisioning currently seeds a real database workspace from demo fixtures, while arbitrary new enquiries are still driven by fixture-specific interpretation/re-evaluation logic.
 
-## Verified problem 1 - Windows Vite launch
+Therefore this foundation is useful, but **Enquiry is not yet a real persisted first-beta product**.
 
-Current package scripts run commands such as:
+The bounded cutover plan is prepared in:
 
-```text
-node scripts/with-app-env.mjs vite build
-```
+`docs/phases/PHASE_R2_PERSISTED_OPERATOR_CUTOVER.md`
 
-`with-app-env.mjs` then uses Node `spawn("vite", ..., { shell: false })`.
+No R2 slice is authorised until R1 is closed.
 
-On Windows this can fail with:
+---
 
-```text
-spawn vite ENOENT
-```
+# Deliberate sequence from here
 
-because npm's Windows binary shim is not safely invoked this way.
+> **R1C1 active -> review -> R1D -> final R1 gate + credential-rotation confirmation -> final 9A sign-off -> R2A -> R2B -> R2C -> R2D -> R2E -> R2F -> first-beta core gate -> 9B -> 10A -> review -> 10B**
 
-### Required fix
+### Parallel market work
 
-Use a shell-free, cross-platform launcher.
+Once the R1 public-safety gate is complete and the public waitlist/demo funnel is safe, audience/waitlist validation may begin **while R2 is being built**.
 
-Prefer resolving/invoking the JavaScript Vite CLI through Node or another explicit executable/argv mechanism.
+Actual first-cohort product use waits for the R2 beta-core gate.
 
-Preserve:
+Phase 10 installability is not a prerequisite for the first five if the web product is otherwise safe, persisted and usable on mobile.
 
-- `.grok/app-env.json` merge behaviour;
-- explicit process env precedence;
-- child exit/signal forwarding;
-- existing qemu-sensitive exit-status handling.
+---
 
-Do not solve this with shell string construction.
+# Execute R1C1 only
 
-## Verified problem 2 - default tests omit most TS tests
+Read:
 
-Repo currently contains:
+- `AGENTS.project.md`
+- `docs/CURRENT_PHASE.md`
+- `docs/phases/PHASE_R1C1_SAFE_AUTH_RETURN_PATH.md`
+- `docs/TEST_REGRESSION_POLICY.md`
 
-- **7** `*.test.mjs` files;
-- **16** TypeScript test files.
+Then:
 
-Current `npm test` hard-codes only two TypeScript test files.
+1. implement the one tested same-origin auth return-path invariant;
+2. use it in login search handling and auth redirect construction;
+3. run typecheck, the full default test suite and production build;
+4. report the exact result and baseline failures;
+5. stop.
 
-### Required fix
-
-Make the default test command discover/run the whole intended suite cross-platform.
-
-Requirements:
-
-- all current script tests execute;
-- all current TS/TSX tests execute;
-- future matching tests are picked up automatically;
-- no shell-glob dependency;
-- keep Node strip-types unless a deliberate alternative is justified;
-- do not introduce a new test framework merely for discovery.
-
-## Acceptance criteria
-
-- [ ] `npm run typecheck` passes.
-- [ ] `npm test` executes the complete intended suite.
-- [ ] Exact number of test files/tests executed is reported.
-- [ ] `npm run build` completes the Vite build on Windows.
-- [ ] `npm run dev` starts on Windows and can be stopped cleanly.
-- [ ] `npm run build:dev` and `npm run preview` use the same safe launcher approach.
-- [ ] Existing env merge/signal semantics remain correct.
-- [ ] No product/UI/security behaviour changes.
-
-## Required handoff
-
-Report only:
-
-1. root cause fixed;
-2. launcher strategy used;
-3. full-test discovery strategy;
-4. files changed;
-5. exact test files/tests executed;
-6. typecheck result;
-7. build result;
-8. dev start/stop result;
-9. any newly exposed failing test that the old command never ran.
-
-Then stop.
-
-**Do not begin R1B, R1C, R1D, Phase 9B or Phase 10 until product management reviews R1A and updates this file.**
+Do not begin anything else.
