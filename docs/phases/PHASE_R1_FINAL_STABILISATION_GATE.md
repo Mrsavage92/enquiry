@@ -20,7 +20,7 @@ Before this gate begins:
 - R1C + R1C1 signed off;
 - R1D signed off.
 
-If credential rotation is still unconfirmed, final R1 remains operationally open even if all repository checks pass.
+If credential rotation is still unconfirmed, R1 remains **operationally open for public traffic** even if all repository checks pass. That external blocker does not need to idle unrelated R2 engineering once the repository/runtime gate itself is clean.
 
 ---
 
@@ -163,7 +163,27 @@ Review the phrase "Building with service businesses" against the actual external
 
 # 7. Gate outcome
 
-If all repository/runtime/security checks pass and external credential rotation is confirmed, product management may record:
+There are two distinct outcomes.
+
+## A. Repository/runtime gate passes; credential rotation still pending
+
+Product management may record:
+
+> **R1 REPOSITORY STABILISATION PASSED — EXTERNAL ROTATION PENDING**
+
+and, if visual QA passes:
+
+> **PHASE 9A RUNTIME/VISUAL SIGN-OFF PASSED**
+
+R2A may proceed because the obsolete broker credential is not part of the new product runtime.
+
+However:
+
+> **Do not deliberately send public market traffic or call R1 operationally closed until the external credential is revoked/rotated.**
+
+## B. Repository/runtime gate passes; credential rotation confirmed
+
+Product management may record:
 
 > **R1 RELEASE STABILISATION PASSED**
 
@@ -171,9 +191,9 @@ and:
 
 > **PHASE 9A FINALLY SIGNED OFF**
 
-Then the next deliberate productisation work is R2A, not speculative integration work.
+Audience/waitlist traffic may begin.
 
-Audience/waitlist traffic may begin once this gate confirms the public funnel is safe.
+In either case, the next productisation work is R2A, not speculative integration work.
 
 ---
 
