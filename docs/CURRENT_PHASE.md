@@ -14,55 +14,69 @@ Source of truth:
 
 The implementation agent must execute **R2A only**, report, and stop.
 
-Do not begin R2B, R2C, R2D, R2E, R2F, Phase 9B or Phase 10 until product management reviews R2A.
+Do not begin R2B, R2C, R2D, R2E, R2F, Phase 9B or Phase 10 until product management reviews and signs off R2A.
 
 ---
 
-# R2A correction gate after implementation review
+# R2A final correction gate after implementation review
 
-Reviewed implementation commit:
+Reviewed implementation commits:
 
-`4fd5f480824001edd5aee8d8c78cdd860ee9e5f4`
+- `4fd5f480824001edd5aee8d8c78cdd860ee9e5f4` - accepted server/domain onboarding foundation;
+- `8f972914a5df1bac6f964aac657ca987a120f9a3` - live onboarding UI correction reviewed against the actual code.
 
-The server/domain foundation in that commit is accepted directionally:
+## Accepted R2A work
+
+The current implementation now correctly provides the main R2A foundation:
 
 - workspace fetch no longer auto-creates a placeholder business;
-- zero membership is represented explicitly as `needsOnboarding`;
+- zero membership is represented deliberately as `needsOnboarding`;
 - initial workspace creation is server-side and concurrency-safe;
-- the action-policy catalogue is product/domain-owned rather than fixture-derived;
-- initial action authority is conservative;
-- no fixture enquiries/bookings/knowledge/integrations are provisioned by the new create path.
+- onboarding submits the real entered business profile to the authenticated server operation;
+- the route awaits server success and surfaces a retryable error on failure;
+- no onboarding channel selection is written as a connected integration;
+- the Australia/NZ hard-coded city/timezone map is gone in favour of a confirmable IANA timezone path;
+- confirmable fixture pricing/rule/test theatre was removed from the signed-in live onboarding path;
+- the canonical action-policy catalogue is product/domain-owned rather than fixture-derived;
+- new action authority starts conservatively;
+- no fixture enquiries, bookings, knowledge or integrations are created by real workspace creation.
+
+This direction is accepted and must be preserved.
+
+## Remaining blocker
 
 **R2A is NOT signed off yet.**
 
-The live onboarding route still uses `usePrototype` as its completion authority. Its `finish()` path still:
+After the authenticated server `completeOnboarding(...)` call succeeds, `src/routes/onboarding.tsx` still calls the prototype store's `completeOnboarding(...)` action.
 
-- writes voice to fixture business id `glow`;
-- marks email/SMS/Instagram/Facebook connected through prototype-store actions without a provider handshake;
-- calls the prototype store's local `completeOnboarding(...)` rather than the server `completeOnboarding` operation;
-- immediately navigates to `/enquiries` without awaiting persisted workspace creation;
-- contains hard-coded city/timezone choices instead of using/confirming the persisted IANA timezone path;
-- presents sample pricing/rule review/test content inside the signed-in live onboarding flow in a way that can be mistaken for the new tenant's learned Business Brain.
+That prototype action is not a harmless UI flag. It:
 
-This fails the R2A acceptance requirements that onboarding completion persist the real user-entered profile, failure not produce optimistic client-only success, unsupported integrations not be marked connected, and sample rules/prices not become live-business truth.
+- sets `businessFilter` to fixture id `glow`;
+- rewrites the fixture `glow` business object with the real operator's submitted name/location/timezone;
+- leaves the signed-in live transition dependent on fixture-backed prototype state;
+- makes a real persisted tenant and the demo fixture world appear to be the same client-side business identity until R2B replaces the operator runtime.
+
+This violates the live/demo isolation contract and the rule that server-authoritative tenant state must not be represented by mutated fixture state.
+
+The persisted server creation itself is accepted. The remaining defect is the **post-success live transition**, not the server create contract.
 
 ## Smallest authorised correction
 
-Claude may correct **only the live onboarding completion path and its directly necessary live/demo separation**:
+Claude may correct **only the post-success onboarding transition and directly necessary focused tests**:
 
-1. Make the signed-in onboarding route submit the real user-entered business profile to the authenticated server `completeOnboarding` operation.
-2. Await server success before treating onboarding as complete or navigating to the operator workspace.
-3. Surface a retryable failure and leave onboarding incomplete if server creation fails.
-4. Do not call prototype `connectIntegration` or persist/display any selected channel as `connected` without a real provider handshake. A channel selection may remain a clearly non-connected preference only if it is not represented as integration state.
-5. Do not write onboarding voice/profile data against fixture business id `glow` in live mode. Persist only R2A-authorised profile fields; machine-usable Business Brain/voice rule persistence remains R2C unless an existing R2A field is already part of the server create contract.
-6. Remove or explicitly isolate the sample pricing/rule/test theatre from the live tenant onboarding path so it cannot be confirmed into, or presented as learned truth for, the new tenant. `/demo` remains the fixture demonstration surface.
-7. Use a browser-detected/confirmable IANA timezone path or equivalent general input accepted by the existing server validator. Do not retain an Australia/NZ city map as the live architectural source of truth.
-8. Ensure a verified zero-membership user is deliberately led to onboarding without performing the wider R2B server-authoritative operator-store cutover.
-9. Add focused tests for the corrected live onboarding submit/success/failure/no-fake-integration behaviour and re-run the R2A repository checks under `docs/TEST_REGRESSION_POLICY.md`.
+1. On successful authenticated workspace creation, do **not** call the fixture-mutating prototype `completeOnboarding(...)` action.
+2. Do not rename, repurpose or select fixture business id `glow` as the newly-created live tenant.
+3. Do not create or copy any client-side business, enquiry, booking, Brain, trust or integration state merely to make the operator workspace look populated before R2B.
+4. A transient client-only onboarding/navigation marker is allowed if required for routing, but it must carry no authoritative tenant content and must not mutate fixture arrays or fixture identities.
+5. If the existing operator route cannot yet be entered without presenting prototype/fixture tenant state, keep the post-create user on a truthful neutral success/loading transition rather than pretending the fixture workspace is their live workspace. The actual signed-in operator read cutover remains R2B.
+6. Existing prototype-only onboarding step/source UI state may remain as transient presentation state where it does not become tenant truth.
+7. Preserve the already-correct server submit, await-success, retryable failure, IANA timezone, no-fake-integration and no-sample-Brain behaviour from `8f972914...`.
+8. Add/update focused tests proving a successful **live** onboarding completion cannot mutate/select `glow`, import fixture tenant data, or mark a fake integration connected; failure must still leave onboarding incomplete.
+9. Run the required R2A checks under `docs/TEST_REGRESSION_POLICY.md` and report exact results/baseline classification.
 
-Do not broaden this correction into R2B operator-store cutover, R2C Business Brain persistence, arbitrary enquiry ingestion, real channel integrations, or visual redesign.
+Do not broaden this into the R2B server-authoritative operator-store cutover, R2C Business Brain persistence, arbitrary enquiry ingestion, real channel integrations, or visual redesign.
 
-After implementing this correction, report and stop for product-management review.
+After this correction, report and stop for product-management review.
 
 ---
 
@@ -96,20 +110,7 @@ Verification result:
 
 `docs/phases/R1_FINAL_GATE_RESULT.md`
 
-Implementation-agent evidence reports:
-
-- typecheck pass;
-- production build pass;
-- build:dev pass;
-- dev start/stop pass;
-- preview smoke pass;
-- 27 test files / 295 tests discovered;
-- 283 pass / 12 classified pre-existing platform-harness failures;
-- no R1 product regressions against the recorded baseline;
-- public short-ID customer routes contained in a running preview;
-- tenant/RLS/server-only data boundary smoke passed.
-
-The remaining 12 red tests are tracked baseline/platform debt, not accepted as hidden regressions.
+The recorded repository/runtime baseline includes passing typecheck/build/runtime checks and 12 classified pre-existing platform-harness failures. New R2 work must not hide regressions behind that baseline.
 
 ---
 
@@ -119,13 +120,11 @@ The remaining 12 red tests are tracked baseline/platform debt, not accepted as h
 
 **EXTERNAL ROTATION/REVOCATION STILL REQUIRED.**
 
-The old committed broker credential is removed from current code/client output, but only the issuing external broker/environment can revoke the historical value.
+The historical broker credential must still be revoked/rotated by the external issuing environment.
 
-This blocks **deliberate public market traffic**, not R2 engineering.
+This blocks deliberate public market traffic, not unrelated R2 engineering once repository/runtime safety is clean.
 
 ## Phase 9A final browser visual QA
-
-The visual direction remains accepted from source review.
 
 A real browser/human desktop + phone + reduced-motion check is still required before public traffic/final 9A closure.
 
@@ -133,53 +132,29 @@ This does not block R2 engineering.
 
 ## Public claim truth
 
-Before deliberate traffic, current homepage wording:
+Before deliberate traffic, public claims must satisfy `docs/PUBLIC_TRAFFIC_GATE.md` and the detailed public-claim review linked there.
 
-> Building with service businesses.
-
-and:
-
-> We’re building with service businesses...
-
-must be narrowed unless independent external businesses are genuinely participating.
-
-Product-management decision: until then, use truthful **for service businesses** wording.
-
-This is tracked in:
-
-`docs/PUBLIC_TRAFFIC_GATE.md`
-
-Do not mix this small public-traffic correction into R2A.
+Do not mix those corrections into R2A.
 
 ---
 
 # Ungated R2 foundation already on main
 
-Useful but **not R2A sign-off**:
+Useful but not equivalent to R2 phase sign-off:
 
 - `f11c8d4a202b00c9f6b679de61810242c331b9c9` - product-core schema;
 - `7cd1ee4c57f18a365447038e11f80f15de4e4535` - RLS lockdown;
 - `43a7b287295638fc0cbbf91b88fa86f6be3e521f` - tenancy/repository/workspace boundary;
-- `ced20e14fbbb08d4b7fa493c08cb3bdbcc7bd080` - removed live fixture seeding but retained auto-placeholder provisioning;
-- `118b2a8e2f1d9dcc2d37a322e6134868372cb06b` - made that placeholder provisioning concurrency-safe.
+- `ced20e14fbbb08d4b7fa493c08cb3bdbcc7bd080` - removed live fixture seeding but retained placeholder provisioning;
+- `118b2a8e2f1d9dcc2d37a322e6134868372cb06b` - concurrency-safe initial creation foundation;
+- `4fd5f480824001edd5aee8d8c78cdd860ee9e5f4` - explicit onboarding creation, zero-membership state and product-owned action catalogue;
+- `8f972914a5df1bac6f964aac657ca987a120f9a3` - corrected server-backed live onboarding submit/failure/integration/timezone/sample-theatre behaviour, with the final post-success prototype-state defect held above.
 
-Product-management review accepts the direction of removing fixture tenant data and the concurrency lock.
-
-**Authoritative clarification for R2A:** older supporting/registry text that says normal provisioning still seeds fixture enquiries/bookings/knowledge/integrations is superseded by the commits above. Claude must not re-solve that historical defect. The remaining bootstrap defect is automatic placeholder business creation on workspace fetch, plus the real persisted onboarding and catalogue/trust requirements below.
-
-R2A still must:
-
-- stop auto-provisioning a business merely because workspace data is fetched;
-- make zero-membership a valid onboarding state;
-- persist the actual onboarding business profile;
-- keep initial creation concurrency-safe;
-- move the canonical action-policy catalogue out of demo fixtures;
-- avoid fake connected integrations;
-- keep `/demo` isolated.
+Out-of-phase code or prepared later-phase documents already on `main` remain ungated existing work. They do not alter sequencing or imply sign-off.
 
 ---
 
-# Execute R2A only
+# Execute R2A correction only
 
 Read:
 
@@ -190,7 +165,7 @@ Read:
 - `docs/BETA_READINESS_GATE.md`
 - `docs/TEST_REGRESSION_POLICY.md`
 
-Then execute the bounded R2A correction gate above.
+Then execute only the final correction gate above.
 
 Important constraints:
 
@@ -199,7 +174,7 @@ Important constraints:
 - no Business Brain rule-engine broadening yet;
 - no Gmail/Instagram/SMS/payment integrations;
 - no fake integration status;
-- no demo/sample records in live tenant state.
+- no demo/sample records or fixture identities presented as live tenant state.
 
 Run focused tests plus the required repository checks, give the exact handoff, then stop.
 
@@ -211,4 +186,4 @@ Run focused tests plus the required repository checks, give the exact handoff, t
 
 Parallel public market traffic remains blocked until `docs/PUBLIC_TRAFFIC_GATE.md` passes.
 
-External first-cohort product use waits for `docs/BETA_READINESS_GATE.md`.
+External first-cohort product use waits for `docs/BETA_READINESS_GATE.md` after the R2 beta-core sequence is signed off.
