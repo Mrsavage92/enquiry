@@ -162,10 +162,12 @@ Then stop.
 
 # Deliberate sequence after this gate
 
-If final R1 passes and external credential rotation/revocation is confirmed:
+If the repository/runtime gate passes:
 
-> **final 9A sign-off -> R2A -> R2B -> R2C -> R2D -> R2E -> R2F -> first-beta core gate -> 9B -> 10A -> 10B**
+> **final 9A runtime sign-off -> R2A -> R2B -> R2C -> R2D -> R2E -> R2F -> first-beta core gate -> 9B -> 10A -> 10B**
 
-Once the public R1 safety gate passes, audience/waitlist traffic may begin in parallel with R2.
+If the old external broker credential is still awaiting rotation, R2 engineering may proceed, but **deliberate public market traffic stays blocked** until rotation/revocation is confirmed.
+
+Once the full R1 public-safety gate is operationally closed, audience/waitlist traffic may begin in parallel with R2.
 
 External first-cohort product use waits for the R2 beta-core gate.
