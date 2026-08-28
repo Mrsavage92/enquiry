@@ -74,24 +74,42 @@ async function insertEmptyBusiness(
 }
 
 /**
- * Create this user's first workspace and make them its owner.
+ * Provision only when this user has no workspace yet. Returns the business id
+ * they should land in, existing or freshly created.
  *
- * One transaction: a half-created workspace (a business with no membership row)
- * would lock the owner out of their own tenant.
+ * Concurrency-safe, which the previous version only claimed to be: it checked
+ * membership OUTSIDE the transaction, so two first-load requests arriving
+ * together could both observe zero memberships and each create a workspace,
+ * leaving one user owning two tenants with no way to tell which is theirs.
+ *
+ * The check now happens inside the transaction, behind a per-user advisory lock
+ * taken FIRST. The lock is keyed on the user id and released when the
+ * transaction ends, so the second request blocks, then re-reads and finds the
+ * workspace the first one committed. A unique constraint cannot express this -
+ * a user may legitimately belong to several businesses later, so "exactly one
+ * on first sight" is a rule about timing, not about the shape of the data.
  */
-export async function provisionWorkspace(
+export async function provisionIfEmpty(
   userId: string,
   email: string | null = null,
-): Promise<string> {
+): Promise<string | null> {
   return withTransaction(async (sql) => {
-    const businessId = await insertEmptyBusiness(sql, email);
+    // Serialise concurrent first-loads for THIS user only. hashtext keeps the
+    // key inside int8; a collision would only ever cost an unrelated user a
+    // brief wait during their own first provision.
+    await sql`select pg_advisory_xact_lock(hashtext(${userId}))`;
 
+    const existing = await sql<{ business_id: string }>`
+      select business_id from business_member where user_id = ${userId} limit 1
+    `;
+    if (existing[0]) return existing[0].business_id;
+
+    const businessId = await insertEmptyBusiness(sql, email);
     await sql`
       insert into business_member (business_id, user_id, role)
       values (${businessId}, ${userId}, ${"owner"})
       on conflict (business_id, user_id) do nothing
     `;
-
     for (const p of defaultActionPolicies()) {
       await sql`
         insert into action_policy (business_id, action, label, mode, risk)
@@ -99,7 +117,6 @@ export async function provisionWorkspace(
         on conflict (business_id, action) do nothing
       `;
     }
-
     await sql`
       insert into audit_event (business_id, actor, summary, detail, object_type)
       values (
@@ -110,24 +127,4 @@ export async function provisionWorkspace(
     `;
     return businessId;
   });
-}
-
-/**
- * Provision only when this user has no workspace yet. Returns the business id
- * they should land in, existing or freshly created.
- *
- * Membership is checked first, so a double-submit or a retried request cannot
- * produce two workspaces for one person.
- */
-export async function provisionIfEmpty(
-  userId: string,
-  email: string | null = null,
-): Promise<string | null> {
-  const { getSql } = await import("@/lib/db");
-  const sql = await getSql();
-  const existing = await sql<{ business_id: string }>`
-    select business_id from business_member where user_id = ${userId} limit 1
-  `;
-  if (existing[0]) return existing[0].business_id;
-  return provisionWorkspace(userId, email);
 }
