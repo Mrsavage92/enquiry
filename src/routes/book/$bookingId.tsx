@@ -5,13 +5,46 @@ import { Wordmark } from "@/components/ui/wordmark";
 import { formatAud } from "@/domain/labels";
 import { BUSINESS_BY_ID, ENQUIRY_BY_ID } from "@/fixtures";
 import { usePrototype } from "@/store/prototype-store";
+import { fixtureLinksAllowed } from "@/lib/public-links";
+import { authEnabled } from "@/lib/auth/client";
 import { QuoteSheet, quoteSheets } from "@/components/enquiry/quote-sheet";
 
 export const Route = createFileRoute("/book/$bookingId")({
   component: CustomerBook,
 });
 
+/**
+ * R1D containment. These links are keyed by a short internal id that ships in
+ * the client bundle, so they resolve only in an explicitly opted-in local
+ * prototype build. Anything that can authenticate a user fails closed here
+ * instead of serving one customer's record to whoever guesses the next id.
+ */
+const FIXTURE_LINKS_OK = fixtureLinksAllowed({
+  optedIn: import.meta.env.VITE_FIXTURE_PUBLIC_LINKS === "true",
+  authEnabled,
+});
+
+function LinkUnavailable() {
+  return (
+    <main className="mx-auto max-w-lg px-5 py-16">
+      <Link to="/" className="mb-10 inline-block">
+        <Wordmark />
+      </Link>
+      <p className="text-lg font-semibold tracking-tight">This link isn’t available</p>
+      <p className="mt-2 text-sm leading-relaxed text-ink-2">
+        Shareable customer links are not switched on for this deployment. If you were
+        expecting a quote or a booking, reply to the message the business sent you and
+        they’ll sort it out.
+      </p>
+      <Button asChild variant="secondary" className="mt-6">
+        <Link to="/">Go to Enquiry</Link>
+      </Button>
+    </main>
+  );
+}
+
 function CustomerBook() {
+  if (!FIXTURE_LINKS_OK) return <LinkUnavailable />;
   const { bookingId } = Route.useParams();
   const storeBookings = usePrototype((s) => s.bookings);
   const storeEnquiries = usePrototype((s) => s.enquiries);
