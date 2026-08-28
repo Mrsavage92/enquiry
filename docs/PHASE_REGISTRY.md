@@ -42,9 +42,10 @@ If later-phase code lands before authorisation, treat it as **ungated existing c
 | 9A | Landed; final runtime sign-off held | Premium public visual system + homepage/Ridge polish | 8 | Direction accepted |
 | R1A | Complete | Cross-platform launcher + truthful full test discovery | 9A landed | Release blocker cleared |
 | R1B | Code complete; external rotation pending | Remove committed preview credential | R1A | Final R1 operational blocker |
-| R1C | Landed; correction required | Signed-in operator/auth boundary | R1B code | Release blocker |
-| R1C1 | **Active** | Same-origin auth return-path invariant | R1C review | Release blocker |
-| R1D | Prepared | Contain short-ID public quote/booking routes to demo/local use | R1C1 reviewed | Release blocker |
+| R1C | Complete | Signed-in operator/auth boundary | R1B code | Release blocker cleared |
+| R1C1 | Complete | Same-origin auth return-path invariant | R1C review | Release blocker cleared |
+| R1D | Complete | Contain short-ID public quote/booking routes to demo/local use | R1C1 | Release blocker cleared |
+| R1 Final | **Active** | Full release/security/runtime verification + final 9A QA | R1A-D | Required before R2/public traffic |
 | R2A | Prepared | Real empty workspace bootstrap + persisted onboarding | Final R1 + 9A sign-off | Required for first beta |
 | R2B | Prepared | Cut signed-in operator reads over to persisted tenant state | R2A reviewed | Required for first beta |
 | R2C | Prepared | Persist Business Brain/trust/business mutations | R2B reviewed | Required for first beta |
@@ -104,18 +105,30 @@ R1 state:
 
 - R1A complete;
 - R1B code remediation complete, external credential rotation/revocation pending;
-- R1C implementation landed;
-- R1C1 active correction;
-- R1D prepared;
-- final R1 gate after R1D.
+- R1C complete after R1C1;
+- R1C1 complete;
+- R1D complete;
+- **final R1 gate active**.
 
 ### R1C1
 `docs/phases/PHASE_R1C1_SAFE_AUTH_RETURN_PATH.md`
 
-One narrow tested invariant for same-origin post-auth return paths.
+Complete. One tested invariant now protects same-origin post-auth return paths.
+
+### R1D
+`docs/phases/PHASE_R1D_PUBLIC_ROUTE_CONTAINMENT.md`
+
+Complete. Fixture-backed no-account customer routes are contained; real capability links remain deferred.
+
+### R1 Final
+`docs/phases/PHASE_R1_FINAL_STABILISATION_GATE.md`
+
+**Active.** Final toolchain/auth/public-route/tenancy/Phase-9A runtime verification.
 
 ## R2
 `docs/phases/PHASE_R2_PERSISTED_OPERATOR_CUTOVER.md`
+
+Supporting source review: `docs/R2_FOUNDATION_REVIEW.md`.
 
 R2 turns the fixture/session-storage operator prototype into a truthful first-beta product.
 
@@ -143,7 +156,7 @@ The approved product/coherence path is complete:
 
 Current release/productisation path:
 
-> **9A landed -> R1A complete -> R1B code fixed / rotation pending -> R1C landed -> R1C1 active -> R1D -> final R1 -> final 9A sign-off -> R2A -> R2B -> R2C -> R2D -> R2E -> R2F -> first-beta core gate -> 9B -> 10A -> 10B**
+> **9A landed -> R1A/R1C/R1C1/R1D complete -> R1B code fixed / rotation pending -> R1 Final active -> final 9A sign-off -> R2A -> R2B -> R2C -> R2D -> R2E -> R2F -> first-beta core gate -> 9B -> 10A -> 10B**
 
 ### Market work in parallel
 
