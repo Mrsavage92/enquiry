@@ -18,6 +18,54 @@ Do not begin R2B, R2C, R2D, R2E, R2F, Phase 9B or Phase 10 until product managem
 
 ---
 
+# R2A correction gate after implementation review
+
+Reviewed implementation commit:
+
+`4fd5f480824001edd5aee8d8c78cdd860ee9e5f4`
+
+The server/domain foundation in that commit is accepted directionally:
+
+- workspace fetch no longer auto-creates a placeholder business;
+- zero membership is represented explicitly as `needsOnboarding`;
+- initial workspace creation is server-side and concurrency-safe;
+- the action-policy catalogue is product/domain-owned rather than fixture-derived;
+- initial action authority is conservative;
+- no fixture enquiries/bookings/knowledge/integrations are provisioned by the new create path.
+
+**R2A is NOT signed off yet.**
+
+The live onboarding route still uses `usePrototype` as its completion authority. Its `finish()` path still:
+
+- writes voice to fixture business id `glow`;
+- marks email/SMS/Instagram/Facebook connected through prototype-store actions without a provider handshake;
+- calls the prototype store's local `completeOnboarding(...)` rather than the server `completeOnboarding` operation;
+- immediately navigates to `/enquiries` without awaiting persisted workspace creation;
+- contains hard-coded city/timezone choices instead of using/confirming the persisted IANA timezone path;
+- presents sample pricing/rule review/test content inside the signed-in live onboarding flow in a way that can be mistaken for the new tenant's learned Business Brain.
+
+This fails the R2A acceptance requirements that onboarding completion persist the real user-entered profile, failure not produce optimistic client-only success, unsupported integrations not be marked connected, and sample rules/prices not become live-business truth.
+
+## Smallest authorised correction
+
+Claude may correct **only the live onboarding completion path and its directly necessary live/demo separation**:
+
+1. Make the signed-in onboarding route submit the real user-entered business profile to the authenticated server `completeOnboarding` operation.
+2. Await server success before treating onboarding as complete or navigating to the operator workspace.
+3. Surface a retryable failure and leave onboarding incomplete if server creation fails.
+4. Do not call prototype `connectIntegration` or persist/display any selected channel as `connected` without a real provider handshake. A channel selection may remain a clearly non-connected preference only if it is not represented as integration state.
+5. Do not write onboarding voice/profile data against fixture business id `glow` in live mode. Persist only R2A-authorised profile fields; machine-usable Business Brain/voice rule persistence remains R2C unless an existing R2A field is already part of the server create contract.
+6. Remove or explicitly isolate the sample pricing/rule/test theatre from the live tenant onboarding path so it cannot be confirmed into, or presented as learned truth for, the new tenant. `/demo` remains the fixture demonstration surface.
+7. Use a browser-detected/confirmable IANA timezone path or equivalent general input accepted by the existing server validator. Do not retain an Australia/NZ city map as the live architectural source of truth.
+8. Ensure a verified zero-membership user is deliberately led to onboarding without performing the wider R2B server-authoritative operator-store cutover.
+9. Add focused tests for the corrected live onboarding submit/success/failure/no-fake-integration behaviour and re-run the R2A repository checks under `docs/TEST_REGRESSION_POLICY.md`.
+
+Do not broaden this correction into R2B operator-store cutover, R2C Business Brain persistence, arbitrary enquiry ingestion, real channel integrations, or visual redesign.
+
+After implementing this correction, report and stop for product-management review.
+
+---
+
 # Completed / reviewed gates
 
 ### Phases 1-6
@@ -142,7 +190,7 @@ Read:
 - `docs/BETA_READINESS_GATE.md`
 - `docs/TEST_REGRESSION_POLICY.md`
 
-Then execute the bounded R2A brief.
+Then execute the bounded R2A correction gate above.
 
 Important constraints:
 
