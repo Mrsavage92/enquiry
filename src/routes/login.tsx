@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link, Navigate, createFileRoute, useSearch } from "@tanstack/react-router";
 import { OAUTH_PROVIDERS, authEnabled, signInWithEmail, signInWithProvider } from "@/lib/auth/client";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
+import { DEFAULT_RETURN_PATH, safeReturnPath } from "@/lib/auth/return-path";
 import { Button } from "@/components/ui/button";
 import { Wordmark } from "@/components/ui/wordmark";
 
@@ -9,12 +10,9 @@ type LoginSearch = { redirect?: string };
 
 export const Route = createFileRoute("/login")({
   validateSearch: (search: Record<string, unknown>): LoginSearch => ({
-    // Only same-origin paths. An absolute URL here would be an open redirect
-    // straight out of the sign-in flow.
-    redirect:
-      typeof search.redirect === "string" && search.redirect.startsWith("/")
-        ? search.redirect
-        : undefined,
+    // One shared invariant, enforced here and again where the auth redirect URL
+    // is built. See lib/auth/return-path.
+    redirect: safeReturnPath(search.redirect),
   }),
   head: () => ({ meta: [{ title: "Sign in - Enquiry" }] }),
   component: LoginPage,
@@ -28,7 +26,7 @@ function LoginPage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
-  const destination = redirect ?? "/enquiries";
+  const destination = redirect ?? DEFAULT_RETURN_PATH;
 
   // Do not strand an already signed-in visitor on the sign-in screen.
   if (isPending) return null;

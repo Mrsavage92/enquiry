@@ -1,4 +1,5 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { safeReturnUrl } from "./return-path";
 
 /**
  * Supabase Auth client for this React SPA (browser-side).
@@ -86,10 +87,12 @@ export async function signInWithEmail(
   opts: { redirectTo?: string } = {},
 ): Promise<void> {
   if (!supabase) throw new Error("Sign-in is unavailable - auth is not configured.");
+  // Validated, not merely defaulted: "starts with a slash" would let
+  // //evil.example through and resolve it to another host.
   const emailRedirectTo =
     typeof window === "undefined"
       ? undefined
-      : new URL(opts.redirectTo ?? "/enquiries", window.location.origin).toString();
+      : safeReturnUrl(opts.redirectTo, window.location.origin);
   const { error } = await supabase.auth.signInWithOtp({
     email,
     options: { emailRedirectTo },
@@ -106,7 +109,7 @@ export async function signInWithProvider(
   const redirectTo =
     typeof window === "undefined"
       ? undefined
-      : new URL(opts.redirectTo ?? "/enquiries", window.location.origin).toString();
+      : safeReturnUrl(opts.redirectTo, window.location.origin);
   const { error } = await supabase.auth.signInWithOAuth({
     provider: providerId,
     options: { redirectTo },
