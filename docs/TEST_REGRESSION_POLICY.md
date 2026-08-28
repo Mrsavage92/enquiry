@@ -40,17 +40,23 @@ When a phase has a red repository-level check, the handoff must state:
 - whether the failure signature is unchanged;
 - whether any changed file participates in the failing path.
 
-## Release gate
+## First-beta engineering gate
 
-Before first beta, Phase 8 must establish a fresh test baseline from the release candidate.
+The old Phase 8 coherence pass is not the release-candidate test baseline for the persisted operator product.
 
-The release candidate does not need every platform/tooling test to be green if a genuine environment/platform limitation remains, but it must have:
+After R2A-R2F are signed off, the final R2 beta-core gate must establish a fresh test baseline from the actual first-beta candidate before any external product use is considered against `docs/BETA_READINESS_GATE.md`.
+
+That candidate does not need every platform/tooling test to be green if a genuine environment/platform limitation remains, but it must have:
 
 - passing typecheck;
 - passing production build, unless the environment itself is demonstrably the blocker;
-- passing focused product/domain tests for the release-critical features;
+- passing focused product/domain tests for release-critical R2 behaviour;
+- passing proof for server-authoritative live tenant state and strict demo/live isolation;
+- passing proof for arbitrary non-fixture enquiry processing before first external beta use;
 - no unclassified new failures;
 - every remaining red check documented with its failure signature and evidence that it is not a product regression.
+
+R1 external credential rotation/revocation may remain a separate operational blocker for deliberate public traffic. It does not weaken this engineering gate and does not idle unrelated R2 engineering once the repository/runtime gate is clean.
 
 ## Do not do
 
