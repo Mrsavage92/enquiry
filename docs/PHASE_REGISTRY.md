@@ -64,16 +64,25 @@ If later-phase code lands before authorisation, treat it as **ungated existing c
 
 These commits are useful foundation but do **not** count as R2 completion:
 
-- `f11c8d4a202b00c9f6b679de61810242c331b9c9` — relational product-core schema;
-- `7cd1ee4c57f18a365447038e11f80f15de4e4535` — RLS lockdown;
-- `43a7b287295638fc0cbbf91b88fa86f6be3e521f` — tenancy/repository/workspace server boundary.
+- `f11c8d4a202b00c9f6b679de61810242c331b9c9` - relational product-core schema;
+- `7cd1ee4c57f18a365447038e11f80f15de4e4535` - RLS lockdown;
+- `43a7b287295638fc0cbbf91b88fa86f6be3e521f` - tenancy/repository/workspace server boundary;
+- `ced20e14fbbb08d4b7fa493c08cb3bdbcc7bd080` - removed live fixture seeding while still retaining placeholder auto-provisioning;
+- `118b2a8e2f1d9dcc2d37a322e6134868372cb06b` - made that initial creation path concurrency-safe;
+- `4fd5f480824001edd5aee8d8c78cdd860ee9e5f4` - moved workspace creation behind explicit onboarding, returned zero-membership as `needsOnboarding`, and moved the action-policy catalogue into the product/domain layer.
 
-Why they are not a beta gate:
+Current reviewed foundation state:
 
-- operator components still use `usePrototype` as runtime state;
-- `fetchWorkspace` is not yet the authoritative app read path;
-- normal provisioning currently seeds demo fixture data into a real tenant;
+- normal workspace fetch no longer seeds fixture enquiries/bookings/knowledge/integrations into a real tenant;
+- workspace fetch no longer auto-creates a placeholder business;
+- zero membership is a valid onboarding state;
+- initial server-side workspace creation is concurrency-safe;
+- product action policies no longer depend on fixture businesses;
+- the signed-in operator runtime is still not server-authoritative because operator components still use `usePrototype` broadly;
+- the current R2A correction gate remains open because the live onboarding UI still completes through prototype-store behaviour rather than the authenticated persisted server operation;
 - arbitrary non-fixture enquiry interpretation is not implemented.
+
+Do not infer R2A completion from the accepted server foundation above. `docs/CURRENT_PHASE.md` remains the authority for the active onboarding correction gate.
 
 R2 is the controlled cutover from this foundation into a real first-beta product.
 
@@ -138,7 +147,7 @@ R2 turns the fixture/session-storage operator prototype into a truthful first-be
 
 Split:
 
-- **R2A:** real workspace bootstrap + onboarding persistence — detailed brief `docs/phases/PHASE_R2A_REAL_WORKSPACE_ONBOARDING.md`;
+- **R2A:** real workspace bootstrap + onboarding persistence - detailed brief `docs/phases/PHASE_R2A_REAL_WORKSPACE_ONBOARDING.md`;
 - **R2B:** signed-in server-authoritative workspace read cutover;
 - **R2C:** persisted Business Brain/trust/business mutations;
 - **R2D:** persisted enquiry decision-state mutations;
