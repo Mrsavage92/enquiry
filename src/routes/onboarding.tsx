@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Wordmark } from "@/components/ui/wordmark";
 import { usePrototype } from "@/store/prototype-store";
+import { completeOnboarding } from "@/lib/server/workspace";
 import { cn } from "@/lib/utils";
 import { useNarrow } from "@/lib/use-narrow";
 import { RequireAuth } from "@/lib/auth/gates";
@@ -25,15 +26,6 @@ function GuardedOnboarding() {
 
 const LAST = 5;
 
-const STAGE = [
-  "Who you are",
-  "What to learn from",
-  "Review",
-  "Test",
-  "Your voice",
-  "Ready",
-];
-
 const SOURCES = [
   { id: "website", title: "Use my website", body: "Public pages only. You’ll see what it found before anything is Active." },
   { id: "upload", title: "Upload a price list", body: "PDF or spreadsheet. Provenance stays on every price." },
@@ -42,16 +34,21 @@ const SOURCES = [
   { id: "manual", title: "Set up manually", body: "Escape hatch. Not the default." },
 ];
 
-const CITY_TZ: Record<string, string> = {
-  Brisbane: "Australia/Brisbane",
-  Sydney: "Australia/Sydney",
-  Melbourne: "Australia/Melbourne",
-  "Gold Coast": "Australia/Brisbane",
-  Auckland: "Pacific/Auckland",
-  Other: "Australia/Sydney",
-};
-
-const CITIES = ["Brisbane", "Sydney", "Melbourne", "Gold Coast", "Auckland", "Other"];
+/**
+ * The browser's own IANA zone, confirmable by the operator.
+ *
+ * This replaced a hard-coded Australia/NZ city map. Enquiry is not a
+ * single-market product, and a city list as the architectural source of truth
+ * silently excludes every business outside it (R2A correction s7). The server
+ * validates whatever arrives with Intl and falls back to UTC.
+ */
+function detectTimezone(): string {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+  } catch {
+    return "UTC";
+  }
+}
 
 const TEAMS = [
   { id: "solo", label: "Just me" },
@@ -65,30 +62,34 @@ function Onboarding() {
   const source = usePrototype((s) => s.onboardingSource);
   const setSource = usePrototype((s) => s.setOnboardingSource);
   const complete = usePrototype((s) => s.completeOnboarding);
-  const setVoice = usePrototype((s) => s.setVoice);
-  const connect = usePrototype((s) => s.connectIntegration);
   const navigate = useNavigate();
 
   const [name, setName] = useState("");
-  const [timezone, setTimezone] = useState("Australia/Brisbane");
-  const [city, setCity] = useState("Brisbane");
-  const [suburb, setSuburb] = useState("Paddington");
+  const [ownerFirstName, setOwnerFirstName] = useState("");
+  const [industry, setIndustry] = useState("");
+  const [timezone, setTimezone] = useState(detectTimezone);
+  const [baseLocation, setBaseLocation] = useState("");
+  const [currency, setCurrency] = useState("AUD");
   const [team, setTeam] = useState("solo");
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState("");
   const [arrival, setArrival] = useState<"private" | "email" | "sms" | "instagram" | "facebook">("private");
   const [warmth, setWarmth] = useState("Warm");
   const [formality, setFormality] = useState("Conversational");
-  const [confirmed, setConfirmed] = useState<Record<string, "yes" | "later">>({
-    formal: "yes",
-    group: "yes",
-    min: "yes",
-    capacity: "yes",
-    lashes: "later",
-  });
-  const [tests, setTests] = useState<Record<string, "ok" | "change">>({});
 
   const phone = useNarrow(860) !== false;
-  const steps = phone ? [0, 4, 5] : [0, 1, 2, 3, 4, 5];
-  const stageLabels = phone ? ["The business", "How it sounds", "Ready"] : STAGE;
+  /**
+   * Steps 2 and 3 were a sample Business Brain: confirm-able rule cards sourced
+   * from "glowandco.example/pricing" and a test against a fixture enquiry. In a
+   * signed-in tenant those could be confirmed into, or read as, that business's
+   * learned truth - which it has none of (R2A correction s6). They are gone from
+   * the live path; /demo remains the fixture demonstration surface, and real
+   * machine-usable Brain persistence is R2C.
+   */
+  const steps = phone ? [0, 4, 5] : [0, 1, 4, 5];
+  const stageLabels = phone
+    ? ["The business", "How it sounds", "Ready"]
+    : ["The business", "What to learn from", "Your voice", "Ready"];
   const stepIndex = Math.max(0, steps.indexOf(step));
 
   const go = (n: number) => setStep(Math.max(0, Math.min(LAST, n)));
@@ -104,29 +105,62 @@ function Onboarding() {
     go(steps[stepIndex - 1] ?? 0);
   };
 
+  // Illustrative only, and built from what the operator just typed rather than
+  // from a fixture customer and price. Nothing here is persisted or claimed as a
+  // real quote.
+  const sampleWhere = baseLocation.trim() || "your area";
   const quoteSample =
     warmth === "Warm"
-      ? "Hi Priya — four of you in New Farm on 19 Sep is $625, including travel."
-      : "Priya, four of you in New Farm on 19 Sep is $625, including travel.";
+      ? `Hi — yes, we can cover ${sampleWhere} that weekend. Here's what it would come to.`
+      : `Yes, we cover ${sampleWhere} that weekend. Here is what it would come to.`;
 
-  const finish = () => {
-    setVoice("glow", {
-      warmth,
-      formality,
-      greeting: warmth === "Warm" ? "Hi" : "Hello",
-    });
-    if (arrival === "email") connect("glow", "email");
-    if (arrival === "sms") connect("glow", "sms");
-    if (arrival === "instagram") connect("glow", "instagram");
-    if (arrival === "facebook") connect("glow", "facebook");
-    complete({
-      name: name.trim() || "Your studio",
-      city,
-      timezone,
-      suburb,
-      team,
-    });
-    void navigate({ to: "/enquiries" });
+  /**
+   * Persist the real workspace, then continue.
+   *
+   * Server-authoritative on purpose. This previously wrote voice against the
+   * fixture business id "glow", marked whichever channel was selected as a
+   * connected integration with no provider handshake, completed onboarding in
+   * the local store, and navigated away without waiting for anything - so a
+   * failed creation still looked like success and the operator landed in a
+   * workspace that did not exist.
+   *
+   * Now: submit, await, and only then continue. A failure leaves onboarding
+   * incomplete with a retryable message (R2A correction s1-s5).
+   *
+   * The selected channel is a stated PREFERENCE, not integration state. Nothing
+   * is marked connected without a real handshake, which does not exist yet.
+   * Voice and Business Brain rules are deliberately not persisted here - that is
+   * R2C - so nothing typed on these screens is presented as learned truth.
+   */
+  const finish = async () => {
+    if (submitting) return;
+    setSubmitting(true);
+    setSubmitError("");
+    try {
+      const result = await completeOnboarding({
+        data: {
+          name: name.trim(),
+          ownerFirstName: ownerFirstName.trim(),
+          industry: industry.trim(),
+          baseLocation: baseLocation.trim(),
+          timezone,
+          soloOrTeam: team === "solo" ? "solo" : "team",
+          currency,
+        },
+      });
+      if (!result?.ok) throw new Error("Workspace could not be created.");
+      // Only now is onboarding actually done.
+      complete({ name: name.trim(), city: baseLocation, timezone, suburb: "", team });
+      await navigate({ to: "/enquiries" });
+    } catch (err) {
+      setSubmitError(
+        err instanceof Error && err.message
+          ? err.message
+          : "Could not create your workspace. Please try again.",
+      );
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -172,25 +206,46 @@ function Onboarding() {
         {step === 0 ? (
           <section className="mt-8">
             <h1 className="text-3xl font-semibold tracking-tight">Your business</h1>
-            <p className="mt-2 text-sm text-ink-2">Name and city. Not a sample.</p>
+            <p className="mt-2 text-sm text-ink-2">
+              Your real business. Nothing here is a sample.
+            </p>
             <div className="mt-6 space-y-3">
-              <Field label="Business name" value={name} onChange={setName} placeholder="Your studio" />
-              <SelectField
-                label="City"
-                value={city}
-                onChange={(v) => {
-                  setCity(v);
-                  setTimezone(CITY_TZ[v] ?? timezone);
-                }}
-                options={CITIES}
+              <Field
+                label="Business name"
+                value={name}
+                onChange={setName}
+                placeholder="e.g. Ridge & Co"
               />
-              {city === "Other" || city === "Brisbane" ? (
-                <Field
-                  label={city === "Brisbane" ? "Suburb / base" : "Base location"}
-                  value={suburb}
-                  onChange={setSuburb}
-                />
-              ) : null}
+              <Field
+                label="Your first name"
+                value={ownerFirstName}
+                onChange={setOwnerFirstName}
+                placeholder="Used when Enquiry signs off"
+              />
+              <Field
+                label="What you do"
+                value={industry}
+                onChange={setIndustry}
+                placeholder="e.g. mobile makeup, painting, photography"
+              />
+              <Field
+                label="Where you work from"
+                value={baseLocation}
+                onChange={setBaseLocation}
+                placeholder="Suburb, city or region"
+              />
+              <Field
+                label="Time zone"
+                value={timezone}
+                onChange={setTimezone}
+                placeholder="Detected from your browser"
+              />
+              <Field
+                label="Currency"
+                value={currency}
+                onChange={(v) => setCurrency(v.toUpperCase().slice(0, 3))}
+                placeholder="AUD"
+              />
               <SelectField
                 label="Who does the work"
                 value={team}
@@ -233,104 +288,6 @@ function Onboarding() {
                   </li>
                 );
               })}
-            </ul>
-          </section>
-        ) : null}
-
-        {step === 2 ? (
-          <section className="mt-8">
-            <h1 className="text-3xl font-semibold tracking-tight">Check this</h1>
-            <p className="mt-2 text-sm text-ink-2">
-              Sample prices, so you can see a check. Yours replace them in Brain.
-            </p>
-            <div className="mt-5 flex justify-end">
-              <button
-                type="button"
-                className="text-sm font-medium underline-offset-4 hover:underline"
-                onClick={() =>
-                  setConfirmed({
-                    formal: "yes",
-                    group: "yes",
-                    min: "yes",
-                    capacity: "yes",
-                    lashes: "later",
-                  })
-                }
-              >
-                Confirm the safe ones
-              </button>
-            </div>
-            <ReviewCard
-              title="Formal makeup"
-              meta="$165 per person · mobile"
-              source="glowandco.example/pricing"
-              value={confirmed.formal}
-              onConfirm={() => setConfirmed((c) => ({ ...c, formal: "yes" }))}
-              onLater={() => setConfirmed((c) => ({ ...c, formal: "later" }))}
-            />
-            <ReviewCard
-              title="Group mobile makeup"
-              meta="$125 per person · minimum 3"
-              source="glowandco.example/pricing"
-              value={confirmed.group}
-              onConfirm={() => setConfirmed((c) => ({ ...c, group: "yes" }))}
-              onLater={() => setConfirmed((c) => ({ ...c, group: "later" }))}
-            />
-            <ReviewCard
-              title="Mobile minimum"
-              meta="At least 3 makeup services for a mobile booking."
-              source="Price list uploaded 24 Aug 2026"
-              value={confirmed.min}
-              onConfirm={() => setConfirmed((c) => ({ ...c, min: "yes" }))}
-              onLater={() => setConfirmed((c) => ({ ...c, min: "later" }))}
-            />
-            <ReviewCard
-              title="Solo capacity"
-              meta="45–60 min per person · 15 min buffer · one artist"
-              source="Told Enquiry"
-              value={confirmed.capacity}
-              onConfirm={() => setConfirmed((c) => ({ ...c, capacity: "yes" }))}
-              onLater={() => setConfirmed((c) => ({ ...c, capacity: "later" }))}
-            />
-            <article className="mt-3 rounded-lg bg-warn-bg p-5 text-warn">
-              <p className="font-medium">Lash add-on — two prices</p>
-              <p className="mt-1 text-sm text-ink">Website $25 · 2026 list $35. Enquiry will not pick one.</p>
-              <p className="mt-2 text-xs text-ink-2">Left as Needs review. Lashes stay unquoted until you choose.</p>
-            </article>
-          </section>
-        ) : null}
-
-        {step === 3 ? (
-          <section className="mt-8">
-            <h1 className="text-3xl font-semibold tracking-tight">Does this look right?</h1>
-            <p className="mt-2 text-sm text-ink-2">Three jobs. Mark anything that isn’t how {name} works.</p>
-            <ul className="mt-6">
-              {[
-                { id: "a", title: "Four people, New Farm, ready 2pm", body: "Group mobile · $625 exact · feasible · Send quote" },
-                { id: "b", title: "One person, suburb missing", body: "Needs address · Ask one question · Needs you" },
-                { id: "c", title: "Toowoomba, 8am ready-by", body: "Travel $232 · 8am not feasible same-morning · Review options" },
-              ].map((t) => (
-                <li key={t.id} className="border-t border-line py-4 last:border-b">
-                  <p className="font-medium">{t.title}</p>
-                  <p className="mt-1 text-sm text-ink-2">{t.body}</p>
-                  <div className="mt-3 flex gap-2">
-                    <Button
-                      size="sm"
-                      variant={tests[t.id] === "ok" ? "primary" : "secondary"}
-                      onClick={() => setTests((x) => ({ ...x, [t.id]: "ok" }))}
-                    >
-                      Looks right
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant={tests[t.id] === "change" ? "warn" : "ghost"}
-                      onClick={() => setTests((x) => ({ ...x, [t.id]: "change" }))}
-                    >
-                      Needs change
-                    </Button>
-                  </div>
-                </li>
-              ))}
             </ul>
           </section>
         ) : null}
@@ -436,6 +393,11 @@ function Onboarding() {
       </div>
 
       <div className="sticky bottom-0 -mx-5 mt-8 border-t border-line bg-paper/95 px-5 py-3 pb-[max(0.75rem,var(--app-safe-bottom))] backdrop-blur-sm sm:-mx-8 sm:px-8">
+        {submitError ? (
+          <p role="alert" className="mb-3 text-sm text-danger">
+            {submitError} Your details are still here — try again.
+          </p>
+        ) : null}
         <div className="flex gap-2">
           <Button variant="secondary" className="min-h-12 px-4" onClick={back}>
             <ChevronLeft className="size-4" aria-hidden />
@@ -450,8 +412,12 @@ function Onboarding() {
               Continue
             </Button>
           ) : (
-            <Button className="min-h-12 flex-1" onClick={finish}>
-              Handle my first enquiry
+            <Button
+              className="min-h-12 flex-1"
+              disabled={submitting}
+              onClick={() => void finish()}
+            >
+              {submitting ? "Creating your workspace…" : "Handle my first enquiry"}
             </Button>
           )}
         </div>
@@ -537,34 +503,3 @@ function Choice({
   );
 }
 
-function ReviewCard({
-  title,
-  meta,
-  source,
-  value,
-  onConfirm,
-  onLater,
-}: {
-  title: string;
-  meta: string;
-  source: string;
-  value?: "yes" | "later";
-  onConfirm: () => void;
-  onLater: () => void;
-}) {
-  return (
-    <article className="border-t border-line py-4 last:border-b">
-      <p className="font-medium">{title}</p>
-      <p className="mt-0.5 text-sm text-ink-2">{meta}</p>
-      <p className="mt-1 text-xs text-stone">Source: {source}</p>
-      <div className="mt-3 flex gap-2">
-        <Button size="sm" variant={value === "yes" ? "primary" : "secondary"} onClick={onConfirm}>
-          Confirm
-        </Button>
-        <Button size="sm" variant={value === "later" ? "warn" : "ghost"} onClick={onLater}>
-          Leave for review
-        </Button>
-      </div>
-    </article>
-  );
-}

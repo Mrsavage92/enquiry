@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { authMiddleware } from "@/lib/auth/middleware";
+import { cleanOnboardingProfile } from "@/domain/onboarding-profile";
 
 /**
  * The operator app's server boundary.
@@ -59,44 +60,8 @@ export const fetchWorkspace = createServerFn({ method: "GET" })
  */
 export const completeOnboarding = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
-  .validator((raw: unknown) => {
-    const d = (raw ?? {}) as Record<string, unknown>;
-    const str = (v: unknown, max: number) =>
-      (typeof v === "string" ? v : "").trim().slice(0, max);
-
-    const name = str(d.name, 120);
-    if (!name) throw new Error("A business name is required.");
-
-    const soloOrTeam = d.soloOrTeam === "team" ? "team" : "solo";
-
-    // A browser-detected IANA zone is offered as a default and confirmed by the
-    // user; validate it rather than trusting it, and fall back to UTC rather
-    // than to a hard-coded city (R2A s2).
-    const rawTz = str(d.timezone, 64);
-    let timezone = "UTC";
-    if (rawTz) {
-      try {
-        new Intl.DateTimeFormat("en", { timeZone: rawTz });
-        timezone = rawTz;
-      } catch {
-        timezone = "UTC";
-      }
-    }
-
-    const currency = /^[A-Z]{3}$/.test(str(d.currency, 3).toUpperCase())
-      ? str(d.currency, 3).toUpperCase()
-      : "AUD";
-
-    return {
-      name,
-      ownerFirstName: str(d.ownerFirstName, 80),
-      industry: str(d.industry, 120),
-      baseLocation: str(d.baseLocation, 200),
-      timezone,
-      soloOrTeam: soloOrTeam as "solo" | "team",
-      currency,
-    };
-  })
+  // Shared with the domain so the rules that are tested are the rules that run.
+  .validator((raw: unknown) => cleanOnboardingProfile((raw ?? {}) as Record<string, unknown>))
   .handler(async ({ context, data }) => {
     const { createInitialWorkspace } = await import("@/lib/repo/provision.server");
     const { businessId, created } = await createInitialWorkspace({
