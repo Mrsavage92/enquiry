@@ -148,14 +148,29 @@ R2 turns the fixture/session-storage operator prototype into a truthful first-be
 Split:
 
 - **R2A:** real workspace bootstrap + onboarding persistence - detailed brief `docs/phases/PHASE_R2A_REAL_WORKSPACE_ONBOARDING.md`;
-- **R2B:** signed-in server-authoritative workspace read cutover;
-- **R2C:** persisted Business Brain/trust/business mutations;
-- **R2D:** persisted enquiry decision-state mutations;
-- **R2E:** arbitrary manual enquiry ingestion + interpretation;
-- **R2F:** review-first manual action loop + beta telemetry.
+- **R2B:** signed-in server-authoritative workspace read cutover — detailed brief `docs/phases/PHASE_R2B_SERVER_AUTHORITATIVE_RUNTIME.md`;
+- **R2C:** persisted Business Brain/trust/business mutations — detailed brief `docs/phases/PHASE_R2C_PERSISTED_BRAIN_TRUST.md`;
+- **R2D:** persisted enquiry decision-state mutations — detailed brief `docs/phases/PHASE_R2D_PERSISTED_ENQUIRY_DECISIONS.md`;
+- **R2E:** arbitrary manual enquiry ingestion + interpretation — detailed brief `docs/phases/PHASE_R2E_ARBITRARY_ENQUIRY_INTERPRETATION.md`;
+- **R2F:** review-first manual action loop + beta telemetry — detailed brief `docs/phases/PHASE_R2F_REVIEW_FIRST_BETA_LOOP.md`.
+
+Cross-cutting R2 controls:
+
+- `docs/R2_LIVE_DEMO_SEPARATION_MAP.md`
+- `docs/R2_ACTION_SEMANTICS_MATRIX.md`
+- `docs/R2_TYPED_BUSINESS_RULE_CONTRACT.md`
+- `docs/evals/FIRST_BETA_NON_FIXTURE_EVAL_PACK.md`
+- `docs/BETA_TELEMETRY_SPEC.md`
+
+## Phase 9B
+`docs/phases/PHASE_9B_PUBLIC_SURFACES_POLISH.md`
+
+Prepared detailed continuation of the approved 9A design system across remaining public surfaces.
 
 ## Phase 10
 `docs/phases/PHASE_10_INSTALLABLE_PWA_MOBILE.md`
+
+Pre-audit: `docs/PHASE_10_PWA_PRE_AUDIT.md`
 
 Installable/mobile productisation remains prepared, but it is not a blocker for the first five if the web product is safe, persisted and mobile-usable.
 
