@@ -46,6 +46,7 @@ export interface Sql {
  */
 const globalRef = globalThis as typeof globalThis & {
   __pgSqlPromise__?: Promise<Sql>;
+  __pgPool__?: import("pg").Pool;
   __pgliteInstance__?: Promise<import("@electric-sql/pglite").PGlite>;
   __pgliteMigrateChain__?: Promise<void>;
 };
@@ -94,6 +95,11 @@ function createNeonSql(): Promise<Sql> {
     types.setTypeParser(OID_DATE, identity);
     types.setTypeParser(OID_INTERVAL, identity);
     const pool = new Pool({ connectionString: databaseUrl });
+    // Kept on globalThis so `withTransaction` can check out a single connection.
+    // A Pool hands each `query()` an arbitrary connection, so BEGIN and COMMIT
+    // issued as separate calls can land on different ones - which silently
+    // produces a "transaction" that never rolls anything back.
+    globalRef.__pgPool__ = pool;
     return toSql(async <T>(text: string, params: unknown[]) => {
       const res = await pool.query(text, params);
       return res.rows as T[];
@@ -234,4 +240,55 @@ if (typeof window === "undefined" && dbSource === "pglite") {
     globalBoot.__pgBootstrapPromise__ = undefined;
     console.error("[db] PGLite bootstrap failed:", err);
   });
+}
+
+/**
+ * Run `fn` inside a single database transaction, rolling back if it throws.
+ *
+ * Required wherever one logical change spans several tables - seeding a
+ * workspace, accepting a quote and writing the booking, superseding a fact and
+ * re-snapshotting the decision. Half of any of those is worse than none.
+ *
+ * The `Sql` handed to `fn` is bound to the transaction's own connection. Do NOT
+ * call `getSql()` inside the callback: that reaches for the pool and its work
+ * lands OUTSIDE the transaction, which is the failure this helper exists to
+ * prevent.
+ */
+export async function withTransaction<T>(fn: (sql: Sql) => Promise<T>): Promise<T> {
+  await getSql(); // ensure the backend is initialised
+
+  if (dbSource === "pglite") {
+    const pg = await getPglite();
+    return pg.transaction(async (tx) => {
+      const sql = toSql(async <R>(text: string, params: unknown[]) => {
+        const res = await tx.query<R>(text, params);
+        return res.rows;
+      });
+      return fn(sql);
+    }) as Promise<T>;
+  }
+
+  const pool = globalRef.__pgPool__;
+  if (!pool) throw new Error("No connection pool available for a transaction");
+  const client = await pool.connect();
+  try {
+    await client.query("begin");
+    const sql = toSql(async <R>(text: string, params: unknown[]) => {
+      const res = await client.query(text, params);
+      return res.rows as R[];
+    });
+    const result = await fn(sql);
+    await client.query("commit");
+    return result;
+  } catch (err) {
+    try {
+      await client.query("rollback");
+    } catch {
+      // The rollback itself failing must not mask the original error, which is
+      // the one that explains what actually went wrong.
+    }
+    throw err;
+  } finally {
+    client.release();
+  }
 }
