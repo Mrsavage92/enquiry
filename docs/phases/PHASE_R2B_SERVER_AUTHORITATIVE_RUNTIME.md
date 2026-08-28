@@ -8,6 +8,8 @@ R2B is the second slice of:
 
 Supporting reviews:
 
+- `docs/R2_PRODUCTION_HEURISTIC_SAFETY_AUDIT.md`
+
 - `docs/R2_FOUNDATION_REVIEW.md`
 - `docs/BETA_READINESS_GATE.md`
 
