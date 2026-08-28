@@ -1,6 +1,8 @@
 # Enquiry - Competitive Teardown and Positioning
 
 **Status:** PARTIAL - v1, 2026-08-27
+**Market:** Global. SaaS is not a local-only market - AU is one entry market among several, never the ceiling. Prices below are shown in the currency each vendor publishes.
+
 **Purpose:** Find where every competitor is weak, what they do well enough to be worth beating, and where the pricing floor and ceiling actually sit - so Enquiry can be genuinely differentiated rather than another AI inbox.
 
 **Completeness:** pricing structures and capability mapping are researched and cited. Deep review-mining (G2/Capterra/Trustpilot complaint frequency, direct user quotes, app-store sentiment) is NOT yet done - four research agents were cut off by a session limit. Section 7 lists exactly what is still missing. Do not treat the "user complaints" evidence here as complete.
@@ -33,18 +35,18 @@ Everything below is per month unless stated. Currency marked where known.
 
 ### The gap this exposes
 
-**There is nothing credible between roughly A$50 and A$150/month that does real cross-channel enquiry decisioning.**
+**There is nothing credible between roughly US$40 and US$100/month that does real cross-channel enquiry decisioning - in any market.**
 
 Below that band you get single-channel booking bots and keyword automations. Above it you get Podium at $500-800 real-world, or per-location/per-seat pricing that punishes a 1-3 person business. Jobber's $29 looks cheap until the 30-conversation cap converts it to $0.79 per conversation - which bills the busiest businesses hardest, exactly the ones with the most pain.
 
-**Recommended price point: A$79-99/mo flat, unlimited enquiries, no per-seat, no per-location, no commission, no conversation cap, month-to-month.** That undercuts Podium by ~85%, undercuts Fresha AI Concierge, beats Jobber the moment a business exceeds 30 conversations, and is defensible against Meta because Meta cannot cover email/SMS/forms at all.
+**Recommended price point: US$59-79/mo flat (~A$90-120), unlimited enquiries, no per-seat, no per-location, no commission, no conversation cap, month-to-month.** That undercuts Podium by ~85%, undercuts Fresha AI Concierge, beats Jobber the moment a business exceeds 30 conversations, and is defensible against Meta because Meta cannot cover email/SMS/forms at all.
 
 ---
 
 ## 2. Exploitable weaknesses, ranked by attackability
 
-**1. ServiceM8 and Tradify own Australian trades and have no AI enquiry layer at all.**
-Both are AU/NZ-native, trusted, entrenched. Neither has native AI enquiry interpretation - it is Zapier/Make glue or nothing. They own the customer relationship and have a hole precisely where Enquiry lives. This is the single strongest AU-specific opening found.
+**1. Field-service incumbents own the customer and have no AI enquiry layer at all.**
+Both are AU/NZ-native, trusted, entrenched. Neither has native AI enquiry interpretation - it is Zapier/Make glue or nothing. They own the customer relationship and have a hole precisely where Enquiry lives. In AU that is ServiceM8/Tradify; the same hole exists per-market with the local incumbent (Jobber/Housecall in NA, Powered Now/Commusoft in UK).
 
 **2. Podium's real cost is 25-100% above advertised, and its trust signals are poor.**
 Advertised $399-999, real-world $500-800 after the $99 AI add-on, 10DLC messaging fees and annual contract terms. Trustpilot 4.1/5 but **BBB rating of D-**. Price resentment and billing-surprise are a documented attack surface. A transparent flat price with no contract is a direct counter-position.
@@ -100,16 +102,16 @@ Numa proves 1 and 4 work commercially. comeshop.ai and Lexomen claim 2 and 3 alm
 Do not compete on the three channels Meta owns. Compete on the ones it structurally cannot reach - email, web form, SMS, phone - plus the things it will not do: apply your actual pricing rules, refuse to answer when it should not, and ask permission before committing you to a price. Meta answers questions. It does not make commercial decisions on your behalf, and businesses should not want it to.
 
 **Against Podium (funded, owns the customer, serves AU):**
-Compete on price transparency and contract terms, where their trust signals are weakest. A$79-99 flat, month-to-month, no setup fee, no messaging surcharge, no annual lock-in, against $500-800 real-world on an annual contract with a BBB D-. Do not compete on breadth of suite - Podium wins that and it does not matter to a solo operator.
+Compete on price transparency and contract terms, where their trust signals are weakest. US$59-79 flat, month-to-month, no setup fee, no messaging surcharge, no annual lock-in, against $500-800 real-world on an annual contract with a BBB D-. Do not compete on breadth of suite - Podium wins that and it does not matter to a solo operator.
 
 ---
 
 ## 6. Action plan
 
 **Immediate (positioning, no build required)**
-- Lock pricing at A$79-99 flat, unlimited, month-to-month. Put the anti-metering promise on the landing page explicitly.
+- Lock pricing at US$59-79 flat, unlimited, month-to-month. Put the anti-metering promise on the landing page explicitly.
 - Build a comparison page against Jobber's 30-conversation cap and Fresha's 20% commission. Both are concrete and verifiable.
-- Lead the AU wedge with trades and beauty, where ServiceM8/Tradify/Timely leave the enquiry layer open.
+- Wedge on trades and beauty in whichever market you can reach first; the enquiry layer is open in all of them because field-service and booking incumbents everywhere stop at job management.
 
 **Build priorities that follow from this teardown**
 - Channel coverage must include **email and web form first** - that is where Meta cannot follow and where the incumbents are weakest.
@@ -117,7 +119,7 @@ Compete on price transparency and contract terms, where their trust signals are 
 - Customer-facing quote and booking pages need Fresha/GlossGenius-grade polish.
 
 **Still to validate**
-- Whether AU trades and salon owners feel the enquiry-triage pain enough to pay A$79-99. Nothing in this document proves willingness to pay.
+- Whether trades and salon owners (any market) feel the enquiry-triage pain enough to pay US$59-79. Nothing in this document proves willingness to pay.
 
 ---
 
