@@ -141,7 +141,7 @@ A new signed-in user gets a real empty/configurable tenant, not a silently seede
 - Do not copy F01–F20 enquiries/bookings into the live tenant.
 - Any "See sample" action should route to/isolate `/demo`, not contaminate the live business.
 - Double submit/retry/concurrent first-load must not create duplicate businesses accidentally.
-- The current membership-check-then-create implementation is not concurrency-safe; fix creation-once explicitly while preserving future multi-business membership.
+- Preserve the concurrency-safe per-user transaction lock/re-check landed in `118b2a8e2f1d9dcc2d37a322e6134868372cb06b`, and verify it in supported beta database modes.
 - Live provisioning must not depend on fixture `BUSINESSES` as the canonical action-policy catalogue; extract/reuse a domain-owned product catalogue.
 
 ## Product honesty
