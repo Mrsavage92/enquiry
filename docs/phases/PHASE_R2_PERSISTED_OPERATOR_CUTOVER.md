@@ -31,6 +31,12 @@ The current domain re-evaluation and arriving-enquiry behaviour are also fixture
 
 R2 turns the prototype into a truthful first-beta product without turning Enquiry into a CRM/FSM or prematurely building every integration.
 
+Concrete source-review findings that must be read before executing R2 are recorded in:
+
+`docs/R2_FOUNDATION_REVIEW.md`
+
+That review is supporting evidence; `CURRENT_PHASE.md` remains execution authority.
+
 ---
 
 # Durable R2 rules
@@ -134,7 +140,9 @@ A new signed-in user gets a real empty/configurable tenant, not a silently seede
 - Do not mark integrations connected merely because a prototype choice was selected.
 - Do not copy F01–F20 enquiries/bookings into the live tenant.
 - Any "See sample" action should route to/isolate `/demo`, not contaminate the live business.
-- Double submit/retry must not create duplicate businesses accidentally.
+- Double submit/retry/concurrent first-load must not create duplicate businesses accidentally.
+- The current membership-check-then-create implementation is not concurrency-safe; fix creation-once explicitly while preserving future multi-business membership.
+- Live provisioning must not depend on fixture `BUSINESSES` as the canonical action-policy catalogue; extract/reuse a domain-owned product catalogue.
 
 ## Product honesty
 
