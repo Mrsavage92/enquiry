@@ -41,6 +41,23 @@ Decision-engine/Business-Brain production boundaries are additionally reviewed i
 
 These reviews are supporting evidence; `CURRENT_PHASE.md` remains execution authority.
 
+Detailed prepared slice briefs:
+
+- R2A: `docs/phases/PHASE_R2A_REAL_WORKSPACE_ONBOARDING.md`
+- R2B: `docs/phases/PHASE_R2B_SERVER_AUTHORITATIVE_RUNTIME.md`
+- R2C: `docs/phases/PHASE_R2C_PERSISTED_BRAIN_TRUST.md`
+- R2D: `docs/phases/PHASE_R2D_PERSISTED_ENQUIRY_DECISIONS.md`
+- R2E: `docs/phases/PHASE_R2E_ARBITRARY_ENQUIRY_INTERPRETATION.md`
+- R2F: `docs/phases/PHASE_R2F_REVIEW_FIRST_BETA_LOOP.md`
+
+Cross-cutting control/eval docs:
+
+- `docs/R2_LIVE_DEMO_SEPARATION_MAP.md`
+- `docs/R2_ACTION_SEMANTICS_MATRIX.md`
+- `docs/R2_TYPED_BUSINESS_RULE_CONTRACT.md`
+- `docs/evals/FIRST_BETA_NON_FIXTURE_EVAL_PACK.md`
+- `docs/BETA_TELEMETRY_SPEC.md`
+
 ---
 
 # Durable R2 rules
