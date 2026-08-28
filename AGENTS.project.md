@@ -279,16 +279,16 @@ Different businesses should be able to run different evaluator sets and terminol
 
 ---
 
-## 12. Implementation protocol for Grok Build
+## 12. Implementation protocol for implementation agents
 
-When asked to implement work from `docs/PRODUCT_CHANGE_PLAN.md`:
+When asked to implement authorised work from `docs/CURRENT_PHASE.md` / the referenced phase brief:
 
 1. Read this file.
-2. Read the named phase only.
+2. Read `docs/CURRENT_PHASE.md` and the named phase only.
 3. Inspect the existing implementation before editing.
 4. Preserve strong existing behaviour unless the phase explicitly changes it.
 5. Do not execute later phases early.
-6. Keep the prototype functional and demoable throughout.
+6. Keep the authorised live product and the isolated demo functional throughout.
 7. Run relevant tests, typecheck, and visual QA before declaring the phase complete.
 8. Report:
    - what changed
@@ -307,3 +307,100 @@ If the user says:
 then execute Phase 2 only.
 
 Do not also “helpfully” redesign onboarding, add another integration, change pricing strategy, or refactor unrelated code.
+
+
+---
+
+## 13. Live tenant data and demo isolation
+
+The public/demo fixture world and a signed-in business workspace are different trust domains.
+
+### Signed-in operator data
+
+For a real signed-in tenant, authoritative business state must live behind the authenticated server/tenancy boundary.
+
+A client store may cache server state and hold transient UI preferences, but it must not be the durable authority for:
+
+- businesses;
+- Business Brain knowledge;
+- enquiries and facts;
+- messages;
+- Decision Objects / snapshots;
+- quotes;
+- bookings;
+- trust/action policies;
+- audit history.
+
+Refreshing the browser must not revert a real business to session-storage or fixture state.
+
+### Demo/sample data
+
+Fixture businesses and enquiries are product demonstrations/evals.
+
+Never silently provision a real new tenant as a fixture business or write F01/F02/etc. sample enquiries into a live workspace merely to avoid an empty screen.
+
+If sample data is offered, it must be explicitly isolated as sample/demo behaviour. `/demo` is the preferred public fixture surface.
+
+---
+
+## 14. First-beta truthfulness
+
+A first-beta build must be able to process an enquiry that was **not pre-authored in fixtures**.
+
+Manual/private paste is an acceptable first ingestion path.
+
+Production Gmail, Microsoft, Instagram, Facebook, SMS, payment or booking integrations are **not** required merely to call the product a first beta.
+
+Where an integration is not genuinely live:
+
+- do not mark it connected;
+- do not label a copied/manual response as sent by Enquiry;
+- do not claim a payment or booking was performed;
+- do not fabricate availability from a disconnected source.
+
+The review-first first-beta loop may be:
+
+> paste/import enquiry -> interpret -> validate against Business Brain -> prepare next action -> owner reviews/corrects -> owner acts manually -> Enquiry records the confirmed outcome/update
+
+This is truthful product value and is preferable to fake automation.
+
+---
+
+## 15. Interpretation and transaction boundary
+
+Customer content is untrusted input.
+
+An LLM/model may help interpret:
+
+- intent;
+- candidate facts;
+- inferences;
+- ambiguities;
+- possible missing facts;
+- possible evaluator applicability;
+- draft language.
+
+The model must not directly become authority for:
+
+- final price where deterministic pricing rules apply;
+- eligibility/capacity outcome where structured rules apply;
+- quote-sent status;
+- booking;
+- payment;
+- autonomy/action authority.
+
+Use the model to interpret. Use structured Business Brain evidence and deterministic evaluators to validate/decide important outcomes.
+
+Prompt-like instructions inside customer content must never rewrite system rules, Business Brain authority or action permissions.
+
+---
+
+## 16. Public customer-link security
+
+Internal enquiry/booking IDs are not public authorisation.
+
+Short IDs, UUIDs or other values shipped in the client bundle are not secure capability tokens merely because they look opaque.
+
+Until a dedicated server-backed capability-link model exists, customer quote/booking fixture routes must be contained to explicit demo/local use in production-capable deployments.
+
+If public no-account links are later justified, require a deliberate server-side model with high-entropy capability tokens, server validation, expiry/revocation and minimal public projections.
