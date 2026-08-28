@@ -117,6 +117,8 @@ Useful but **not R2A sign-off**:
 
 Product-management review accepts the direction of removing fixture tenant data and the concurrency lock.
 
+**Authoritative clarification for R2A:** older supporting/registry text that says normal provisioning still seeds fixture enquiries/bookings/knowledge/integrations is superseded by the commits above. Claude must not re-solve that historical defect. The remaining bootstrap defect is automatic placeholder business creation on workspace fetch, plus the real persisted onboarding and catalogue/trust requirements below.
+
 R2A still must:
 
 - stop auto-provisioning a business merely because workspace data is fetched;
