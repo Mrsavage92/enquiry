@@ -74,20 +74,23 @@ Keep that direction.
 
 However it is **not R2A-complete**.
 
-### Remaining race
+### Provisioning race — corrected in ungated foundation
 
-`provisionIfEmpty()` still:
+Follow-up commit:
 
-1. queries membership outside the creation transaction;
-2. if none exists, calls `provisionWorkspace()`.
+`118b2a8e2f1d9dcc2d37a322e6134868372cb06b`
 
-Two concurrent first-load requests can both observe no membership and each create a different business, because `business_member` uniqueness is on `(business_id, user_id)`, not one-business-per-user.
+moves the membership check inside the creation transaction and takes a per-user transaction advisory lock before the re-check.
 
-The new comment saying a double-submit/retry cannot create two workspaces is therefore still stronger than the implementation.
+Product-management source review accepts that concurrency direction:
 
-R2A must provide a genuine creation-once mechanism while preserving future multi-business membership.
+- concurrent first-loads for the same user serialise;
+- the second request re-checks membership after the first commits;
+- future legitimate multi-business membership is not prevented by a one-business-per-user database constraint.
 
-Acceptable approaches include a transaction-scoped lock/recheck or another explicit idempotency primitive. Do not add a permanent one-business-per-user constraint merely to solve bootstrap concurrency.
+This is useful **ungated R2A foundation**, not R2A sign-off. R2A still needs real persisted onboarding and the remaining items below.
+
+The R2A/runtime test pass must verify the advisory-lock path works in every supported development/database mode used by the beta toolchain.
 
 ### Fixture catalogue coupling
 
