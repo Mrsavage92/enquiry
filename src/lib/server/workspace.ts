@@ -15,25 +15,95 @@ import { authMiddleware } from "@/lib/auth/middleware";
  */
 
 /**
- * Everything the signed-in operator can see, provisioning a first workspace if
- * they have none. One call, because that is what the client needs to render.
+ * Everything the signed-in operator can see.
+ *
+ * Loading the app NEVER creates a tenant. A verified user with no memberships
+ * gets `needsOnboarding: true` and empty arrays - a valid new-account state, not
+ * an error and not a reason to write a placeholder business. Onboarding owns
+ * initial creation (R2A s1).
  */
 export const fetchWorkspace = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
   .handler(async ({ context }) => {
     const { ensureAppUser } = await import("@/lib/repo/tenancy.server");
-    const { provisionIfEmpty } = await import("@/lib/repo/provision.server");
+    const { hasWorkspace } = await import("@/lib/repo/provision.server");
     const { loadWorkspace } = await import("@/lib/repo/workspace.server");
     const { getSessionUser } = await import("@/lib/auth/verify.server");
 
     // Mirror the Supabase identity into app_user so the rest of the schema can
-    // carry real foreign keys without reaching into the auth schema.
+    // carry real foreign keys without reaching into the auth schema. This is the
+    // person, not a tenant - it creates no business.
     const session = await getSessionUser().catch(() => null);
     await ensureAppUser(context.userId, session?.email ?? null);
-    // Creates an EMPTY workspace, never a fixture one - AGENTS.project.md s13.
-    await provisionIfEmpty(context.userId, session?.email ?? null);
 
-    return loadWorkspace(context.userId);
+    if (!(await hasWorkspace(context.userId))) {
+      return {
+        needsOnboarding: true as const,
+        businesses: [],
+        enquiries: [],
+        bookings: [],
+      };
+    }
+    return { needsOnboarding: false as const, ...(await loadWorkspace(context.userId)) };
+  });
+
+/**
+ * Create the initial workspace from completed onboarding.
+ *
+ * Collects only what the product needs to speak as this business: how to name
+ * it, how to sign off, where it works from, and when its day is. Anything the
+ * schema merely has a column for is left alone (R2A s2).
+ *
+ * Returns `created: false` when a concurrent submit already won, so a double
+ * click resolves to the same workspace instead of a second one.
+ */
+export const completeOnboarding = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .validator((raw: unknown) => {
+    const d = (raw ?? {}) as Record<string, unknown>;
+    const str = (v: unknown, max: number) =>
+      (typeof v === "string" ? v : "").trim().slice(0, max);
+
+    const name = str(d.name, 120);
+    if (!name) throw new Error("A business name is required.");
+
+    const soloOrTeam = d.soloOrTeam === "team" ? "team" : "solo";
+
+    // A browser-detected IANA zone is offered as a default and confirmed by the
+    // user; validate it rather than trusting it, and fall back to UTC rather
+    // than to a hard-coded city (R2A s2).
+    const rawTz = str(d.timezone, 64);
+    let timezone = "UTC";
+    if (rawTz) {
+      try {
+        new Intl.DateTimeFormat("en", { timeZone: rawTz });
+        timezone = rawTz;
+      } catch {
+        timezone = "UTC";
+      }
+    }
+
+    const currency = /^[A-Z]{3}$/.test(str(d.currency, 3).toUpperCase())
+      ? str(d.currency, 3).toUpperCase()
+      : "AUD";
+
+    return {
+      name,
+      ownerFirstName: str(d.ownerFirstName, 80),
+      industry: str(d.industry, 120),
+      baseLocation: str(d.baseLocation, 200),
+      timezone,
+      soloOrTeam: soloOrTeam as "solo" | "team",
+      currency,
+    };
+  })
+  .handler(async ({ context, data }) => {
+    const { createInitialWorkspace } = await import("@/lib/repo/provision.server");
+    const { businessId, created } = await createInitialWorkspace({
+      ...data,
+      userId: context.userId,
+    });
+    return { ok: true as const, businessId, created };
   });
 
 /**

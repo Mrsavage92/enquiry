@@ -1,70 +1,46 @@
 import { withTransaction, type Sql } from "@/lib/db";
-import { BUSINESSES } from "@/fixtures";
+import { initialActionPolicies } from "@/domain/action-catalogue";
 
 /**
  * Creating a real tenant's first workspace (server-only).
  *
- * A real workspace starts EMPTY. It gets no fixture business identity and no
- * sample enquiries.
+ * Two rules govern this file.
  *
- * An earlier version of this file seeded a new account from the demo fixtures so
- * the operator would not land on a blank queue. `AGENTS.project.md` section 13
- * forbids exactly that: fixture businesses and F01/F02 enquiries are product
- * demonstrations, and writing them into a live workspace makes a real business's
- * data indistinguishable from sample data. An empty queue on day one is honest;
- * a queue full of Priya Shah is not. `/demo` remains the fixture surface.
+ * 1. **Onboarding creates the business, not workspace fetch.** Merely loading
+ *    the app must never write a tenant row. An earlier version auto-created a
+ *    placeholder "Your business" on first fetch, which left an orphan tenant
+ *    behind anyone who signed in and wandered off. Zero memberships is a valid
+ *    state that the UI routes to onboarding.
  *
- * What a new workspace DOES get is the action-policy catalogue, every entry set
- * to "Ask every time". That is configuration, not content: section 6 says
- * autonomy is earned per action class, so the safe starting state is that
- * Enquiry may prepare anything and send nothing.
+ * 2. **Nothing sample becomes live truth.** No fixture business, customer,
+ *    enquiry, rule, integration or automation evidence. The action catalogue
+ *    comes from the domain rather than from demo tenants, and every policy
+ *    starts granting nothing.
  */
 
-/** Placeholder name until onboarding collects the real one. */
-const DEFAULT_BUSINESS_NAME = "Your business";
+export type WorkspaceProfile = {
+  name: string;
+  ownerFirstName: string;
+  industry: string;
+  baseLocation: string;
+  timezone: string;
+  soloOrTeam: "solo" | "team";
+  currency: string;
+};
 
-/**
- * The catalogue of action classes the product knows about, read from the
- * fixtures purely as a schema source - the action ids, labels and risk classes
- * are product definition, not tenant data. Modes and evidence are deliberately
- * NOT copied: a new tenant has earned nothing yet.
- */
-function defaultActionPolicies(): {
-  action: string;
-  label: string;
-  risk: string;
-}[] {
-  const catalogue = new Map<string, { action: string; label: string; risk: string }>();
-  for (const b of BUSINESSES) {
-    for (const p of b.actionPolicies) {
-      if (!catalogue.has(p.action)) {
-        catalogue.set(p.action, { action: p.action, label: p.label, risk: p.risk });
-      }
-    }
-  }
-  return [...catalogue.values()];
-}
+/** Everything initial creation needs, already validated by the caller. */
+export type CreateWorkspaceInput = WorkspaceProfile & { userId: string };
 
-/** Best-effort human name from an email local part, for the owner field. */
-function ownerNameFromEmail(email: string | null): string {
-  const local = (email ?? "").split("@")[0] ?? "";
-  if (!local) return "";
-  return local
-    .replace(/[._-]+/g, " ")
-    .replace(/\b\w/g, (c) => c.toUpperCase())
-    .trim();
-}
-
-async function insertEmptyBusiness(
-  sql: Sql,
-  email: string | null,
-): Promise<string> {
-  const ownerName = ownerNameFromEmail(email);
+async function insertBusiness(sql: Sql, input: CreateWorkspaceInput): Promise<string> {
   const rows = await sql<{ id: string }>`
-    insert into business (name, owner_name, owner_first_name, trust_mode, pause_level)
-    values (
-      ${DEFAULT_BUSINESS_NAME}, ${ownerName}, ${ownerName.split(" ")[0] ?? ""},
-      ${"Observe"}, ${"none"}
+    insert into business (
+      name, industry, industry_brain, city, timezone, currency, solo_or_team,
+      base_location, owner_name, owner_first_name, trust_mode, paused, pause_level
+    ) values (
+      ${input.name}, ${input.industry}, ${""}, ${input.baseLocation}, ${input.timezone},
+      ${input.currency}, ${input.soloOrTeam}, ${input.baseLocation},
+      ${input.ownerFirstName}, ${input.ownerFirstName},
+      ${"Observe"}, ${false}, ${"none"}
     )
     returning id
   `;
@@ -73,58 +49,71 @@ async function insertEmptyBusiness(
   return id;
 }
 
+async function insertInitialPolicies(sql: Sql, businessId: string): Promise<void> {
+  for (const p of initialActionPolicies()) {
+    await sql`
+      insert into action_policy (business_id, action, label, mode, risk, evidence, gates)
+      values (
+        ${businessId}, ${p.action}, ${p.label}, ${p.mode}, ${p.risk},
+        ${"{}"}::jsonb, ${JSON.stringify(p.gates)}::jsonb
+      )
+      on conflict (business_id, action) do nothing
+    `;
+  }
+}
+
 /**
- * Provision only when this user has no workspace yet. Returns the business id
- * they should land in, existing or freshly created.
+ * Create this user's initial workspace from completed onboarding and return its
+ * id. If a concurrent request already created one, returns that instead of
+ * creating a second.
  *
- * Concurrency-safe, which the previous version only claimed to be: it checked
- * membership OUTSIDE the transaction, so two first-load requests arriving
- * together could both observe zero memberships and each create a workspace,
- * leaving one user owning two tenants with no way to tell which is theirs.
+ * Concurrency-safe by construction: a per-user advisory lock is taken FIRST,
+ * inside the transaction, and membership is re-checked after acquiring it. A
+ * second submit blocks, re-reads, and finds what the first committed.
  *
- * The check now happens inside the transaction, behind a per-user advisory lock
- * taken FIRST. The lock is keyed on the user id and released when the
- * transaction ends, so the second request blocks, then re-reads and finds the
- * workspace the first one committed. A unique constraint cannot express this -
- * a user may legitimately belong to several businesses later, so "exactly one
- * on first sight" is a rule about timing, not about the shape of the data.
+ * A unique constraint deliberately does not back this. A user may legitimately
+ * belong to several businesses later, so "exactly one on first creation" is a
+ * rule about timing, not about the shape of the data.
+ *
+ * One transaction throughout, so a failure can never leave a business without
+ * its owner membership or with a half-written policy catalogue - either would
+ * lock the owner out of their own tenant.
  */
-export async function provisionIfEmpty(
-  userId: string,
-  email: string | null = null,
-): Promise<string | null> {
+export async function createInitialWorkspace(
+  input: CreateWorkspaceInput,
+): Promise<{ businessId: string; created: boolean }> {
   return withTransaction(async (sql) => {
-    // Serialise concurrent first-loads for THIS user only. hashtext keeps the
-    // key inside int8; a collision would only ever cost an unrelated user a
-    // brief wait during their own first provision.
-    await sql`select pg_advisory_xact_lock(hashtext(${userId}))`;
+    await sql`select pg_advisory_xact_lock(hashtext(${input.userId}))`;
 
     const existing = await sql<{ business_id: string }>`
-      select business_id from business_member where user_id = ${userId} limit 1
+      select business_id from business_member where user_id = ${input.userId} limit 1
     `;
-    if (existing[0]) return existing[0].business_id;
+    if (existing[0]) return { businessId: existing[0].business_id, created: false };
 
-    const businessId = await insertEmptyBusiness(sql, email);
+    const businessId = await insertBusiness(sql, input);
     await sql`
       insert into business_member (business_id, user_id, role)
-      values (${businessId}, ${userId}, ${"owner"})
-      on conflict (business_id, user_id) do nothing
+      values (${businessId}, ${input.userId}, ${"owner"})
     `;
-    for (const p of defaultActionPolicies()) {
-      await sql`
-        insert into action_policy (business_id, action, label, mode, risk)
-        values (${businessId}, ${p.action}, ${p.label}, ${"Ask every time"}, ${p.risk})
-        on conflict (business_id, action) do nothing
-      `;
-    }
+    await insertInitialPolicies(sql, businessId);
     await sql`
       insert into audit_event (business_id, actor, summary, detail, object_type)
       values (
-        ${businessId}, ${"system"}, ${"Workspace created"},
-        ${"Empty workspace. Autonomy starts at ask-every-time for every action."},
+        ${businessId}, ${input.userId}, ${"Workspace created"},
+        ${"Created from onboarding. Every action starts at ask-every-time or never."},
         ${"brain"}
       )
     `;
-    return businessId;
+    return { businessId, created: true };
   });
+}
+
+/** Whether this user belongs to any workspace. Zero is a valid new account. */
+export async function hasWorkspace(userId: string): Promise<boolean> {
+  const { getSql } = await import("@/lib/db");
+  const sql = await getSql();
+  const rows = await sql<{ business_id: string }>`
+    select business_id from business_member where user_id = ${userId} limit 1
+  `;
+  return Boolean(rows[0]);
 }
