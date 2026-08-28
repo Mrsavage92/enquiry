@@ -44,6 +44,10 @@ This does not block R2 backend engineering.
 
 # 3. Public claim truth
 
+Detailed claim-by-claim audit:
+
+`docs/PUBLIC_CLAIM_TRUTH_MATRIX.md`
+
 Before traffic, remove any implication that an external service-business cohort already exists unless that is actually true.
 
 Current homepage wording includes:
@@ -77,6 +81,9 @@ Already verified in R1, but preserve:
 - [x] operator routes require auth.
 - [x] short-ID `/q` and `/book` fixture customer routes fail closed in auth-capable deployments.
 - [ ] marketing CTAs do not unexpectedly promise a public operator/customer flow that no longer exists after R2 changes.
+- [ ] "real case file" does not describe a fixture as real customer evidence.
+- [ ] homepage/how channel wording does not imply Instagram/SMS/email/Facebook integrations are all live.
+- [ ] demo/video send language makes the owner/manual action boundary truthful.
 
 If "Open app" lands on sign-in, that is acceptable when it is clearly an existing-user path. Prospects still need a safe "See demo" route.
 
