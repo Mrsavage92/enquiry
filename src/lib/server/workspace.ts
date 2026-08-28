@@ -30,7 +30,8 @@ export const fetchWorkspace = createServerFn({ method: "GET" })
     // carry real foreign keys without reaching into the auth schema.
     const session = await getSessionUser().catch(() => null);
     await ensureAppUser(context.userId, session?.email ?? null);
-    await provisionIfEmpty(context.userId);
+    // Creates an EMPTY workspace, never a fixture one - AGENTS.project.md s13.
+    await provisionIfEmpty(context.userId, session?.email ?? null);
 
     return loadWorkspace(context.userId);
   });
