@@ -112,7 +112,11 @@ These commits remain **ungated existing foundation**, not R2 completion:
 
 - `f11c8d4a202b00c9f6b679de61810242c331b9c9` - product-core schema;
 - `7cd1ee4c57f18a365447038e11f80f15de4e4535` - RLS lockdown;
-- `43a7b287295638fc0cbbf91b88fa86f6be3e521f` - tenancy/repository/workspace server boundary.
+- `43a7b287295638fc0cbbf91b88fa86f6be3e521f` - tenancy/repository/workspace server boundary;
+- `ced20e14fbbb08d4b7fa493c08cb3bdbcc7bd080` - removed live fixture seeding, but retained auto-placeholder provisioning;
+- `118b2a8e2f1d9dcc2d37a322e6134868372cb06b` - made that placeholder provisioning concurrency-safe.
+
+These provisioning commits are **not R2A sign-off**. R2A still requires deliberate persisted onboarding, no auto-provision-on-read, and a product-owned action-policy catalogue rather than fixture-derived definitions.
 
 The detailed product-management review of what still separates this foundation from a real beta is:
 
