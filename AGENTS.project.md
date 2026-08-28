@@ -4,11 +4,11 @@ This file is the permanent product and implementation contract for anyone buildi
 
 Read this **before changing product behaviour, public positioning, roadmap content, or core UX**.
 
-The detailed sequenced work plan lives in:
+The original product change programme lives in `docs/PRODUCT_CHANGE_PLAN.md`.
 
-- `docs/PRODUCT_CHANGE_PLAN.md`
+**Current execution authority lives in `docs/CURRENT_PHASE.md`**, with the management index in `docs/PHASE_REGISTRY.md` and detailed briefs under `docs/phases/`.
 
-When implementing from that plan, work **one phase at a time**. Do not combine later phases, invent adjacent work, or broaden scope because it seems useful.
+Work **one authorised slice at a time**. Do not infer permission from a later commit already existing on `main`, combine future phases, invent adjacent work, or broaden scope because it seems useful.
 
 ---
 
