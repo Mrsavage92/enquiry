@@ -61,6 +61,13 @@ export function SiteShell({ children, notebook }: { children: ReactNode; noteboo
         )}
       >
         <div className="mx-auto flex max-w-5xl items-center justify-between gap-3 px-5 py-3">
+          {/*
+            Logo and links are one group so the nav reads as anchored to the
+            wordmark. Previously logo, nav and CTAs were three children of a
+            justify-between row, which pushed the links into the middle and left
+            an accidental-looking hole before the buttons.
+          */}
+          <div className="flex items-center gap-6">
           <Link to="/" aria-label="Enquiry home" className="inline-flex min-h-11 items-center">
             <Wordmark size="sm" />
           </Link>
@@ -81,6 +88,7 @@ export function SiteShell({ children, notebook }: { children: ReactNode; noteboo
               );
             })}
           </nav>
+          </div>
           <div className="flex items-center gap-2">
             <Button
               size="sm"

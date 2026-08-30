@@ -833,7 +833,17 @@ html.embed .site-nav {
     backdrop-filter: none;
     -webkit-backdrop-filter: none;
     background: var(--color-paper);
-    /* Status bar + preview close controls cover the first ~100px on a phone. */
+    /*
+      Only the device's own safe area. This previously reserved ~104px on every
+      viewport under 860px for the sandbox preview's close controls - but the
+      rule was never scoped to the preview, so every real phone rendered a
+      104px empty band above the wordmark before anything else on the page.
+      The embed case is handled immediately below.
+    */
+    padding-top: var(--app-safe-top);
+  }
+  html.embed header.site-nav {
+    /* Preview chrome genuinely does cover the first ~100px here. */
     padding-top: max(6.5rem, calc(var(--app-safe-top) + 3.75rem));
   }
   .hero-in {

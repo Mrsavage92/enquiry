@@ -24,7 +24,7 @@ export const Route = createFileRoute("/roadmap")({
 function RoadmapPage() {
   return (
     <SiteShell notebook>
-      <article className="mx-auto max-w-3xl px-5 pb-12 pt-16 sm:pb-16 sm:pt-24">
+      <article className="mx-auto max-w-3xl px-5 pb-12 pt-10 sm:pb-16 sm:pt-20">
         <HeroIn>
           <p className="eyebrow">Roadmap · Built in public</p>
         </HeroIn>

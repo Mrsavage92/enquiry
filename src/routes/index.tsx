@@ -29,7 +29,7 @@ function Home() {
 
   return (
     <SiteShell>
-      <section className="mx-auto max-w-5xl px-5 pb-12 pt-8 sm:pb-28 sm:pt-32">
+      <section className="mx-auto max-w-5xl px-5 pb-12 pt-10 sm:pb-20 sm:pt-20">
         <HeroIn>
           <p className="eyebrow">The app</p>
           <span className="page-rule" aria-hidden />
