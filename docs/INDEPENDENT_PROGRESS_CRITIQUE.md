@@ -1,6 +1,6 @@
 # Enquiry - Independent Progress Critique
 
-> This file is an independent, evidence-based management review of the Enquiry repository. It is updated daily. It is useful context for Claude, Codex, and other agents, but it is not implementation authority.
+> This file is an independent, evidence-based management review of the Enquiry repository. It is updated weekly. It is useful context for Claude, Codex, and other agents, but it is not implementation authority.
 >
 > `docs/CURRENT_PHASE.md` remains the authority for the active slice, sequencing, acceptance criteria, and sign-off.
 >
@@ -9,64 +9,81 @@
 ## Review metadata
 
 - Review date: 2026-09-01
+- Review type: live Codex management pass
 - Repository: [Mrsavage92/enquiry](https://github.com/Mrsavage92/enquiry)
-- Latest commit observed in the recent repository review: [4ec4430 - reclaim the dead space above the fold](https://github.com/Mrsavage92/enquiry/commit/4ec443021391e2069ba149b5f894cf20f51f27cb)
+- Current repository head observed: [57c72fb - assign progress review ownership to Codex](https://github.com/Mrsavage92/enquiry/commit/57c72fb6a0c86c63d34951567838671d51b3fcaf)
+- Latest substantive product commit observed: [4ec4430 - reclaim the dead space above the fold](https://github.com/Mrsavage92/enquiry/commit/4ec443021391e2069ba149b5f894cf20f51f27cb)
+- Latest R2A implementation correction reviewed: [3d0207a](https://github.com/Mrsavage92/enquiry/commit/3d0207a502d48e78169bed12f35e4aaf77798418)
 - Primary sources:
   - [Current phase](./CURRENT_PHASE.md)
   - [Phase registry](./PHASE_REGISTRY.md)
   - [R2A active brief](./phases/PHASE_R2A_REAL_WORKSPACE_ONBOARDING.md)
   - [R2 foundation review](./R2_FOUNDATION_REVIEW.md)
   - [Test and regression policy](./TEST_REGRESSION_POLICY.md)
-  - Connected Notion Enquiry Product HQ and decision material
+  - Connected Notion Enquiry Product HQ, strategy, decision, roadmap, validation, and growth material
 
 ## Executive verdict
 
-**Vision alignment: directionally strong; first-beta readiness: not yet demonstrated.**
+**The product direction remains correct. The implementation is not ready to advance.**
 
-The repository still reflects the intended product: a cross-industry enquiry decision layer that turns messy inbound messages into an understood, explainable, business-specific next action, ending in a booked or lost enquiry. The product boundary remains clear: this is not a generic CRM, shared inbox, workflow builder, AI receptionist, or all-in-one operations suite.
+The repository and connected product material still describe the intended product: a cross-industry enquiry decision layer that turns messy inbound messages into an understood, explainable, business-specific next action, ending in a booked or lost enquiry. The boundary remains clear: Enquiry is not a generic CRM, shared inbox, workflow builder, AI receptionist, or all-in-one operations suite.
 
-The material risk is execution truth, not product direction. R2A remains active and explicitly unsigned off because the normal live post-onboarding path can still expose fixture businesses, enquiries, and bookings and can still trigger demo arrival behaviour. Until that is corrected and independently evidenced, the product cannot honestly be treated as a safe first-beta operator workspace.
+The current issue is execution truth. R2A remains active and unsigned off because the normal live post-onboarding path can still expose fixture-backed state and trigger demo behaviour. Website polish and successful server-side onboarding do not compensate for that first-beta safety defect.
 
-## What moved
+## What moved since the previous review
 
-- The R2A correction materially improved real workspace creation, onboarding persistence, tenancy handling, currency truth, fake-integration copy, and focused database coverage in [3d0207a](https://github.com/Mrsavage92/enquiry/commit/3d0207a502d48e78169bed12f35e4aaf77798418).
-- Management review correctly retained one unresolved live/demo isolation defect rather than signing off R2A on the strength of the implementation report alone.
-- Public-site work continued, including the above-the-fold spacing and navigation correction in [4ec4430](https://github.com/Mrsavage92/enquiry/commit/4ec443021391e2069ba149b5f894cf20f51f27cb) and the login redirect correction in [2341704](https://github.com/Mrsavage92/enquiry/commit/2341704a3bccfd5f922609dca0954e3fe7a3f931).
-- The phase registry and regression policy now clearly separate landed foundation from reviewed phase completion and require exact evidence for claimed baseline failures.
+- **No material R2 product movement was observed after the latest implementation work.**
+- [4ec4430](https://github.com/Mrsavage92/enquiry/commit/4ec443021391e2069ba149b5f894cf20f51f27cb) improved measured public-site spacing, navigation grouping, and mobile above-the-fold behaviour.
+- [2341704](https://github.com/Mrsavage92/enquiry/commit/2341704a3bccfd5f922609dca0954e3fe7a3f931) corrected an invalid login redirect rewrite.
+- The latest commits [25ea7a2](https://github.com/Mrsavage92/enquiry/commit/25ea7a2cafab501c39f437da215c5245b2cb4944) and [57c72fb](https://github.com/Mrsavage92/enquiry/commit/57c72fb6a0c86c63d34951567838671d51b3fcaf) established and assigned the Codex-owned critique layer. These are management improvements, not product readiness progress.
+- The connected Notion material remains aligned with the repository. No newer conflicting product decision was found in the connected search.
+
+## Codex validation of the active blocker
+
+The documented blocker is visible in the current source:
+
+- `src/routes/onboarding.tsx` creates the authenticated workspace, calls `markOnboardedLocally()`, and navigates to `/enquiries`.
+- `src/components/enquiry/workspace.tsx` still reads enquiry state directly from `usePrototype`, including fixture businesses, enquiries, and bookings.
+- The same workspace schedules `arriveEnquiry()` when `onboarded` is true and the arrival has not played. The guard excludes framed preview mode, but does not require explicit demo mode.
+- Therefore a successful live onboarding can still enter fixture-backed runtime state and can still receive the hard-coded demo arrival.
+
+This confirms the R2A hold is supported by actual code, not only by an old commit message or an unverified implementation report.
 
 ## Important decisions
 
-- R2A is **not signed off**.
-- The next authorised implementation slice remains the narrow live/demo isolation correction. R2B through R2F are not authorised until the active gate is reviewed.
-- The server and onboarding direction from the R2A correction is accepted and should not be unnecessarily reworked.
-- R2 engineering may continue independently of the external public-traffic blockers, but those blockers must not be mixed into the R2A correction.
-- The product must remain centred on the Enquiry Decision Object and the correct next action, not on accumulating CRM features or integrations.
+- R2A remains **not signed off**.
+- The next implementation action is only the narrow live/demo isolation correction and directly necessary focused tests.
+- R2B through R2F remain unauthorised until R2A is independently reviewed and accepted.
+- Codex owns progress review, evidence assessment, risk, and phase gating. Implementation agents execute the authorised slice but do not self-certify it.
+- Public-site polish and external public-traffic blockers remain separate from the R2 engineering sequence.
+- The product remains centred on the Enquiry Decision Object and correct next action, not generic CRM expansion or premature integrations.
 
 ## Blockers
 
-1. **R2A live/demo isolation:** successful live onboarding can still land the signed-in operator on fixture-backed local state, and the hard-coded demo arrival can still run outside explicit demo mode. See [CURRENT_PHASE.md](./CURRENT_PHASE.md).
-2. **Server-authoritative operator runtime:** the wider live workspace cutover remains R2B work and is not yet complete.
-3. **Public traffic:** historical preview credential rotation/revocation and final real-browser visual QA remain outstanding before deliberate public traffic.
-4. **Verification evidence:** the repository has no CI status checks for the reported R2A test results, so claimed test outcomes still require the exact command and baseline evidence required by the regression policy.
+1. **R2A live/demo isolation:** fixture state and demo arrival can still leak into the normal live post-onboarding path.
+2. **Server-authoritative operator runtime:** the wider runtime cutover remains R2B work and is not complete.
+3. **First-beta evidence:** arbitrary non-fixture enquiry processing, correction/outcome telemetry, repeat usage, and paid continuation are not yet demonstrated as a complete first-beta outcome.
+4. **Public traffic:** historical preview credential rotation/revocation and final real-browser visual QA remain outstanding.
+5. **Verification:** GitHub exposes no CI status checks for the reported test results, so exact commands and baseline evidence are still required.
 
 ## Milestone risk
 
-**High risk to first-beta timing, medium risk to the product thesis.**
+**High risk to first-beta timing; medium risk to the product thesis.**
 
-This is high risk to timing because the current release path cannot progress honestly beyond R2A until live/demo isolation is corrected and evidenced, while R2B through R2F still contain the core transition from prototype state to a truthful first-beta product. It is medium risk to the thesis because the product boundary and decision-layer strategy remain coherent; the main threat is allowing implementation momentum or visual progress to be mistaken for beta readiness.
+Timing risk is high because R2A cannot be honestly closed until the isolation defect is corrected and evidenced, and the remaining R2B-R2F slices still carry the transition from prototype state to a truthful beta product. Thesis risk is lower because the product boundary and decision-layer strategy remain coherent. The main danger is confusing visible activity with genuine product readiness.
 
 ## Next three priorities
 
 1. Close the exact R2A live/demo isolation defect and add the required focused proof without broadening into R2B.
-2. Independently verify the changed diff, focused tests, full test command, typecheck, and build; then make an explicit R2A sign-off or correction decision.
-3. Only after R2A sign-off, activate the next bounded R2B server-authoritative runtime slice. Keep public-traffic credential and browser-QA work tracked separately.
-
-## Evidence and uncertainty
-
-- **High confidence:** current phase, sequencing, acceptance boundary, and documented blockers, because they are stated in the repository management sources.
-- **Medium confidence:** implementation status between the latest observed commits and this review, because GitHub exposed no CI status checks and no live browser verification was performed in this review.
-- **Unknown:** whether any uncommitted local work or external agent activity exists outside the repository.
+2. Have Codex review the actual diff, focused tests, full test command, typecheck, and build, then make an explicit R2A sign-off or correction decision.
+3. Only after R2A is accepted, activate the next bounded R2B server-authoritative runtime slice. Keep public-traffic work separate.
 
 ## Agent handoff
 
-Use this file to understand the independent management view and challenge assumptions. Before changing anything, read `AGENTS.project.md`, `docs/CURRENT_PHASE.md`, and the detailed active phase brief. Do not treat this file's priorities as permission to implement a later phase, change product authority, or sign off a gate.
+Before changing anything, read `AGENTS.project.md`, `docs/CURRENT_PHASE.md`, and the detailed R2A brief. Implement only the current correction gate. Do not rework accepted server/onboarding foundations, begin R2B hydration, add integrations, redesign the UI, or infer permission from later-phase code already present on `main`.
+
+## Evidence and uncertainty
+
+- **High confidence:** active phase, sequencing, documented blocker, and source-level presence of the live/demo defect.
+- **Medium confidence:** complete release readiness, because no live browser verification or CI status evidence was available in this review.
+- **Unknown:** uncommitted local work or external agent activity not represented in the repository.
