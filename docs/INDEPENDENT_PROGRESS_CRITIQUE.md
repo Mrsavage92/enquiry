@@ -3,6 +3,8 @@
 > This file is an independent, evidence-based management review of the Enquiry repository. It is updated daily. It is useful context for Claude, Codex, and other agents, but it is not implementation authority.
 >
 > `docs/CURRENT_PHASE.md` remains the authority for the active slice, sequencing, acceptance criteria, and sign-off.
+>
+> **Ownership:** Codex owns the independent progress, evidence, risk, and phase-review layer. Claude, Cursor, or another implementation agent may execute an authorised slice, but must not self-certify completion or advance sequencing.
 
 ## Review metadata
 
