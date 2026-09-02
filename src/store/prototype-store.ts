@@ -136,6 +136,19 @@ type Actions = {
    * workspace hydration is R2B.
    */
   markOnboardedLocally: () => void;
+  /**
+   * Replace live tenant content with the authenticated server workspace.
+   *
+   * The store stays as a rendering facade so existing components survive the
+   * cutover, but in live mode it is a CACHE of server state, never the
+   * authority. Server data always wins - this is a replace, not a merge, so a
+   * row deleted server-side cannot linger on screen.
+   */
+  hydrateFromServer: (data: {
+    businesses: Business[];
+    enquiries: Enquiry[];
+    bookings: Booking[];
+  }) => void;
   startSetup: () => void;
   enterSample: () => void;
   restoreFixture: (enquiryId: string) => void;
@@ -301,6 +314,25 @@ export const usePrototype = create<PrototypeState & Actions>()(
         }
         set({ ...seed(), onboarded: get().onboarded });
       },
+      hydrateFromServer: ({ businesses, enquiries, bookings }) =>
+        set((s) => ({
+          businesses,
+          enquiries,
+          bookings,
+          // Live tenants never run demo theatre.
+          demoMode: false,
+          arrivalPlayed: true,
+          lastArrivalId: null,
+          // Keep the current filter only if it still names a business this
+          // tenant actually has; otherwise fall back to "all" rather than
+          // pointing at something they cannot see.
+          businessFilter:
+            s.businessFilter === "all" ||
+            businesses.some((b) => b.id === s.businessFilter)
+              ? s.businessFilter
+              : "all",
+        })),
+
       // NOTE: the exact patch below is mirrored in src/store/live-handoff.test.ts,
       // which proves it satisfies the live/demo isolation rule. Change both.
       markOnboardedLocally: () => {
@@ -1524,7 +1556,7 @@ export const usePrototype = create<PrototypeState & Actions>()(
       },
     }),
     {
-      name: "enquiry-proto-v9",
+      name: "enquiry-proto-v10",
       storage: createJSONStorage(() => {
         const memory = {
           getItem: () => null,
@@ -1539,27 +1571,36 @@ export const usePrototype = create<PrototypeState & Actions>()(
         }
         return sessionStorage;
       }),
+      // Live mode persists NO tenant content. The prototype wrote a complete
+      // snapshot of businesses/enquiries/bookings/audit to session storage,
+      // which meant a stale tab could put yesterday's data back on screen as
+      // current - and could survive a sign-out into whoever used the browser
+      // next. Presentation-only state still persists in both modes.
       partialize: (s) => ({
         onboarded: s.onboarded,
         demoMode: s.demoMode,
         onboardingStep: s.onboardingStep,
         onboardingSource: s.onboardingSource,
-        businesses: s.businesses,
-        enquiries: s.enquiries,
-        bookings: s.bookings,
+        ...(s.demoMode
+          ? {
+              businesses: s.businesses,
+              enquiries: s.enquiries,
+              bookings: s.bookings,
+              drafts: s.drafts,
+              confirmSent: s.confirmSent,
+              audit: s.audit,
+            }
+          : {}),
         businessFilter: s.businessFilter,
         queueFilter: s.queueFilter,
         brainTab: s.brainTab,
-        drafts: s.drafts,
         lastChangeAt: s.lastChangeAt,
         firstHint: s.firstHint,
-        confirmSent: s.confirmSent,
         offlineSimulated: s.offlineSimulated,
         lastArrivalId: s.lastArrivalId,
         arrivalPlayed: s.arrivalPlayed,
         liveSeq: s.liveSeq,
         prefs: s.prefs,
-        audit: s.audit,
         lastAutomated: s.lastAutomated,
         dismissedNotices: s.dismissedNotices,
         installDismissed: s.installDismissed,

@@ -6,9 +6,12 @@ import { SheetContent } from "@/components/ui/sheet";
 import { useNarrow } from "@/lib/use-narrow";
 import { usePrototype } from "@/store/prototype-store";
 import { BUSINESS_BY_ID } from "@/fixtures";
+import { resolveBusiness } from "@/lib/workspace/resolve-business";
 
 export function TeachDialog() {
   const teach = usePrototype((s) => s.teach);
+  const businesses = usePrototype((s) => s.businesses);
+  const demoMode = usePrototype((s) => s.demoMode);
   const decideTeach = usePrototype((s) => s.decideTeach);
   const setBrainTab = usePrototype((s) => s.setBrainTab);
   const enquiries = usePrototype((s) => s.enquiries);
@@ -16,7 +19,7 @@ export function TeachDialog() {
   const phone = useNarrow(860);
   const enquiry = enquiries.find((e) => e.id === teach?.enquiryId);
   const business =
-    enquiry ? BUSINESS_BY_ID[enquiry.businessId] : undefined;
+    resolveBusiness(businesses, enquiry?.businessId, { demoMode, fixtures: BUSINESS_BY_ID });
   const Panel = phone ? SheetContent : DialogContent;
 
   return (

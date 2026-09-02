@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { AppShell } from "@/components/shell/app-shell";
 import { RequireAuth } from "@/lib/auth/gates";
+import { WorkspaceBoundary } from "@/components/shell/workspace-boundary";
 
 /**
  * Every operator surface hangs off this layout - enquiries, bookings, business,
@@ -14,7 +15,15 @@ export const Route = createFileRoute("/_app")({
 function GuardedAppShell() {
   return (
     <RequireAuth>
-      <AppShell />
+      {/*
+        One boundary for the whole operator app: auth is verified first, then
+        the authenticated workspace is read once and cached into the store.
+        Screens below render tenant data only after that has happened, so none
+        of them can flash fixtures while the server call is in flight.
+      */}
+      <WorkspaceBoundary>
+        <AppShell />
+      </WorkspaceBoundary>
     </RequireAuth>
   );
 }

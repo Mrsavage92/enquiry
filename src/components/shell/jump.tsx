@@ -5,6 +5,7 @@ import { Search } from "lucide-react";
 import { Dialog as DialogRoot, DialogContent } from "@/components/ui/dialog";
 import { usePrototype } from "@/store/prototype-store";
 import { BUSINESS_BY_ID } from "@/fixtures";
+import { resolveBusiness } from "@/lib/workspace/resolve-business";
 import { derivedLabel } from "@/domain/labels";
 import { channelLabel } from "@/domain/channel";
 import { dayKeyFromIso, formatTime } from "@/domain/format";
@@ -21,6 +22,7 @@ export function Jump({
   const enquiries = usePrototype((s) => s.enquiries);
   const bookings = usePrototype((s) => s.bookings);
   const businesses = usePrototype((s) => s.businesses);
+  const demoMode = usePrototype((s) => s.demoMode);
   const setFilter = usePrototype((s) => s.setBusinessFilter);
   const setBrainTab = usePrototype((s) => s.setBrainTab);
   const setBrainFocus = usePrototype((s) => s.setBrainFocusComposer);
@@ -39,7 +41,7 @@ export function Jump({
             <Command.Empty>Nothing matches.</Command.Empty>
             <Command.Group heading="Enquiries">
               {enquiries.map((e) => {
-                  const business = businesses.find((b) => b.id === e.businessId) ?? BUSINESS_BY_ID[e.businessId];
+                  const business = resolveBusiness(businesses, e.businessId, { demoMode, fixtures: BUSINESS_BY_ID });
                   return (
                     <Command.Item
                       key={e.id}

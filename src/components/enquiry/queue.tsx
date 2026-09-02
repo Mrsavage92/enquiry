@@ -13,6 +13,7 @@ import { channelLabel } from "@/domain/channel";
 import type { Enquiry } from "@/domain/types";
 import { usePrototype } from "@/store/prototype-store";
 import { BUSINESS_BY_ID } from "@/fixtures";
+import { resolveBusiness } from "@/lib/workspace/resolve-business";
 import { QueueBriefing } from "./briefing";
 import { Notices } from "@/components/shell/notices";
 
@@ -62,12 +63,13 @@ function ArrivalStrip() {
   const lastArrivalId = usePrototype((s) => s.lastArrivalId);
   const enquiry = usePrototype((s) => s.enquiries.find((e) => e.id === s.lastArrivalId));
   const businesses = usePrototype((s) => s.businesses);
+  const demoMode = usePrototype((s) => s.demoMode);
   const navigate = useNavigate();
   const setFilter = usePrototype((s) => s.setBusinessFilter);
   const setQueueFilter = usePrototype((s) => s.setQueueFilter);
   const businessFilter = usePrototype((s) => s.businessFilter);
   if (!lastArrivalId || !enquiry) return null;
-  const business = businesses.find((b) => b.id === enquiry.businessId) ?? BUSINESS_BY_ID[enquiry.businessId];
+  const business = resolveBusiness(businesses, enquiry.businessId, { demoMode, fixtures: BUSINESS_BY_ID });
   const reading = enquiry.state.decision === "EVALUATING";
   return (
     <div className="border-b border-line px-3 py-2.5">
@@ -116,7 +118,7 @@ export function Queue({ activeId, phone = false }: { activeId?: string; phone?: 
   const visible = useMemo(() => {
     if (q) {
       return scoped.filter((e) => {
-        const business = businesses.find((b) => b.id === e.businessId) ?? BUSINESS_BY_ID[e.businessId];
+        const business = resolveBusiness(businesses, e.businessId, { demoMode, fixtures: BUSINESS_BY_ID });
         return matchesQuery(e, q, business?.name);
       });
     }
@@ -126,7 +128,7 @@ export function Queue({ activeId, phone = false }: { activeId?: string; phone?: 
       return [incoming, ...list];
     }
     return list;
-  }, [q, scoped, enquiries, businessFilter, listFilter, activeId, businesses, lastArrivalId]);
+  }, [q, scoped, enquiries, businessFilter, listFilter, activeId, businesses, lastArrivalId, demoMode]);
   const summary = queueSummary(scoped);
   const counts = {
     needs_you: summary.needsYou,
@@ -274,7 +276,7 @@ export function Queue({ activeId, phone = false }: { activeId?: string; phone?: 
         ) : (
           visible.map((e) => {
             const active = e.id === activeId;
-            const business = businesses.find((b) => b.id === e.businessId) ?? BUSINESS_BY_ID[e.businessId];
+            const business = resolveBusiness(businesses, e.businessId, { demoMode, fixtures: BUSINESS_BY_ID });
             const section = queueSection(e);
             const situation = enquirySituation(e, business);
             const arriving = e.id === lastArrivalId || e.state.decision === "EVALUATING";

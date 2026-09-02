@@ -8,6 +8,7 @@ import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { useNarrow } from "@/lib/use-narrow";
 import { usePrototype } from "@/store/prototype-store";
 import { BUSINESS_BY_ID } from "@/fixtures";
+import { resolveBusiness } from "@/lib/workspace/resolve-business";
 import { formatAud } from "@/domain/labels";
 import {
   addMinutesToIso,
@@ -81,10 +82,12 @@ function JobDetail({
   onDrop: () => void;
 }) {
   const recordDeposit = usePrototype((s) => s.recordDeposit);
+  const businesses = usePrototype((s) => s.businesses);
+  const demoMode = usePrototype((s) => s.demoMode);
   const confirm = usePrototype((s) => s.confirmExternalBooking);
   const enquiries = usePrototype((s) => s.enquiries);
   const all = usePrototype((s) => s.bookings);
-  const business = BUSINESS_BY_ID[booking.businessId];
+  const business = resolveBusiness(businesses, booking.businessId, { demoMode, fixtures: BUSINESS_BY_ID });
   const enquiry = enquiries.find((e) => e.id === booking.enquiryId);
   const holdDue = isHoldDue(booking);
   const end = bookingEnd(booking);

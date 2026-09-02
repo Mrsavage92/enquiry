@@ -3,6 +3,7 @@ import type { Enquiry, Message } from "@/domain/types";
 import { cn } from "@/lib/utils";
 import { useEffect, useRef, type Ref } from "react";
 import { BUSINESS_BY_ID } from "@/fixtures";
+import { resolveBusiness } from "@/lib/workspace/resolve-business";
 import { usePrototype } from "@/store/prototype-store";
 import { QuoteSheet } from "./quote-sheet";
 
@@ -69,7 +70,8 @@ function MessageBlock({
   endRef?: Ref<HTMLLIElement>;
 }) {
   const businesses = usePrototype((s) => s.businesses);
-  const business = businesses.find((b) => b.id === enquiry.businessId) ?? BUSINESS_BY_ID[enquiry.businessId];
+  const demoMode = usePrototype((s) => s.demoMode);
+  const business = resolveBusiness(businesses, enquiry.businessId, { demoMode, fixtures: BUSINESS_BY_ID });
   const outbound = m.direction === "outbound";
   const quote = m.quoteId ? enquiry.decision.quotes.find((q) => q.id === m.quoteId) : undefined;
   const short = isShortChannel(m.channel);

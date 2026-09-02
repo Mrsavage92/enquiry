@@ -17,6 +17,7 @@ export function SettingsPage() {
   const pause = usePrototype((s) => s.pause);
   const resume = usePrototype((s) => s.resume);
   const reset = usePrototype((s) => s.reset);
+  const demoMode = usePrototype((s) => s.demoMode);
   const startSetup = usePrototype((s) => s.startSetup);
   const prefs = usePrototype((s) => s.prefs);
   const setPrefs = usePrototype((s) => s.setPrefs);
@@ -249,13 +250,20 @@ export function SettingsPage() {
               </Link>
             </Button>
           </li>
-          <li>
-            <p className="font-medium">Reset sample data</p>
-            <p className="mt-1 text-sm text-ink-2">Restores F01–F20 and sample bookings. Your session is local.</p>
-            <Button size="sm" variant="secondary" className="mt-3" onClick={() => reset()}>
-              Reset prototype
-            </Button>
-          </li>
+          {/*
+            Demo-only. This replaces the workspace with F01-F20 sample data; for
+            a signed-in business that is an offer to destroy their work and fill
+            the screen with another studio's.
+          */}
+          {demoMode ? (
+            <li>
+              <p className="font-medium">Reset sample data</p>
+              <p className="mt-1 text-sm text-ink-2">Restores F01–F20 and sample bookings. Your session is local.</p>
+              <Button size="sm" variant="secondary" className="mt-3" onClick={() => reset()}>
+                Reset prototype
+              </Button>
+            </li>
+          ) : null}
         </ul>
       </section>
     </div>

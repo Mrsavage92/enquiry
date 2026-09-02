@@ -117,22 +117,32 @@ export function AccountMenu({
             <Pause className="size-4" aria-hidden />
             {paused ? "Resume Enquiry" : "Pause Enquiry"}
           </Dropdown.Item>
-          <Dropdown.Item asChild>
-            <Link
-              to="/lab"
-              className="flex items-center gap-2 rounded-md px-2 py-2 text-sm outline-none data-[highlighted]:bg-paper-2"
-            >
-              <FlaskConical className="size-4" aria-hidden />
-              Fixture lab
-            </Link>
-          </Dropdown.Item>
-          <Dropdown.Item
-            className="flex items-center gap-2 rounded-md px-2 py-2 text-sm outline-none data-[highlighted]:bg-paper-2"
-            onSelect={() => reset()}
-          >
-            <RotateCcw className="size-4" aria-hidden />
-            Reset prototype
-          </Dropdown.Item>
+          {/*
+            Demo/dev only. "Reset prototype" replaces the workspace arrays with
+            F01-F20 sample data - offering that to a signed-in business is
+            offering to destroy their work and repopulate it with someone
+            else's. The fixture lab is equally not a live-account control.
+          */}
+          {demoMode ? (
+            <>
+              <Dropdown.Item asChild>
+                <Link
+                  to="/lab"
+                  className="flex items-center gap-2 rounded-md px-2 py-2 text-sm outline-none data-[highlighted]:bg-paper-2"
+                >
+                  <FlaskConical className="size-4" aria-hidden />
+                  Fixture lab
+                </Link>
+              </Dropdown.Item>
+              <Dropdown.Item
+                className="flex items-center gap-2 rounded-md px-2 py-2 text-sm outline-none data-[highlighted]:bg-paper-2"
+                onSelect={() => reset()}
+              >
+                <RotateCcw className="size-4" aria-hidden />
+                Reset prototype
+              </Dropdown.Item>
+            </>
+          ) : null}
         </Dropdown.Content>
       </Dropdown.Portal>
     </Dropdown.Root>

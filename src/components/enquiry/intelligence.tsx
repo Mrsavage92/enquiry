@@ -23,6 +23,7 @@ import type { Enquiry, EnquiryFact, EvaluatorResult } from "@/domain/types";
 import { cn } from "@/lib/utils";
 import { usePrototype } from "@/store/prototype-store";
 import { BUSINESS_BY_ID } from "@/fixtures";
+import { resolveBusiness } from "@/lib/workspace/resolve-business";
 import { SituationCard } from "./situation-card";
 import { QuoteSheets, quoteSheets } from "./quote-sheet";
 import { WaitingDesk } from "./waiting-desk";
@@ -63,9 +64,10 @@ export function Intelligence({
   const confirmExternal = usePrototype((s) => s.confirmExternalBooking);
   const track = usePrototype((s) => s.track);
   const businesses = usePrototype((s) => s.businesses);
+  const demoMode = usePrototype((s) => s.demoMode);
   const offline = usePrototype((s) => s.offline);
   const connect = usePrototype((s) => s.connectIntegration);
-  const business = businesses.find((b) => b.id === enquiry.businessId) ?? BUSINESS_BY_ID[enquiry.businessId];
+  const business = resolveBusiness(businesses, enquiry.businessId, { demoMode, fixtures: BUSINESS_BY_ID });
   const rec = enquiry.decision.recommendation;
   const applicable = enquiry.decision.evaluators.filter((e) => e.status !== "NOT_APPLICABLE");
   const pricing = applicable.find((e) => e.type === "pricing");
@@ -352,7 +354,7 @@ export function Intelligence({
                 This enquiry only
               </Button>
               <Button className="min-h-11 w-full" onClick={() => decideVoice("teach")}>
-                Update {business.name}’s voice
+                Update {business?.name ?? "this business"}’s voice
               </Button>
             </div>
           </div>
@@ -418,14 +420,14 @@ export function Intelligence({
               {voiceNotice.from} → {voiceNotice.to}
             </p>
             <p className="mt-1 text-xs text-stone">
-              Teaching updates {business.name}’s voice. Other open drafts will follow. Sent messages stay as sent.
+              Teaching updates {business?.name ?? "this business"}’s voice. Other open drafts will follow. Sent messages stay as sent.
             </p>
             <div className="mt-3 flex flex-wrap gap-2">
               <Button size="sm" variant="secondary" onClick={() => decideVoice("enquiry")}>
                 This enquiry only
               </Button>
               <Button size="sm" onClick={() => decideVoice("teach")}>
-                Update {business.name}’s voice
+                Update {business?.name ?? "this business"}’s voice
               </Button>
             </div>
           </div>

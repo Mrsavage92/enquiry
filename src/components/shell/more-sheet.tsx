@@ -84,16 +84,29 @@ export function MoreSheet({
         )}
         <div className="mt-4 border-t border-line pt-4">
           <div className="flex flex-col gap-2">
-            <Button
-              variant="secondary"
-              className="min-h-12 w-full"
-              onClick={() => {
-                enterSample();
-                close();
-              }}
-            >
-              Open sample jobs
-            </Button>
+            {/*
+              enterSample() overwrites the workspace arrays with fixtures. That
+              is fine in demo mode and destructive in a live tenant, so a live
+              operator is sent to the isolated /demo surface instead.
+            */}
+            {demoMode ? (
+              <Button
+                variant="secondary"
+                className="min-h-12 w-full"
+                onClick={() => {
+                  enterSample();
+                  close();
+                }}
+              >
+                Open sample jobs
+              </Button>
+            ) : (
+              <Button variant="secondary" className="min-h-12 w-full" asChild>
+                <Link to="/demo" onClick={close}>
+                  See a worked example
+                </Link>
+              </Button>
+            )}
             <Button variant="ghost" className="min-h-11 w-full" asChild>
               <Link
                 to="/onboarding"
