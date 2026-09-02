@@ -106,11 +106,18 @@ export const createManualEnquiry = createServerFn({ method: "POST" })
       select state, rule_payload from knowledge_item
       where business_id = ${businessId} and rule_payload is not null
     `;
+    const [owner] = await sqlRead<{ owner_first_name: string | null }>`
+      select owner_first_name from business where id = ${businessId}
+    `;
     const decision = decideEnquiry(
       { knowledge: knowledge.map((k) => ({ state: k.state, rulePayload: k.rule_payload })) },
       { serviceLabel: data.serviceLabel, facts: [] },
     );
-    const snapshot = snapshotFromDecision(decision);
+    const snapshot = snapshotFromDecision(decision, {
+      customerName: data.customerName,
+      ownerFirstName: owner?.owner_first_name ?? undefined,
+      serviceLabel: data.serviceLabel,
+    });
     const state = stateFromDecision(decision);
 
     const enquiryId = await withTransaction(async (sql) => {

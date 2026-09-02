@@ -1,4 +1,5 @@
 import type { Decision } from "./decide.ts";
+import { composeReply } from "./compose-reply.ts";
 import type { CommercialState, DecisionSnapshot, DecisionState, Recommendation, Responsibility } from "./types";
 
 /**
@@ -41,7 +42,10 @@ export function emptyDecisionSnapshot(): DecisionSnapshot {
 }
 
 /** How a live `Decision` reads in the desk's own vocabulary. */
-export function snapshotFromDecision(decision: Decision): DecisionSnapshot {
+export function snapshotFromDecision(
+  decision: Decision,
+  who: { customerName?: string; ownerFirstName?: string; serviceLabel?: string } = {},
+): DecisionSnapshot {
   const base = emptyDecisionSnapshot();
   const recommendation: Recommendation = {
     action: decision.action,
@@ -72,7 +76,15 @@ export function snapshotFromDecision(decision: Decision): DecisionSnapshot {
           },
         ]
       : [],
-    draft: { ...base.draft, action: decision.action },
+    // A prepared reply, derived entirely from the decision. Without it the
+    // desk told the owner what to do and then handed them "No message
+    // prepared." - the right answer with nothing to send.
+    draft: {
+      ...base.draft,
+      action: decision.action,
+      body: composeReply(decision, who),
+      groundedFacts: decision.blocker ? [decision.blocker.field] : [],
+    },
   };
 }
 
