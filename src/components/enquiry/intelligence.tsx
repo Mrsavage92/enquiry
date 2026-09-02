@@ -22,6 +22,7 @@ import {
 import type { Enquiry, EnquiryFact, EvaluatorResult } from "@/domain/types";
 import { cn } from "@/lib/utils";
 import { usePrototype } from "@/store/prototype-store";
+import { useLiveEnquiryMutations } from "@/lib/workspace/live-mutations";
 import { BUSINESS_BY_ID } from "@/fixtures";
 import { resolveBusiness } from "@/lib/workspace/resolve-business";
 import { SituationCard } from "./situation-card";
@@ -50,9 +51,9 @@ export function Intelligence({
   const [sendConfirm, setSendConfirm] = useState(false);
   const [noteOpen, setNoteOpen] = useState(false);
   const approve = usePrototype((s) => s.approve);
-  const snooze = usePrototype((s) => s.snooze);
   const declineLetter = usePrototype((s) => s.declineLetter);
-  const setNote = usePrototype((s) => s.setNote);
+  // Persisted write-through: a note about a customer must survive a reload.
+  const enq = useLiveEnquiryMutations();
   const drafts = usePrototype((s) => s.drafts);
   const editDraft = usePrototype((s) => s.editDraft);
   const considerVoice = usePrototype((s) => s.considerVoice);
@@ -526,7 +527,7 @@ export function Intelligence({
                   size="sm"
                   variant="ghost"
                   onClick={() => {
-                    snooze(enquiry.id);
+                    void enq.snooze(enquiry.id, (m) => toast.error(m));
                     toastUndo("Snoozed for two days.");
                     onDone?.();
                   }}
@@ -691,7 +692,7 @@ export function Intelligence({
               className="min-h-11"
               onClick={() => {
                 const el = document.getElementById("enquiry-note") as HTMLTextAreaElement | null;
-                setNote(enquiry.id, el?.value ?? "");
+                void enq.setNote(enquiry.id, el?.value ?? "", (m) => toast.error(m));
                 setNoteOpen(false);
               }}
             >

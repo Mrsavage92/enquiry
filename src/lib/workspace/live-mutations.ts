@@ -3,6 +3,8 @@ import { authEnabled } from "@/lib/auth/client";
 import {
   setActionPolicyMode,
   setBusinessPause,
+  setEnquiryNote,
+  snoozeEnquiry,
   setTrustMode as setTrustModeServer,
 } from "@/lib/server/workspace";
 import type { ActionPolicyMode, TrustMode } from "@/domain/types";
@@ -94,6 +96,40 @@ export function useLiveTrustMutations() {
         () => setTrustModeServer({ data: { businessId, mode } }),
         onFailure,
       );
+    },
+  };
+}
+
+/**
+ * Enquiry-level mutations that must survive a reload.
+ *
+ * `setEnquiryNote` and `snoozeEnquiry` existed server-side but nothing called
+ * them, so a note an operator wrote about a customer lived in browser memory
+ * and disappeared. Built-but-unwired server code is worse than none: it makes
+ * persistence coverage look better than it is.
+ */
+export function useLiveEnquiryMutations() {
+  const demoMode = usePrototype((s) => s.demoMode);
+  const setNoteLocal = usePrototype((s) => s.setNote);
+  const snoozeLocal = usePrototype((s) => s.snooze);
+  const live = liveMode(demoMode);
+
+  return {
+    live,
+    setNote: async (enquiryId: string, note: string, onFailure: (m: string) => void) => {
+      setNoteLocal(enquiryId, note);
+      if (!live) return;
+      await writeThrough("Note", () => setEnquiryNote({ data: { enquiryId, note } }), onFailure);
+    },
+    snooze: async (enquiryId: string, onFailure: (m: string) => void) => {
+      snoozeLocal(enquiryId);
+      if (!live) return;
+      // The store computes the snooze date itself, so read back what it decided
+      // rather than recomputing here - two independent "+2 days" calculations
+      // would drift and the server would hold a different date to the screen.
+      const until =
+        usePrototype.getState().enquiries.find((e) => e.id === enquiryId)?.snoozedUntil ?? null;
+      await writeThrough("Snooze", () => snoozeEnquiry({ data: { enquiryId, until } }), onFailure);
     },
   };
 }

@@ -150,6 +150,7 @@ export function TrustOverview() {
 
 export function TrustAccess() {
   const businesses = usePrototype((s) => s.businesses);
+  const demoMode = usePrototype((s) => s.demoMode);
   const enquiries = usePrototype((s) => s.enquiries);
   const reconnectBusiness = usePrototype((s) => s.reconnectBusiness);
   const filter = usePrototype((s) => s.businessFilter);
@@ -230,6 +231,10 @@ export function TrustAccess() {
               >
                 {i.kind === "email" ? "Connect mailbox" : `Connect ${i.provider}`}
               </Button>
+            ) : null}
+            {/* Live mode has no handshake to offer, so it says so. */}
+            {i.status !== "connected" && !demoMode ? (
+              <p className="mt-2 text-xs text-stone">Not connected yet</p>
             ) : null}
             {i.status === "connected" && i.kind !== "calendar" ? (
               <div className="mt-3">

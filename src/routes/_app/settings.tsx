@@ -112,7 +112,14 @@ export function SettingsPage() {
                 ? `${mailbox.accountLabel}. Enquiry reads this inbox.`
                 : "No mailbox. Forms and messages still open a case."}
             </p>
-            {mailbox && id ? (
+            {/*
+              No provider handshake exists. The old control flipped a local flag
+              and announced "Mailbox connected. Enquiry will keep reading." - a
+              real business would believe email ingestion was live and then
+              silently receive nothing. Demo keeps the simulated control; live
+              states the truth.
+            */}
+            {mailbox && id && demoMode ? (
               <Button
                 size="sm"
                 variant="secondary"
@@ -125,7 +132,12 @@ export function SettingsPage() {
               >
                 {mailbox.status === "connected" ? "Connected" : "Connect mailbox"}
               </Button>
-            ) : null}
+            ) : (
+              <p className="mt-3 text-sm text-stone">
+                Not connected. Mailbox reading is not available yet - paste an enquiry in
+                and Enquiry will work from that.
+              </p>
+            )}
           </li>
           <li>
             <p className="font-medium">Calendar</p>
@@ -168,7 +180,7 @@ export function SettingsPage() {
                     </div>
                     {i.status === "connected" ? (
                       <p className="text-xs text-ok">Connected</p>
-                    ) : id ? (
+                    ) : id && demoMode ? (
                       <Button
                         size="sm"
                         variant="secondary"
@@ -179,7 +191,9 @@ export function SettingsPage() {
                       >
                         Connect
                       </Button>
-                    ) : null}
+                    ) : (
+                      <p className="text-xs text-stone">Not connected yet</p>
+                    )}
                   </li>
                 ))}
             </ul>

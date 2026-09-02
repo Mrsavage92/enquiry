@@ -1,0 +1,20 @@
+# Enquiry
+User-agent: *
+Allow: /
+
+# Operator app and customer links are not for indexing. They require a session
+# (or a capability the crawler does not have), so indexing them only produces
+# soft-404s and leaks internal route shapes into search results.
+Disallow: /enquiries
+Disallow: /bookings
+Disallow: /business
+Disallow: /insights
+Disallow: /settings
+Disallow: /trust
+Disallow: /lab
+Disallow: /onboarding
+Disallow: /login
+Disallow: /q/
+Disallow: /book/
+
+Sitemap: https://enquiry-ashy.vercel.app/sitemap.xml

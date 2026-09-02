@@ -7,7 +7,9 @@ import { Button } from "@/components/ui/button";
 import { nextNeedsYou } from "@/domain/labels";
 import { threadLabel } from "@/domain/channel";
 import type { Enquiry } from "@/domain/types";
+import { toast } from "sonner";
 import { usePrototype } from "@/store/prototype-store";
+import { useLiveEnquiryMutations } from "@/lib/workspace/live-mutations";
 import { toastUndo } from "@/lib/toast-undo";
 import { Conversation } from "./conversation";
 import { Intelligence } from "./intelligence";
@@ -21,9 +23,9 @@ export function PhoneDesk({ enquiry }: { enquiry: Enquiry }) {
   const [noteOpen, setNoteOpen] = useState(false);
   const navigate = useNavigate();
   const embedNav = useEmbedNav();
-  const snooze = usePrototype((s) => s.snooze);
   const declineLetter = usePrototype((s) => s.declineLetter);
-  const setNote = usePrototype((s) => s.setNote);
+  // Persisted write-through: a note about a customer must survive a reload.
+  const enq = useLiveEnquiryMutations();
   const inChat =
     enquiry.state.lifecycle === "BOOKED" ||
     (enquiry.state.decision === "WAITING_ON_CLIENT" &&
@@ -129,7 +131,7 @@ export function PhoneDesk({ enquiry }: { enquiry: Enquiry }) {
               variant="secondary"
               className="min-h-12 w-full"
               onClick={() => {
-                snooze(enquiry.id);
+                void enq.snooze(enquiry.id, (m) => toast.error(m));
                 setMore(false);
                 toastUndo("Later. Two days.");
                 advance();
@@ -165,7 +167,7 @@ export function PhoneDesk({ enquiry }: { enquiry: Enquiry }) {
             className="mt-4 min-h-12 w-full"
             onClick={() => {
               const el = document.getElementById("phone-enquiry-note") as HTMLTextAreaElement | null;
-              setNote(enquiry.id, el?.value ?? "");
+              void enq.setNote(enquiry.id, el?.value ?? "", (m) => toast.error(m));
               setNoteOpen(false);
             }}
           >

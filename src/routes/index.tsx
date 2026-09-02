@@ -49,7 +49,7 @@ function Home() {
             <WaitlistForm compact />
           </div>
           <p className="mt-4 flex flex-wrap items-center gap-x-2 gap-y-1 px-1 text-sm text-stone">
-            Building with service businesses.
+            Built for service businesses.
             <Link
               to="/enquiries"
               className="inline-flex min-h-11 items-center font-medium text-ink underline-offset-4 hover:underline"
@@ -321,8 +321,8 @@ function Home() {
               The enquiries aren’t going to decide themselves.
             </h2>
             <p className="mt-3 max-w-xl text-sm leading-relaxed text-ink-2">
-              Join early access. Open the app when you want to see a real case file. We’re building
-              with service businesses — makeup, photography, painting, consulting — because someone
+              Join early access. Open the app to see the product case file. We’re building
+              for service businesses — makeup, photography, painting, consulting — because someone
               interested still has to become booked, or lost, without you reconstructing every job
               by hand.
             </p>
