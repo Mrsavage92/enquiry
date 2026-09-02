@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { compilePrice, selectRule } from "./price-compiler.ts";
+import { compilePrice, pluraliseUnit, selectRule } from "./price-compiler.ts";
 import { parseBusinessRule, describeRule } from "./business-rule.ts";
 import type { BusinessRule } from "./business-rule.ts";
 
@@ -26,7 +26,7 @@ test("a per-unit service prices from a confirmed quantity", () => {
   assert.equal(out.kind, "EXACT");
   if (out.kind !== "EXACT") return;
   assert.equal(out.amountMinor, 58000); // 4 x 145
-  assert.match(out.workings, /4 persons at \$145 each/);
+  assert.match(out.workings, /4 people at \$145 each/);
 });
 
 test("the minimum is a billing floor, not a rejection", () => {
@@ -114,5 +114,16 @@ test("a rule payload from an untrusted source is validated, not trusted", () => 
 
 test("a rule reads back as a sentence the operator can check", () => {
   assert.equal(describeRule(bridalTrial), "Bridal trial: $180");
-  assert.equal(describeRule(groupMakeup), "Group makeup: $145 per person, minimum 3 persons");
+  assert.equal(describeRule(groupMakeup), "Group makeup: $145 per person, minimum 3 people");
+});
+
+test("a unit reads as a plural a customer would write", () => {
+  // "4 persons at $145 each" went out in a real quote.
+  assert.equal(pluraliseUnit("person", 4), "people");
+  assert.equal(pluraliseUnit("person", 1), "person");
+  assert.equal(pluraliseUnit("hour", 3), "hours");
+  assert.equal(pluraliseUnit("box", 2), "boxes");
+  assert.equal(pluraliseUnit("delivery", 2), "deliveries");
+  assert.equal(pluraliseUnit("day", 2), "days");
+  assert.equal(pluraliseUnit("child", 3), "children");
 });

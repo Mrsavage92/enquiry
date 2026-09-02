@@ -103,12 +103,42 @@ export function parseBusinessRule(
 }
 
 /** A short human sentence for a rule, so the operator sees what they confirmed. */
+/**
+ * Plural of a pricing unit, for a sentence a customer will read.
+ *
+ * Appending "s" produced "4 persons at $145 each" in a real quote. The unit is
+ * whatever the owner typed, so this covers the handful that are irregular or
+ * take "es" and leaves the rest alone.
+ */
+const IRREGULAR_PLURALS: Record<string, string> = {
+  person: "people",
+  child: "children",
+  woman: "women",
+  man: "men",
+  foot: "feet",
+};
+
+export function pluraliseUnit(unit: string, count: number): string {
+  const one = unit.trim();
+  if (count === 1 || !one) return one;
+  const irregular = IRREGULAR_PLURALS[one.toLowerCase()];
+  if (irregular) {
+    // Keep the owner's capitalisation.
+    return one[0] === one[0]?.toUpperCase() && one !== one.toLowerCase()
+      ? irregular[0]!.toUpperCase() + irregular.slice(1)
+      : irregular;
+  }
+  if (/(s|x|z|ch|sh)$/i.test(one)) return `${one}es`;
+  if (/[^aeiou]y$/i.test(one)) return `${one.slice(0, -1)}ies`;
+  return `${one}s`;
+}
+
 export function describeRule(rule: BusinessRule): string {
   if (rule.kind === "fixed_price") {
     return `${rule.service}: $${rule.amount}`;
   }
   const min = rule.minimumQuantity
-    ? `, minimum ${rule.minimumQuantity} ${rule.unit}${rule.minimumQuantity === 1 ? "" : "s"}`
+    ? `, minimum ${rule.minimumQuantity} ${pluraliseUnit(rule.unit, rule.minimumQuantity)}`
     : "";
   return `${rule.service}: $${rule.amount} per ${rule.unit}${min}`;
 }

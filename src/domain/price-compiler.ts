@@ -1,4 +1,7 @@
-import type { BusinessRule } from "./business-rule.ts";
+import { pluraliseUnit, type BusinessRule } from "./business-rule.ts";
+
+// Re-exported so callers reasoning about a priced line get it from one place.
+export { pluraliseUnit };
 
 /**
  * Compute a price from confirmed business rules and known enquiry facts.
@@ -127,7 +130,7 @@ export function compilePrice(
     currency: "AUD",
     rule,
     workings: appliedMinimum
-      ? `${quantity} ${rule.unit}${quantity === 1 ? "" : "s"}, billed at the ${rule.minimumQuantity} ${rule.unit} minimum, at $${rule.amount} each.`
-      : `${billable} ${rule.unit}${billable === 1 ? "" : "s"} at $${rule.amount} each.`,
+      ? `${quantity} ${pluraliseUnit(rule.unit, quantity)}, billed at the ${rule.minimumQuantity} ${rule.unit} minimum, at $${rule.amount} each.`
+      : `${billable} ${pluraliseUnit(rule.unit, billable)} at $${rule.amount} each.`,
   };
 }

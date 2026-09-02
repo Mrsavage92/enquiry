@@ -32,7 +32,7 @@ test("a priced reply states the business's own total and its workings", () => {
   });
   assert.match(body, /^Hi Sarah,/);
   assert.match(body, /\$580/);
-  assert.match(body, /4 persons at \$145 each/);
+  assert.match(body, /4 people at \$145 each/);
   assert.match(body, /Sam$/);
 });
 
