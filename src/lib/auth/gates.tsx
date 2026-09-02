@@ -2,19 +2,20 @@ import { useState, type ReactNode } from "react";
 import { Navigate, useRouterState } from "@tanstack/react-router";
 import { authEnabled, signOut } from "./client";
 import { useCurrentUser, useCurrentUserState } from "./use-current-user";
+import { SIGN_IN_PATH, decideAuthGate } from "./gate-decision";
 
 /**
  * Auth state components - plain wrappers around `useCurrentUserState()`.
  *
  * With auth on, visitors are signed out until they authenticate - in the sandbox
  * live preview too, which does real sign-in. The shared dev user appears only
- * when auth is disabled (`VITE_AUTH_ENABLED=false`, the shipped default).
+ * when auth is disabled (`VITE_AUTH_ENABLED=false`, a local-only override -
+ * nothing committed sets it, so a deploy always has auth on).
  * While the session is still resolving, gates that care about signed-out state
  * render nothing so there's no signed-out flash on hard reload.
  */
 
-/** Where `RedirectToSignIn` sends signed-out visitors. Create this route. */
-export const SIGN_IN_PATH = "/login";
+export { SIGN_IN_PATH, decideAuthGate, type AuthGateDecision } from "./gate-decision";
 
 /** Render children only when a user is present (real session, or the disabled-auth dev user). */
 export function SignedIn({ children }: { children: ReactNode }) {
@@ -63,11 +64,12 @@ export function RedirectToSignIn({ to = SIGN_IN_PATH }: { to?: string }) {
 export function RequireAuth({ children }: { children: ReactNode }) {
   const { user, isPending } = useCurrentUserState();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
-  if (isPending) return null;
-  if (!user) {
-    return <Navigate to={SIGN_IN_PATH} search={{ redirect: pathname }} />;
+  const decision = decideAuthGate({ isPending, hasUser: Boolean(user), pathname });
+  if (decision.kind === "redirect") {
+    return <Navigate to={decision.to} search={{ redirect: decision.redirectTo }} />;
   }
-  return <>{children}</>;
+  if (decision.kind === "allow") return <>{children}</>;
+  return null;
 }
 
 /**

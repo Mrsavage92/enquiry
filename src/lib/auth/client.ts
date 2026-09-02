@@ -55,12 +55,40 @@ export const supabase: SupabaseClient | null = supabaseConfigured
     })
   : null;
 
-/** OAuth providers offered on the sign-in screen, in display order. */
+/** OAuth providers this app knows how to show, in display order. */
 export const OAUTH_PROVIDERS = [
   { id: "google", label: "Continue with Google" },
 ] as const;
 
 export type OAuthProviderId = (typeof OAUTH_PROVIDERS)[number]["id"];
+
+/**
+ * Which of those the Supabase project has actually turned on.
+ *
+ * Listing a provider the backend does not have enabled put a "Continue with
+ * Google" button on the sign-in screen that answered "Unsupported provider" -
+ * a dead control on the one page where a new customer cannot afford to be
+ * stuck. The backend is asked rather than assumed, and a provider is shown
+ * only once it is known to work.
+ *
+ * Failure is treated as "not available": the magic link is always there, so
+ * hiding an uncertain button costs nothing and showing a broken one costs the
+ * sign-up.
+ */
+export async function enabledOAuthProviders(): Promise<OAuthProviderId[]> {
+  if (!supabaseConfigured || !supabaseUrl) return [];
+  try {
+    const res = await fetch(`${supabaseUrl}/auth/v1/settings`, {
+      headers: supabaseKey ? { apikey: supabaseKey } : undefined,
+    });
+    if (!res.ok) return [];
+    const body: unknown = await res.json();
+    const external = (body as { external?: Record<string, unknown> } | null)?.external ?? {};
+    return OAUTH_PROVIDERS.filter((p) => external[p.id] === true).map((p) => p.id);
+  } catch {
+    return [];
+  }
+}
 
 /**
  * Current access token, or null. Forwarded by `authMiddleware` so server

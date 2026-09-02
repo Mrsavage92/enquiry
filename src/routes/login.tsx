@@ -1,6 +1,13 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, Navigate, createFileRoute, useSearch } from "@tanstack/react-router";
-import { OAUTH_PROVIDERS, authEnabled, signInWithEmail, signInWithProvider } from "@/lib/auth/client";
+import {
+  OAUTH_PROVIDERS,
+  authEnabled,
+  enabledOAuthProviders,
+  signInWithEmail,
+  signInWithProvider,
+  type OAuthProviderId,
+} from "@/lib/auth/client";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
 import { DEFAULT_RETURN_PATH, safeReturnPath } from "@/lib/auth/return-path";
 import { Button } from "@/components/ui/button";
@@ -30,6 +37,18 @@ function LoginPage() {
   const [sent, setSent] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  // Only offer a provider the backend confirms it can handle.
+  const [providers, setProviders] = useState<OAuthProviderId[]>([]);
+  useEffect(() => {
+    let live = true;
+    void enabledOAuthProviders().then((ids) => {
+      if (live) setProviders(ids);
+    });
+    return () => {
+      live = false;
+    };
+  }, []);
+  const offered = OAUTH_PROVIDERS.filter((p) => providers.includes(p.id));
 
   const destination = redirect ?? DEFAULT_RETURN_PATH;
 
@@ -115,7 +134,7 @@ function LoginPage() {
             </Button>
           </form>
 
-          {OAUTH_PROVIDERS.length > 0 ? (
+          {offered.length > 0 ? (
             <>
               <div className="my-7 flex items-center gap-3 text-xs uppercase tracking-wider text-stone">
                 <span className="h-px flex-1 bg-line" />
@@ -123,7 +142,7 @@ function LoginPage() {
                 <span className="h-px flex-1 bg-line" />
               </div>
               <div className="space-y-2">
-                {OAUTH_PROVIDERS.map((p) => (
+                {offered.map((p) => (
                   <Button
                     key={p.id}
                     type="button"
