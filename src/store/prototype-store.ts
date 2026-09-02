@@ -16,11 +16,7 @@ import type {
   WorkspacePrefs,
 } from "@/domain/types";
 import { BOOKINGS, BUSINESSES, ENQUIRIES } from "@/fixtures";
-import {
-  reconnectCalendar,
-  reevaluateAfterFact,
-  resolveFamilyPrice,
-} from "@/domain/reeval";
+import { reconnectCalendar, reevaluateAfterFact, resolveFamilyPrice } from "@/domain/reeval";
 import { applyVoiceToDraft } from "@/domain/voice-apply";
 import { detectVoiceEdit } from "@/domain/voice-detect";
 import {
@@ -279,10 +275,7 @@ function snapshotOf(s: {
   };
 }
 
-function appendAudit(
-  audit: AuditEvent[],
-  event: Omit<AuditEvent, "id" | "at">,
-): AuditEvent[] {
+function appendAudit(audit: AuditEvent[], event: Omit<AuditEvent, "id" | "at">): AuditEvent[] {
   return [
     {
       id: `a-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
@@ -332,8 +325,7 @@ export const usePrototype = create<PrototypeState & Actions>()(
           // tenant actually has; otherwise fall back to "all" rather than
           // pointing at something they cannot see.
           businessFilter:
-            s.businessFilter === "all" ||
-            businesses.some((b) => b.id === s.businessFilter)
+            s.businessFilter === "all" || businesses.some((b) => b.id === s.businessFilter)
               ? s.businessFilter
               : "all",
         })),
@@ -453,8 +445,7 @@ export const usePrototype = create<PrototypeState & Actions>()(
             { id: `${Date.now()}-${action}`, fixtureId, action, at: Date.now() },
           ],
         })),
-      editDraft: (enquiryId, body) =>
-        set((s) => ({ drafts: { ...s.drafts, [enquiryId]: body } })),
+      editDraft: (enquiryId, body) => set((s) => ({ drafts: { ...s.drafts, [enquiryId]: body } })),
       considerVoice: (enquiryId) => {
         const s = get();
         const enquiry = s.enquiries.find((e) => e.id === enquiryId);
@@ -463,7 +454,12 @@ export const usePrototype = create<PrototypeState & Actions>()(
         if (!business) return;
         const edited = s.drafts[enquiryId] ?? enquiry.decision.draft.body;
         const firstName = enquiry.customerName.split(" ")[0] ?? enquiry.customerName;
-        const proposal = detectVoiceEdit(enquiry.decision.draft.body, edited, business.voice, firstName);
+        const proposal = detectVoiceEdit(
+          enquiry.decision.draft.body,
+          edited,
+          business.voice,
+          firstName,
+        );
         if (!proposal) {
           if (s.voiceNotice?.enquiryId === enquiryId) set({ voiceNotice: null });
           return;
@@ -511,7 +507,9 @@ export const usePrototype = create<PrototypeState & Actions>()(
             direction: "outbound",
             channel,
             at: new Date().toISOString(),
-            from: automated ? `${business?.ownerName ?? "You"} · Enquiry` : (business?.ownerName ?? "You"),
+            from: automated
+              ? `${business?.ownerName ?? "You"} · Enquiry`
+              : (business?.ownerName ?? "You"),
             to: replyTo(enquiry),
             subject: isShortChannel(channel) ? undefined : next.decision.draft.subject,
             body,
@@ -543,7 +541,11 @@ export const usePrototype = create<PrototypeState & Actions>()(
             primaryEnabled: false,
             reasonCodes: ["FOLLOW_UP"],
           };
-        } else if (action === "REQUEST_INFORMATION" || action === "FOLLOW_UP" || action === "SEND_QUALIFICATION_RESPONSE") {
+        } else if (
+          action === "REQUEST_INFORMATION" ||
+          action === "FOLLOW_UP" ||
+          action === "SEND_QUALIFICATION_RESPONSE"
+        ) {
           next.state.decision = "WAITING_ON_CLIENT";
           next.state.responsibility = "CUSTOMER";
           next.followUpDue = false;
@@ -570,7 +572,8 @@ export const usePrototype = create<PrototypeState & Actions>()(
           enquiries: bump(s.enquiries, next),
           confirmSent: { ...s.confirmSent, [enquiryId]: true },
           undo: snapshotOf(s),
-          lastAutomated: automated && business ? recordAutomatedSend(enquiry, business) : s.lastAutomated,
+          lastAutomated:
+            automated && business ? recordAutomatedSend(enquiry, business) : s.lastAutomated,
           audit: appendAudit(s.audit, {
             actor: automated ? "Enquiry (Autopilot)" : (business?.ownerName ?? "You"),
             summary: auditSummary(automated ? "approve_auto" : "approve", enquiry.fixtureId),
@@ -603,8 +606,7 @@ export const usePrototype = create<PrototypeState & Actions>()(
                 enquiryId,
                 factId,
                 proposal:
-                  enquiry.teachPrompt ??
-                  `When a customer says this, interpret it as “${display}”.`,
+                  enquiry.teachPrompt ?? `When a customer says this, interpret it as “${display}”.`,
               }
             : null,
         });
@@ -825,7 +827,11 @@ export const usePrototype = create<PrototypeState & Actions>()(
           const next = structuredClone(enquiry);
           next.decision.draft = { ...next.decision.draft, body, voiceVersion: voice.version };
           next.decision.changeDiff = [
-            { factLabel: "Voice", from: "Previous greeting and sign-off", to: "Updated for this business" },
+            {
+              factLabel: "Voice",
+              from: "Previous greeting and sign-off",
+              to: "Updated for this business",
+            },
           ];
           return next;
         });
@@ -833,7 +839,9 @@ export const usePrototype = create<PrototypeState & Actions>()(
       },
       setTrustMode: (businessId, mode) =>
         set((s) => ({
-          businesses: s.businesses.map((b) => (b.id === businessId ? { ...b, trustMode: mode } : b)),
+          businesses: s.businesses.map((b) =>
+            b.id === businessId ? { ...b, trustMode: mode } : b,
+          ),
         })),
       setActionPolicy: (businessId, action, mode) => {
         set((s) => ({
@@ -1045,7 +1053,9 @@ export const usePrototype = create<PrototypeState & Actions>()(
                 at: new Date().toISOString(),
                 from: enquiry.customerHandle || enquiry.customerName,
                 to: business?.ownerName ?? "you",
-                subject: isShortChannel(replyChannel(enquiry)) ? undefined : enquiry.decision.draft.subject,
+                subject: isShortChannel(replyChannel(enquiry))
+                  ? undefined
+                  : enquiry.decision.draft.subject,
                 body: isShortChannel(replyChannel(enquiry))
                   ? "Yes that works. Please lock it in."
                   : "Yes - that works. Please lock it in.",
@@ -1060,12 +1070,16 @@ export const usePrototype = create<PrototypeState & Actions>()(
             at: new Date().toISOString(),
             from: business?.ownerName ?? "You",
             to: replyTo(enquiry),
-            subject: isShortChannel(replyChannel(enquiry)) ? undefined : enquiry.decision.draft.subject,
+            subject: isShortChannel(replyChannel(enquiry))
+              ? undefined
+              : enquiry.decision.draft.subject,
             body: isShortChannel(replyChannel(enquiry))
               ? `You're booked. I'll write with the start details.`
               : `Hi ${enquiry.customerName.split(" ")[0] ?? enquiry.customerName},\n\nYou're booked. I'll write separately with the start details.\n\n${business?.ownerFirstName ?? ""}`,
             quoted: true,
-            quoteId: enquiry.decision.quotes.find((q) => q.status === "sent" || q.status === "draft")?.id,
+            quoteId: enquiry.decision.quotes.find(
+              (q) => q.status === "sent" || q.status === "draft",
+            )?.id,
           });
         }
         next.state = {
@@ -1127,7 +1141,9 @@ export const usePrototype = create<PrototypeState & Actions>()(
           at: new Date().toISOString(),
           from: enquiry.customerHandle || enquiry.customerName,
           to: business?.ownerName ?? "you",
-          subject: isShortChannel(replyChannel(enquiry)) ? undefined : enquiry.decision.draft.subject,
+          subject: isShortChannel(replyChannel(enquiry))
+            ? undefined
+            : enquiry.decision.draft.subject,
           body: text,
         };
         const withReply = structuredClone(enquiry);
@@ -1163,7 +1179,9 @@ export const usePrototype = create<PrototypeState & Actions>()(
             at: new Date().toISOString(),
             from: enquiry.customerHandle || enquiry.customerPhone || enquiry.customerName,
             to: business?.ownerName ?? "you",
-            subject: isShortChannel(replyChannel(enquiry)) ? undefined : enquiry.decision.draft.subject,
+            subject: isShortChannel(replyChannel(enquiry))
+              ? undefined
+              : enquiry.decision.draft.subject,
             body: question,
           },
         ];
@@ -1229,7 +1247,12 @@ export const usePrototype = create<PrototypeState & Actions>()(
           liveSeq: seq,
           lastArrivalId: id,
           arrivalPlayed: true,
-          enquiries: [enquiry, ...s.enquiries.filter((e) => e.fixtureId !== "LIVE" || e.state.decision !== "EVALUATING")],
+          enquiries: [
+            enquiry,
+            ...s.enquiries.filter(
+              (e) => e.fixtureId !== "LIVE" || e.state.decision !== "EVALUATING",
+            ),
+          ],
           drafts: { ...s.drafts, [id]: "" },
         });
         get().track("LIVE", "arrive");
@@ -1502,7 +1525,9 @@ export const usePrototype = create<PrototypeState & Actions>()(
       },
       recordDeposit: (bookingId) =>
         set((s) => ({
-          bookings: s.bookings.map((b) => (b.id === bookingId ? { ...b, depositPaid: true, status: "confirmed" } : b)),
+          bookings: s.bookings.map((b) =>
+            b.id === bookingId ? { ...b, depositPaid: true, status: "confirmed" } : b,
+          ),
         })),
       rescheduleBooking: (bookingId, when, durationMinutes) => {
         const s = get();
@@ -1533,7 +1558,9 @@ export const usePrototype = create<PrototypeState & Actions>()(
         if (!current || current.status === "cancelled") return;
         set({
           undo: snapshotOf(s),
-          bookings: s.bookings.map((b) => (b.id === bookingId ? { ...b, status: "cancelled" as const } : b)),
+          bookings: s.bookings.map((b) =>
+            b.id === bookingId ? { ...b, status: "cancelled" as const } : b,
+          ),
           audit: appendAudit(s.audit, {
             actor: "You",
             summary: auditSummary("cancel_booking", current.enquiryId),
@@ -1612,15 +1639,30 @@ export const usePrototype = create<PrototypeState & Actions>()(
       }),
       merge: (persisted, current) => {
         const p = (persisted ?? {}) as Partial<PrototypeState>;
+        // partialize drops businesses/enquiries/bookings/drafts/audit from what
+        // gets WRITTEN whenever demoMode is false, so a live tenant's persisted
+        // snapshot has demoMode:false with none of those keys present. Falling
+        // back to `current` here - the freshly seeded, fixture-populated state -
+        // merged that into demoMode:false plus a full fixture workspace: the
+        // exact leak this store exists to prevent, and reachable by nothing more
+        // unusual than a page reload. Empty is the honest fallback for a live
+        // rehydration with no tenant content yet; WorkspaceBoundary's
+        // hydrateFromServer replaces it with real data once the server answers.
+        const wasLive = p.demoMode === false;
         return {
           ...current,
           ...p,
-          enquiries: Array.isArray(p.enquiries) ? p.enquiries : current.enquiries,
-          bookings: Array.isArray(p.bookings) ? p.bookings : current.bookings,
-          businesses: Array.isArray(p.businesses) ? p.businesses : current.businesses,
-          drafts: p.drafts && typeof p.drafts === "object" ? p.drafts : current.drafts,
+          enquiries: Array.isArray(p.enquiries) ? p.enquiries : wasLive ? [] : current.enquiries,
+          bookings: Array.isArray(p.bookings) ? p.bookings : wasLive ? [] : current.bookings,
+          businesses: Array.isArray(p.businesses)
+            ? p.businesses
+            : wasLive
+              ? []
+              : current.businesses,
+          drafts:
+            p.drafts && typeof p.drafts === "object" ? p.drafts : wasLive ? {} : current.drafts,
           prefs: { ...current.prefs, ...(p.prefs && typeof p.prefs === "object" ? p.prefs : {}) },
-          audit: Array.isArray(p.audit) ? p.audit : current.audit,
+          audit: Array.isArray(p.audit) ? p.audit : wasLive ? [] : current.audit,
           dismissedNotices: Array.isArray(p.dismissedNotices)
             ? p.dismissedNotices
             : current.dismissedNotices,
@@ -1639,7 +1681,10 @@ export const usePrototype = create<PrototypeState & Actions>()(
           const resolved = resolveArriving(current);
           usePrototype.setState({
             enquiries: bump(usePrototype.getState().enquiries, resolved),
-            drafts: { ...usePrototype.getState().drafts, [pending.id]: resolved.decision.draft.body },
+            drafts: {
+              ...usePrototype.getState().drafts,
+              [pending.id]: resolved.decision.draft.body,
+            },
             lastChangeAt: { ...usePrototype.getState().lastChangeAt, [pending.id]: Date.now() },
           });
         }, 1200);

@@ -6,6 +6,7 @@ import { usePrototype } from "@/store/prototype-store";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { BUSINESSES } from "@/fixtures";
+import { visibleBusinesses } from "@/lib/workspace/resolve-business";
 import { InstallAppRow } from "./install-app";
 import { useEmbed } from "@/lib/embed";
 
@@ -27,7 +28,7 @@ export function MoreSheet({
   // Live mode shows the tenant's own businesses. Filtering to the fixture
   // "glow" id meant a real workspace vanished from its own selector the
   // moment it had a real uuid.
-  const visible = demoMode ? BUSINESSES : businesses;
+  const visible = visibleBusinesses(businesses, { demoMode, fixtures: BUSINESSES });
 
   return (
     <DialogRoot open={open} onOpenChange={onOpenChange}>
@@ -77,10 +78,10 @@ export function MoreSheet({
           <MoreLink to="/settings" onClick={close} icon={Settings} label="Settings" />
         </ul>
         {embed ? null : (
-        <div className="mt-5 border-t border-line pt-4">
-          <p className="eyebrow">This phone</p>
-          <InstallAppRow onDone={close} />
-        </div>
+          <div className="mt-5 border-t border-line pt-4">
+            <p className="eyebrow">This phone</p>
+            <InstallAppRow onDone={close} />
+          </div>
         )}
         <div className="mt-4 border-t border-line pt-4">
           <div className="flex flex-col gap-2">

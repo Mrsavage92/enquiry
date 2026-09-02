@@ -6,14 +6,9 @@ import { BUSINESSES } from "@/fixtures";
 import { toast } from "sonner";
 import { usePrototype } from "@/store/prototype-store";
 import { useLiveTrustMutations } from "@/lib/workspace/live-mutations";
+import { visibleBusinesses as resolveVisibleBusinesses } from "@/lib/workspace/resolve-business";
 
-export function AccountMenu({
-  compact,
-  inverse,
-}: {
-  compact?: boolean;
-  inverse?: boolean;
-}) {
+export function AccountMenu({ compact, inverse }: { compact?: boolean; inverse?: boolean }) {
   const filter = usePrototype((s) => s.businessFilter);
   const setFilter = usePrototype((s) => s.setBusinessFilter);
   const trust = useLiveTrustMutations();
@@ -22,12 +17,17 @@ export function AccountMenu({
   const reset = usePrototype((s) => s.reset);
   const startSetup = usePrototype((s) => s.startSetup);
   const workspaceLabel =
-    filter === "all" ? "All businesses" : businesses.find((b) => b.id === filter)?.name ?? "Workspace";
+    filter === "all"
+      ? "All businesses"
+      : (businesses.find((b) => b.id === filter)?.name ?? "Workspace");
   const demoMode = usePrototype((s) => s.demoMode);
   // Live mode shows the tenant's own businesses. Filtering to the fixture
   // "glow" id meant a real workspace vanished from its own selector the
   // moment it had a real uuid.
-  const visibleBusinesses = demoMode ? BUSINESSES : businesses;
+  const visibleBusinesses = resolveVisibleBusinesses(businesses, {
+    demoMode,
+    fixtures: BUSINESSES,
+  });
 
   return (
     <Dropdown.Root>

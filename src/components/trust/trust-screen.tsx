@@ -6,6 +6,7 @@ import { BUSINESSES } from "@/fixtures";
 import { toast } from "sonner";
 import { usePrototype } from "@/store/prototype-store";
 import { useLiveTrustMutations } from "@/lib/workspace/live-mutations";
+import { visibleBusinesses } from "@/lib/workspace/resolve-business";
 import { WorkspaceSettingUp } from "@/components/shell/workspace-setting-up";
 import type { ActionPolicyMode } from "@/domain/types";
 import { cn } from "@/lib/utils";
@@ -13,6 +14,7 @@ import { useNarrow } from "@/lib/use-narrow";
 
 export function TrustOverview() {
   const businesses = usePrototype((s) => s.businesses);
+  const demoMode = usePrototype((s) => s.demoMode);
   const filter = usePrototype((s) => s.businessFilter);
   const setFilter = usePrototype((s) => s.setBusinessFilter);
   // Store updates immediately; in live mode the same change is written through
@@ -24,7 +26,9 @@ export function TrustOverview() {
   // "glow" studio and render its Brain/trust state as this tenant's own.
   const id = filter === "all" ? businesses[0]?.id : filter;
   const business = businesses.find((b) => b.id === id) ?? businesses[0];
-  const autoCount = (business?.actionPolicies ?? []).filter((p) => p.mode === "Automatic when safe").length;
+  const autoCount = (business?.actionPolicies ?? []).filter(
+    (p) => p.mode === "Automatic when safe",
+  ).length;
   const phone = useNarrow(860) !== false;
 
   // Below every hook. A real tenant with no hydrated workspace (R2B) gets a
@@ -39,26 +43,23 @@ export function TrustOverview() {
           title={phone ? "Trust" : "What Enquiry can see and do"}
         />
         {phone ? null : (
-        <label className="block text-sm sm:w-56">
-          <span className="mb-1.5 block text-stone">Workspace</span>
-          <select
-            className="field h-11"
-            value={id}
-            onChange={(e) => setFilter(e.target.value)}
-          >
-            {BUSINESSES.map((b) => (
-              <option key={b.id} value={b.id}>
-                {b.name}
-              </option>
-            ))}
-          </select>
-        </label>
+          <label className="block text-sm sm:w-56">
+            <span className="mb-1.5 block text-stone">Workspace</span>
+            <select className="field h-11" value={id} onChange={(e) => setFilter(e.target.value)}>
+              {/* Live tenants pick from their own businesses. This selector
+                  listed the fixture roster unconditionally, so a real signed-in
+                  operator saw other studios' names as their "Workspace" options. */}
+              {visibleBusinesses(businesses, { demoMode, fixtures: BUSINESSES }).map((b) => (
+                <option key={b.id} value={b.id}>
+                  {b.name}
+                </option>
+              ))}
+            </select>
+          </label>
         )}
       </div>
 
-      <p className="mt-8 text-2xl font-semibold tracking-tight">
-        {business.trustMode}
-      </p>
+      <p className="mt-8 text-2xl font-semibold tracking-tight">{business.trustMode}</p>
       <p className="mt-2 max-w-xl text-sm leading-relaxed text-ink-2">
         {business.trustMode === "Private"
           ? "No mailbox. Work still arrives."
@@ -81,7 +82,12 @@ export function TrustOverview() {
             )}
           >
             <p className="font-medium">{m}</p>
-            <p className={cn("mt-1.5 text-xs leading-relaxed", business.trustMode === m ? "text-paper/75" : "text-stone")}>
+            <p
+              className={cn(
+                "mt-1.5 text-xs leading-relaxed",
+                business.trustMode === m ? "text-paper/75" : "text-stone",
+              )}
+            >
               {m === "Private"
                 ? "No mailbox."
                 : m === "Observe"
@@ -92,14 +98,18 @@ export function TrustOverview() {
         ))}
       </div>
       {phone ? null : (
-      <p className="mt-3 text-xs text-stone">
-        There is no global “give AI control” switch. Autopilot is enabled per action class after evidence.
-      </p>
+        <p className="mt-3 text-xs text-stone">
+          There is no global “give AI control” switch. Autopilot is enabled per action class after
+          evidence.
+        </p>
       )}
 
       <dl className="mt-8">
         {business.integrations.map((i) => (
-          <div key={i.id} className="flex items-baseline justify-between gap-4 border-t border-line py-3.5">
+          <div
+            key={i.id}
+            className="flex items-baseline justify-between gap-4 border-t border-line py-3.5"
+          >
             <dt className="text-sm">{i.provider}</dt>
             <dd className="text-sm text-ink-2">
               {i.status === "connected" ? i.enquiryUsage[0] : i.status}
@@ -124,9 +134,20 @@ export function TrustOverview() {
 
       <div className="mt-6 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
         {business.paused ? (
-          <Button className="min-h-12" onClick={() => void trust.resumeBusiness(business.id, (msg) => toast.error(msg))}>Resume Enquiry</Button>
+          <Button
+            className="min-h-12"
+            onClick={() => void trust.resumeBusiness(business.id, (msg) => toast.error(msg))}
+          >
+            Resume Enquiry
+          </Button>
         ) : (
-          <Button className="min-h-12" variant="warn" onClick={() => void trust.pauseBusiness(business.id, "outbound", (msg) => toast.error(msg))}>
+          <Button
+            className="min-h-12"
+            variant="warn"
+            onClick={() =>
+              void trust.pauseBusiness(business.id, "outbound", (msg) => toast.error(msg))
+            }
+          >
             Pause outbound
           </Button>
         )}
@@ -134,15 +155,16 @@ export function TrustOverview() {
           <Link to="/trust/access">Access</Link>
         </Button>
         {phone ? null : (
-        <Button asChild variant="secondary">
-          <Link to="/trust/automation">Review automation</Link>
-        </Button>
+          <Button asChild variant="secondary">
+            <Link to="/trust/automation">Review automation</Link>
+          </Button>
         )}
       </div>
       {phone ? null : (
-      <p className="mt-3 text-xs text-stone">
-        Pause stops sending. Enquiry will keep reading new requests. Resume from here or the banner.
-      </p>
+        <p className="mt-3 text-xs text-stone">
+          Pause stops sending. Enquiry will keep reading new requests. Resume from here or the
+          banner.
+        </p>
       )}
     </div>
   );
@@ -173,7 +195,11 @@ export function TrustAccess() {
     <div className="mx-auto h-full max-w-3xl overflow-y-auto px-4 py-5 pb-8 sm:py-8">
       <PageHeader
         title="Access"
-        description={phone ? undefined : "Technical provider permission is not the same as what Enquiry chooses to use."}
+        description={
+          phone
+            ? undefined
+            : "Technical provider permission is not the same as what Enquiry chooses to use."
+        }
       />
       <ul className="ledger mt-6">
         {business.integrations.map((i) => (
@@ -205,22 +231,26 @@ export function TrustAccess() {
             </div>
             {i.kind === "calendar" ? (
               <p className="mt-3 text-sm text-ink-2">
-                Why free/busy? To check whether another commitment overlaps the requested job. Enquiry does not need event titles for this.
+                Why free/busy? To check whether another commitment overlaps the requested job.
+                Enquiry does not need event titles for this.
               </p>
             ) : null}
             {i.kind === "sms" ? (
               <p className="mt-3 text-sm text-ink-2">
-                Texts arrive as case files. Reply on the same number. Sending stays off until Assist.
+                Texts arrive as case files. Reply on the same number. Sending stays off until
+                Assist.
               </p>
             ) : null}
             {i.kind === "social" ? (
               <p className="mt-3 text-sm text-ink-2">
-                DMs become case files. Public comments are not quotes - invite them to message, or ignore.
+                DMs become case files. Public comments are not quotes - invite them to message, or
+                ignore.
               </p>
             ) : null}
             {i.kind === "form" ? (
               <p className="mt-3 text-sm text-ink-2">
-                A website form that emails you is still a form. Structured fields, fewer invented facts.
+                A website form that emails you is still a form. Structured fields, fewer invented
+                facts.
               </p>
             ) : null}
             {i.status !== "connected" && i.kind !== "calendar" ? (
@@ -239,7 +269,8 @@ export function TrustAccess() {
             {i.status === "connected" && i.kind !== "calendar" ? (
               <div className="mt-3">
                 <p className="text-xs text-stone">
-                  Enquiry stored: message text and the return address. Not your {i.provider} password.
+                  Enquiry stored: message text and the return address. Not your {i.provider}{" "}
+                  password.
                 </p>
                 <Button
                   className="mt-2"
@@ -253,9 +284,12 @@ export function TrustAccess() {
             ) : null}
             {i.kind === "calendar" && calendarDown ? (
               <div className="callout mt-4 bg-warn-bg text-warn">
-                <p className="text-sm font-medium">Enquiry cannot verify availability on an open job.</p>
+                <p className="text-sm font-medium">
+                  Enquiry cannot verify availability on an open job.
+                </p>
                 <p className="mt-1 text-sm text-ink-2">
-                  Unknown is not busy, and it is not free. Reconnect, then Enquiry will re-read the diary.
+                  Unknown is not busy, and it is not free. Reconnect, then Enquiry will re-read the
+                  diary.
                 </p>
                 <Button className="mt-3" size="sm" onClick={() => reconnectBusiness(business.id)}>
                   Reconnect calendar
@@ -298,10 +332,12 @@ export function TrustAutomation() {
         <article className="mt-6 border-t border-line pt-5">
           <p className="font-medium">Ready to automate missing-info questions?</p>
           <p className="mt-2 text-sm leading-relaxed text-ink-2">
-            Enquiry has handled 74 comparable missing-info requests. 72 approved unchanged, 2 edited for wording only, 0 factual corrections, 0 pricing or capacity claims.
+            Enquiry has handled 74 comparable missing-info requests. 72 approved unchanged, 2 edited
+            for wording only, 0 factual corrections, 0 pricing or capacity claims.
           </p>
           <p className="mt-2 text-sm leading-relaxed text-ink-2">
-            Enquiry may automatically send a question only when a configured decision-critical fact is missing and no high-risk flags are present.
+            Enquiry may automatically send a question only when a configured decision-critical fact
+            is missing and no high-risk flags are present.
           </p>
         </article>
       ) : null}
@@ -317,20 +353,28 @@ export function TrustAutomation() {
             <fieldset className="mt-3">
               <legend className="sr-only">Mode for {p.label}</legend>
               <div className="flex flex-wrap gap-1 rounded-lg bg-paper-2 p-1">
-                {(["Never", "Ask every time", "Automatic when safe"] as ActionPolicyMode[]).map((m) => (
-                  <button
-                    key={m}
-                    type="button"
-                    disabled={p.risk === "HIGH" && m === "Automatic when safe"}
-                    onClick={() => void trust.setActionPolicy(business.id, p.action, m, (msg) => toast.error(msg))}
-                    className={cn(
-                      "min-h-10 rounded-md px-3 text-xs font-medium transition-[background-color,color] duration-150 disabled:opacity-40",
-                      p.mode === m ? "bg-ink text-paper shadow-border" : "text-ink-2 hover:text-ink",
-                    )}
-                  >
-                    {m}
-                  </button>
-                ))}
+                {(["Never", "Ask every time", "Automatic when safe"] as ActionPolicyMode[]).map(
+                  (m) => (
+                    <button
+                      key={m}
+                      type="button"
+                      disabled={p.risk === "HIGH" && m === "Automatic when safe"}
+                      onClick={() =>
+                        void trust.setActionPolicy(business.id, p.action, m, (msg) =>
+                          toast.error(msg),
+                        )
+                      }
+                      className={cn(
+                        "min-h-10 rounded-md px-3 text-xs font-medium transition-[background-color,color] duration-150 disabled:opacity-40",
+                        p.mode === m
+                          ? "bg-ink text-paper shadow-border"
+                          : "text-ink-2 hover:text-ink",
+                      )}
+                    >
+                      {m}
+                    </button>
+                  ),
+                )}
               </div>
             </fieldset>
           </li>
@@ -363,7 +407,9 @@ export function TrustAudit() {
     <div className="mx-auto h-full max-w-3xl overflow-y-auto px-4 py-5 pb-8 sm:py-8">
       <PageHeader title="Audit" description="What Enquiry did, and who allowed it. Newest first." />
       {rows.length === 0 ? (
-        <p className="mt-8 border-t border-line py-10 text-sm text-stone">No actions recorded yet.</p>
+        <p className="mt-8 border-t border-line py-10 text-sm text-stone">
+          No actions recorded yet.
+        </p>
       ) : (
         <ol className="ledger mt-6">
           {rows.map((e) => (

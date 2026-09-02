@@ -22,3 +22,20 @@ export function resolveBusiness(
   if (found) return found;
   return opts.demoMode ? opts.fixtures?.[businessId] : undefined;
 }
+
+/**
+ * The roster a "Working as" / "Workspace" picker may list.
+ *
+ * Two screens (Business Brain, Trust) built this inline as
+ * `BUSINESSES.map(...)` with no `demoMode` check at all, so a real signed-in
+ * tenant's selector listed every fixture studio's name - Ridge & Co Painting,
+ * Northlight Photography - as if they were switchable workspaces. Extracted
+ * once, alongside `resolveBusiness`, so every picker asks the same tested
+ * question instead of five components carrying their own copy of the ternary.
+ */
+export function visibleBusinesses(
+  businesses: Business[],
+  opts: { demoMode: boolean; fixtures: readonly Business[] },
+): readonly Business[] {
+  return opts.demoMode ? opts.fixtures : businesses;
+}

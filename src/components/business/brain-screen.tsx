@@ -9,6 +9,7 @@ import { BUSINESSES } from "@/fixtures";
 import { usePrototype } from "@/store/prototype-store";
 import { WorkspaceSettingUp } from "@/components/shell/workspace-setting-up";
 import { PricingRules } from "@/components/business/pricing-rules";
+import { visibleBusinesses } from "@/lib/workspace/resolve-business";
 import type { KnowledgeItem } from "@/domain/types";
 import { cn } from "@/lib/utils";
 import { applyVoiceToDraft } from "@/domain/voice-apply";
@@ -54,10 +55,13 @@ const SECTION_TITLE: Record<string, string> = {
 
 export function BrainScreen() {
   const businesses = usePrototype((s) => s.businesses);
+  const demoMode = usePrototype((s) => s.demoMode);
   const filter = usePrototype((s) => s.businessFilter);
   const setFilter = usePrototype((s) => s.setBusinessFilter);
   const tab = usePrototype((s) => s.brainTab) as (typeof SECTIONS)[number]["id"];
-  const setTab = usePrototype((s) => s.setBrainTab) as (id: (typeof SECTIONS)[number]["id"]) => void;
+  const setTab = usePrototype((s) => s.setBrainTab) as (
+    id: (typeof SECTIONS)[number]["id"],
+  ) => void;
   const [input, setInput] = useState("");
   const [query, setQuery] = useState("");
   const tellRef = useRef<HTMLTextAreaElement>(null);
@@ -125,7 +129,6 @@ export function BrainScreen() {
     return grouped;
   }, [tabValue, visible]);
 
-
   // Every hook above has run. A real tenant with no hydrated workspace (R2B)
   // gets a truthful empty state instead of the fixture studio's Brain.
   if (!business) return <WorkspaceSettingUp />;
@@ -134,33 +137,36 @@ export function BrainScreen() {
       <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
           {phone ? null : <p className="eyebrow">Business Brain</p>}
-          <h1 className={cn("text-2xl font-semibold tracking-tight sm:text-3xl", !phone && "mt-1.5")}>
+          <h1
+            className={cn("text-2xl font-semibold tracking-tight sm:text-3xl", !phone && "mt-1.5")}
+          >
             {business.name}
           </h1>
           {phone ? null : (
             <>
               <span className="page-rule" aria-hidden />
               <p className="mt-3 max-w-xl text-sm leading-relaxed text-ink-2">
-                {business.industry} · {business.baseLocation}. Customer-specific facts stay on the enquiry.
+                {business.industry} · {business.baseLocation}. Customer-specific facts stay on the
+                enquiry.
               </p>
             </>
           )}
         </div>
         {phone ? null : (
-        <label className="block text-sm sm:w-56">
-          <span className="mb-1.5 block text-stone">Working as</span>
-          <select
-            className="field h-11"
-            value={id}
-            onChange={(e) => setFilter(e.target.value)}
-          >
-            {BUSINESSES.map((b) => (
-              <option key={b.id} value={b.id}>
-                {b.name}
-              </option>
-            ))}
-          </select>
-        </label>
+          <label className="block text-sm sm:w-56">
+            <span className="mb-1.5 block text-stone">Working as</span>
+            <select className="field h-11" value={id} onChange={(e) => setFilter(e.target.value)}>
+              {/* Live tenants pick from their own businesses. This selector
+                  listed the fixture roster unconditionally, so a real signed-in
+                  operator saw other studios' names ("Ridge & Co Painting",
+                  "Northlight Photography"...) as their "Working as" options. */}
+              {visibleBusinesses(businesses, { demoMode, fixtures: BUSINESSES }).map((b) => (
+                <option key={b.id} value={b.id}>
+                  {b.name}
+                </option>
+              ))}
+            </select>
+          </label>
         )}
       </header>
 
@@ -275,7 +281,11 @@ export function BrainScreen() {
                       <Button size="sm" onClick={() => confirmLearning(business.id, l.id)}>
                         Add to Business Brain
                       </Button>
-                      <Button size="sm" variant="secondary" onClick={() => dismissLearning(business.id, l.id)}>
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        onClick={() => dismissLearning(business.id, l.id)}
+                      >
                         Don’t learn this
                       </Button>
                     </div>
@@ -293,23 +303,23 @@ export function BrainScreen() {
             </p>
           ) : (
             groups.map((group) => (
-            <section key={group.title ?? tab}>
-              {group.title ? <p className="eyebrow mb-1">{group.title}</p> : null}
-              <ul className="ledger stagger-in">
-                {group.items.map((k) => (
-                  <KnowledgeRow
-                    key={k.id}
-                    item={k}
-                    all={items}
-                    onResolve={(keep, drop) => {
-                      resolveConflict(business.id, keep, drop);
-                      toast("Lash add-on confirmed. No open enquiry currently includes lashes.");
-                    }}
-                  />
-                ))}
-              </ul>
-            </section>
-          ))
+              <section key={group.title ?? tab}>
+                {group.title ? <p className="eyebrow mb-1">{group.title}</p> : null}
+                <ul className="ledger stagger-in">
+                  {group.items.map((k) => (
+                    <KnowledgeRow
+                      key={k.id}
+                      item={k}
+                      all={items}
+                      onResolve={(keep, drop) => {
+                        resolveConflict(business.id, keep, drop);
+                        toast("Lash add-on confirmed. No open enquiry currently includes lashes.");
+                      }}
+                    />
+                  ))}
+                </ul>
+              </section>
+            ))
           )}
         </div>
       )}
@@ -417,7 +427,11 @@ function KnowledgeRow({
         aria-hidden
         className={cn(
           "absolute inset-y-3 left-0 w-0.5 rounded-full",
-          item.state === "Needs review" ? "bg-warn" : item.state === "Active" ? "bg-ok" : "bg-transparent",
+          item.state === "Needs review"
+            ? "bg-warn"
+            : item.state === "Active"
+              ? "bg-ok"
+              : "bg-transparent",
         )}
       />
       <div className="flex items-start justify-between gap-3">
@@ -452,7 +466,9 @@ function KnowledgeRow({
             {item.source.label}
             {item.source.at ? ` · ${item.source.at}` : ""}
           </p>
-          {item.source.detail ? <p className="mt-2 text-sm text-ink-2">{item.source.detail}</p> : null}
+          {item.source.detail ? (
+            <p className="mt-2 text-sm text-ink-2">{item.source.detail}</p>
+          ) : null}
           <p className="mt-3 text-xs text-stone">
             {item.class} · {item.version}
           </p>
@@ -466,7 +482,8 @@ function VoiceCard({ businessId }: { businessId: string }) {
   const business = usePrototype((s) => s.businesses.find((b) => b.id === businessId));
   const setVoice = usePrototype((s) => s.setVoice);
   const openCount = usePrototype(
-    (s) => s.enquiries.filter((e) => e.businessId === businessId && e.state.lifecycle === "OPEN").length,
+    (s) =>
+      s.enquiries.filter((e) => e.businessId === businessId && e.state.lifecycle === "OPEN").length,
   );
   const [greeting, setGreeting] = useState(business?.voice.greeting ?? "");
   const [signOff, setSignOff] = useState(business?.voice.signOff ?? "");

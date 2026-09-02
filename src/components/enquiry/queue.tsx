@@ -4,7 +4,14 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Segmented } from "@/components/ui/segmented";
-import { derivedLabel, commercialValue, formatAud, queueSection, queueSummary, queueHeadline } from "@/domain/labels";
+import {
+  derivedLabel,
+  commercialValue,
+  formatAud,
+  queueSection,
+  queueSummary,
+  queueHeadline,
+} from "@/domain/labels";
 import { CommercialValueMark } from "@/components/ui/commercial-value";
 import { enquirySituation, queueSituationLabel } from "@/domain/situation";
 import { statusTone } from "@/domain/status-tone";
@@ -49,7 +56,8 @@ export function filteredEnquiries(
 }
 
 function matchesQuery(e: Enquiry, q: string, businessName?: string) {
-  const hay = `${e.customerName} ${e.serviceLabel} ${e.locationLabel ?? ""} ${e.fixtureId} ${businessName ?? ""} ${e.customerHandle ?? ""} ${e.customerPhone ?? ""} ${e.source}`.toLowerCase();
+  const hay =
+    `${e.customerName} ${e.serviceLabel} ${e.locationLabel ?? ""} ${e.fixtureId} ${businessName ?? ""} ${e.customerHandle ?? ""} ${e.customerPhone ?? ""} ${e.source}`.toLowerCase();
   return hay.includes(q);
 }
 
@@ -70,7 +78,10 @@ function ArrivalStrip() {
   const setQueueFilter = usePrototype((s) => s.setQueueFilter);
   const businessFilter = usePrototype((s) => s.businessFilter);
   if (!lastArrivalId || !enquiry) return null;
-  const business = resolveBusiness(businesses, enquiry.businessId, { demoMode, fixtures: BUSINESS_BY_ID });
+  const business = resolveBusiness(businesses, enquiry.businessId, {
+    demoMode,
+    fixtures: BUSINESS_BY_ID,
+  });
   const reading = enquiry.state.decision === "EVALUATING";
   return (
     <div className="border-b border-line px-3 py-2.5">
@@ -102,11 +113,11 @@ export function Queue({ activeId, phone = false }: { activeId?: string; phone?: 
   const queueFilter = usePrototype((s) => s.queueFilter);
   const queueNavigate = useNavigate();
   const activeBusiness =
-    businesses.find((b) => b.id === businessFilter) ?? (businesses.length === 1 ? businesses[0] : undefined);
+    businesses.find((b) => b.id === businessFilter) ??
+    (businesses.length === 1 ? businesses[0] : undefined);
   const setQueueFilter = usePrototype((s) => s.setQueueFilter);
   const lastArrivalId = usePrototype((s) => s.lastArrivalId);
   const demoMode = usePrototype((s) => s.demoMode);
-  const enterSample = usePrototype((s) => s.enterSample);
   const [query, setQuery] = useState("");
   const [findOpen, setFindOpen] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
@@ -115,14 +126,18 @@ export function Queue({ activeId, phone = false }: { activeId?: string; phone?: 
   );
   const q = query.trim().toLowerCase();
   const phoneFilter =
-    queueFilter === "all" || !(PHONE_FILTERS as readonly { id: string }[]).some((f) => f.id === queueFilter)
+    queueFilter === "all" ||
+    !(PHONE_FILTERS as readonly { id: string }[]).some((f) => f.id === queueFilter)
       ? "needs_you"
       : queueFilter;
   const listFilter = phone ? phoneFilter : queueFilter;
   const visible = useMemo(() => {
     if (q) {
       return scoped.filter((e) => {
-        const business = resolveBusiness(businesses, e.businessId, { demoMode, fixtures: BUSINESS_BY_ID });
+        const business = resolveBusiness(businesses, e.businessId, {
+          demoMode,
+          fixtures: BUSINESS_BY_ID,
+        });
         return matchesQuery(e, q, business?.name);
       });
     }
@@ -132,7 +147,17 @@ export function Queue({ activeId, phone = false }: { activeId?: string; phone?: 
       return [incoming, ...list];
     }
     return list;
-  }, [q, scoped, enquiries, businessFilter, listFilter, activeId, businesses, lastArrivalId, demoMode]);
+  }, [
+    q,
+    scoped,
+    enquiries,
+    businessFilter,
+    listFilter,
+    activeId,
+    businesses,
+    lastArrivalId,
+    demoMode,
+  ]);
   const summary = queueSummary(scoped);
   const counts = {
     needs_you: summary.needsYou,
@@ -168,7 +193,12 @@ export function Queue({ activeId, phone = false }: { activeId?: string; phone?: 
       */}
       {!demoMode && activeBusiness ? (
         <div className="border-b border-line px-4 py-3">
-          <AddEnquiry business={activeBusiness} onCreated={(id) => void queueNavigate({ to: "/enquiries/$enquiryId", params: { enquiryId: id } })} />
+          <AddEnquiry
+            business={activeBusiness}
+            onCreated={(id) =>
+              void queueNavigate({ to: "/enquiries/$enquiryId", params: { enquiryId: id } })
+            }
+          />
         </div>
       ) : null}
       <div className={cn("border-b border-line px-4", phone ? "pb-3 pt-3" : "pb-3 pt-4")}>
@@ -193,7 +223,11 @@ export function Queue({ activeId, phone = false }: { activeId?: string; phone?: 
                     }
                   }}
                 >
-                  {findOpen ? <X className="size-5" aria-hidden /> : <Search className="size-5" aria-hidden />}
+                  {findOpen ? (
+                    <X className="size-5" aria-hidden />
+                  ) : (
+                    <Search className="size-5" aria-hidden />
+                  )}
                 </button>
                 <Notices />
               </div>
@@ -274,23 +308,32 @@ export function Queue({ activeId, phone = false }: { activeId?: string; phone?: 
                   : queueFilter === "closed"
                     ? "Accepted and lost work sit here."
                     : queueFilter === "needs_you"
-                    ? "Waiting is on the client."
-                    : "New work lands here."}
+                      ? "Waiting is on the client."
+                      : "New work lands here."}
             </p>
             {queueFilter === "needs_you" && demoMode === false && !q ? (
-              <button
-                type="button"
-                className="mt-4 min-h-11 text-sm font-medium underline-offset-4 hover:underline"
-                onClick={() => enterSample()}
+              // enterSample() overwrites the workspace arrays with fixtures,
+              // including the tenant's own businessFilter. That is fine in demo
+              // mode and destructive to a real signed-in tenant's empty
+              // workspace - this branch only renders when demoMode is false, so
+              // it was calling the destructive action on every live tenant's
+              // empty queue. A live operator is sent to the isolated /demo
+              // surface instead, same as the "More" sheet's equivalent control.
+              <Link
+                to="/demo"
+                className="mt-4 inline-block min-h-11 text-sm font-medium underline-offset-4 hover:underline"
               >
-                Open sample jobs
-              </button>
+                See a worked example
+              </Link>
             ) : null}
           </li>
         ) : (
           visible.map((e) => {
             const active = e.id === activeId;
-            const business = resolveBusiness(businesses, e.businessId, { demoMode, fixtures: BUSINESS_BY_ID });
+            const business = resolveBusiness(businesses, e.businessId, {
+              demoMode,
+              fixtures: BUSINESS_BY_ID,
+            });
             const section = queueSection(e);
             const situation = enquirySituation(e, business);
             const arriving = e.id === lastArrivalId || e.state.decision === "EVALUATING";
@@ -329,7 +372,9 @@ export function Queue({ activeId, phone = false }: { activeId?: string; phone?: 
                   {phone ? (
                     <>
                       <div className="flex items-baseline justify-between gap-3">
-                        <p className="min-w-0 flex-1 truncate font-medium leading-snug">{e.customerName}</p>
+                        <p className="min-w-0 flex-1 truncate font-medium leading-snug">
+                          {e.customerName}
+                        </p>
                         {situation?.kind === "evaluating" ? (
                           <span className="shrink-0 text-xs text-ink-2">Reading</span>
                         ) : showValue ? (
@@ -346,13 +391,17 @@ export function Queue({ activeId, phone = false }: { activeId?: string; phone?: 
                         </span>
                       </p>
                       {blocking ? (
-                        <p className="mt-1 text-2xs text-warn">{queueSituationLabel(situation.kind)}</p>
+                        <p className="mt-1 text-2xs text-warn">
+                          {queueSituationLabel(situation.kind)}
+                        </p>
                       ) : null}
                     </>
                   ) : (
                     <>
                       <div className="flex items-start justify-between gap-2">
-                        <p className="min-w-0 flex-1 truncate font-medium leading-snug">{e.customerName}</p>
+                        <p className="min-w-0 flex-1 truncate font-medium leading-snug">
+                          {e.customerName}
+                        </p>
                         <Badge tone={statusTone(e)}>{derivedLabel(e.state, e)}</Badge>
                       </div>
                       <p className="mt-1 truncate text-sm text-ink-2">
@@ -370,7 +419,9 @@ export function Queue({ activeId, phone = false }: { activeId?: string; phone?: 
                         <span className="shrink-0">{queueTime(e)}</span>
                       </div>
                       {situation && situation.kind !== "evaluating" ? (
-                        <p className="mt-1 text-2xs text-warn">{queueSituationLabel(situation.kind)}</p>
+                        <p className="mt-1 text-2xs text-warn">
+                          {queueSituationLabel(situation.kind)}
+                        </p>
                       ) : null}
                       <p className="mt-1 text-2xs text-stone">
                         {businessFilter === "all" && business?.name ? `${business.name} · ` : ""}

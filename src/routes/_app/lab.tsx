@@ -1,4 +1,4 @@
-import { Link, createFileRoute, useNavigate } from "@tanstack/react-router";
+import { Link, Navigate, createFileRoute, useNavigate } from "@tanstack/react-router";
 import { FIXTURE_INDEX } from "@/fixtures";
 import { usePrototype } from "@/store/prototype-store";
 import { Badge } from "@/components/ui/badge";
@@ -10,6 +10,7 @@ export const Route = createFileRoute("/_app/lab")({
 });
 
 function LabPage() {
+  const demoMode = usePrototype((s) => s.demoMode);
   const events = usePrototype((s) => s.events);
   const reset = usePrototype((s) => s.reset);
   const arriveEnquiry = usePrototype((s) => s.arriveEnquiry);
@@ -17,6 +18,17 @@ function LabPage() {
   const setOfflineSimulated = usePrototype((s) => s.setOfflineSimulated);
   const navigate = useNavigate();
   const counts = (id: string) => events.filter((e) => e.fixtureId === id);
+
+  // Every tool on this page acts on fixture ids (F01-F20) or reseeds the
+  // fixture arrays outright - "Reset prototype state" calls the same reset()
+  // that repopulates businesses/enquiries/bookings from BUSINESSES/ENQUIRIES/
+  // BOOKINGS, and the arrival button calls arriveEnquiry() directly, bypassing
+  // the demoMode gate that scheduling effect obeys elsewhere. /_app puts this
+  // route behind RequireAuth + WorkspaceBoundary like every operator screen, so
+  // a real signed-in tenant could reach /lab directly and, in one click, have
+  // their live workspace overwritten with fixture data or handed a fabricated
+  // enquiry. This page has no live-tenant purpose, so it is demo-only.
+  if (!demoMode) return <Navigate to="/enquiries" replace />;
 
   return (
     <div className="mx-auto h-full max-w-3xl overflow-y-auto px-4 py-5 pb-8 sm:py-8">
@@ -53,25 +65,41 @@ function LabPage() {
       <span className="page-rule" aria-hidden />
       <ul className="mt-4 space-y-2 text-sm">
         <li>
-          <Link to="/enquiries/$enquiryId" params={{ enquiryId: "f10" }} className="font-medium underline-offset-4 hover:underline">
+          <Link
+            to="/enquiries/$enquiryId"
+            params={{ enquiryId: "f10" }}
+            className="font-medium underline-offset-4 hover:underline"
+          >
             Ibrahim Nassar · Calendar down
           </Link>
           <span className="text-ink-2"> - Unknown is not busy and not free.</span>
         </li>
         <li>
-          <Link to="/enquiries/$enquiryId" params={{ enquiryId: "f11" }} className="font-medium underline-offset-4 hover:underline">
+          <Link
+            to="/enquiries/$enquiryId"
+            params={{ enquiryId: "f11" }}
+            className="font-medium underline-offset-4 hover:underline"
+          >
             Rossi family · Price conflict
           </Link>
           <span className="text-ink-2"> - Enquiry will not pick $450 or $520.</span>
         </li>
         <li>
-          <Link to="/enquiries/$enquiryId" params={{ enquiryId: "f13" }} className="font-medium underline-offset-4 hover:underline">
+          <Link
+            to="/enquiries/$enquiryId"
+            params={{ enquiryId: "f13" }}
+            className="font-medium underline-offset-4 hover:underline"
+          >
             Marcus resend · Duplicate
           </Link>
           <span className="text-ink-2"> - No automatic merge.</span>
         </li>
         <li>
-          <Link to="/enquiries/$enquiryId" params={{ enquiryId: "f09" }} className="font-medium underline-offset-4 hover:underline">
+          <Link
+            to="/enquiries/$enquiryId"
+            params={{ enquiryId: "f09" }}
+            className="font-medium underline-offset-4 hover:underline"
+          >
             Leah Nguyen · Check this
           </Link>
           <span className="text-ink-2"> - Event coverage or brand portraits, not a guess.</span>
@@ -88,31 +116,51 @@ function LabPage() {
       <span className="page-rule" aria-hidden />
       <ul className="mt-4 space-y-2 text-sm">
         <li>
-          <Link to="/enquiries/$enquiryId" params={{ enquiryId: "f02" }} className="font-medium underline-offset-4 hover:underline">
+          <Link
+            to="/enquiries/$enquiryId"
+            params={{ enquiryId: "f02" }}
+            className="font-medium underline-offset-4 hover:underline"
+          >
             Jordan Hale · Website form
           </Link>
           <span className="text-ink-2"> - A form that happens to email you is still a form.</span>
         </li>
         <li>
-          <Link to="/enquiries/$enquiryId" params={{ enquiryId: "f03" }} className="font-medium underline-offset-4 hover:underline">
+          <Link
+            to="/enquiries/$enquiryId"
+            params={{ enquiryId: "f03" }}
+            className="font-medium underline-offset-4 hover:underline"
+          >
             A. Patel · Text
           </Link>
           <span className="text-ink-2"> - Short. No invented quote. Two questions.</span>
         </li>
         <li>
-          <Link to="/enquiries/$enquiryId" params={{ enquiryId: "f18" }} className="font-medium underline-offset-4 hover:underline">
+          <Link
+            to="/enquiries/$enquiryId"
+            params={{ enquiryId: "f18" }}
+            className="font-medium underline-offset-4 hover:underline"
+          >
             Tash Morello · Instagram
           </Link>
           <span className="text-ink-2"> - Same engine. Short DM. Same quote sheet.</span>
         </li>
         <li>
-          <Link to="/enquiries/$enquiryId" params={{ enquiryId: "f19" }} className="font-medium underline-offset-4 hover:underline">
+          <Link
+            to="/enquiries/$enquiryId"
+            params={{ enquiryId: "f19" }}
+            className="font-medium underline-offset-4 hover:underline"
+          >
             Samira Ott · Facebook
           </Link>
           <span className="text-ink-2"> - Ask how long. Do not paste a letter into Messenger.</span>
         </li>
         <li>
-          <Link to="/enquiries/$enquiryId" params={{ enquiryId: "f20" }} className="font-medium underline-offset-4 hover:underline">
+          <Link
+            to="/enquiries/$enquiryId"
+            params={{ enquiryId: "f20" }}
+            className="font-medium underline-offset-4 hover:underline"
+          >
             @jess.k · Public comment
           </Link>
           <span className="text-ink-2"> - Not a quote. Invite to message, or ignore.</span>
