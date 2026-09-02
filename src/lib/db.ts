@@ -94,7 +94,26 @@ function createNeonSql(): Promise<Sql> {
     types.setTypeParser(OID_INT8, Number);
     types.setTypeParser(OID_DATE, identity);
     types.setTypeParser(OID_INTERVAL, identity);
-    const pool = new Pool({ connectionString: databaseUrl });
+    const pool = new Pool({
+      connectionString: databaseUrl,
+      // Serverless sizing. pg defaults to 10 connections per pool, and every
+      // warm instance keeps its own - which exhausted Supabase's session-mode
+      // pooler (15 clients) and answered real page loads with
+      // "max clients reached in session mode". An instance serves a handful of
+      // concurrent requests, so it needs a handful of connections, and it must
+      // give them back quickly rather than holding them while idle.
+      //
+      // Pair this with the TRANSACTION-mode pooler (port 6543), not session
+      // mode (5432): transaction mode returns the connection at the end of each
+      // statement instead of holding one per client for the whole session. No
+      // prepared statements are used anywhere here, which is transaction mode's
+      // one real constraint.
+      max: Number(process.env.DATABASE_POOL_MAX ?? 3),
+      idleTimeoutMillis: 10_000,
+      // Fail with a clear error instead of hanging a request forever.
+      connectionTimeoutMillis: 10_000,
+      allowExitOnIdle: true,
+    });
     // Kept on globalThis so `withTransaction` can check out a single connection.
     // A Pool hands each `query()` an arbitrary connection, so BEGIN and COMMIT
     // issued as separate calls can land on different ones - which silently
