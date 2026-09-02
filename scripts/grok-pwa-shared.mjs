@@ -324,19 +324,32 @@ export function resolveOgTitle(
   appName = DEFAULT_APP_NAME,
   host = "",
   documentTitle = "",
+  { siteIsExplicit = true } = {},
 ) {
-  // The page's own <title> wins. site.title is a whole-site fallback, and
-  // preferring it meant every shared URL previewed identically as "Enquiry"
-  // no matter which page was shared - which silently flattens link sharing,
-  // the main distribution channel for a founder-led launch.
+  // Precedence, most specific first. The rule underneath it: what a caller
+  // passed in beats what was discovered from the workspace, because the caller
+  // knows which page is being rendered and the filesystem does not.
+  //
+  //   1. the page's own <title>      - per-page, so a shared URL previews as
+  //                                    itself rather than every link on the
+  //                                    site previewing identically
+  //   2. an explicit appName
+  //   3. an explicit site.title
+  //   4. the host slug
+  //   5. a site.title read off disk
   const fromDoc = String(documentTitle ?? "").trim();
   if (fromDoc) return fromDoc;
-  const fromSite = String(site.title ?? "").trim();
-  if (fromSite) return fromSite;
+
+  const fromArg = String(appName ?? "").trim();
+  if (fromArg && fromArg !== DEFAULT_APP_NAME) return fromArg;
+
+  const fromSite = String(site?.title ?? "").trim();
+  if (siteIsExplicit && fromSite) return fromSite;
+
   const fromHost = appNameFromHost(host);
   if (fromHost && fromHost !== DEFAULT_APP_NAME) return fromHost;
-  const fromArg = String(appName ?? "").trim();
-  return fromArg || DEFAULT_APP_NAME;
+
+  return fromSite || fromArg || DEFAULT_APP_NAME;
 }
 
 export function siteHasCustomCard(site = {}) {
@@ -348,8 +361,14 @@ export function siteHasCustomCard(site = {}) {
  * Vercel: the bake (`card=custom` / `image`) because the function cannot stat public/.
  * Otherwise empty — caller emits the og.grok.me placeholder.
  */
-export function resolveOgCardAsset(site = {}, cwd = process.cwd()) {
-  return ogCardPublicPath(cwd) || (detectCustomOgCard(cwd, site) ? String(site.image ?? "").trim() || "/og.jpg" : "");
+export function resolveOgCardAsset(site = {}, cwd = process.cwd(), { consultFs = true } = {}) {
+  // Same rule as the title: the workspace only gets a vote when it was asked
+  // for one. Otherwise the site identity a caller passed in is overruled by
+  // whatever happens to sit in public/ next to the running process.
+  const disk = consultFs ? ogCardPublicPath(cwd) : "";
+  if (disk) return disk;
+  const declared = consultFs ? detectCustomOgCard(cwd, site) : siteHasCustomCard(site);
+  return declared ? String(site.image ?? "").trim() || "/og.jpg" : "";
 }
 
 /** Stamp `card=custom` when public/og.jpg or public/og.png is on disk. */
@@ -365,6 +384,7 @@ export function grokOgHeadTags({
   site = {},
   documentTitle = "",
   cwd = process.cwd(),
+  consultFs = true,
 } = {}) {
   const title = resolveOgTitle(site, appName, host, documentTitle);
   const publicHost = resolvePublicHost(host);
@@ -380,7 +400,7 @@ export function grokOgHeadTags({
     tags.push(`<meta property="og:type" content="x:game">`);
   }
   if (publicHost) {
-    const asset = resolveOgCardAsset(site, cwd);
+    const asset = resolveOgCardAsset(site, cwd, { consultFs });
     const custom = Boolean(asset);
     let image = custom
       ? `https://${publicHost}${asset.startsWith("/") ? asset : `/${asset}`}`
@@ -432,31 +452,46 @@ export function normalizeHeadContext(ctx = {}) {
   // public/og.jpg generated after that snapshot (or missed by a wrong cwd)
   // wins over the og.grok.me placeholder. Vercel has no public/ to read, so
   // a correct bake is unchanged.
-  const site = applyCustomCardFromFs(
-    ctx.site !== undefined ? ctx.site : snapshotOgIdentity(cwd).site,
-    cwd,
-  );
-  const appName = resolveOgTitle(site, ctx.appName ?? DEFAULT_APP_NAME, ctx.host ?? "");
+  const siteIsExplicit = ctx.site !== undefined;
+  // The filesystem may only speak when it was asked to. Consulting public/ on
+  // every call made the rendered tags depend on whichever directory the process
+  // happened to start in, so one explicit site identity produced different
+  // output in a test, a build and a server.
+  //
+  // Asked to means one of: a cwd was named, so the caller pointed at a
+  // workspace; or no site was supplied, so the workspace is the only source
+  // there is; or the caller said so outright, which the deploy middleware does
+  // so a card generated after the identity was baked still wins.
+  const consultFs = ctx.consultFs ?? (ctx.cwd !== undefined || !siteIsExplicit);
+  const resolvedSite = siteIsExplicit ? ctx.site : snapshotOgIdentity(cwd).site;
+  const site = consultFs ? applyCustomCardFromFs(resolvedSite, cwd) : resolvedSite;
+  const appName = resolveOgTitle(site, ctx.appName ?? DEFAULT_APP_NAME, ctx.host ?? "", "", {
+    siteIsExplicit,
+  });
   return {
     appName,
+    siteIsExplicit,
     projectId: ctx.projectId ?? readGrokProjectId(),
     creator: ctx.creator ?? readXCreator(),
     creatorId: ctx.creatorId ?? readXCreatorId(),
     host: ctx.host ?? "",
     cwd,
     site,
+    consultFs,
   };
 }
 
 export function injectGrokPwaHead(html, ctx = {}) {
   if (typeof html !== "string") return html;
-  const { site, projectId, creator, creatorId, host, cwd } = normalizeHeadContext(ctx);
+  const { site, projectId, creator, creatorId, host, cwd, siteIsExplicit, consultFs } =
+    normalizeHeadContext(ctx);
   const documentTitle = titleFromDocument(html);
   const appName = resolveOgTitle(
     site,
     ctx.appName ?? DEFAULT_APP_NAME,
     host,
     documentTitle,
+    { siteIsExplicit },
   );
   let next = stripShareMetaTags(html);
 
@@ -470,7 +505,7 @@ export function injectGrokPwaHead(html, ctx = {}) {
 
   next = insertAfterHeadOpen(
     next,
-    grokOgHeadTags({ host, appName, site, documentTitle, cwd }).join(""),
+    grokOgHeadTags({ host, appName, site, documentTitle, cwd, consultFs }).join(""),
   );
 
   if (!next.includes("/grok-app-builder/extensions.js")) {

@@ -19,6 +19,10 @@ import {
 const execFileAsync = promisify(execFile);
 const WRAPPER = join(projectRoot(), "scripts/with-app-env.mjs");
 const PRINT_FLAG = "process.stdout.write(String(process.env.VITE_AUTH_ENABLED));";
+// Proves the wrapper actually spawned the child. The flag itself cannot serve
+// as that proof: `.grok/` is gitignored, so a clone has no file to merge and
+// the flag is legitimately absent.
+const PRINT_MARKER = "process.stdout.write('child-ran');";
 
 function makeWorkspace(appEnvJson) {
   const root = mkdtempSync(join(tmpdir(), "app-env-"));
@@ -62,8 +66,16 @@ test("an explicit process-env override wins over the file", () => {
   assert.equal(merged.PATH, "/usr/bin");
 });
 
-test("the template ships auth off", () => {
-  assert.deepEqual(readAppEnv(projectRoot()), { VITE_AUTH_ENABLED: "false" });
+test("the workspace commits no auth override, so auth is on by default", () => {
+  // `.grok/` is gitignored: the override is local-only, deliberately. Asserting
+  // a committed value here asserted the presence of untracked state, which is
+  // absent in every clone and in CI. What the repo actually guarantees is that
+  // nothing in it turns auth off - Supabase Auth is the sign-in path.
+  assert.equal(readAppEnv(projectRoot()).VITE_AUTH_ENABLED, undefined);
+  assert.equal(readAppEnv(makeWorkspace()).VITE_AUTH_ENABLED, undefined);
+  assert.deepEqual(readAppEnv(makeWorkspace('{"VITE_AUTH_ENABLED":"false"}')), {
+    VITE_AUTH_ENABLED: "false",
+  });
 });
 
 test("vite loadEnv resolves the wrapped value", () => {
@@ -76,14 +88,14 @@ test("vite loadEnv resolves the wrapped value", () => {
   assert.equal(merged.VITE_AUTH_ENABLED, "false");
 });
 
-test("the wrapped command runs with the app env applied", async () => {
+test("the wrapped command actually runs", async () => {
   const { stdout } = await execFileAsync(process.execPath, [
     WRAPPER,
     process.execPath,
     "-e",
-    PRINT_FLAG,
+    PRINT_MARKER,
   ]);
-  assert.equal(stdout, "false");
+  assert.equal(stdout, "child-ran");
 });
 
 test("the wrapped command sees an explicit override, not the file value", async () => {
@@ -162,7 +174,7 @@ test("the CLI still runs when invoked through a symlinked path", async () => {
     join(link, "with-app-env.mjs"),
     process.execPath,
     "-e",
-    PRINT_FLAG,
+    PRINT_MARKER,
   ]);
-  assert.equal(stdout, "false");
+  assert.equal(stdout, "child-ran");
 });

@@ -211,7 +211,11 @@ function tokenIdentityKey(token: string): string {
             .digest("base64url");
         }
       }
-    } catch {}
+    } catch {
+      // A malformed token is not an error here - it just means the stable
+      // subject claim is unavailable, and the raw-token hash below is the
+      // correct fallback identity.
+    }
   }
   return createHash("sha256").update(token).digest("base64url");
 }

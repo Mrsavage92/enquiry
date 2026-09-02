@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
-import { mkdtempSync, symlinkSync } from "node:fs";
+import { mkdirSync, mkdtempSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
@@ -90,9 +90,17 @@ test("only a divergence warns the smoke verdict", () => {
   }
 });
 
-test("the build side resolves the template's shipped app-env", () => {
-  assert.equal(buildAuthEnabled(projectRoot(), {}), false);
-  assert.equal(buildAuthEnabled(projectRoot(), { VITE_AUTH_ENABLED: "true" }), true);
+test("the build side resolves the workspace's app-env", () => {
+  // The committed workspace carries no override - `.grok/` is gitignored - so
+  // the build side resolves auth ON, which is what this product ships.
+  assert.equal(buildAuthEnabled(projectRoot(), {}), true);
+
+  const off = mkdtempSync(join(tmpdir(), "auth-invariant-env-"));
+  mkdirSync(join(off, ".grok"), { recursive: true });
+  writeFileSync(join(off, ".grok/app-env.json"), '{"VITE_AUTH_ENABLED":"false"}');
+  assert.equal(buildAuthEnabled(off, {}), false);
+  // An explicit process-env value still outranks the file.
+  assert.equal(buildAuthEnabled(off, { VITE_AUTH_ENABLED: "true" }), true);
 });
 
 test("the CLI reports rather than silently passing when run via a symlink", async () => {

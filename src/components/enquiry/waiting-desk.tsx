@@ -11,6 +11,7 @@ import { channelLabel, isShortChannel, replyChannel } from "@/domain/channel";
 import { usePrototype } from "@/store/prototype-store";
 import { toastUndo } from "@/lib/toast-undo";
 import { useEmbedNav } from "@/components/site/embed-nav";
+import { useFirstBetaActions } from "@/lib/workspace/live-mutations";
 
 export function WaitingDesk({ enquiry, onDone }: { enquiry: Enquiry; onDone?: () => void }) {
   const acceptQuote = usePrototype((s) => s.acceptQuote);
@@ -26,7 +27,41 @@ export function WaitingDesk({ enquiry, onDone }: { enquiry: Enquiry; onDone?: ()
     rec.action === "FOLLOW_UP" && rec.primaryEnabled && isSendableAction(rec.action);
   const asked = rec.action === "REQUEST_INFORMATION" && rec.primaryEnabled;
   const booked = enquiry.state.lifecycle === "BOOKED";
+  const demoMode = usePrototype((s) => s.demoMode);
+  const firstBeta = useFirstBetaActions();
+  const [sending, setSending] = useState(false);
   const [lostOpen, setLostOpen] = useState(false);
+
+  /** Same rule as the main send: outside the demo, nothing is "sent" until the
+   *  owner sends it and Enquiry records that it happened. */
+  const sendFollowUp = async () => {
+    const body = enquiry.decision.draft.body;
+    if (demoMode) {
+      approve(enquiry.id);
+      toastUndo("Follow-up sent. The quote stays on file.");
+      onDone?.();
+      return;
+    }
+    if (!body.trim()) {
+      toast.error("There is no follow-up prepared.");
+      return;
+    }
+    setSending(true);
+    try {
+      try {
+        await navigator.clipboard?.writeText(body);
+      } catch {
+        /* clipboard unavailable - the text is still on screen to copy */
+      }
+      await firstBeta.recordSent(enquiry.id, body, replyChannel(enquiry));
+      toast.success("Copied. Send it yourself - the quote stays on file.");
+      onDone?.();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not record that follow-up.");
+    } finally {
+      setSending(false);
+    }
+  };
   const [moreOpen, setMoreOpen] = useState(false);
   const ch = replyChannel(enquiry);
   const phone = useNarrow(860);
@@ -108,12 +143,11 @@ export function WaitingDesk({ enquiry, onDone }: { enquiry: Enquiry; onDone?: ()
               variant="secondary"
               className="min-h-11 w-full"
               onClick={() => {
-                approve(enquiry.id);
-                toastUndo("Follow-up sent. The quote stays on file.");
-                onDone?.();
+                void sendFollowUp();
               }}
+              disabled={sending}
             >
-              {rec.label}
+              {sending ? "Recording…" : rec.label}
             </Button>
           ) : (
             <Button

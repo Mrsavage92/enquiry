@@ -13,6 +13,7 @@ import { channelLabel } from "@/domain/channel";
 import type { Enquiry } from "@/domain/types";
 import { usePrototype } from "@/store/prototype-store";
 import { BUSINESS_BY_ID } from "@/fixtures";
+import { AddEnquiry } from "@/components/enquiry/add-enquiry";
 import { resolveBusiness } from "@/lib/workspace/resolve-business";
 import { QueueBriefing } from "./briefing";
 import { Notices } from "@/components/shell/notices";
@@ -99,6 +100,9 @@ export function Queue({ activeId, phone = false }: { activeId?: string; phone?: 
   const businesses = usePrototype((s) => s.businesses);
   const businessFilter = usePrototype((s) => s.businessFilter);
   const queueFilter = usePrototype((s) => s.queueFilter);
+  const queueNavigate = useNavigate();
+  const activeBusiness =
+    businesses.find((b) => b.id === businessFilter) ?? (businesses.length === 1 ? businesses[0] : undefined);
   const setQueueFilter = usePrototype((s) => s.setQueueFilter);
   const lastArrivalId = usePrototype((s) => s.lastArrivalId);
   const demoMode = usePrototype((s) => s.demoMode);
@@ -157,6 +161,16 @@ export function Queue({ activeId, phone = false }: { activeId?: string; phone?: 
 
   return (
     <div className="flex h-full min-h-0 flex-col border-r border-line bg-raised">
+      {/*
+        Live intake. Demo mode has its scripted arrival; a real business needs a
+        way to put a real enquiry in, and until channel integrations genuinely
+        exist that way is typing or pasting what the customer said.
+      */}
+      {!demoMode && activeBusiness ? (
+        <div className="border-b border-line px-4 py-3">
+          <AddEnquiry business={activeBusiness} onCreated={(id) => void queueNavigate({ to: "/enquiries/$enquiryId", params: { enquiryId: id } })} />
+        </div>
+      ) : null}
       <div className={cn("border-b border-line px-4", phone ? "pb-3 pt-3" : "pb-3 pt-4")}>
         {phone ? (
           <>

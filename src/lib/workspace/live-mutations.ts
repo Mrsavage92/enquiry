@@ -133,3 +133,58 @@ export function useLiveEnquiryMutations() {
     },
   };
 }
+
+/**
+ * The first-beta loop, client side.
+ *
+ * These have no demo equivalent: they are the real product. Each one calls a
+ * tenancy-checked server function and refetches, because unlike a filter or a
+ * tab these change what the business actually is.
+ */
+export function useFirstBetaActions() {
+  const hydrate = usePrototype((s) => s.hydrateFromServer);
+
+  const refresh = async () => {
+    const { fetchWorkspace } = await import("@/lib/server/workspace");
+    const data = await fetchWorkspace();
+    if (!data.needsOnboarding) {
+      hydrate({
+        businesses: data.businesses,
+        enquiries: data.enquiries,
+        bookings: data.bookings,
+        audit: data.audit,
+      });
+    }
+  };
+
+  return {
+    /** Save a confirmed pricing rule, then reload so it can price immediately. */
+    saveRule: async (businessId: string, rule: unknown) => {
+      const { saveBusinessRule } = await import("@/lib/server/enquiry-actions");
+      await saveBusinessRule({ data: { businessId, rule } });
+      await refresh();
+    },
+    /** Add an enquiry the owner typed in. Returns its id so the UI can open it. */
+    addEnquiry: async (input: {
+      businessId: string;
+      body: string;
+      customerName?: string;
+      customerEmail?: string;
+      customerPhone?: string;
+      serviceLabel?: string;
+      intakeNote?: string;
+    }) => {
+      const { createManualEnquiry } = await import("@/lib/server/enquiry-actions");
+      const res = await createManualEnquiry({ data: input });
+      await refresh();
+      return res.enquiryId;
+    },
+    /** Record that the owner sent the reply themselves. */
+    recordSent: async (enquiryId: string, body: string, channel = "manual") => {
+      const { recordSentReply } = await import("@/lib/server/enquiry-actions");
+      await recordSentReply({ data: { enquiryId, body, channel } });
+      await refresh();
+    },
+    refresh,
+  };
+}

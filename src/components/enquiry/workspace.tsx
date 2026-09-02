@@ -60,6 +60,10 @@ export function EnquiryWorkspace({ enquiryId }: { enquiryId?: string }) {
 
       if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
         if (inDialog || !enquiryId) return;
+        // Demo only. A real send copies the letter and records the send, and a
+        // keyboard shortcut that quietly marks something sent without either is
+        // exactly the theatre this product exists to remove.
+        if (!demoMode) return;
         e.preventDefault();
         approve(enquiryId);
         return;
@@ -81,7 +85,7 @@ export function EnquiryWorkspace({ enquiryId }: { enquiryId?: string }) {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [approve, enquiryId, navigate, visible]);
+  }, [approve, demoMode, enquiryId, navigate, visible]);
 
   useEffect(() => {
     if (mobile !== false) return;

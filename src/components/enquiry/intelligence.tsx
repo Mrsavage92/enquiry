@@ -22,7 +22,7 @@ import {
 import type { Enquiry, EnquiryFact, EvaluatorResult } from "@/domain/types";
 import { cn } from "@/lib/utils";
 import { usePrototype } from "@/store/prototype-store";
-import { useLiveEnquiryMutations } from "@/lib/workspace/live-mutations";
+import { useLiveEnquiryMutations, useFirstBetaActions } from "@/lib/workspace/live-mutations";
 import { BUSINESS_BY_ID } from "@/fixtures";
 import { resolveBusiness } from "@/lib/workspace/resolve-business";
 import { SituationCard } from "./situation-card";
@@ -93,6 +93,47 @@ export function Intelligence({
   const blocked = outboundBlocked(business, offline, enquiry);
   const sendable = isSendableAction(rec.action);
   const reply = replyChannel(enquiry);
+  const firstBeta = useFirstBetaActions();
+  const [sending, setSending] = useState(false);
+
+  /**
+   * Send, for real.
+   *
+   * Demo mode is a scripted story and `approve` is its narrator - fine there.
+   * A live business is not sending anything from inside Enquiry yet, and
+   * pretending otherwise was the single most dishonest thing in the product:
+   * the button said "Sent." while nothing left the building and the record
+   * vanished on reload. So the honest version - put the prepared text on the
+   * clipboard, let the owner send it from their own mailbox or phone, and
+   * record the send as a real outbound message with a real timestamp.
+   */
+  const commitSend = async () => {
+    if (demoMode) {
+      approve(enquiry.id);
+      toastUndo("Sent.");
+      return;
+    }
+    if (!draftBody.trim()) {
+      toast.error("There is no prepared reply to send.");
+      return;
+    }
+    setSending(true);
+    try {
+      // Nice-to-have, not load-bearing: an insecure context or a denied
+      // permission must not stop the send being recorded.
+      try {
+        await navigator.clipboard?.writeText(draftBody);
+      } catch {
+        /* clipboard unavailable - the text is still on screen to copy */
+      }
+      await firstBeta.recordSent(enquiry.id, draftBody, reply);
+      toast.success("Copied. Send it from your own inbox - Enquiry has recorded it.");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not record that send.");
+    } finally {
+      setSending(false);
+    }
+  };
   const short = isShortChannel(reply);
   const integ = integrationForChannel(business, reply, enquiry);
   const Panel = compact ? SheetContent : DialogContent;
@@ -468,18 +509,20 @@ export function Intelligence({
             {sendable ? (
               <Button
                 className={cn("w-full", compact ? "min-h-14 text-base" : "min-h-11")}
-                disabled={!rec.primaryEnabled || Boolean(rec.blockedReason) || Boolean(blocked)}
+                disabled={
+                  sending || !rec.primaryEnabled || Boolean(rec.blockedReason) || Boolean(blocked)
+                }
                 onClick={() => {
                   if (needsSendConfirm(enquiry)) {
                     setSendConfirm(true);
                     return;
                   }
-                  approve(enquiry.id);
-                  toastUndo("Sent.");
-                  if (!compact) onDone?.();
+                  void commitSend().then(() => {
+                    if (!compact) onDone?.();
+                  });
                 }}
               >
-                {rec.label}
+                {sending ? "Recording…" : demoMode ? rec.label : `${rec.label} (copies it)`}
               </Button>
             ) : situation ? (
               <p className="text-sm text-ink-2">Settle the detail above first.</p>
@@ -663,10 +706,10 @@ export function Intelligence({
             <Button
               className="min-h-12 w-full"
               onClick={() => {
-                approve(enquiry.id);
-                setSendConfirm(false);
-                toastUndo("Quote sent.");
-                if (!compact) onDone?.();
+                void commitSend().then(() => {
+                  setSendConfirm(false);
+                  if (!compact) onDone?.();
+                });
               }}
             >
               {rec.label}

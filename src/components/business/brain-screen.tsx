@@ -8,6 +8,7 @@ import { Segmented } from "@/components/ui/segmented";
 import { BUSINESSES } from "@/fixtures";
 import { usePrototype } from "@/store/prototype-store";
 import { WorkspaceSettingUp } from "@/components/shell/workspace-setting-up";
+import { PricingRules } from "@/components/business/pricing-rules";
 import type { KnowledgeItem } from "@/domain/types";
 import { cn } from "@/lib/utils";
 import { applyVoiceToDraft } from "@/domain/voice-apply";
@@ -130,6 +131,7 @@ export function BrainScreen() {
   if (!business) return <WorkspaceSettingUp />;
   return (
     <div className="mx-auto h-full max-w-3xl overflow-y-auto px-4 py-5 pb-8 sm:py-8">
+      <PricingRules business={business} />
       <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
           {phone ? null : <p className="eyebrow">Business Brain</p>}

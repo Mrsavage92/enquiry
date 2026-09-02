@@ -40,13 +40,19 @@ export type GrokHeadContext = {
   host?: string | null;
   cwd?: string;
   site?: OgSite;
+  /** Let public/ upgrade an explicitly-supplied site. Defaults to false. */
+  consultFs?: boolean;
 };
 
 export declare function readOgSite(cwd?: string): OgSite;
 export declare function ogCardPublicPath(cwd?: string): string;
 export declare function snapshotOgIdentity(cwd?: string): { site: OgSite };
 export declare function customOgAssetPath(cwd?: string): string;
-export declare function resolveOgCardAsset(site?: OgSite, cwd?: string): string;
+export declare function resolveOgCardAsset(
+  site?: OgSite,
+  cwd?: string,
+  options?: { consultFs?: boolean },
+): string;
 export declare function ogServiceUrl(): string;
 export declare function titleFromDocument(html: string): string;
 export declare function resolveOgTitle(
@@ -54,6 +60,7 @@ export declare function resolveOgTitle(
   appName?: string,
   host?: string,
   documentTitle?: string,
+  options?: { siteIsExplicit?: boolean },
 ): string;
 export declare function siteHasCustomCard(site?: OgSite): boolean;
 export declare function grokOgHeadTags(ctx?: {
@@ -72,6 +79,8 @@ export declare function normalizeHeadContext(ctx?: GrokHeadContext): {
   host: string;
   cwd: string;
   site: OgSite;
+  siteIsExplicit: boolean;
+  consultFs: boolean;
 };
 export declare function injectGrokPwaHead(html: string, ctx?: GrokHeadContext): string;
 export declare function createHeadInjector(ctx?: GrokHeadContext): {
