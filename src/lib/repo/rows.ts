@@ -75,6 +75,7 @@ export type KnowledgeRow = {
   version: string;
   stale: boolean;
   conflict_with: string | null;
+  rule_payload: unknown;
 };
 
 export type IntegrationRow = {
@@ -257,7 +258,11 @@ export function toKnowledge(r: KnowledgeRow): KnowledgeItem {
     version: r.version,
     stale: r.stale || undefined,
     conflictWith: r.conflict_with ?? undefined,
-  };
+    // The machine-usable half. Kept as unknown here and validated by
+    // parseBusinessRule at the point of use - a payload is untrusted until then,
+    // because a rule may have been proposed by a model.
+    rulePayload: r.rule_payload ?? undefined,
+  } as KnowledgeItem & { rulePayload?: unknown };
 }
 
 export function toIntegration(r: IntegrationRow): IntegrationHealth {
