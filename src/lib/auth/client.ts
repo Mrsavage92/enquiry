@@ -1,5 +1,6 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-import { safeReturnUrl } from "./return-path";
+import { requireAuthReturnUrl, type AuthOriginEnvironment } from "./origin";
+import { shouldCreateUser, type AuthIntent } from "./intent";
 
 /**
  * Supabase Auth client for this React SPA (browser-side).
@@ -22,6 +23,25 @@ import { safeReturnUrl } from "./return-path";
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string | undefined;
 const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
+
+/**
+ * The public origin this deployment owns, and the environment that decides how
+ * strictly it is required. See `origin.ts`: production must state its origin
+ * explicitly and fails closed, because a confirmation link built from whichever
+ * browser made the request is a dead link in someone else's inbox.
+ */
+const configuredAppOrigin = import.meta.env.VITE_PUBLIC_APP_ORIGIN as string | undefined;
+const authEnvironment: AuthOriginEnvironment = import.meta.env.PROD
+  ? "production"
+  : "development";
+
+function authOriginInputs() {
+  return {
+    configuredOrigin: configuredAppOrigin ?? null,
+    environment: authEnvironment,
+    runtimeOrigin: typeof window === "undefined" ? null : window.location.origin,
+  };
+}
 
 /** True when the project is wired up at build time. */
 export const supabaseConfigured = Boolean(supabaseUrl?.trim() && supabaseKey?.trim());
@@ -112,20 +132,25 @@ export async function getAccessToken(): Promise<string | null> {
  */
 export async function signInWithEmail(
   email: string,
-  opts: { redirectTo?: string } = {},
+  opts: { redirectTo?: string; intent?: AuthIntent } = {},
 ): Promise<void> {
   if (!supabase) throw new Error("Sign-in is unavailable - auth is not configured.");
-  // Validated, not merely defaulted: "starts with a slash" would let
-  // //evil.example through and resolve it to another host.
-  const emailRedirectTo =
-    typeof window === "undefined"
-      ? undefined
-      : safeReturnUrl(opts.redirectTo, window.location.origin);
+  const intent: AuthIntent = opts.intent ?? "signin";
+  // Deployment-owned, not browser-derived, and re-validated on the way in: a
+  // poisoned `?redirect=` cannot move the host once it becomes a real URL.
+  // Throws when the environment is misconfigured, so a broken deployment is
+  // reported at the button rather than mailed to a customer.
+  const emailRedirectTo = requireAuthReturnUrl(authOriginInputs(), opts.redirectTo);
   const { error } = await supabase.auth.signInWithOtp({
     email,
-    options: { emailRedirectTo },
+    options: {
+      emailRedirectTo,
+      // The behavioural half of the signup/sign-in split. Sign-in must not
+      // quietly create an account for a typo'd address.
+      shouldCreateUser: shouldCreateUser(intent),
+    },
   });
-  if (error) throw new Error(error.message);
+  if (error) throw error;
 }
 
 /** Start an OAuth redirect flow with one provider. */
@@ -134,10 +159,7 @@ export async function signInWithProvider(
   opts: { redirectTo?: string } = {},
 ): Promise<void> {
   if (!supabase) throw new Error("Sign-in is unavailable - auth is not configured.");
-  const redirectTo =
-    typeof window === "undefined"
-      ? undefined
-      : safeReturnUrl(opts.redirectTo, window.location.origin);
+  const redirectTo = requireAuthReturnUrl(authOriginInputs(), opts.redirectTo);
   const { error } = await supabase.auth.signInWithOAuth({
     provider: providerId,
     options: { redirectTo },

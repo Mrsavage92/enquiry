@@ -1,9 +1,11 @@
 import { useEffect, useState, type ReactNode } from "react";
-import { Navigate } from "@tanstack/react-router";
+import { Navigate, useRouterState } from "@tanstack/react-router";
 import { fetchWorkspace } from "@/lib/server/workspace";
 import { usePrototype } from "@/store/prototype-store";
 import { authEnabled } from "@/lib/auth/client";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
+import { resolveRouteAuthority } from "@/lib/workspace/route-authority";
+import { ONBOARDING_PATH, type SessionPhase, type WorkspacePhase } from "@/lib/auth/completion";
 import { Button } from "@/components/ui/button";
 import { Wordmark } from "@/components/ui/wordmark";
 
@@ -20,16 +22,15 @@ import { Wordmark } from "@/components/ui/wordmark";
  * show sample data as the user's business.** On error it retries or stops. It
  * never falls back to fixtures, and it never creates a second workspace.
  *
+ * The routing decision itself is `resolveRouteAuthority`, a pure function with
+ * its own tests, because the states are easy to collapse by accident: treating
+ * a pending session as signed out bounces every hard reload to `/login`, and
+ * treating a failed workspace read as "no workspace" invites an existing
+ * customer to create a second one.
+ *
  * With auth disabled this is a pass-through, so the local prototype and the
  * public demo keep working untouched.
  */
-
-type LoadState =
-  | { phase: "idle" }
-  | { phase: "loading" }
-  | { phase: "ready" }
-  | { phase: "onboarding" }
-  | { phase: "error"; message: string };
 
 function Centered({ children }: { children: ReactNode }) {
   return (
@@ -40,29 +41,31 @@ function Centered({ children }: { children: ReactNode }) {
   );
 }
 
-export function WorkspaceBoundary({ children }: { children: ReactNode }) {
-  // Auth disabled: local prototype mode. Nothing to load, nothing to isolate.
-  if (!authEnabled) return <>{children}</>;
-  return <LiveWorkspaceBoundary>{children}</LiveWorkspaceBoundary>;
-}
-
-function LiveWorkspaceBoundary({ children }: { children: ReactNode }) {
-  const { user, isPending } = useCurrentUserState();
+/**
+ * Read the workspace once auth is verified.
+ *
+ * `hydrate` is deliberately only called for a real workspace: onboarding must
+ * not warm the store with anything, and a failure must leave it untouched.
+ */
+function useWorkspacePhase(session: SessionPhase): {
+  workspace: WorkspacePhase;
+  message: string;
+  retry: () => void;
+} {
   const hydrate = usePrototype((s) => s.hydrateFromServer);
-  const [state, setState] = useState<LoadState>({ phase: "idle" });
+  const [workspace, setWorkspace] = useState<WorkspacePhase>("idle");
+  const [message, setMessage] = useState("");
   const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
-    // Wait for verified auth before reading anything. RequireAuth handles the
-    // signed-out redirect; this only decides when it is safe to fetch.
-    if (isPending || !user) return;
+    if (session !== "signed-in") return;
     let live = true;
-    setState({ phase: "loading" });
+    setWorkspace("loading");
     fetchWorkspace()
       .then((data) => {
         if (!live) return;
         if (data.needsOnboarding) {
-          setState({ phase: "onboarding" });
+          setWorkspace("needs-onboarding");
           return;
         }
         hydrate({
@@ -71,51 +74,104 @@ function LiveWorkspaceBoundary({ children }: { children: ReactNode }) {
           bookings: data.bookings,
           audit: data.audit,
         });
-        setState({ phase: "ready" });
+        setWorkspace("ready");
       })
       .catch((err: unknown) => {
         if (!live) return;
         // Deliberately no fixture fallback. Showing sample data here would tell
         // an operator their business looks a way it does not.
-        setState({
-          phase: "error",
-          message:
-            err instanceof Error && err.message
-              ? err.message
-              : "Could not load your workspace.",
-        });
+        setMessage(
+          err instanceof Error && err.message ? err.message : "Could not load your workspace.",
+        );
+        setWorkspace("failed");
       });
     return () => {
       live = false;
     };
-  }, [isPending, user, hydrate, attempt]);
+  }, [session, hydrate, attempt]);
 
-  if (isPending || state.phase === "idle" || state.phase === "loading") {
-    return (
-      <Centered>
-        <p className="site-lede" role="status" aria-live="polite">
-          Loading your workspace…
-        </p>
-      </Centered>
-    );
+  return { workspace, message, retry: () => setAttempt((n) => n + 1) };
+}
+
+/**
+ * Guard one authenticated surface.
+ *
+ * `isOnboardingRoute` is what lets the same guard protect both directions: a
+ * zero-membership user may only see onboarding, and a user who already has a
+ * workspace may not run it again.
+ */
+export function WorkspaceGate({
+  children,
+  isOnboardingRoute = false,
+}: {
+  children: ReactNode;
+  isOnboardingRoute?: boolean;
+}) {
+  // Auth disabled: local prototype mode. Nothing to load, nothing to isolate.
+  if (!authEnabled) return <>{children}</>;
+  return <LiveWorkspaceGate isOnboardingRoute={isOnboardingRoute}>{children}</LiveWorkspaceGate>;
+}
+
+/** Kept as the previous name so existing route files read unchanged. */
+export function WorkspaceBoundary({ children }: { children: ReactNode }) {
+  return <WorkspaceGate>{children}</WorkspaceGate>;
+}
+
+function LiveWorkspaceGate({
+  children,
+  isOnboardingRoute,
+}: {
+  children: ReactNode;
+  isOnboardingRoute: boolean;
+}) {
+  const { user, isPending } = useCurrentUserState();
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const session: SessionPhase = isPending ? "pending" : user ? "signed-in" : "signed-out";
+  const { workspace, message, retry } = useWorkspacePhase(session);
+
+  const authority = resolveRouteAuthority({
+    authEnabled: true,
+    session,
+    workspace,
+    pathname,
+    isOnboardingRoute,
+  });
+
+  switch (authority.phase) {
+    case "allowed":
+    case "prototype-bypass":
+      return <>{children}</>;
+
+    case "signed-out":
+      return <Navigate to={authority.to} search={{ redirect: authority.redirect }} replace />;
+
+    case "needs-onboarding":
+      return <Navigate to={ONBOARDING_PATH} replace />;
+
+    case "workspace-exists":
+      return <Navigate to={authority.to} replace />;
+
+    case "workspace-failed":
+      return (
+        <Centered>
+          <h1 className="site-display">Could not load your workspace</h1>
+          <p className="site-lede mt-4">{message}</p>
+          <p className="mt-2 text-sm text-stone">
+            You are still signed in. Nothing has been changed.
+          </p>
+          <Button className="mt-8 min-h-11" onClick={retry}>
+            Try again
+          </Button>
+        </Centered>
+      );
+
+    default:
+      return (
+        <Centered>
+          <p className="site-lede" role="status" aria-live="polite">
+            Loading your workspace…
+          </p>
+        </Centered>
+      );
   }
-
-  if (state.phase === "onboarding") return <Navigate to="/onboarding" />;
-
-  if (state.phase === "error") {
-    return (
-      <Centered>
-        <h1 className="site-display">Could not load your workspace</h1>
-        <p className="site-lede mt-4">{state.message}</p>
-        <p className="mt-2 text-sm text-stone">
-          You are still signed in. Nothing has been changed.
-        </p>
-        <Button className="mt-8 min-h-11" onClick={() => setAttempt((n) => n + 1)}>
-          Try again
-        </Button>
-      </Centered>
-    );
-  }
-
-  return <>{children}</>;
 }

@@ -9,6 +9,7 @@ import { completeOnboarding } from "@/lib/server/workspace";
 import { cn } from "@/lib/utils";
 import { useNarrow } from "@/lib/use-narrow";
 import { RequireAuth } from "@/lib/auth/gates";
+import { WorkspaceGate } from "@/components/shell/workspace-boundary";
 
 // Onboarding configures business/workspace state, so it is an operator surface
 // even though it sits outside the /_app layout.
@@ -19,7 +20,15 @@ export const Route = createFileRoute("/onboarding")({
 function GuardedOnboarding() {
   return (
     <RequireAuth>
-      <Onboarding />
+      {/*
+        Identity is not enough here either, in the other direction: someone who
+        already has a workspace must not be able to run initial setup again and
+        create a second one. The gate resolves the real workspace and sends them
+        back to the app.
+      */}
+      <WorkspaceGate isOnboardingRoute>
+        <Onboarding />
+      </WorkspaceGate>
     </RequireAuth>
   );
 }

@@ -256,6 +256,12 @@
     transition-timing-function: var(--ease-out);
     padding: 0 0.75rem;
     font-size: 1rem;
+    /* An input with only horizontal padding collapses to its line box - about
+       25px - so every caller had to remember `h-11` and most did not. That is
+       below the 44px minimum touch target, on primary controls like the signup
+       email field. Set here so it holds everywhere by default; textarea and any
+       caller wanting taller still overrides. */
+    min-height: 2.75rem;
   }
   select.field {
     appearance: none;

@@ -18,6 +18,7 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as OnboardingRouteImport } from './routes/onboarding'
 import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as RoadmapRouteImport } from './routes/roadmap'
+import { Route as SignupRouteImport } from './routes/signup'
 import { Route as TermsRouteImport } from './routes/terms'
 import { Route as UpdatesRouteImport } from './routes/updates'
 import { Route as AppBookingsRouteImport } from './routes/_app/bookings'
@@ -27,6 +28,7 @@ import { Route as AppInsightsRouteImport } from './routes/_app/insights'
 import { Route as AppLabRouteImport } from './routes/_app/lab'
 import { Route as AppSettingsRouteImport } from './routes/_app/settings'
 import { Route as AppTrustRouteRouteImport } from './routes/_app/trust/route'
+import { Route as AuthCompleteRouteImport } from './routes/auth.complete'
 import { Route as BookBookingIdRouteImport } from './routes/book/$bookingId'
 import { Route as QEnquiryIdRouteImport } from './routes/q/$enquiryId'
 import { Route as AppEnquiriesIndexRouteImport } from './routes/_app/enquiries/index'
@@ -80,6 +82,11 @@ const RoadmapRoute = RoadmapRouteImport.update({
   path: '/roadmap',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SignupRoute = SignupRouteImport.update({
+  id: '/signup',
+  path: '/signup',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const TermsRoute = TermsRouteImport.update({
   id: '/terms',
   path: '/terms',
@@ -124,6 +131,11 @@ const AppTrustRouteRoute = AppTrustRouteRouteImport.update({
   id: '/trust',
   path: '/trust',
   getParentRoute: () => AppRoute,
+} as any)
+const AuthCompleteRoute = AuthCompleteRouteImport.update({
+  id: '/auth/complete',
+  path: '/auth/complete',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const BookBookingIdRoute = BookBookingIdRouteImport.update({
   id: '/book/$bookingId',
@@ -175,6 +187,7 @@ export interface FileRoutesByFullPath {
   '/onboarding': typeof OnboardingRoute
   '/privacy': typeof PrivacyRoute
   '/roadmap': typeof RoadmapRoute
+  '/signup': typeof SignupRoute
   '/terms': typeof TermsRoute
   '/updates': typeof UpdatesRoute
   '/enquiries': typeof AppEnquiriesRouteRouteWithChildren
@@ -184,6 +197,7 @@ export interface FileRoutesByFullPath {
   '/insights': typeof AppInsightsRoute
   '/lab': typeof AppLabRoute
   '/settings': typeof AppSettingsRoute
+  '/auth/complete': typeof AuthCompleteRoute
   '/book/$bookingId': typeof BookBookingIdRoute
   '/q/$enquiryId': typeof QEnquiryIdRoute
   '/enquiries/$enquiryId': typeof AppEnquiriesEnquiryIdRoute
@@ -202,6 +216,7 @@ export interface FileRoutesByTo {
   '/onboarding': typeof OnboardingRoute
   '/privacy': typeof PrivacyRoute
   '/roadmap': typeof RoadmapRoute
+  '/signup': typeof SignupRoute
   '/terms': typeof TermsRoute
   '/updates': typeof UpdatesRoute
   '/bookings': typeof AppBookingsRoute
@@ -209,6 +224,7 @@ export interface FileRoutesByTo {
   '/insights': typeof AppInsightsRoute
   '/lab': typeof AppLabRoute
   '/settings': typeof AppSettingsRoute
+  '/auth/complete': typeof AuthCompleteRoute
   '/book/$bookingId': typeof BookBookingIdRoute
   '/q/$enquiryId': typeof QEnquiryIdRoute
   '/enquiries/$enquiryId': typeof AppEnquiriesEnquiryIdRoute
@@ -229,6 +245,7 @@ export interface FileRoutesById {
   '/onboarding': typeof OnboardingRoute
   '/privacy': typeof PrivacyRoute
   '/roadmap': typeof RoadmapRoute
+  '/signup': typeof SignupRoute
   '/terms': typeof TermsRoute
   '/updates': typeof UpdatesRoute
   '/_app/enquiries': typeof AppEnquiriesRouteRouteWithChildren
@@ -238,6 +255,7 @@ export interface FileRoutesById {
   '/_app/insights': typeof AppInsightsRoute
   '/_app/lab': typeof AppLabRoute
   '/_app/settings': typeof AppSettingsRoute
+  '/auth/complete': typeof AuthCompleteRoute
   '/book/$bookingId': typeof BookBookingIdRoute
   '/q/$enquiryId': typeof QEnquiryIdRoute
   '/_app/enquiries/$enquiryId': typeof AppEnquiriesEnquiryIdRoute
@@ -258,6 +276,7 @@ export interface FileRouteTypes {
     | '/onboarding'
     | '/privacy'
     | '/roadmap'
+    | '/signup'
     | '/terms'
     | '/updates'
     | '/enquiries'
@@ -267,6 +286,7 @@ export interface FileRouteTypes {
     | '/insights'
     | '/lab'
     | '/settings'
+    | '/auth/complete'
     | '/book/$bookingId'
     | '/q/$enquiryId'
     | '/enquiries/$enquiryId'
@@ -285,6 +305,7 @@ export interface FileRouteTypes {
     | '/onboarding'
     | '/privacy'
     | '/roadmap'
+    | '/signup'
     | '/terms'
     | '/updates'
     | '/bookings'
@@ -292,6 +313,7 @@ export interface FileRouteTypes {
     | '/insights'
     | '/lab'
     | '/settings'
+    | '/auth/complete'
     | '/book/$bookingId'
     | '/q/$enquiryId'
     | '/enquiries/$enquiryId'
@@ -311,6 +333,7 @@ export interface FileRouteTypes {
     | '/onboarding'
     | '/privacy'
     | '/roadmap'
+    | '/signup'
     | '/terms'
     | '/updates'
     | '/_app/enquiries'
@@ -320,6 +343,7 @@ export interface FileRouteTypes {
     | '/_app/insights'
     | '/_app/lab'
     | '/_app/settings'
+    | '/auth/complete'
     | '/book/$bookingId'
     | '/q/$enquiryId'
     | '/_app/enquiries/$enquiryId'
@@ -340,8 +364,10 @@ export interface RootRouteChildren {
   OnboardingRoute: typeof OnboardingRoute
   PrivacyRoute: typeof PrivacyRoute
   RoadmapRoute: typeof RoadmapRoute
+  SignupRoute: typeof SignupRoute
   TermsRoute: typeof TermsRoute
   UpdatesRoute: typeof UpdatesRoute
+  AuthCompleteRoute: typeof AuthCompleteRoute
   BookBookingIdRoute: typeof BookBookingIdRoute
   QEnquiryIdRoute: typeof QEnquiryIdRoute
 }
@@ -411,6 +437,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof RoadmapRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/signup': {
+      id: '/signup'
+      path: '/signup'
+      fullPath: '/signup'
+      preLoaderRoute: typeof SignupRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/terms': {
       id: '/terms'
       path: '/terms'
@@ -473,6 +506,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/trust'
       preLoaderRoute: typeof AppTrustRouteRouteImport
       parentRoute: typeof AppRoute
+    }
+    '/auth/complete': {
+      id: '/auth/complete'
+      path: '/auth/complete'
+      fullPath: '/auth/complete'
+      preLoaderRoute: typeof AuthCompleteRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/book/$bookingId': {
       id: '/book/$bookingId'
@@ -596,8 +636,10 @@ const rootRouteChildren: RootRouteChildren = {
   OnboardingRoute: OnboardingRoute,
   PrivacyRoute: PrivacyRoute,
   RoadmapRoute: RoadmapRoute,
+  SignupRoute: SignupRoute,
   TermsRoute: TermsRoute,
   UpdatesRoute: UpdatesRoute,
+  AuthCompleteRoute: AuthCompleteRoute,
   BookBookingIdRoute: BookBookingIdRoute,
   QEnquiryIdRoute: QEnquiryIdRoute,
 }
