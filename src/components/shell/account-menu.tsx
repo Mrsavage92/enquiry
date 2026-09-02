@@ -3,7 +3,9 @@ import { Link } from "@tanstack/react-router";
 import { ChevronDown, FlaskConical, Pause, RotateCcw, Settings, UserRound } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { BUSINESSES } from "@/fixtures";
+import { toast } from "sonner";
 import { usePrototype } from "@/store/prototype-store";
+import { useLiveTrustMutations } from "@/lib/workspace/live-mutations";
 
 export function AccountMenu({
   compact,
@@ -14,8 +16,7 @@ export function AccountMenu({
 }) {
   const filter = usePrototype((s) => s.businessFilter);
   const setFilter = usePrototype((s) => s.setBusinessFilter);
-  const pause = usePrototype((s) => s.pause);
-  const resume = usePrototype((s) => s.resume);
+  const trust = useLiveTrustMutations();
   const businesses = usePrototype((s) => s.businesses);
   const paused = businesses.some((b) => b.paused);
   const reset = usePrototype((s) => s.reset);
@@ -110,8 +111,8 @@ export function AccountMenu({
             onSelect={() => {
               const id = filter === "all" ? businesses[0]?.id : filter;
               if (!id) return;
-              if (paused) resume(id);
-              else pause(id, "outbound");
+              if (paused) void trust.resumeBusiness(id, (m) => toast.error(m));
+              else void trust.pauseBusiness(id, "outbound", (m) => toast.error(m));
             }}
           >
             <Pause className="size-4" aria-hidden />

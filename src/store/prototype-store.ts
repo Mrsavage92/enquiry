@@ -148,6 +148,7 @@ type Actions = {
     businesses: Business[];
     enquiries: Enquiry[];
     bookings: Booking[];
+    audit: AuditEvent[];
   }) => void;
   startSetup: () => void;
   enterSample: () => void;
@@ -314,11 +315,15 @@ export const usePrototype = create<PrototypeState & Actions>()(
         }
         set({ ...seed(), onboarded: get().onboarded });
       },
-      hydrateFromServer: ({ businesses, enquiries, bookings }) =>
+      hydrateFromServer: ({ businesses, enquiries, bookings, audit }) =>
         set((s) => ({
           businesses,
           enquiries,
           bookings,
+          // Real server audit replaces the fixture audit outright. Merging the
+          // two would produce a history the operator cannot trust, which
+          // defeats the point of having one.
+          audit,
           // Live tenants never run demo theatre.
           demoMode: false,
           arrivalPlayed: true,

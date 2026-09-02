@@ -234,3 +234,43 @@ export const setBusinessPause = createServerFn({ method: "POST" })
     });
     return { ok: true as const };
   });
+
+/**
+ * Persist the business-wide trust posture.
+ *
+ * A global mode never overrides a per-action hard gate: this only records how
+ * much latitude the operator has granted overall, and `action_policy` remains
+ * the authority on what any individual action class may do.
+ */
+export const setTrustMode = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .validator((raw: unknown) => {
+    const d = (raw ?? {}) as Record<string, unknown>;
+    const businessId = typeof d.businessId === "string" ? d.businessId : "";
+    const mode = typeof d.mode === "string" ? d.mode : "";
+    if (!businessId) throw new Error("A business id is required.");
+    // Whitelisted, not passed through - this column widens what the system may
+    // be permitted to do.
+    if (!["Private", "Observe", "Assist", "Autopilot"].includes(mode)) {
+      throw new Error("Unknown trust mode.");
+    }
+    return { businessId, mode };
+  })
+  .handler(async ({ context, data }) => {
+    const { getSql } = await import("@/lib/db");
+    const { requireBusinessAccess, recordAudit } = await import(
+      "@/lib/repo/tenancy.server"
+    );
+    const businessId = await requireBusinessAccess(context.userId, data.businessId);
+    const sql = await getSql();
+    await sql`
+      update business set trust_mode = ${data.mode}, updated_at = now()
+      where id = ${businessId}
+    `;
+    await recordAudit(businessId, {
+      actor: context.userId,
+      summary: `Trust mode set to ${data.mode}`,
+      objectType: "trust",
+    });
+    return { ok: true as const };
+  });

@@ -3,7 +3,9 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { PageHeader } from "@/components/ui/page-header";
 import { BUSINESSES } from "@/fixtures";
+import { toast } from "sonner";
 import { usePrototype } from "@/store/prototype-store";
+import { useLiveTrustMutations } from "@/lib/workspace/live-mutations";
 import { WorkspaceSettingUp } from "@/components/shell/workspace-setting-up";
 import type { ActionPolicyMode } from "@/domain/types";
 import { cn } from "@/lib/utils";
@@ -13,16 +15,16 @@ export function TrustOverview() {
   const businesses = usePrototype((s) => s.businesses);
   const filter = usePrototype((s) => s.businessFilter);
   const setFilter = usePrototype((s) => s.setBusinessFilter);
-  const pause = usePrototype((s) => s.pause);
-  const resume = usePrototype((s) => s.resume);
-  const setMode = usePrototype((s) => s.setTrustMode);
+  // Store updates immediately; in live mode the same change is written through
+  // to the server, and a failed write is surfaced rather than swallowed.
+  const trust = useLiveTrustMutations();
   const lastAutomated = usePrototype((s) => s.lastAutomated);
   // No business means a real tenant whose workspace has not been hydrated yet
   // (R2B). Falling back to businesses[0] here used to resolve to the fixture
   // "glow" studio and render its Brain/trust state as this tenant's own.
   const id = filter === "all" ? businesses[0]?.id : filter;
   const business = businesses.find((b) => b.id === id) ?? businesses[0];
-  const autoCount = business.actionPolicies.filter((p) => p.mode === "Automatic when safe").length;
+  const autoCount = (business?.actionPolicies ?? []).filter((p) => p.mode === "Automatic when safe").length;
   const phone = useNarrow(860) !== false;
 
   // Below every hook. A real tenant with no hydrated workspace (R2B) gets a
@@ -70,7 +72,7 @@ export function TrustOverview() {
           <button
             key={m}
             type="button"
-            onClick={() => setMode(business.id, m)}
+            onClick={() => void trust.setTrustMode(business.id, m, (msg) => toast.error(msg))}
             className={cn(
               "rounded-lg px-4 py-4 text-left text-sm transition-[background-color,color,box-shadow] duration-150 ease-out",
               business.trustMode === m
@@ -122,9 +124,9 @@ export function TrustOverview() {
 
       <div className="mt-6 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
         {business.paused ? (
-          <Button className="min-h-12" onClick={() => resume(business.id)}>Resume Enquiry</Button>
+          <Button className="min-h-12" onClick={() => void trust.resumeBusiness(business.id, (msg) => toast.error(msg))}>Resume Enquiry</Button>
         ) : (
-          <Button className="min-h-12" variant="warn" onClick={() => pause(business.id, "outbound")}>
+          <Button className="min-h-12" variant="warn" onClick={() => void trust.pauseBusiness(business.id, "outbound", (msg) => toast.error(msg))}>
             Pause outbound
           </Button>
         )}
@@ -265,7 +267,7 @@ export function TrustAccess() {
 export function TrustAutomation() {
   const businesses = usePrototype((s) => s.businesses);
   const filter = usePrototype((s) => s.businessFilter);
-  const setPolicy = usePrototype((s) => s.setActionPolicy);
+  const trust = useLiveTrustMutations();
   const lastAuto = usePrototype((s) => s.lastAutomated);
   const demoMode = usePrototype((s) => s.demoMode);
   // Every hook is called above this line. No business means a real tenant whose
@@ -315,7 +317,7 @@ export function TrustAutomation() {
                     key={m}
                     type="button"
                     disabled={p.risk === "HIGH" && m === "Automatic when safe"}
-                    onClick={() => setPolicy(business.id, p.action, m)}
+                    onClick={() => void trust.setActionPolicy(business.id, p.action, m, (msg) => toast.error(msg))}
                     className={cn(
                       "min-h-10 rounded-md px-3 text-xs font-medium transition-[background-color,color] duration-150 disabled:opacity-40",
                       p.mode === m ? "bg-ink text-paper shadow-border" : "text-ink-2 hover:text-ink",

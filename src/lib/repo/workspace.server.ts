@@ -1,7 +1,8 @@
 import { getSql } from "@/lib/db";
-import type { Booking, Business, Enquiry } from "@/domain/types";
+import type { AuditEvent, Booking, Business, Enquiry } from "@/domain/types";
 import {
   toActionPolicy,
+  toAuditEvent,
   toBooking,
   toBusiness,
   toEnquiry,
@@ -13,6 +14,7 @@ import {
   toQuote,
   toService,
   type ActionPolicyRow,
+  type AuditRow,
   type BookingRow,
   type BusinessRow,
   type EnquiryRow,
@@ -44,9 +46,17 @@ export type WorkspaceData = {
   businesses: Business[];
   enquiries: Enquiry[];
   bookings: Booking[];
+  /**
+   * The tenant's REAL audit history. Deliberately separate from the prototype's
+   * fixture audit and from instrumentation events - the product promises the
+   * operator can ask "why did it do that, and was it allowed to", and mixing
+   * three sources into one list with no provenance would make that answer
+   * untrustworthy (R2B s7).
+   */
+  audit: AuditEvent[];
 };
 
-const EMPTY: WorkspaceData = { businesses: [], enquiries: [], bookings: [] };
+const EMPTY: WorkspaceData = { businesses: [], enquiries: [], bookings: [], audit: [] };
 
 /** Group rows by a key, preserving arrival order within each group. */
 function groupBy<T>(rows: T[], key: (row: T) => string): Map<string, T[]> {
@@ -81,6 +91,7 @@ export async function loadWorkspace(userId: string): Promise<WorkspaceData> {
     learningRows,
     enquiryRows,
     bookingRows,
+    auditRows,
   ] = await Promise.all([
     sql<BusinessRow>`select * from business where id = any(${businessIds}) order by name`,
     sql<ServiceRow & { business_id: string }>`
@@ -98,6 +109,10 @@ export async function loadWorkspace(userId: string): Promise<WorkspaceData> {
       select * from enquiry where business_id = any(${businessIds}) order by received_at desc`,
     sql<BookingRow>`
       select * from booking where business_id = any(${businessIds}) order by starts_at`,
+    sql<AuditRow>`
+      select id, at, actor, summary, detail, object_type, object_id
+      from audit_event where business_id = any(${businessIds})
+      order by at desc limit 200`,
   ]);
 
   const enquiryIds = enquiryRows.map((e) => e.id);
@@ -143,5 +158,10 @@ export async function loadWorkspace(userId: string): Promise<WorkspaceData> {
     }),
   );
 
-  return { businesses, enquiries, bookings: bookingRows.map(toBooking) };
+  return {
+    businesses,
+    enquiries,
+    bookings: bookingRows.map(toBooking),
+    audit: auditRows.map(toAuditEvent),
+  };
 }

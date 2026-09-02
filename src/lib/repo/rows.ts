@@ -1,5 +1,6 @@
 import type {
   ActionPolicy,
+  AuditEvent,
   Booking,
   Business,
   DecisionSnapshot,
@@ -206,6 +207,28 @@ export type BookingRow = {
   handoff: string | null;
   deposit_paid: boolean;
 };
+
+export type AuditRow = {
+  id: string;
+  at: string | Date;
+  actor: string;
+  summary: string;
+  detail: string | null;
+  object_type: string;
+  object_id: string | null;
+};
+
+export function toAuditEvent(r: AuditRow): AuditEvent {
+  return {
+    id: r.id,
+    at: iso(r.at),
+    actor: r.actor,
+    summary: r.summary,
+    detail: r.detail ?? undefined,
+    objectType: r.object_type as AuditEvent["objectType"],
+    objectId: r.object_id ?? undefined,
+  };
+}
 
 export function toService(r: ServiceRow): Service {
   return {

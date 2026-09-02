@@ -69,6 +69,7 @@ function LiveWorkspaceBoundary({ children }: { children: ReactNode }) {
           businesses: data.businesses,
           enquiries: data.enquiries,
           bookings: data.bookings,
+          audit: data.audit,
         });
         setState({ phase: "ready" });
       })

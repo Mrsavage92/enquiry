@@ -1,13 +1,15 @@
 import { Pause, WifiOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
 import { usePrototype } from "@/store/prototype-store";
+import { useLiveTrustMutations } from "@/lib/workspace/live-mutations";
 import { useNarrow } from "@/lib/use-narrow";
 
 export function SystemBanners() {
   const offline = usePrototype((s) => s.offline);
   const businesses = usePrototype((s) => s.businesses);
   const filter = usePrototype((s) => s.businessFilter);
-  const resume = usePrototype((s) => s.resume);
+  const trust = useLiveTrustMutations();
   const paused = businesses.filter((b) => b.paused);
   const scoped =
     filter === "all" ? paused : paused.filter((b) => b.id === filter);
@@ -43,7 +45,7 @@ export function SystemBanners() {
             size="sm"
             variant="secondary"
             className="h-8"
-            onClick={() => scoped.forEach((b) => resume(b.id))}
+            onClick={() => scoped.forEach((b) => void trust.resumeBusiness(b.id, (m) => toast.error(m)))}
           >
             Resume
           </Button>
