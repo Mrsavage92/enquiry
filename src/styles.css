@@ -10,7 +10,16 @@
   --color-raised: #faf7f1;
   --color-ink: #1a1814;
   --color-ink-2: #4f4a42;
-  --color-stone: #7a7368;
+  /*
+    Darkened from #7a7368, which failed WCAG AA everywhere it was used: 4.06:1
+    on --color-paper and 4.38:1 on --color-raised, against the 4.5:1 minimum for
+    body-size text. Stone carries eyebrows, meta labels, timestamps and captions
+    across the whole site, so the failure was systematic rather than local.
+    #716b61 measures 4.57:1 on paper and 4.94:1 on raised - the smallest step
+    that clears AA on the harder of the two backgrounds while keeping the warm
+    grey character.
+  */
+  --color-stone: #716b61;
   --color-line: #e6ddd2;
   --color-line-strong: #cfc4b4;
   --color-sidebar: #141210;

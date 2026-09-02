@@ -9,7 +9,20 @@ import {
   type SignatureScene,
 } from "@/lib/site/signature-demo";
 
-export function CrossChannelDecisionDemo({ compact = false }: { compact?: boolean }) {
+/**
+ * `headingLevel` exists because this block is the ONLY substantial content on
+ * /demo, where its headline is the page's h1. On the homepage it sits under an
+ * existing h1, so it must stay an h2 there. Defaulting to h2 keeps every
+ * current caller correct.
+ */
+export function CrossChannelDecisionDemo({
+  compact = false,
+  headingLevel = "h2",
+}: {
+  compact?: boolean;
+  headingLevel?: "h1" | "h2";
+}) {
+  const Heading = headingLevel;
   const [scene, setScene] = useState<SignatureScene>("form");
   const [whyOpen, setWhyOpen] = useState(false);
   const liveId = useId();
@@ -32,9 +45,9 @@ export function CrossChannelDecisionDemo({ compact = false }: { compact?: boolea
         <header className="max-w-3xl">
           <p className="eyebrow">{SIGNATURE_DEMO.business}</p>
           <span className="page-rule" aria-hidden />
-          <h2 className="site-display-proof mt-5">
+          <Heading className="site-display-proof mt-5">
             {SIGNATURE_DEMO.headline}
-          </h2>
+          </Heading>
           <p className="site-lede mt-5">
             {SIGNATURE_DEMO.supporting}
           </p>

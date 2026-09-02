@@ -21,7 +21,7 @@ function Demo() {
   return (
     <SiteShell>
       <section className="mx-auto max-w-5xl px-5 py-8 sm:py-12">
-        <CrossChannelDecisionDemo />
+        <CrossChannelDecisionDemo headingLevel="h1" />
         <div className="mt-10 flex flex-col gap-3 sm:flex-row">
           <Button asChild className="min-h-12">
             <Link to="/early-access">Join early access</Link>
