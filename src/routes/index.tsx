@@ -6,6 +6,7 @@ import { CrossChannelDecisionDemo } from "@/components/site/cross-channel-decisi
 import { Button } from "@/components/ui/button";
 import { ROADMAP_PREVIEW } from "@/lib/launch/roadmap";
 import { HeroIn, Reveal, SiteVideo } from "@/components/site/motion";
+import { BrowserFrame, PhoneFrame } from "@/components/site/device-frame";
 import { useNarrow } from "@/lib/use-narrow";
 
 export const Route = createFileRoute("/")({
@@ -68,18 +69,44 @@ function Home() {
 
       <section className="border-t border-line">
         <div className="mx-auto max-w-5xl px-5 py-12 sm:py-20">
-          <div className="site-plate px-5 py-10 sm:px-12 sm:py-14">
-            <div className="pointer-events-none mx-auto flex justify-center">
-              <SiteVideo
-                className="aspect-[9/16] w-[min(100%,16.5rem)] rounded-md object-cover shadow-plate outline outline-1 -outline-offset-1 outline-white/10 sm:w-[min(100%,19rem)]"
-                src="/product/send-phone.mp4?v=15"
-                poster="/product/poster-phone.jpg"
-                label="A woman opens Enquiry on her phone. A new enquiry is already understood. She sends the reply."
-              />
+          {/*
+            The phone used to float at 304px in the middle of a 984px plate with
+            black voids either side. It is now framed as a handset and paired
+            with the claim it is evidence for, so the plate carries a product
+            shot and an argument instead of one small rectangle.
+          */}
+          <div className="site-plate px-5 py-10 sm:px-10 sm:py-14">
+            <div className="grid items-center gap-10 lg:grid-cols-[minmax(0,25rem)_1fr] lg:gap-16">
+              <PhoneFrame className="pointer-events-none mx-auto w-full max-w-[19rem] lg:mx-0 lg:max-w-none">
+                <SiteVideo
+                  className="block aspect-[9/16] w-full object-cover"
+                  src="/product/send-phone.mp4?v=16"
+                  poster="/product/poster-phone.jpg"
+                  label="Enquiry on a phone. A new enquiry is already understood, and the reply is ready to send."
+                />
+              </PhoneFrame>
+
+              <div className="text-center lg:text-left">
+                <p className="eyebrow text-paper/55">On the phone</p>
+                <p className="site-caption mt-3 text-paper">
+                  New enquiry. Request understood. Next action prepared.
+                </p>
+                <ul className="mx-auto mt-7 max-w-sm lg:mx-0 lg:max-w-none">
+                  {[
+                    "It reads what the customer actually wrote.",
+                    "It checks the things this business always checks.",
+                    "You read it, and you send it.",
+                  ].map((line) => (
+                    <li
+                      key={line}
+                      className="border-t border-white/10 py-3.5 text-sm text-paper/75 last:border-b"
+                    >
+                      {line}
+                    </li>
+                  ))}
+                </ul>
+              </div>
             </div>
-            <p className="site-caption mt-8 text-center text-paper/80">
-              New enquiry. Request understood. Next action prepared.
-            </p>
           </div>
         </div>
       </section>
@@ -205,21 +232,30 @@ function Home() {
 
       {desk ? (
       <section className="border-t border-line">
-        <div className="mx-auto max-w-5xl px-5 py-12 sm:py-20">
+        {/*
+          Wider than the rest of the page on purpose. This capture is the full
+          operator desk, and at the 1024px measure the page uses for prose it
+          rendered the app at about half scale - every label and line of the
+          case file too small to read, which defeats the only thing the shot is
+          there to show.
+        */}
+        <div className="mx-auto max-w-[84rem] px-5 py-12 sm:py-20">
           <Reveal>
             <p className="eyebrow">At the desk</p>
             <p className="mt-3 max-w-xl text-sm leading-relaxed text-ink-2">
               Same job. Full case file. The website is here if you sit down.
             </p>
           </Reveal>
-          <div className="site-plate mt-8 overflow-hidden">
-            <SiteVideo
-              className="aspect-video w-full object-cover outline outline-1 -outline-offset-1 outline-white/10"
-              src="/product/send.mp4?v=14"
-              poster="/product/poster-desk.jpg"
-              label="The same send on a laptop - full case file, drafted reply, sent."
-            />
-          </div>
+          <Reveal>
+            <BrowserFrame className="mt-8" url="enquiry.app/enquiries">
+              <SiteVideo
+                className="block aspect-video w-full object-cover"
+                src="/product/send.mp4?v=18"
+                poster="/product/poster-desk.jpg"
+                label="The same send on a laptop - full case file, drafted reply, sent."
+              />
+            </BrowserFrame>
+          </Reveal>
         </div>
       </section>
       ) : null}
