@@ -1,3 +1,4 @@
+import { emptyDecisionSnapshot } from "@/domain/decision-snapshot";
 import type {
   ActionPolicy,
   AuditEvent,
@@ -411,7 +412,13 @@ export function toEnquiry(
 ): Enquiry {
   // The snapshot is derived and stored whole. Quotes live relationally because
   // they are versioned and sent, so they are stitched back in here.
-  const snapshot = (r.decision_snapshot ?? {}) as Partial<DecisionSnapshot>;
+  // Merged onto a structurally complete default rather than cast to one. The
+  // cast compiled and then crashed the desk on the first enquiry a business
+  // added by hand, which had no stored snapshot and so no `evaluators` array.
+  const snapshot: DecisionSnapshot = {
+    ...emptyDecisionSnapshot(),
+    ...((r.decision_snapshot ?? {}) as Partial<DecisionSnapshot>),
+  };
   return {
     id: r.id,
     // The prototype keyed fixtures by a short id; persisted enquiries are keyed
@@ -444,7 +451,7 @@ export function toEnquiry(
     ),
     facts: parts.facts,
     conversation: parts.conversation,
-    decision: { ...(snapshot as DecisionSnapshot), quotes: parts.quotes },
+    decision: { ...snapshot, quotes: parts.quotes },
     duplicateOf: r.duplicate_of ?? undefined,
     atRisk: r.at_risk || undefined,
     followUpDue: r.follow_up_due || undefined,

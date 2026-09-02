@@ -26,14 +26,25 @@ export type Decision = {
   blocker?: { field: string; reason: string };
 };
 
+/**
+ * The smallest thing that can carry a rule.
+ *
+ * Deliberately looser than `KnowledgeItem` so a server handler can pass rows
+ * straight out of the database without inventing the display fields the desk
+ * needs and this decision does not.
+ */
+export type RuleBearingKnowledge = { state?: string | null; rulePayload?: unknown };
+
 /** Pull the confirmed, machine-usable rules out of a business's Brain. */
-export function activeRules(business: Pick<Business, "knowledge">): BusinessRule[] {
+export function activeRules(business: {
+  knowledge?: ReadonlyArray<RuleBearingKnowledge | KnowledgeItem> | null;
+}): BusinessRule[] {
   const out: BusinessRule[] = [];
   for (const item of business.knowledge ?? []) {
     // Only Active knowledge may price anything. A Proposed rule is a suggestion
     // waiting on a human, and using it would make confirmation meaningless.
     if (item.state !== "Active") continue;
-    const payload = (item as KnowledgeItem & { rulePayload?: unknown }).rulePayload;
+    const payload = (item as RuleBearingKnowledge).rulePayload;
     if (payload === undefined || payload === null) continue;
     const parsed = parseBusinessRule(payload);
     if (parsed.ok) out.push(parsed.rule);
@@ -61,7 +72,7 @@ export function toCompilerFacts(facts: EnquiryFact[]): CompilerFact[] {
  *                   inventing a number.
  */
 export function decideEnquiry(
-  business: Pick<Business, "knowledge">,
+  business: { knowledge?: ReadonlyArray<RuleBearingKnowledge | KnowledgeItem> | null },
   enquiry: Pick<Enquiry, "serviceLabel" | "facts">,
 ): Decision {
   const rules = activeRules(business);

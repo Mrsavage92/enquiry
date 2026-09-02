@@ -91,21 +91,38 @@ export const createManualEnquiry = createServerFn({ method: "POST" })
     };
   })
   .handler(async ({ context, data }) => {
-    const { withTransaction } = await import("@/lib/db");
+    const { getSql, withTransaction } = await import("@/lib/db");
     const { requireBusinessAccess, recordAudit } = await import("@/lib/repo/tenancy.server");
+    const { decideEnquiry } = await import("@/domain/decide");
+    const { snapshotFromDecision } = await import("@/domain/decision-snapshot");
     const businessId = await requireBusinessAccess(context.userId, data.businessId);
+
+    // Decide it on arrival, from this business's own confirmed rules. An
+    // enquiry stored with no decision is an enquiry the desk cannot show and
+    // the owner cannot act on - the whole point is that it arrives already
+    // worked out, or already knowing what it needs.
+    const sqlRead = await getSql();
+    const knowledge = await sqlRead<{ state: string; rule_payload: unknown }>`
+      select state, rule_payload from knowledge_item
+      where business_id = ${businessId} and rule_payload is not null
+    `;
+    const decision = decideEnquiry(
+      { knowledge: knowledge.map((k) => ({ state: k.state, rulePayload: k.rule_payload })) },
+      { serviceLabel: data.serviceLabel, facts: [] },
+    );
+    const snapshot = snapshotFromDecision(decision);
 
     const enquiryId = await withTransaction(async (sql) => {
       const rows = await sql<{ id: string }>`
         insert into enquiry (
           business_id, customer_name, customer_email, customer_phone, source,
           service_label, lifecycle, decision_state, commercial_state,
-          responsibility, intake_note, received_at, updated_at
+          responsibility, intake_note, decision_snapshot, received_at, updated_at
         ) values (
           ${businessId}, ${data.customerName}, ${data.customerEmail},
           ${data.customerPhone || null}, ${"manual"}, ${data.serviceLabel},
           ${"OPEN"}, ${"EVALUATING"}, ${"UNASSESSED"}, ${"SYSTEM"},
-          ${data.intakeNote || null}, now(), now()
+          ${data.intakeNote || null}, ${JSON.stringify(snapshot)}::jsonb, now(), now()
         )
         returning id
       `;

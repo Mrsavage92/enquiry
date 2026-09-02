@@ -131,7 +131,6 @@ export function BrainScreen() {
   if (!business) return <WorkspaceSettingUp />;
   return (
     <div className="mx-auto h-full max-w-3xl overflow-y-auto px-4 py-5 pb-8 sm:py-8">
-      <PricingRules business={business} />
       <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
           {phone ? null : <p className="eyebrow">Business Brain</p>}
@@ -178,6 +177,8 @@ export function BrainScreen() {
         <span className="font-serif tabular-nums text-ink">{pendingLearn.length}</span>
         <span className="text-stone"> learning</span>
       </p>
+
+      <PricingRules business={business} />
 
       <form
         className="mt-6"
