@@ -112,8 +112,30 @@ export function publicAppHost(hostHeader) {
  */
 export function resolvePublicHost(hostHeader) {
   return (
-    publicAppHost(process.env?.VITE_PUBLIC_HOSTNAME) || publicAppHost(hostHeader)
+    publicAppHost(process.env?.VITE_PUBLIC_HOSTNAME) ||
+    // An app deployed to its own *.vercel.app domain is a real public host, not
+    // the platform's preview infrastructure. Without this the og:image block
+    // never ran and every share rendered an empty card, because
+    // publicAppHost() screens out the whole vercel.app suffix.
+    deployedAppHost(process.env?.VITE_PUBLIC_SITE_HOST) ||
+    publicAppHost(hostHeader)
   );
+}
+
+/**
+ * A deliberately configured public host, allowed to be a *.vercel.app domain.
+ * Only ever read from configuration - never from a request header, so a forged
+ * Host cannot point og:image at someone else's domain.
+ */
+export function deployedAppHost(configured) {
+  const host = String(configured ?? "")
+    .split(",")[0]
+    .trim()
+    .split(":")[0]
+    .toLowerCase();
+  if (!host || !/^[a-z0-9.-]+$/.test(host) || !host.includes(".")) return "";
+  if (/^\d{1,3}(?:\.\d{1,3}){3}$/.test(host)) return "";
+  return host;
 }
 
 export function isInstallQuery(url) {
@@ -303,10 +325,14 @@ export function resolveOgTitle(
   host = "",
   documentTitle = "",
 ) {
-  const fromSite = String(site.title ?? "").trim();
-  if (fromSite) return fromSite;
+  // The page's own <title> wins. site.title is a whole-site fallback, and
+  // preferring it meant every shared URL previewed identically as "Enquiry"
+  // no matter which page was shared - which silently flattens link sharing,
+  // the main distribution channel for a founder-led launch.
   const fromDoc = String(documentTitle ?? "").trim();
   if (fromDoc) return fromDoc;
+  const fromSite = String(site.title ?? "").trim();
+  if (fromSite) return fromSite;
   const fromHost = appNameFromHost(host);
   if (fromHost && fromHost !== DEFAULT_APP_NAME) return fromHost;
   const fromArg = String(appName ?? "").trim();
