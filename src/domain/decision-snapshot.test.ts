@@ -1,6 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { emptyDecisionSnapshot, snapshotFromDecision } from "./decision-snapshot.ts";
+import {
+  emptyDecisionSnapshot,
+  snapshotFromDecision,
+  stateFromDecision,
+} from "./decision-snapshot.ts";
 import { decideEnquiry } from "./decide.ts";
 
 /**
@@ -93,4 +97,46 @@ test("a business with no rules escalates rather than inventing a price", () => {
   );
   assert.equal(snapshot.recommendation.action, "ESCALATE_HUMAN");
   assert.equal(snapshot.recommendation.primaryEnabled, false);
+});
+
+test("a decided enquiry never sits on EVALUATING, waiting on nothing", () => {
+  const priced = decideEnquiry(
+    {
+      knowledge: [
+        {
+          state: "Active",
+          rulePayload: { kind: "fixed_price", service: "Trial", amount: 120, currency: "AUD" },
+        },
+      ],
+    },
+    { serviceLabel: "Trial", facts: [] },
+  );
+  assert.deepEqual(stateFromDecision(priced), {
+    decisionState: "ACTION_READY",
+    commercialState: "QUOTABLE",
+    responsibility: "BUSINESS",
+  });
+
+  const blocked = decideEnquiry(
+    {
+      knowledge: [
+        {
+          state: "Active",
+          rulePayload: {
+            kind: "per_unit",
+            service: "Group",
+            amount: 145,
+            currency: "AUD",
+            unit: "person",
+            quantityField: "guests",
+          },
+        },
+      ],
+    },
+    { serviceLabel: "Group", facts: [] },
+  );
+  assert.equal(stateFromDecision(blocked).decisionState, "NEEDS_INFORMATION");
+
+  const noRule = decideEnquiry({ knowledge: [] }, { serviceLabel: "Anything", facts: [] });
+  assert.equal(stateFromDecision(noRule).decisionState, "NEEDS_HUMAN");
 });

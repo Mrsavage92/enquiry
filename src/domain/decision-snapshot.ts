@@ -1,5 +1,5 @@
 import type { Decision } from "./decide.ts";
-import type { DecisionSnapshot, Recommendation } from "./types";
+import type { CommercialState, DecisionSnapshot, DecisionState, Recommendation, Responsibility } from "./types";
 
 /**
  * A structurally complete decision snapshot for an enquiry that has no stored
@@ -73,5 +73,40 @@ export function snapshotFromDecision(decision: Decision): DecisionSnapshot {
         ]
       : [],
     draft: { ...base.draft, action: decision.action },
+  };
+}
+
+/**
+ * The composite state a decision puts the enquiry into.
+ *
+ * Stored alongside the snapshot because the desk reads the columns, not the
+ * snapshot, to decide what to show. Leaving a decided enquiry on EVALUATING
+ * showed "Wait until Enquiry finishes reading" over an enquiry that had
+ * already been read - waiting on nothing, forever.
+ */
+export function stateFromDecision(decision: Decision): {
+  decisionState: DecisionState;
+  commercialState: CommercialState;
+  responsibility: Responsibility;
+} {
+  if (decision.action === "SEND_QUOTE") {
+    // Priced and ready for the owner to send. The ball is theirs.
+    return {
+      decisionState: "ACTION_READY",
+      commercialState: "QUOTABLE",
+      responsibility: "BUSINESS",
+    };
+  }
+  if (decision.action === "REQUEST_INFORMATION") {
+    return {
+      decisionState: "NEEDS_INFORMATION",
+      commercialState: "UNASSESSED",
+      responsibility: "BUSINESS",
+    };
+  }
+  return {
+    decisionState: "NEEDS_HUMAN",
+    commercialState: "UNASSESSED",
+    responsibility: "BUSINESS",
   };
 }

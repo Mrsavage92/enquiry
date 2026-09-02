@@ -94,7 +94,7 @@ export const createManualEnquiry = createServerFn({ method: "POST" })
     const { getSql, withTransaction } = await import("@/lib/db");
     const { requireBusinessAccess, recordAudit } = await import("@/lib/repo/tenancy.server");
     const { decideEnquiry } = await import("@/domain/decide");
-    const { snapshotFromDecision } = await import("@/domain/decision-snapshot");
+    const { snapshotFromDecision, stateFromDecision } = await import("@/domain/decision-snapshot");
     const businessId = await requireBusinessAccess(context.userId, data.businessId);
 
     // Decide it on arrival, from this business's own confirmed rules. An
@@ -111,6 +111,7 @@ export const createManualEnquiry = createServerFn({ method: "POST" })
       { serviceLabel: data.serviceLabel, facts: [] },
     );
     const snapshot = snapshotFromDecision(decision);
+    const state = stateFromDecision(decision);
 
     const enquiryId = await withTransaction(async (sql) => {
       const rows = await sql<{ id: string }>`
@@ -121,7 +122,8 @@ export const createManualEnquiry = createServerFn({ method: "POST" })
         ) values (
           ${businessId}, ${data.customerName}, ${data.customerEmail},
           ${data.customerPhone || null}, ${"manual"}, ${data.serviceLabel},
-          ${"OPEN"}, ${"EVALUATING"}, ${"UNASSESSED"}, ${"SYSTEM"},
+          ${"OPEN"}, ${state.decisionState}, ${state.commercialState},
+          ${state.responsibility},
           ${data.intakeNote || null}, ${JSON.stringify(snapshot)}::jsonb, now(), now()
         )
         returning id
