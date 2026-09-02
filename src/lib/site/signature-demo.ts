@@ -71,7 +71,7 @@ export const SIGNATURE_DEMO = {
       {
         id: "capacity",
         label: "Capacity",
-        value: "Provisional — two-person crew can cover this window",
+        value: "Provisional - two-person crew can cover this window",
         tone: "ok",
         why: RIDGE_CREW_WINDOW_RULE.body,
       },
@@ -86,7 +86,7 @@ export const SIGNATURE_DEMO = {
     channel: "Text message",
     at: "Wed 26 Aug, 7:22am",
     message:
-      "Hey, Maya from the website form. Settlement has moved forward — could we have it finished by Wednesday the 16th instead? And we’d like the ceilings done too.",
+      "Hey, Maya from the website form. Settlement has moved forward - could we have it finished by Wednesday the 16th instead? And we’d like the ceilings done too.",
     want: "Interior painting · 4 bedrooms + living + ceilings · New Farm",
     facts: [
       {
@@ -109,7 +109,7 @@ export const SIGNATURE_DEMO = {
       {
         id: "capacity",
         label: "Capacity",
-        value: "Feasible with condition — third contractor required",
+        value: "Feasible with condition - third contractor required",
         tone: "warn",
         changed: true,
         why: RIDGE_CREW_WINDOW_RULE.body,
@@ -117,7 +117,7 @@ export const SIGNATURE_DEMO = {
     ],
     nextAction: "Confirm the extra crew option and keep the site measure",
     nextReason:
-      "The earlier deadline plus ceilings needs the third contractor. Keep the site measure — the quote still isn’t final until then.",
+      "The earlier deadline plus ceilings needs the third contractor. Keep the site measure - the quote still isn’t final until then.",
     commercialNote: "Final quote follows site measure.",
     link: {
       label: "Linked to Maya’s existing enquiry",

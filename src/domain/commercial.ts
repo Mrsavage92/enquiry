@@ -53,7 +53,7 @@ export function enableFollowUp(enquiry: Enquiry): Enquiry {
   next.decision.draft = {
     ...next.decision.draft,
     action: "FOLLOW_UP",
-    body: `Hi ${name},\n\nJust checking you still want this — the quote already sent stays as written. Happy to hold the date if so.\n\n`,
+    body: `Hi ${name},\n\nJust checking you still want this - the quote already sent stays as written. Happy to hold the date if so.\n\n`,
   };
   return next;
 }
@@ -75,7 +75,7 @@ export function proposeRevision(enquiry: Enquiry): Enquiry {
     lineItems: latest.lineItems.map((li) => ({ ...li, id: `${li.id}-v${version}` })),
     assumptions: [
       ...(latest.assumptions ?? []),
-      "Date change requested — price holds unless the work changes",
+      "Date change requested - price holds unless the work changes",
     ],
     ruleSetVersion: latest.ruleSetVersion,
     hold: latest.hold ?? defaultHold(latest.total?.amount),
@@ -158,9 +158,9 @@ export function declineWithLetter(
 export function defaultDeclineBody(enquiry: Enquiry, ownerFirst: string): string {
   const first = firstName(enquiry.customerName);
   if (isShortChannel(replyChannel(enquiry))) {
-    return `Hi ${first} — I’m not the right fit for this one. Thank you for writing.`;
+    return `Hi ${first} - I’m not the right fit for this one. Thank you for writing.`;
   }
-  return `Hi ${first},\n\nI'm not the right fit for this one. Thank you for writing — I didn't want to leave you waiting.\n\n${ownerFirst}`;
+  return `Hi ${first},\n\nI'm not the right fit for this one. Thank you for writing - I didn't want to leave you waiting.\n\n${ownerFirst}`;
 }
 
 export function autopilotEligible(

@@ -12,7 +12,7 @@ export const Route = createFileRoute("/")({
   component: Home,
   head: () => ({
     meta: [
-      { title: "Enquiry — stop managing enquiries" },
+      { title: "Enquiry - stop managing enquiries" },
       {
         name: "description",
         content:
@@ -126,7 +126,7 @@ function Home() {
         </Reveal>
         <ol className="mt-8 max-w-xl space-y-0">
           {[
-            "A customer writes in — form, text, Instagram, or mail.",
+            "A customer writes in - form, text, Instagram, or mail.",
             "You reconstruct what they want, what matters for this job, and whether you can do it.",
             "You reply. Then you remember to follow up.",
           ].map((line, i) => (
@@ -150,7 +150,7 @@ function Home() {
               If customers ask before they book.
             </h2>
             <p className="mt-3 max-w-xl text-sm leading-relaxed text-ink-2">
-              Makeup, photography, painting, consulting — the trade changes. The problem does not: a
+              Makeup, photography, painting, consulting - the trade changes. The problem does not: a
               messy request, a decision that depends on how you work, and a next step that should
               not wait.
             </p>
@@ -177,7 +177,7 @@ function Home() {
             {[
               {
                 title: "Business Brain",
-                body: "Services, rules, voice, and prices where they apply — learned from how you actually work. A correction can fix this job, or teach Enquiry the business.",
+                body: "Services, rules, voice, and prices where they apply - learned from how you actually work. A correction can fix this job, or teach Enquiry the business.",
               },
               {
                 title: "The case file",
@@ -217,7 +217,7 @@ function Home() {
               className="aspect-video w-full object-cover outline outline-1 -outline-offset-1 outline-white/10"
               src="/product/send.mp4?v=14"
               poster="/product/poster-desk.jpg"
-              label="The same send on a laptop — full case file, drafted reply, sent."
+              label="The same send on a laptop - full case file, drafted reply, sent."
             />
           </div>
         </div>
@@ -263,7 +263,7 @@ function Home() {
             },
             {
               t: "We invite in small groups",
-              b: "As the product is ready — not as a countdown or a queue position.",
+              b: "As the product is ready - not as a countdown or a queue position.",
             },
             {
               t: "You open the app",
@@ -322,7 +322,7 @@ function Home() {
             </h2>
             <p className="mt-3 max-w-xl text-sm leading-relaxed text-ink-2">
               Join early access. Open the app to see the product case file. We’re building
-              for service businesses — makeup, photography, painting, consulting — because someone
+              for service businesses - makeup, photography, painting, consulting - because someone
               interested still has to become booked, or lost, without you reconstructing every job
               by hand.
             </p>

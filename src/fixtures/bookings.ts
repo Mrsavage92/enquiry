@@ -78,6 +78,6 @@ export const BOOKINGS: Booking[] = [
     location: "Atelier Field",
     value: { amount: 4800, currency: "AUD" },
     status: "external_pending",
-    handoff: "External booking page — awaiting commencement fee",
+    handoff: "External booking page - awaiting commencement fee",
   },
 ];

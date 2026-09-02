@@ -18,7 +18,7 @@ function rec(
   };
 }
 
-/** A Glow enquiry that has just landed — facts extracted, decision not yet. */
+/** A Glow enquiry that has just landed - facts extracted, decision not yet. */
 export function arrivingEnquiry(id: string): Enquiry {
   return {
     id,
@@ -189,7 +189,7 @@ export function resolveArriving(enquiry: Enquiry): Enquiry {
     conflicts: [],
     recommendation: rec(
       "SEND_QUOTE",
-      "Three people at the group rate, plus travel. They wrote on Instagram — reply there.",
+      "Three people at the group rate, plus travel. They wrote on Instagram - reply there.",
       { label: "Send quote on Instagram" },
     ),
     explanation:
@@ -208,7 +208,7 @@ export function resolveArriving(enquiry: Enquiry): Enquiry {
     draft: {
       id: `${enquiry.id}-draft`,
       action: "SEND_QUOTE",
-      body: "Hi Sofia — Saturday 5th from 10:30 in New Farm is $480 for the three of you, travel included. Want me to hold it?",
+      body: "Hi Sofia - Saturday 5th from 10:30 in New Farm is $480 for the three of you, travel included. Want me to hold it?",
       groundedFacts: next.facts.map((f) => f.id),
       voiceVersion: "v1",
     },

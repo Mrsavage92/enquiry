@@ -322,7 +322,7 @@ export function Intelligence({
         </dl>
         {enquiry.fixtureId === "F17" ? (
           <p className="mt-3 text-xs text-stone">
-            Compare with F01 (Glow). Same card, different evaluators — price and capacity stay hidden when they are not applicable.
+            Compare with F01 (Glow). Same card, different evaluators - price and capacity stay hidden when they are not applicable.
           </p>
         ) : null}
       </section>
@@ -629,7 +629,7 @@ export function Intelligence({
                   <li key={f.id} className="flex items-start justify-between gap-2 py-1">
                     <div>
                       <p className="text-2xs text-stone">{f.label}</p>
-                      <p className="text-sm">{f.displayValue || "—"}</p>
+                      <p className="text-sm">{f.displayValue || "-"}</p>
                     </div>
                     <Button
                       variant="ghost"
@@ -671,7 +671,7 @@ export function Intelligence({
                 <li key={f.id} className="flex items-start justify-between gap-2 border-b border-line py-2 last:border-b-0">
                   <div>
                     <p className="text-2xs text-stone">{f.label}</p>
-                    <p className="text-sm">{f.displayValue || "—"}</p>
+                    <p className="text-sm">{f.displayValue || "-"}</p>
                   </div>
                   <Button
                     variant="ghost"
@@ -777,7 +777,7 @@ function groundedSummary(enquiry: Enquiry): string | null {
   if (!ids?.length) return null;
   const parts = ids
     .map((id) => enquiry.facts.find((f) => f.id === id))
-    .filter((f): f is EnquiryFact => Boolean(f?.displayValue) && f!.displayValue !== "—" && f!.displayValue !== "Not given")
+    .filter((f): f is EnquiryFact => Boolean(f?.displayValue) && f!.displayValue !== "-" && f!.displayValue !== "Not given")
     .map((f) => f.displayValue);
   return parts.length ? parts.join(" · ") : null;
 }
@@ -858,9 +858,9 @@ function labelStatus(result: EvaluatorResult, omitAmount?: boolean): string {
     case "FEASIBLE_WITH_CONDITION":
       return "Feasible with a condition";
     case "UNKNOWN_MISSING_FACTS":
-      return "Unknown — missing facts";
+      return "Unknown - missing facts";
     case "UNKNOWN_INTEGRATION":
-      return "Unknown — cannot verify";
+      return "Unknown - cannot verify";
     case "PASS":
       return "Passes";
     case "FAIL":
@@ -915,7 +915,7 @@ function FactList({
             <div>
               <p className="text-2xs text-stone">{f.label}</p>
               <p className={cn("text-sm", f.status === "check_this" && "text-warn")}>
-                {f.displayValue || "—"}
+                {f.displayValue || "-"}
               </p>
               <p className="text-2xs text-stone">{factStatusLabel(f.status)}</p>
             </div>

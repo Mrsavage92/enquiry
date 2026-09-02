@@ -105,7 +105,7 @@ export type CommercialValue = {
   kind: CommercialKind;
   /** Visible amount, or “Price not ready” when pricing applies but cannot be decided. Empty when not applicable. */
   amountLabel: string;
-  /** Human caption — Exact quote / Estimate / why it is not ready. */
+  /** Human caption - Exact quote / Estimate / why it is not ready. */
   caption: string;
 };
 
@@ -117,7 +117,7 @@ export function pricingApplicability(enquiry: Enquiry): PricingApplicability {
   if (pricing) {
     return pricing.status === "NOT_APPLICABLE" ? "not_applicable" : "applicable";
   }
-  // No pricing family selected — either still reading, or this enquiry does not use price.
+  // No pricing family selected - either still reading, or this enquiry does not use price.
   return "not_applicable";
 }
 

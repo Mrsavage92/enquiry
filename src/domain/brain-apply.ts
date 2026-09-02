@@ -478,7 +478,7 @@ export function applyBrainToEnquiry(
   if (enquiry.id === "f06") {
     next.decision.draft = {
       ...next.decision.draft,
-      body: `Hi ${firstName},\n\nI can do four makeups in Toowoomba on 12 September. That's ${formatAud(serviceAmount)} plus ${formatAud(travelAmount ?? 232)} travel, ${formatAud(total)} in total.\n\nI can't be ready for an 8am start if I drive up that morning — it's a two-hour trip and I don't leave home before 6am. Two options: I come up on the Friday and stay overnight, or we aim to be ready by 9:30am.\n\nMina\nGlow & Co`,
+      body: `Hi ${firstName},\n\nI can do four makeups in Toowoomba on 12 September. That's ${formatAud(serviceAmount)} plus ${formatAud(travelAmount ?? 232)} travel, ${formatAud(total)} in total.\n\nI can't be ready for an 8am start if I drive up that morning - it's a two-hour trip and I don't leave home before 6am. Two options: I come up on the Friday and stay overnight, or we aim to be ready by 9:30am.\n\nMina\nGlow & Co`,
     };
     next.decision.explanation = `Travel is ${formatAud(travelAmount ?? 232)} and almost two hours. Price is exact. Capacity fails the 8am ready-by unless Mina travels the day before or the ready-by moves.`;
   }
@@ -550,7 +550,7 @@ function applyNorthlight(
               status: "RANGE" as const,
               summary: `Estimated ${formatAud(range.min)}–${formatAud(range.max)}`,
               range,
-              assumptions: [`${formatAud(rate)}/hr`, "4-hour minimum", "Range preserved — not coerced"],
+              assumptions: [`${formatAud(rate)}/hr`, "4-hour minimum", "Range preserved - not coerced"],
             }
           : e,
       );
@@ -618,8 +618,8 @@ function applyNorthlight(
 
   if (label.includes("family")) {
     const rule =
-      coveringItem(business.knowledge, "Family session — 2026 list", date) ??
-      coveringItem(business.knowledge, "Family session — website", date);
+      coveringItem(business.knowledge, "Family session - 2026 list", date) ??
+      coveringItem(business.knowledge, "Family session - website", date);
     if (!rule || rule.state === "Needs review") return { enquiry, changed: false };
     const amount = parseDollar(rule.body);
     if (amount == null) return { enquiry, changed: false };

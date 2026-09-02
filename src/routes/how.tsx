@@ -31,7 +31,7 @@ function How() {
         </h1>
         <p className="mt-4 text-lg leading-relaxed text-ink-2">
           Enquiry reconstructs the request, applies how this business works, and works out what can
-          safely be decided now. You approve. You should mainly make judgement calls — not CRM data
+          safely be decided now. You approve. You should mainly make judgement calls - not CRM data
           entry.
         </p>
       </article>
@@ -77,7 +77,7 @@ function How() {
             },
             {
               t: "You review, then you send",
-              b: "The next action is prepared — the reply, the hold, the question that unblocks the rest. Nothing goes out unless that kind of action is allowed. Early access is review-first.",
+              b: "The next action is prepared - the reply, the hold, the question that unblocks the rest. Nothing goes out unless that kind of action is allowed. Early access is review-first.",
             },
             {
               t: "The enquiry stays current",
@@ -105,7 +105,7 @@ function How() {
               A different job. Exact quote, ready to send.
             </h2>
             <p className="mt-3 max-w-xl text-sm leading-relaxed text-ink-2">
-              Some enquiries resolve to a number. That is still Enquiry — it is not the whole product.
+              Some enquiries resolve to a number. That is still Enquiry - it is not the whole product.
             </p>
           </Reveal>
           <div className="mt-8">

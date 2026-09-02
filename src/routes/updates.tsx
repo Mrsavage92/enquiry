@@ -19,12 +19,12 @@ const POSTS = [
   {
     date: "26 Aug 2026",
     title: "One enquiry, even when the conversation moves",
-    body: "A website form and a later text can be the same enquiry when identity is safely established. Changed facts change the business decision, not just the reply. That is not all your messages in one inbox. Supported channels will roll out progressively — not every integration is live.",
+    body: "A website form and a later text can be the same enquiry when identity is safely established. Changed facts change the business decision, not just the reply. That is not all your messages in one inbox. Supported channels will roll out progressively - not every integration is live.",
   },
   {
     date: "26 Aug 2026",
     title: "What we mean by building in public",
-    body: "We publish progress that changes what Enquiry is, or how we think about it — not every fix and refactor. The public roadmap is direction, not a contract. If evidence changes the plan, we update the page rather than quietly leaving an old promise.",
+    body: "We publish progress that changes what Enquiry is, or how we think about it - not every fix and refactor. The public roadmap is direction, not a contract. If evidence changes the plan, we update the page rather than quietly leaving an old promise.",
   },
   {
     date: "26 Aug 2026",
@@ -34,12 +34,12 @@ const POSTS = [
   {
     date: "25 Aug 2026",
     title: "Why Enquiry is not another CRM",
-    body: "A CRM with a chatbot is not the product. Enquiry decides what the request means before it drafts. The useful parts of the record keep themselves — waiting, needs you, ready — without a board you drag cards across. If it has to guess, it asks. You still send.",
+    body: "A CRM with a chatbot is not the product. Enquiry decides what the request means before it drafts. The useful parts of the record keep themselves - waiting, needs you, ready - without a board you drag cards across. If it has to guess, it asks. You still send.",
   },
   {
     date: "24 Aug 2026",
     title: "Learning the business without silently changing the rules",
-    body: "A correction can stay on this enquiry, or teach Enquiry. High-impact rules — what you never do, prices where they apply, who you will travel for — wait for an explicit yes. Provenance sits on what it learned.",
+    body: "A correction can stay on this enquiry, or teach Enquiry. High-impact rules - what you never do, prices where they apply, who you will travel for - wait for an explicit yes. Provenance sits on what it learned.",
   },
 ];
 
@@ -50,7 +50,7 @@ function Updates() {
         <p className="eyebrow">In public</p>
         <h1 className="mt-3 text-4xl font-semibold tracking-tight sm:text-5xl">Updates</h1>
         <p className="mt-4 max-w-xl text-lg leading-relaxed text-ink-2">
-          Meaningful notes from building Enquiry in public. Not a changelog — only progress that
+          Meaningful notes from building Enquiry in public. Not a changelog - only progress that
           changes what the product is, or how we think about it.
         </p>
         <ul className="mt-12">

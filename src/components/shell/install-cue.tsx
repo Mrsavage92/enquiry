@@ -32,7 +32,7 @@ export function InstallCue() {
       <Dialog open={open} onOpenChange={(v) => (v ? setOpen(true) : close())}>
         <SheetContent title="Enquiry on this phone">
           <p className="text-sm leading-relaxed text-ink-2">
-            Today, a job, send. Add Enquiry to the Home Screen and it opens as the app — not a tab.
+            Today, a job, send. Add Enquiry to the Home Screen and it opens as the app - not a tab.
           </p>
           <div className="mt-5 flex flex-col gap-2">
             {promptEvent ? (

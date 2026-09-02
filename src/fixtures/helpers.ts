@@ -137,7 +137,7 @@ export function formIntegration(
     technicalScopes: ["Receive submissions", "Reply by email if they left one"],
     enquiryUsage: [
       "Treat as a form even when a copy lands in mail",
-      "Structured facts — fewer invented fields",
+      "Structured facts - fewer invented fields",
     ],
     lastSuccessAt: status === "connected" ? "2026-08-24T13:52:00+10:00" : undefined,
     accountLabel,

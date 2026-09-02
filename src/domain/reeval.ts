@@ -134,7 +134,7 @@ function applyF09(next: Enquiry, service: string): Enquiry {
     next.decision.draft = {
       ...next.decision.draft,
       action: "SEND_ESTIMATE",
-      body: "Hi Leah,\n\nCoverage of the opening night is event photography — $180 an hour with a four-hour minimum, so likely $720–$1,080 depending on how long you need me. I don't shoot video. A few staff portraits can sit inside that coverage if we take them at the start.\n\nAlex\nNorthlight",
+      body: "Hi Leah,\n\nCoverage of the opening night is event photography - $180 an hour with a four-hour minimum, so likely $720–$1,080 depending on how long you need me. I don't shoot video. A few staff portraits can sit inside that coverage if we take them at the start.\n\nAlex\nNorthlight",
     };
     next.decision.explanation =
       "You corrected this to Event coverage. Video remains unsupported. Hours weren't given, so value stays a range.";
@@ -169,7 +169,7 @@ function applyF09(next: Enquiry, service: string): Enquiry {
     next.decision.draft = {
       ...next.decision.draft,
       action: "SEND_QUOTE",
-      body: "Hi Leah,\n\nIf the main need is portraits of you and the team, that's a brand / headshot half-day — $320, up to three looks, studio or on-site at the cafe. I don't shoot video.\n\nAlex\nNorthlight",
+      body: "Hi Leah,\n\nIf the main need is portraits of you and the team, that's a brand / headshot half-day - $320, up to three looks, studio or on-site at the cafe. I don't shoot video.\n\nAlex\nNorthlight",
     };
     next.decision.confidence = "High";
   }
@@ -181,7 +181,7 @@ function applyF09(next: Enquiry, service: string): Enquiry {
     },
     {
       factLabel: "Recommendation",
-      from: "Needs you — ambiguous service",
+      from: "Needs you - ambiguous service",
       to: next.decision.recommendation.label,
     },
   ];
@@ -343,7 +343,7 @@ export function reconnectCalendar(enquiry: Enquiry): Enquiry {
   };
   if (enquiry.id === "f10") {
     next.decision.draft.body =
-      "Hi Ibrahim,\n\nHall and living is $1,680 including prep and two coats. The week of 7 September is free — we can start Monday.\n\nTom\nRidge & Co";
+      "Hi Ibrahim,\n\nHall and living is $1,680 including prep and two coats. The week of 7 September is free - we can start Monday.\n\nTom\nRidge & Co";
   }
   next.decision.failedGates = [];
   next.decision.changeDiff = [

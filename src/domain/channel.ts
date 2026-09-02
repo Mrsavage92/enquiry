@@ -50,7 +50,7 @@ export function isLetterChannel(channel: Channel): boolean {
   return channel === "email" || channel === "forward" || channel === "manual";
 }
 
-/** Where the next outbound should go. A form is not a reply path — email is. A comment is not a quoting path. */
+/** Where the next outbound should go. A form is not a reply path - email is. A comment is not a quoting path. */
 export function replyChannel(enquiry: Enquiry): Channel {
   const lastIn = [...enquiry.conversation].reverse().find((m) => m.direction === "inbound");
   if (lastIn?.channel && lastIn.channel !== "comment" && lastIn.channel !== "form") {

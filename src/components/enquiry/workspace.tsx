@@ -144,7 +144,7 @@ export function EnquiryWorkspace({ enquiryId }: { enquiryId?: string }) {
         <p className="mt-2 text-sm leading-relaxed text-ink-2">
           {merged
             ? `The resend was added to ${merged.toName}. Enquiry does not keep two cards for the same job.`
-            : "It isn’t in the current fixture set — it may have been merged, or this workspace was reset."}
+            : "It isn’t in the current fixture set - it may have been merged, or this workspace was reset."}
         </p>
         <div className="mt-5 flex flex-wrap gap-2">
           {merged ? (
@@ -200,7 +200,7 @@ function DeskEmpty() {
         title="Nothing selected"
         body={
           b.needsYou
-            ? `${b.needsYou} need you. Pick one from the queue — Enquiry already has a recommended next action.`
+            ? `${b.needsYou} need you. Pick one from the queue - Enquiry already has a recommended next action.`
             : "You’re caught up in this filter. Waiting work is on the customer."
         }
       />

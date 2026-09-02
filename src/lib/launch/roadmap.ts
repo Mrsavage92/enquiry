@@ -66,13 +66,13 @@ export const STAGES: RoadmapStage[] = [
     current: true,
     goal: "Messy inbound becomes an understood request with the right next action.",
     narrative:
-      "However the enquiry arrives, Enquiry puts the request together, sees what is known, missing or ambiguous, runs only the checks that matter for this business, and prepares the next action — with a Why? you can open. You still review and send.",
+      "However the enquiry arrives, Enquiry puts the request together, sees what is known, missing or ambiguous, runs only the checks that matter for this business, and prepares the next action - with a Why? you can open. You still review and send.",
     outcomes: [
       {
         id: "understand-now",
         title: "What this already does",
         items: [
-          "Known, missing and ambiguous facts — not a pile of empty fields.",
+          "Known, missing and ambiguous facts - not a pile of empty fields.",
           "Only the checks that change the next decision. Pricing and capacity appear when they apply, and stay out of the way when they don’t.",
           "A recommended next action, with evidence.",
           "A draft in the business’s voice. Enquiry does not send until you do.",
@@ -98,14 +98,14 @@ export const STAGES: RoadmapStage[] = [
     status: ["building"],
     goal: "Enquiry learns the services, rules and operating preferences it needs to make the right decision for your business.",
     narrative:
-      "A worked example is not the product. The product is how you actually operate — what you offer, what you never do, the rules that change a job, prices where they apply, and how you like to sound. Setup should feel like teaching a capable person, not configuring a CRM.",
+      "A worked example is not the product. The product is how you actually operate - what you offer, what you never do, the rules that change a job, prices where they apply, and how you like to sound. Setup should feel like teaching a capable person, not configuring a CRM.",
     outcomes: [
       {
         id: "brain-knows",
         title: "Business Brain",
         items: [
           "Services, aliases, and what you never take on.",
-          "Prices and pricing rules where they apply — not every enquiry is a quote.",
+          "Prices and pricing rules where they apply - not every enquiry is a quote.",
           "Required information, travel, operating preferences, voice.",
         ],
       },
@@ -128,7 +128,7 @@ export const STAGES: RoadmapStage[] = [
     short: "Continuity",
     title: "One enquiry, even when the conversation moves",
     status: ["next"],
-    goal: "A form becomes a text or a DM. The request changes. Enquiry keeps the enquiry — and the next decision — current.",
+    goal: "A form becomes a text or a DM. The request changes. Enquiry keeps the enquiry - and the next decision - current.",
     narrative:
       "The promise is not all your messages in one inbox. It is one coherent enquiry even when the conversation moves channels. A website form and a later text about the same job should update the same decision, when identity is safely established.",
     outcomes: [
@@ -138,7 +138,7 @@ export const STAGES: RoadmapStage[] = [
         items: [
           "A website form starts the enquiry.",
           "A later text from the same number continues it.",
-          "Changed facts — a tighter deadline, more of the house — change the business decision, not just the reply.",
+          "Changed facts - a tighter deadline, more of the house - change the business decision, not just the reply.",
         ],
       },
       {
@@ -165,13 +165,13 @@ export const STAGES: RoadmapStage[] = [
     status: ["next"],
     goal: "The useful parts of the pipeline maintain themselves, and follow-up comes back only when something genuinely needs attention.",
     narrative:
-      "Silence is not a decline. A reply is not a booking. Enquiry should know which, keep the record current, and bring back only what needs you — without a board you drag cards across.",
+      "Silence is not a decline. A reply is not a booking. Enquiry should know which, keep the record current, and bring back only what needs you - without a board you drag cards across.",
     outcomes: [
       {
         id: "moving-state",
         title: "State that keeps itself",
         items: [
-          "Waiting on them. Needs you. Ready to progress. Lost, declined, cancelled — recorded, not guessed.",
+          "Waiting on them. Needs you. Ready to progress. Lost, declined, cancelled - recorded, not guessed.",
           "Search over automatically structured enquiries. No manual stage hygiene.",
         ],
       },

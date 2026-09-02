@@ -59,9 +59,9 @@ export function TradeStills() {
   return (
     <ul className="grid gap-8 sm:grid-cols-3">
       {[
-        { src: STILLS.makeup, alt: "Priya Shah — group mobile makeup, $625, hold $190.", cap: "Makeup · Priya Shah" },
-        { src: STILLS.photo, alt: "Dana Okonkwo — event coverage, $1,260.", cap: "Photography · Dana Okonkwo" },
-        { src: STILLS.paint, alt: "Helen Cho — interior painting estimate.", cap: "Painting · Helen Cho" },
+        { src: STILLS.makeup, alt: "Priya Shah - group mobile makeup, $625, hold $190.", cap: "Makeup · Priya Shah" },
+        { src: STILLS.photo, alt: "Dana Okonkwo - event coverage, $1,260.", cap: "Photography · Dana Okonkwo" },
+        { src: STILLS.paint, alt: "Helen Cho - interior painting estimate.", cap: "Painting · Helen Cho" },
       ].map((t) => (
         <li key={t.cap}>
           <Still src={t.src} alt={t.alt} caption={t.cap} phone />

@@ -330,7 +330,7 @@ function TravelLine({ gap }: { gap: NonNullable<ReturnType<typeof gapAfter>> }) 
     >
       <span className="h-px flex-1 bg-line" aria-hidden />
       {gap.tight
-        ? `${gap.minutes} min to ${dest} — tight`
+        ? `${gap.minutes} min to ${dest} - tight`
         : `${gap.minutes} min across · ${gap.travel} min travel`}
       <span className="h-px flex-1 bg-line" aria-hidden />
     </p>

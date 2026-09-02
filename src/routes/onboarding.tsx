@@ -122,7 +122,7 @@ function Onboarding() {
    */
   const quoteSample =
     warmth === "Warm"
-      ? "Hi — thanks for getting in touch. Here's where things are."
+      ? "Hi - thanks for getting in touch. Here's where things are."
       : "Thanks for getting in touch. Here is where things are.";
 
   /**
@@ -329,7 +329,7 @@ function Onboarding() {
                 <p className="eyebrow">One question</p>
                 <p className="letter-body mt-2">
                   {warmth === "Warm"
-                    ? "Hi Chris — I can do the work dinner makeup. What’s the suburb, so I can check travel?"
+                    ? "Hi Chris - I can do the work dinner makeup. What’s the suburb, so I can check travel?"
                     : "Chris, I can do the work dinner makeup. What suburb is it, so travel can be checked?"}
                 </p>
               </div>
@@ -403,7 +403,7 @@ function Onboarding() {
       <div className="sticky bottom-0 -mx-5 mt-8 border-t border-line bg-paper/95 px-5 py-3 pb-[max(0.75rem,var(--app-safe-bottom))] backdrop-blur-sm sm:-mx-8 sm:px-8">
         {submitError ? (
           <p role="alert" className="mb-3 text-sm text-danger">
-            {submitError} Your details are still here — try again.
+            {submitError} Your details are still here - try again.
           </p>
         ) : null}
         <div className="flex gap-2">

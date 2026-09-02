@@ -114,7 +114,7 @@ function Feedback({
             I’m interested
           </button>
           {whySaved ? (
-            <p className="text-sm text-stone">Thanks — that helps us decide what to build next.</p>
+            <p className="text-sm text-stone">Thanks - that helps us decide what to build next.</p>
           ) : (
             <button
               type="button"
@@ -596,7 +596,7 @@ export function RoadmapBoard() {
             <p className="eyebrow">Evidence</p>
             <h2 className="text-halo mt-3 font-serif text-4xl font-semibold tracking-tight">Shipped</h2>
             <p className="mt-5 max-w-lg text-base leading-relaxed text-ink-2">
-              Nothing to manufacture here yet. When something genuinely ships, this is where we’ll put it — with the date and proof.
+              Nothing to manufacture here yet. When something genuinely ships, this is where we’ll put it - with the date and proof.
             </p>
           </Reveal>
         </div>

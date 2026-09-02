@@ -102,7 +102,7 @@ export function InstallAppRow({ onDone }: { onDone?: () => void }) {
     <p className="px-2 py-2 text-sm leading-relaxed text-ink-2">
       {ios ? (
         <>
-          Share, then Add to Home Screen. Enquiry opens as an app — Today, a job, send.
+          Share, then Add to Home Screen. Enquiry opens as an app - Today, a job, send.
         </>
       ) : (
         <>Add Enquiry to the Home Screen. It opens as the app, not a tab.</>

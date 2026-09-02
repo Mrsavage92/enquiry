@@ -15,7 +15,7 @@ export const Route = createFileRoute("/roadmap")({
       {
         name: "description",
         content:
-          "See what we’re building now, what comes next, and the long-term direction for Enquiry — the intelligence layer for service-business enquiries.",
+          "See what we’re building now, what comes next, and the long-term direction for Enquiry - the intelligence layer for service-business enquiries.",
       },
     ],
   }),
@@ -41,7 +41,7 @@ function RoadmapPage() {
         </HeroIn>
         <HeroIn delay={220}>
           <p className="mt-4 max-w-lg text-base leading-relaxed text-ink-2">
-            Rather than pretend otherwise, this is where Enquiry is going — and what has to be true for us to get there.
+            Rather than pretend otherwise, this is where Enquiry is going - and what has to be true for us to get there.
           </p>
         </HeroIn>
         <HeroIn delay={280}>

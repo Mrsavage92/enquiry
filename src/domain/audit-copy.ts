@@ -5,7 +5,7 @@ export function auditSummary(action: string, fixtureId: string): string {
     case "approve_auto":
       return `Autopilot sent ${fixtureId}`;
     case "accept_quote":
-      return `Quote accepted — ${fixtureId} booked`;
+      return `Quote accepted - ${fixtureId} booked`;
     case "client_question":
       return `${fixtureId}: customer asked a question`;
     case "follow_up_due":

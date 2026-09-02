@@ -56,31 +56,31 @@ function LabPage() {
           <Link to="/enquiries/$enquiryId" params={{ enquiryId: "f10" }} className="font-medium underline-offset-4 hover:underline">
             Ibrahim Nassar · Calendar down
           </Link>
-          <span className="text-ink-2"> — Unknown is not busy and not free.</span>
+          <span className="text-ink-2"> - Unknown is not busy and not free.</span>
         </li>
         <li>
           <Link to="/enquiries/$enquiryId" params={{ enquiryId: "f11" }} className="font-medium underline-offset-4 hover:underline">
             Rossi family · Price conflict
           </Link>
-          <span className="text-ink-2"> — Enquiry will not pick $450 or $520.</span>
+          <span className="text-ink-2"> - Enquiry will not pick $450 or $520.</span>
         </li>
         <li>
           <Link to="/enquiries/$enquiryId" params={{ enquiryId: "f13" }} className="font-medium underline-offset-4 hover:underline">
             Marcus resend · Duplicate
           </Link>
-          <span className="text-ink-2"> — No automatic merge.</span>
+          <span className="text-ink-2"> - No automatic merge.</span>
         </li>
         <li>
           <Link to="/enquiries/$enquiryId" params={{ enquiryId: "f09" }} className="font-medium underline-offset-4 hover:underline">
             Leah Nguyen · Check this
           </Link>
-          <span className="text-ink-2"> — Event coverage or brand portraits, not a guess.</span>
+          <span className="text-ink-2"> - Event coverage or brand portraits, not a guess.</span>
         </li>
         <li>
           <Link to="/trust" className="font-medium underline-offset-4 hover:underline">
             Trust · Pause Enquiry
           </Link>
-          <span className="text-ink-2"> — Keeps reading, stops sending.</span>
+          <span className="text-ink-2"> - Keeps reading, stops sending.</span>
         </li>
       </ul>
 
@@ -91,31 +91,31 @@ function LabPage() {
           <Link to="/enquiries/$enquiryId" params={{ enquiryId: "f02" }} className="font-medium underline-offset-4 hover:underline">
             Jordan Hale · Website form
           </Link>
-          <span className="text-ink-2"> — A form that happens to email you is still a form.</span>
+          <span className="text-ink-2"> - A form that happens to email you is still a form.</span>
         </li>
         <li>
           <Link to="/enquiries/$enquiryId" params={{ enquiryId: "f03" }} className="font-medium underline-offset-4 hover:underline">
             A. Patel · Text
           </Link>
-          <span className="text-ink-2"> — Short. No invented quote. Two questions.</span>
+          <span className="text-ink-2"> - Short. No invented quote. Two questions.</span>
         </li>
         <li>
           <Link to="/enquiries/$enquiryId" params={{ enquiryId: "f18" }} className="font-medium underline-offset-4 hover:underline">
             Tash Morello · Instagram
           </Link>
-          <span className="text-ink-2"> — Same engine. Short DM. Same quote sheet.</span>
+          <span className="text-ink-2"> - Same engine. Short DM. Same quote sheet.</span>
         </li>
         <li>
           <Link to="/enquiries/$enquiryId" params={{ enquiryId: "f19" }} className="font-medium underline-offset-4 hover:underline">
             Samira Ott · Facebook
           </Link>
-          <span className="text-ink-2"> — Ask how long. Do not paste a letter into Messenger.</span>
+          <span className="text-ink-2"> - Ask how long. Do not paste a letter into Messenger.</span>
         </li>
         <li>
           <Link to="/enquiries/$enquiryId" params={{ enquiryId: "f20" }} className="font-medium underline-offset-4 hover:underline">
             @jess.k · Public comment
           </Link>
-          <span className="text-ink-2"> — Not a quote. Invite to message, or ignore.</span>
+          <span className="text-ink-2"> - Not a quote. Invite to message, or ignore.</span>
         </li>
       </ul>
 
@@ -150,14 +150,14 @@ function LabPage() {
       <h2 className="mt-10 text-lg font-semibold tracking-tight">Screens</h2>
       <span className="page-rule" aria-hidden />
       <ul className="mt-4 space-y-1.5 text-sm text-ink-2">
-        <li>W01–W07 Onboarding — /onboarding</li>
-        <li>W08 Queue — /enquiries</li>
-        <li>W09–W18 Enquiry workspace — /enquiries/f01 … f17</li>
-        <li>W19 Customer booking — /book/b2</li>
-        <li>W20–W23 Trust — /trust</li>
-        <li>W24 Bookings — /bookings</li>
-        <li>W25 Insights — /insights</li>
-        <li>Business Brain — /business</li>
+        <li>W01–W07 Onboarding - /onboarding</li>
+        <li>W08 Queue - /enquiries</li>
+        <li>W09–W18 Enquiry workspace - /enquiries/f01 … f17</li>
+        <li>W19 Customer booking - /book/b2</li>
+        <li>W20–W23 Trust - /trust</li>
+        <li>W24 Bookings - /bookings</li>
+        <li>W25 Insights - /insights</li>
+        <li>Business Brain - /business</li>
       </ul>
     </div>
   );

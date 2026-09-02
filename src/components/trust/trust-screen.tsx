@@ -215,7 +215,7 @@ export function TrustAccess() {
             ) : null}
             {i.kind === "social" ? (
               <p className="mt-3 text-sm text-ink-2">
-                DMs become case files. Public comments are not quotes — invite them to message, or ignore.
+                DMs become case files. Public comments are not quotes - invite them to message, or ignore.
               </p>
             ) : null}
             {i.kind === "form" ? (

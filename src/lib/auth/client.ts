@@ -13,7 +13,7 @@ import { safeReturnUrl } from "./return-path";
  * stays signed in across tabs and restarts. That token is readable by injected
  * script, which is the accepted trade for every SPA that keeps you logged in;
  * the hardening step, if it is ever wanted, is cookie-backed sessions via
- * `@supabase/ssr` — not a bespoke storage scheme here.
+ * `@supabase/ssr` - not a bespoke storage scheme here.
  *
  * Nothing in this app queries Postgres from the browser. This client is used for
  * authentication only; all data access goes through server functions, which is

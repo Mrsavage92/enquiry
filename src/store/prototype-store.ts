@@ -964,7 +964,7 @@ export const usePrototype = create<PrototypeState & Actions>()(
                     {
                       factLabel: "Related message",
                       from: "One email",
-                      to: "Resend attached — same job",
+                      to: "Resend attached - same job",
                     },
                   ],
                 },
@@ -989,7 +989,7 @@ export const usePrototype = create<PrototypeState & Actions>()(
         const next = structuredClone(enquiry);
         next.duplicateOf = undefined;
         next.state.decision = "ACTION_READY";
-        next.serviceLabel = "Deep clean — separate job";
+        next.serviceLabel = "Deep clean - separate job";
         next.decision.recommendation = {
           ...next.decision.recommendation,
           action: "SEND_QUOTE",
@@ -1048,7 +1048,7 @@ export const usePrototype = create<PrototypeState & Actions>()(
                 subject: isShortChannel(replyChannel(enquiry)) ? undefined : enquiry.decision.draft.subject,
                 body: isShortChannel(replyChannel(enquiry))
                   ? "Yes that works. Please lock it in."
-                  : "Yes — that works. Please lock it in.",
+                  : "Yes - that works. Please lock it in.",
               },
             ];
         next.conversation = [...next.conversation, ...inbound];
@@ -1175,7 +1175,7 @@ export const usePrototype = create<PrototypeState & Actions>()(
           ...next.decision.recommendation,
           action: "REQUEST_INFORMATION",
           label: "Reply",
-          reason: "They asked a new question. The sent quote stays on file — do not rewrite it.",
+          reason: "They asked a new question. The sent quote stays on file - do not rewrite it.",
           primaryEnabled: true,
           reasonCodes: ["REQUEST_INFORMATION"],
         };
@@ -1460,7 +1460,7 @@ export const usePrototype = create<PrototypeState & Actions>()(
             to: enquiry.customerHandle || enquiry.customerName,
             body:
               s.drafts[enquiryId]?.trim() ||
-              "Message us and we’ll send a proper quote — we don’t price in comments.",
+              "Message us and we’ll send a proper quote - we don’t price in comments.",
             commentContext: enquiry.conversation[0]?.commentContext,
           },
         ];

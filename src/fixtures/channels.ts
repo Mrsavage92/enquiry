@@ -124,7 +124,7 @@ export const CHANNEL_ENQUIRIES: Enquiry[] = [
       conflicts: [],
       recommendation: rec(
         "SEND_QUOTE",
-        "Same engine as email. Reply on Instagram. The sheet is the quote — the DM stays short.",
+        "Same engine as email. Reply on Instagram. The sheet is the quote - the DM stays short.",
         { label: "Send quote on Instagram" },
       ),
       explanation:
@@ -138,7 +138,7 @@ export const CHANNEL_ENQUIRIES: Enquiry[] = [
       draft: {
         id: "f18-draft",
         action: "SEND_QUOTE",
-        body: "Hi Tash — Saturday 12th in West End is $210 ($165 + travel). I can do 10am. Want me to hold it?",
+        body: "Hi Tash - Saturday 12th in West End is $210 ($165 + travel). I can do 10am. Want me to hold it?",
         groundedFacts: ["f18-date", "f18-loc", "f18-people"],
         voiceVersion: "v1",
       },
@@ -277,7 +277,7 @@ export const CHANNEL_ENQUIRIES: Enquiry[] = [
       draft: {
         id: "f19-draft",
         action: "REQUEST_INFORMATION",
-        body: "Hi Samira — I can cover Friday in Collingwood. Event coverage is $180 an hour, four-hour minimum. How long do you need me?",
+        body: "Hi Samira - I can cover Friday in Collingwood. Event coverage is $180 an hour, four-hour minimum. How long do you need me?",
         groundedFacts: ["f19-date"],
         voiceVersion: "v1",
       },
@@ -296,7 +296,7 @@ export const CHANNEL_ENQUIRIES: Enquiry[] = [
     customerHandle: "@jess.k",
     source: "comment",
     commentOn: "instagram",
-    serviceLabel: "Unknown — public comment",
+    serviceLabel: "Unknown - public comment",
     receivedAt: "2026-08-24T19:40:00+10:00",
     updatedAt: "2026-08-24T19:41:00+10:00",
     state: {
@@ -362,13 +362,13 @@ export const CHANNEL_ENQUIRIES: Enquiry[] = [
       draft: {
         id: "f20-draft",
         action: "NO_ACTION",
-        body: "Message us and we’ll send a proper quote — we don’t price in comments.",
+        body: "Message us and we’ll send a proper quote - we don’t price in comments.",
         groundedFacts: ["f20-intent"],
         voiceVersion: "v1",
       },
       quotes: [],
       automationEligible: false,
-      failedGates: ["Public surface — Autopilot blocked"],
+      failedGates: ["Public surface - Autopilot blocked"],
       serviceComposition: [],
     },
   },

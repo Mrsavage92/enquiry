@@ -24,12 +24,12 @@ function Privacy() {
         <div className="mt-10 space-y-6 text-sm leading-relaxed text-ink-2">
           <p>
             Enquiry is in early access. This page covers the waitlist and the in-browser app on this
-            site — not a finished product with every integration switched on.
+            site - not a finished product with every integration switched on.
           </p>
           <h2 className="text-lg font-semibold tracking-tight text-ink">What we collect</h2>
           <p>
-            If you join early access we store the email you give us. Optional questions — business
-            type, how work arrives, roughly how many enquiries, what hurts — help us invite the
+            If you join early access we store the email you give us. Optional questions - business
+            type, how work arrives, roughly how many enquiries, what hurts - help us invite the
             right first businesses. We also keep first-touch attribution (campaign, referrer) so we
             know how you found Enquiry.
           </p>
@@ -52,7 +52,7 @@ function Privacy() {
           <h2 className="text-lg font-semibold tracking-tight text-ink">Your choices</h2>
           <p>
             To see, correct, or remove your waitlist email, write from that same address after you
-            receive an Enquiry email — we will reply from there. You can also just not join.
+            receive an Enquiry email - we will reply from there. You can also just not join.
           </p>
           <p>
             Enquiry is being built from Australia.{" "}
