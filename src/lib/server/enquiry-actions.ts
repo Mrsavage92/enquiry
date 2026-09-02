@@ -221,3 +221,103 @@ export const recordSentReply = createServerFn({ method: "POST" })
     });
     return { ok: true as const };
   });
+
+/**
+ * Answer the one fact an enquiry is blocked on, then decide it again.
+ *
+ * Without this the loop dead-ends: Enquiry says it needs the guest count, the
+ * customer replies with it, and the owner has nowhere to put it - so a blocked
+ * enquiry stays blocked forever and the price never arrives.
+ *
+ * The fact is stored `confirmed` and asserted by the owner, which is what
+ * earns it the right to drive a price. Nothing inferred ever does.
+ */
+export const answerEnquiryFact = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .validator((raw: unknown) => {
+    const d = (raw ?? {}) as Record<string, unknown>;
+    const enquiryId = typeof d.enquiryId === "string" ? d.enquiryId : "";
+    const field = (typeof d.field === "string" ? d.field : "").trim().slice(0, 120);
+    const value = (typeof d.value === "string" ? d.value : "").trim().slice(0, 400);
+    if (!enquiryId) throw new Error("An enquiry id is required.");
+    if (!field) throw new Error("Which fact is this answering?");
+    if (!value) throw new Error("Enter the answer.");
+    return { enquiryId, field, value };
+  })
+  .handler(async ({ context, data }) => {
+    const { getSql, withTransaction } = await import("@/lib/db");
+    const { requireEnquiryAccess, recordAudit } = await import("@/lib/repo/tenancy.server");
+    const { decideEnquiry } = await import("@/domain/decide");
+    const { snapshotFromDecision, stateFromDecision } = await import(
+      "@/domain/decision-snapshot"
+    );
+    const { enquiryId, businessId } = await requireEnquiryAccess(context.userId, data.enquiryId);
+    const sql = await getSql();
+
+    const [enq] = await sql<{
+      service_label: string;
+      customer_name: string;
+    }>`select service_label, customer_name from enquiry where id = ${enquiryId}`;
+    if (!enq) throw new Error("That enquiry no longer exists.");
+
+    await withTransaction(async (tx) => {
+      // One live answer per field: an earlier one is superseded, not deleted,
+      // so the case file still shows what was believed and when.
+      await tx`
+        update enquiry_fact set superseded = true, updated_at = now()
+        where enquiry_id = ${enquiryId} and lower(field) = lower(${data.field})
+          and superseded = false
+      `;
+      await tx`
+        insert into enquiry_fact
+          (enquiry_id, field, label, value, display_value, status, confidence,
+           asserted_by, provenance, customer_specific)
+        values (
+          ${enquiryId}, ${data.field}, ${data.field}, ${data.value}, ${data.value},
+          ${"confirmed"}, ${"High"}, ${"user"},
+          ${JSON.stringify({ kind: "user", label: "Confirmed by the owner" })}::jsonb,
+          ${true}
+        )
+      `;
+    });
+
+    const facts = await sql<{ field: string; value: string; status: string }>`
+      select field, value, status from enquiry_fact
+      where enquiry_id = ${enquiryId} and superseded = false
+    `;
+    const knowledge = await sql<{ state: string; rule_payload: unknown }>`
+      select state, rule_payload from knowledge_item
+      where business_id = ${businessId} and rule_payload is not null
+    `;
+    const [owner] = await sql<{ owner_first_name: string | null }>`
+      select owner_first_name from business where id = ${businessId}
+    `;
+
+    const decision = decideEnquiry(
+      { knowledge: knowledge.map((k) => ({ state: k.state, rulePayload: k.rule_payload })) },
+      { serviceLabel: enq.service_label, facts: facts as never },
+    );
+    const snapshot = snapshotFromDecision(decision, {
+      customerName: enq.customer_name,
+      ownerFirstName: owner?.owner_first_name ?? undefined,
+      serviceLabel: enq.service_label,
+    });
+    const state = stateFromDecision(decision);
+
+    await sql`
+      update enquiry
+      set decision_snapshot = ${JSON.stringify(snapshot)}::jsonb,
+          decision_state = ${state.decisionState},
+          commercial_state = ${state.commercialState},
+          responsibility = ${state.responsibility},
+          updated_at = now()
+      where id = ${enquiryId}
+    `;
+    await recordAudit(businessId, {
+      actor: context.userId,
+      summary: `${data.field} confirmed as "${data.value}"`,
+      objectType: "enquiry",
+      objectId: enquiryId,
+    });
+    return { ok: true as const, action: decision.action, explanation: decision.explanation };
+  });

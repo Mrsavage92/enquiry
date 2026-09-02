@@ -179,6 +179,13 @@ export function useFirstBetaActions() {
       await refresh();
       return res.enquiryId;
     },
+    /** Answer the fact an enquiry is blocked on, then reload the new decision. */
+    answerFact: async (enquiryId: string, field: string, value: string) => {
+      const { answerEnquiryFact } = await import("@/lib/server/enquiry-actions");
+      const res = await answerEnquiryFact({ data: { enquiryId, field, value } });
+      await refresh();
+      return res;
+    },
     /** Record that the owner sent the reply themselves. */
     recordSent: async (enquiryId: string, body: string, channel = "manual") => {
       const { recordSentReply } = await import("@/lib/server/enquiry-actions");

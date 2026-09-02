@@ -140,3 +140,61 @@ test("a decided enquiry never sits on EVALUATING, waiting on nothing", () => {
   const noRule = decideEnquiry({ knowledge: [] }, { serviceLabel: "Anything", facts: [] });
   assert.equal(stateFromDecision(noRule).decisionState, "NEEDS_HUMAN");
 });
+
+test("answering the blocker turns a blocked enquiry into a priced one", () => {
+  // The loop's second half: Enquiry refuses to guess, the owner supplies the
+  // one fact, and the price computes from the business's own rule.
+  const business = {
+    knowledge: [
+      {
+        state: "Active",
+        rulePayload: {
+          kind: "per_unit",
+          service: "Group makeup",
+          amount: 145,
+          currency: "AUD",
+          unit: "person",
+          quantityField: "guests",
+          minimumQuantity: 3,
+        },
+      },
+    ],
+  };
+
+  const blocked = decideEnquiry(business, { serviceLabel: "Group makeup", facts: [] });
+  assert.equal(stateFromDecision(blocked).decisionState, "NEEDS_INFORMATION");
+  assert.equal(snapshotFromDecision(blocked).missing[0]?.factField, "guests");
+
+  const answered = decideEnquiry(business, {
+    serviceLabel: "Group makeup",
+    facts: [{ field: "guests", value: "4", status: "confirmed" }],
+  } as never);
+  assert.equal(answered.price.kind, "EXACT");
+  assert.equal(answered.price.kind === "EXACT" ? answered.price.amountMinor : 0, 58000);
+  assert.equal(stateFromDecision(answered).decisionState, "ACTION_READY");
+  assert.equal(snapshotFromDecision(answered).missing.length, 0);
+});
+
+test("an unconfirmed answer still does not price it", () => {
+  const business = {
+    knowledge: [
+      {
+        state: "Active",
+        rulePayload: {
+          kind: "per_unit",
+          service: "Group makeup",
+          amount: 145,
+          currency: "AUD",
+          unit: "person",
+          quantityField: "guests",
+        },
+      },
+    ],
+  };
+  const guessed = decideEnquiry(business, {
+    serviceLabel: "Group makeup",
+    facts: [{ field: "guests", value: "4", status: "inferred" }],
+  } as never);
+  assert.equal(guessed.price.kind, "BLOCKED");
+  assert.equal(stateFromDecision(guessed).decisionState, "NEEDS_INFORMATION");
+});

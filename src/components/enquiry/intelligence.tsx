@@ -26,6 +26,7 @@ import { useLiveEnquiryMutations, useFirstBetaActions } from "@/lib/workspace/li
 import { BUSINESS_BY_ID } from "@/fixtures";
 import { resolveBusiness } from "@/lib/workspace/resolve-business";
 import { SituationCard } from "./situation-card";
+import { AnswerBlocker } from "./answer-blocker";
 import { QuoteSheets, quoteSheets } from "./quote-sheet";
 import { WaitingDesk } from "./waiting-desk";
 import { detectPriceDrift, detectSheetLetterMismatch, alignLetterToSheet } from "@/domain/voice-detect";
@@ -211,6 +212,9 @@ export function Intelligence({
       ) : null}
 
       {situation ? <SituationCard enquiry={enquiry} situation={situation} compact={compact} /> : null}
+
+      {/* The honest refusal is only useful if the owner can answer it. */}
+      {demoMode ? null : <AnswerBlocker enquiry={enquiry} />}
 
       {enquiry.followUpDue && enquiry.followUpReason ? (
         <div className={cn("border-b border-line px-5", compact ? "py-3" : "py-4")} role="status">
