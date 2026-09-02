@@ -11,6 +11,7 @@ import { PhoneDesk } from "./phone-desk";
 import { EmptyState } from "@/components/ui/empty-state";
 import { briefing } from "@/domain/briefing";
 import { isFramed } from "@/lib/embed";
+import { mayPlayDemoArrival } from "@/domain/live-demo-isolation";
 
 export function EnquiryWorkspace({ enquiryId }: { enquiryId?: string }) {
   const narrow = useNarrow(1100);
@@ -20,6 +21,7 @@ export function EnquiryWorkspace({ enquiryId }: { enquiryId?: string }) {
   const queueFilter = usePrototype((s) => s.queueFilter);
   const lastMerge = usePrototype((s) => s.lastMerge);
   const onboarded = usePrototype((s) => s.onboarded);
+  const demoMode = usePrototype((s) => s.demoMode);
   const arrivalPlayed = usePrototype((s) => s.arrivalPlayed);
   const lastArrivalId = usePrototype((s) => s.lastArrivalId);
   const arriveEnquiry = usePrototype((s) => s.arriveEnquiry);
@@ -29,13 +31,18 @@ export function EnquiryWorkspace({ enquiryId }: { enquiryId?: string }) {
   const enquiry = enquiryId ? enquiries.find((e) => e.id === enquiryId) : undefined;
 
   useEffect(() => {
-    if (!onboarded || arrivalPlayed || isFramed()) return;
+    // The rule lives in the domain and is exhaustively tested, so what runs here
+    // is what the tests assert. It previously fired on `onboarded` alone, which
+    // handed a real business a hard-coded Instagram enquiry 4.8 seconds after
+    // setup as though a customer had contacted them.
+    if (!mayPlayDemoArrival({ demoMode, onboarded, arrivalPlayed, framed: isFramed() }))
+      return;
     const t = window.setTimeout(() => {
       if (usePrototype.getState().arrivalPlayed) return;
       arriveEnquiry();
     }, 4800);
     return () => window.clearTimeout(t);
-  }, [onboarded, arrivalPlayed, arriveEnquiry]);
+  }, [demoMode, onboarded, arrivalPlayed, arriveEnquiry]);
 
   useEffect(() => {
     if (enquiryId && enquiryId === lastArrivalId) markArrivalSeen();

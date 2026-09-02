@@ -23,7 +23,10 @@ export function AccountMenu({
   const workspaceLabel =
     filter === "all" ? "All businesses" : businesses.find((b) => b.id === filter)?.name ?? "Workspace";
   const demoMode = usePrototype((s) => s.demoMode);
-  const visibleBusinesses = demoMode ? BUSINESSES : businesses.filter((b) => b.id === "glow");
+  // Live mode shows the tenant's own businesses. Filtering to the fixture
+  // "glow" id meant a real workspace vanished from its own selector the
+  // moment it had a real uuid.
+  const visibleBusinesses = demoMode ? BUSINESSES : businesses;
 
   return (
     <Dropdown.Root>

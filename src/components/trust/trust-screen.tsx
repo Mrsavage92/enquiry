@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { PageHeader } from "@/components/ui/page-header";
 import { BUSINESSES } from "@/fixtures";
 import { usePrototype } from "@/store/prototype-store";
+import { WorkspaceSettingUp } from "@/components/shell/workspace-setting-up";
 import type { ActionPolicyMode } from "@/domain/types";
 import { cn } from "@/lib/utils";
 import { useNarrow } from "@/lib/use-narrow";
@@ -16,10 +17,17 @@ export function TrustOverview() {
   const resume = usePrototype((s) => s.resume);
   const setMode = usePrototype((s) => s.setTrustMode);
   const lastAutomated = usePrototype((s) => s.lastAutomated);
-  const id = filter === "all" ? "glow" : filter;
+  // No business means a real tenant whose workspace has not been hydrated yet
+  // (R2B). Falling back to businesses[0] here used to resolve to the fixture
+  // "glow" studio and render its Brain/trust state as this tenant's own.
+  const id = filter === "all" ? businesses[0]?.id : filter;
   const business = businesses.find((b) => b.id === id) ?? businesses[0];
   const autoCount = business.actionPolicies.filter((p) => p.mode === "Automatic when safe").length;
   const phone = useNarrow(860) !== false;
+
+  // Below every hook. A real tenant with no hydrated workspace (R2B) gets a
+  // truthful empty state rather than the fixture studio's trust history.
+  if (!business) return <WorkspaceSettingUp />;
 
   return (
     <div className="mx-auto h-full max-w-3xl overflow-y-auto px-4 py-5 pb-8 sm:py-8">
@@ -143,7 +151,10 @@ export function TrustAccess() {
   const enquiries = usePrototype((s) => s.enquiries);
   const reconnectBusiness = usePrototype((s) => s.reconnectBusiness);
   const filter = usePrototype((s) => s.businessFilter);
-  const id = filter === "all" ? "glow" : filter;
+  // No business means a real tenant whose workspace has not been hydrated yet
+  // (R2B). Falling back to businesses[0] here used to resolve to the fixture
+  // "glow" studio and render its Brain/trust state as this tenant's own.
+  const id = filter === "all" ? businesses[0]?.id : filter;
   const business = businesses.find((b) => b.id === id) ?? businesses[0];
   const calendarDown = enquiries.some(
     (e) =>
@@ -255,17 +266,28 @@ export function TrustAutomation() {
   const businesses = usePrototype((s) => s.businesses);
   const filter = usePrototype((s) => s.businessFilter);
   const setPolicy = usePrototype((s) => s.setActionPolicy);
-  const id = filter === "all" ? "glow" : filter;
+  const lastAuto = usePrototype((s) => s.lastAutomated);
+  const demoMode = usePrototype((s) => s.demoMode);
+  // Every hook is called above this line. No business means a real tenant whose
+  // workspace has not been hydrated yet (R2B); falling back to businesses[0]
+  // used to resolve to the fixture "glow" studio and render its trust state as
+  // this tenant's own.
+  const id = filter === "all" ? businesses[0]?.id : filter;
   const business = businesses.find((b) => b.id === id) ?? businesses[0];
   const missing = business.actionPolicies.find((p) => p.action === "REQUEST_INFORMATION");
-  const lastAuto = usePrototype((s) => s.lastAutomated);
   return (
     <div className="mx-auto h-full max-w-3xl overflow-y-auto px-4 py-5 pb-8 sm:py-8">
       <PageHeader
         title="Autopilot by action"
         description="Automatic is necessary but never sufficient. Runtime still checks facts, risk, integrations and permissions."
       />
-      {id === "glow" ? (
+      {/*
+        Demo-only. These comparable counts are illustrative, and a real tenant
+        has approved nothing - showing them would be exactly the synthetic
+        automation evidence the trust model forbids. Gated on demoMode rather
+        than on a fixture id, which is the actual meaning.
+      */}
+      {demoMode ? (
         <article className="mt-6 border-t border-line pt-5">
           <p className="font-medium">Ready to automate missing-info questions?</p>
           <p className="mt-2 text-sm leading-relaxed text-ink-2">

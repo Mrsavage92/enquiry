@@ -301,8 +301,29 @@ export const usePrototype = create<PrototypeState & Actions>()(
         }
         set({ ...seed(), onboarded: get().onboarded });
       },
+      // NOTE: the exact patch below is mirrored in src/store/live-handoff.test.ts,
+      // which proves it satisfies the live/demo isolation rule. Change both.
       markOnboardedLocally: () => {
-        set({ onboarded: true, demoMode: false, onboardingStep: 8, firstHint: true });
+        set({
+          onboarded: true,
+          // Explicitly NOT demo: gates the sample arrival and sample sends.
+          demoMode: false,
+          onboardingStep: 8,
+          firstHint: true,
+          // Drop every seeded fixture tenant. A real business must not see
+          // another business's customers, prices, Brain or trust history
+          // presented as its own, and the store seeds all of that at boot.
+          // R2B replaces these with server data; until then the honest value
+          // is empty.
+          businesses: [],
+          enquiries: [],
+          bookings: [],
+          drafts: {},
+          confirmSent: {},
+          businessFilter: "all",
+          lastArrivalId: null,
+          arrivalPlayed: true,
+        });
       },
       completeOnboarding: (profile) => {
         const s = get();

@@ -7,6 +7,7 @@ import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Segmented } from "@/components/ui/segmented";
 import { BUSINESSES } from "@/fixtures";
 import { usePrototype } from "@/store/prototype-store";
+import { WorkspaceSettingUp } from "@/components/shell/workspace-setting-up";
 import type { KnowledgeItem } from "@/domain/types";
 import { cn } from "@/lib/utils";
 import { applyVoiceToDraft } from "@/domain/voice-apply";
@@ -69,12 +70,20 @@ export function BrainScreen() {
   const confirmLearning = usePrototype((s) => s.confirmLearning);
   const dismissLearning = usePrototype((s) => s.dismissLearning);
   const resolveConflict = usePrototype((s) => s.resolveConflict);
-  const id = filter === "all" ? "glow" : filter;
+  // No business means a real tenant whose workspace has not been hydrated yet
+  // (R2B). Falling back to businesses[0] here used to resolve to the fixture
+  // "glow" studio and render its Brain/trust state as this tenant's own.
+  const id = filter === "all" ? businesses[0]?.id : filter;
   const business = businesses.find((b) => b.id === id) ?? businesses[0];
-  const items = business.knowledge;
+  // Undefined-safe rather than guarded here: the early return has to sit below
+  // every hook, so nothing between this line and the render may assume a
+  // business exists.
+  // Memoised because `?? []` would otherwise mint a new array every render and
+  // invalidate the useMemo below it on each pass.
+  const items = useMemo(() => business?.knowledge ?? [], [business?.knowledge]);
   const needsReview = items.filter((k) => k.state === "Needs review");
   const active = items.filter((k) => k.state === "Active");
-  const pendingLearn = business.learningSuggestions.filter((l) => l.status === "pending");
+  const pendingLearn = (business?.learningSuggestions ?? []).filter((l) => l.status === "pending");
   const phone = useNarrow(860) !== false;
   const tabs = phone ? PHONE_SECTIONS : SECTIONS;
   const tabValue = tabs.some((s) => s.id === tab) ? tab : "all";
@@ -115,6 +124,10 @@ export function BrainScreen() {
     return grouped;
   }, [tabValue, visible]);
 
+
+  // Every hook above has run. A real tenant with no hydrated workspace (R2B)
+  // gets a truthful empty state instead of the fixture studio's Brain.
+  if (!business) return <WorkspaceSettingUp />;
   return (
     <div className="mx-auto h-full max-w-3xl overflow-y-auto px-4 py-5 pb-8 sm:py-8">
       <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
