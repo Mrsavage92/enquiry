@@ -113,3 +113,22 @@ test("the closed filter still surfaces the active enquiry even when it is open",
     "activeId always wins, regardless of the filter",
   );
 });
+
+test("a live enquiry with a structural quote but no evaluators still reads as an exact commercial value (queue row parity)", () => {
+  const noEvaluators = structuredClone(byId("f01"));
+  noEvaluators.decision.evaluators = [];
+  noEvaluators.valueExact = { amount: 580, currency: "AUD" };
+  assert.equal(pricingApplicability(noEvaluators), "applicable");
+  const v = commercialValue(noEvaluators);
+  assert.equal(v.kind, "exact");
+  assert.equal(v.amountLabel, "$580");
+});
+
+test("a live enquiry with neither evaluators nor a value stays not_applicable, never a fabricated figure", () => {
+  const bare = structuredClone(byId("f01"));
+  bare.decision.evaluators = [];
+  bare.valueExact = undefined;
+  bare.valueRange = undefined;
+  assert.equal(pricingApplicability(bare), "not_applicable");
+  assert.equal(commercialValue(bare).amountLabel, "");
+});

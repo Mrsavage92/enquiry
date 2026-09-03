@@ -184,6 +184,13 @@ export function pricingApplicability(enquiry: Enquiry): PricingApplicability {
   if (pricing) {
     return pricing.status === "NOT_APPLICABLE" ? "not_applicable" : "applicable";
   }
+  // A live (non-fixture) enquiry's decision snapshot never populates
+  // `evaluators` - only hand-authored fixtures do. A structurally recorded
+  // figure on the enquiry itself (written from a real quote_version row) is
+  // just as valid a signal that pricing applies here, read from data rather
+  // than guessed - without this, a real sent quote's amount would compute
+  // correctly everywhere except the one place a business scans first.
+  if (enquiry.valueExact || enquiry.valueRange) return "applicable";
   // No pricing family selected - either still reading, or this enquiry does not use price.
   return "not_applicable";
 }
