@@ -138,10 +138,27 @@ export type LineItem = {
 };
 
 export type Provenance = {
-  kind: "message" | "website" | "document" | "user" | "rule" | "calendar" | "integration";
+  kind:
+    | "message"
+    | "website"
+    | "document"
+    | "user"
+    | "rule"
+    | "calendar"
+    | "integration"
+    // A fact a model proposed from a specific span of a specific message -
+    // distinct from "message" (a fact quoted directly), because this one was
+    // inferred, and the difference matters when explaining it to the owner.
+    | "model";
   label: string;
   at?: string;
   detail?: string;
+  /** Set only on kind "model": which inbound message it was read from. */
+  messageId?: string;
+  /** Set only on kind "model": the exact substring that supports the value. */
+  span?: string;
+  /** Set only on kind "model": the model id that produced it. */
+  model?: string;
 };
 
 export type EnquiryFact = {

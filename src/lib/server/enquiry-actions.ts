@@ -94,61 +94,27 @@ export const createManualEnquiry = createServerFn({ method: "POST" })
   .handler(async ({ context, data }) => {
     const { getSql, withTransaction } = await import("@/lib/db");
     const { requireBusinessAccess, recordAudit } = await import("@/lib/repo/tenancy.server");
-    const { decideEnquiry } = await import("@/domain/decide");
-    const { snapshotFromDecision, stateFromDecision } = await import("@/domain/decision-snapshot");
+    const { insertManualEnquiry, interpretAndApply } =
+      await import("@/lib/repo/manual-enquiry-core");
+    const { createInterpreter } = await import("@/lib/interpret/index.server");
     const businessId = await requireBusinessAccess(context.userId, data.businessId);
 
-    // Decide it on arrival, from this business's own confirmed rules. An
+    // Decide it on arrival, from this business's own confirmed rules, and
+    // persist the enquiry with its inbound message in one transaction. An
     // enquiry stored with no decision is an enquiry the desk cannot show and
     // the owner cannot act on - the whole point is that it arrives already
     // worked out, or already knowing what it needs.
-    const sqlRead = await getSql();
-    const knowledge = await sqlRead<{ state: string; rule_payload: unknown }>`
-      select state, rule_payload from knowledge_item
-      where business_id = ${businessId} and rule_payload is not null
-    `;
-    const [owner] = await sqlRead<{ owner_first_name: string | null }>`
-      select owner_first_name from business where id = ${businessId}
-    `;
-    const decision = decideEnquiry(
-      { knowledge: knowledge.map((k) => ({ state: k.state, rulePayload: k.rule_payload })) },
-      { serviceLabel: data.serviceLabel, facts: [] },
+    const { enquiryId, messageId } = await withTransaction((sql) =>
+      insertManualEnquiry(sql, {
+        businessId,
+        body: data.body,
+        customerName: data.customerName,
+        customerEmail: data.customerEmail,
+        customerPhone: data.customerPhone,
+        serviceLabel: data.serviceLabel,
+        intakeNote: data.intakeNote,
+      }),
     );
-    const snapshot = snapshotFromDecision(decision, {
-      customerName: data.customerName,
-      ownerFirstName: owner?.owner_first_name ?? undefined,
-      serviceLabel: data.serviceLabel,
-    });
-    const state = stateFromDecision(decision);
-
-    const enquiryId = await withTransaction(async (sql) => {
-      const rows = await sql<{ id: string }>`
-        insert into enquiry (
-          business_id, customer_name, customer_email, customer_phone, source,
-          service_label, lifecycle, decision_state, commercial_state,
-          responsibility, intake_note, decision_snapshot, received_at, updated_at
-        ) values (
-          ${businessId}, ${data.customerName}, ${data.customerEmail},
-          ${data.customerPhone || null}, ${"manual"}, ${data.serviceLabel},
-          ${"OPEN"}, ${state.decisionState}, ${state.commercialState},
-          ${state.responsibility},
-          ${data.intakeNote || null}, ${JSON.stringify(snapshot)}::jsonb, now(), now()
-        )
-        returning id
-      `;
-      const id = rows[0]?.id;
-      if (!id) throw new Error("Could not create the enquiry.");
-      await sql`
-        insert into message
-          (enquiry_id, direction, channel, at, from_addr, to_addr, body, intake)
-        values (
-          ${id}, ${"inbound"}, ${"manual"}, now(),
-          ${data.customerEmail || data.customerName || "Customer"}, ${""},
-          ${data.body}, ${"manual"}
-        )
-      `;
-      return id;
-    });
 
     await recordAudit(businessId, {
       actor: context.userId,
@@ -157,7 +123,125 @@ export const createManualEnquiry = createServerFn({ method: "POST" })
       objectType: "enquiry",
       objectId: enquiryId,
     });
+
+    // Best-effort reading of the message: a slow, failed, or unconfigured
+    // interpreter must never fail this request or lose the enquiry that
+    // already committed above. interpretAndApply itself never throws for a
+    // classified interpreter failure (it records the honest audit line and
+    // returns); this catch is only for an unexpected exception elsewhere in
+    // the step (e.g. a query failure while writing facts).
+    try {
+      const sql = await getSql();
+      await interpretAndApply(sql, {
+        enquiryId,
+        businessId,
+        messageId,
+        rawMessage: data.body,
+        interpreter: createInterpreter(),
+      });
+    } catch (err) {
+      console.error("[interpret] best-effort read of a new enquiry failed:", err);
+    }
+
     return { ok: true as const, enquiryId };
+  });
+
+/**
+ * Correct what the model read as the service, or confirm it.
+ *
+ * `createManualEnquiry` only ever sets `service_label` from a model's
+ * candidate when the operator left the field blank AND the candidate matched
+ * an Active rule - this is the "way to change it" that follows: a tenancy-
+ * checked, re-deciding correction, exactly like `answerEnquiryFact` but for
+ * the service rather than a quantity fact.
+ */
+export const setEnquiryService = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .validator((raw: unknown) => {
+    const d = (raw ?? {}) as Record<string, unknown>;
+    const enquiryId = typeof d.enquiryId === "string" ? d.enquiryId : "";
+    const serviceLabel = (typeof d.serviceLabel === "string" ? d.serviceLabel : "")
+      .trim()
+      .slice(0, 200);
+    if (!enquiryId) throw new Error("An enquiry id is required.");
+    if (!serviceLabel) throw new Error("Enter what they're asking for.");
+    return { enquiryId, serviceLabel };
+  })
+  .handler(async ({ context, data }) => {
+    const { getSql, withTransaction } = await import("@/lib/db");
+    const { requireEnquiryAccess, recordAudit } = await import("@/lib/repo/tenancy.server");
+    const { decideEnquiry } = await import("@/domain/decide");
+    const { snapshotFromDecision, stateFromDecision } = await import("@/domain/decision-snapshot");
+    const { enquiryId, businessId } = await requireEnquiryAccess(context.userId, data.enquiryId);
+    const sql = await getSql();
+
+    const [enq] = await sql<{ customer_name: string }>`
+      select customer_name from enquiry where id = ${enquiryId}
+    `;
+    if (!enq) throw new Error("That enquiry no longer exists.");
+
+    await withTransaction(async (tx) => {
+      await tx`
+        update enquiry_fact set superseded = true, updated_at = now()
+        where enquiry_id = ${enquiryId} and lower(field) = lower(${"service"})
+          and superseded = false
+      `;
+      await tx`
+        insert into enquiry_fact
+          (enquiry_id, field, label, value, display_value, status, confidence,
+           asserted_by, provenance, customer_specific)
+        values (
+          ${enquiryId}, ${"service"}, ${"service"}, ${data.serviceLabel}, ${data.serviceLabel},
+          ${"confirmed"}, ${"High"}, ${"user"},
+          ${JSON.stringify({ kind: "user", label: "Confirmed by the owner" })}::jsonb,
+          ${true}
+        )
+      `;
+      await tx`
+        update enquiry set service_label = ${data.serviceLabel}, updated_at = now()
+        where id = ${enquiryId}
+      `;
+    });
+
+    const facts = await sql<{ field: string; value: string; status: string }>`
+      select field, value, status from enquiry_fact
+      where enquiry_id = ${enquiryId} and superseded = false
+    `;
+    const knowledge = await sql<{ state: string; rule_payload: unknown }>`
+      select state, rule_payload from knowledge_item
+      where business_id = ${businessId} and rule_payload is not null
+    `;
+    const [owner] = await sql<{ owner_first_name: string | null }>`
+      select owner_first_name from business where id = ${businessId}
+    `;
+
+    const decision = decideEnquiry(
+      { knowledge: knowledge.map((k) => ({ state: k.state, rulePayload: k.rule_payload })) },
+      { serviceLabel: data.serviceLabel, facts: facts as never },
+    );
+    const snapshot = snapshotFromDecision(decision, {
+      customerName: enq.customer_name,
+      ownerFirstName: owner?.owner_first_name ?? undefined,
+      serviceLabel: data.serviceLabel,
+    });
+    const state = stateFromDecision(decision);
+
+    await sql`
+      update enquiry
+      set decision_snapshot = ${JSON.stringify(snapshot)}::jsonb,
+          decision_state = ${state.decisionState},
+          commercial_state = ${state.commercialState},
+          responsibility = ${state.responsibility},
+          updated_at = now()
+      where id = ${enquiryId}
+    `;
+    await recordAudit(businessId, {
+      actor: context.userId,
+      summary: `Service confirmed as "${data.serviceLabel}"`,
+      objectType: "enquiry",
+      objectId: enquiryId,
+    });
+    return { ok: true as const, action: decision.action, explanation: decision.explanation };
   });
 
 /**
@@ -249,9 +333,7 @@ export const answerEnquiryFact = createServerFn({ method: "POST" })
     const { getSql, withTransaction } = await import("@/lib/db");
     const { requireEnquiryAccess, recordAudit } = await import("@/lib/repo/tenancy.server");
     const { decideEnquiry } = await import("@/domain/decide");
-    const { snapshotFromDecision, stateFromDecision } = await import(
-      "@/domain/decision-snapshot"
-    );
+    const { snapshotFromDecision, stateFromDecision } = await import("@/domain/decision-snapshot");
     const { enquiryId, businessId } = await requireEnquiryAccess(context.userId, data.enquiryId);
     const sql = await getSql();
 

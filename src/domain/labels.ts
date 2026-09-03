@@ -3,7 +3,46 @@ import type {
   RecommendationAction,
   EvaluatorType,
   Enquiry,
+  EnquiryFact,
 } from "./types";
+
+/**
+ * The one place a fact's status becomes reader-facing text.
+ *
+ * Text, not a colour swatch - `Badge` already carries its own tone, but the
+ * label itself is what a screen reader announces and what survives someone
+ * being colour-blind. Shared between `intelligence.tsx` and
+ * `answer-blocker.tsx` so an "Inferred" fact reads the same wherever its
+ * value is echoed.
+ */
+export function factStatusLabel(status: EnquiryFact["status"]): string {
+  switch (status) {
+    case "confirmed":
+      return "Confirmed";
+    case "inferred":
+      return "Inferred";
+    case "check_this":
+      return "Check this";
+    case "range":
+      return "Range preserved";
+    default:
+      return "Unknown";
+  }
+}
+
+/** The `Badge` tone that pairs with `factStatusLabel` - never the only signal. */
+export function factStatusTone(status: EnquiryFact["status"]): "neutral" | "ok" | "warn" | "info" {
+  switch (status) {
+    case "confirmed":
+      return "ok";
+    case "check_this":
+      return "warn";
+    case "inferred":
+      return "info";
+    default:
+      return "neutral";
+  }
+}
 
 export function derivedLabel(state: CompositeState, enquiry?: Enquiry): string {
   if (state.lifecycle === "BOOKED") return "Booked";
@@ -17,7 +56,10 @@ export function derivedLabel(state: CompositeState, enquiry?: Enquiry): string {
   if (state.decision === "EVALUATING") return "Reading";
   if (state.decision === "NEEDS_INFORMATION") return "Needs info";
   if (state.decision === "BOOKING_PENDING") return "Booking pending";
-  if (state.decision === "WAITING_ON_CLIENT" && (state.commercial === "QUOTED" || state.commercial === "ESTIMATED")) {
+  if (
+    state.decision === "WAITING_ON_CLIENT" &&
+    (state.commercial === "QUOTED" || state.commercial === "ESTIMATED")
+  ) {
     return "Sent";
   }
   if (state.decision === "WAITING_ON_CLIENT") return "Waiting on client";
@@ -32,9 +74,7 @@ export function derivedLabel(state: CompositeState, enquiry?: Enquiry): string {
   return "Open";
 }
 
-export function queueSection(
-  enquiry: Enquiry,
-): "needs_you" | "waiting" | "at_risk" | "recent" {
+export function queueSection(enquiry: Enquiry): "needs_you" | "waiting" | "at_risk" | "recent" {
   if (enquiry.state.lifecycle !== "OPEN") return "recent";
   if (enquiry.snoozedUntil && Date.parse(enquiry.snoozedUntil) > Date.now()) return "waiting";
   if (enquiry.atRisk) return "at_risk";
@@ -133,16 +173,13 @@ export function commercialValue(enquiry: Enquiry): CommercialValue {
   const pricing = enquiry.decision.evaluators.find((e) => e.type === "pricing");
   const status = pricing?.status;
   const blocking = enquiry.decision.missing.some((m) => m.blocking);
-  const assumedExact =
-    status === "EXACT" && Boolean(pricing?.assumptions?.length) && blocking;
+  const assumedExact = status === "EXACT" && Boolean(pricing?.assumptions?.length) && blocking;
 
   if (status === "RANGE" || (enquiry.valueRange && status !== "EXACT")) {
     const range = enquiry.valueRange ?? pricing?.range;
     return {
       kind: "estimate",
-      amountLabel: range
-        ? `${formatAud(range.min)}–${formatAud(range.max)}`
-        : "Estimate",
+      amountLabel: range ? `${formatAud(range.min)}–${formatAud(range.max)}` : "Estimate",
       caption: "Estimate",
     };
   }
@@ -164,8 +201,7 @@ export function commercialValue(enquiry: Enquiry): CommercialValue {
   }
 
   if (status === "EXACT" && enquiry.valueExact) {
-    const quoted =
-      enquiry.state.commercial === "QUOTED" || enquiry.state.commercial === "ACCEPTED";
+    const quoted = enquiry.state.commercial === "QUOTED" || enquiry.state.commercial === "ACCEPTED";
     return {
       kind: "exact",
       amountLabel: formatAud(enquiry.valueExact.amount),

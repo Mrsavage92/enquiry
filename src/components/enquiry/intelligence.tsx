@@ -8,7 +8,14 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { SheetContent } from "@/components/ui/sheet";
-import { derivedLabel, EVALUATOR_LABELS, formatAud, commercialValue } from "@/domain/labels";
+import {
+  derivedLabel,
+  EVALUATOR_LABELS,
+  formatAud,
+  commercialValue,
+  factStatusLabel,
+  factStatusTone,
+} from "@/domain/labels";
 import { CommercialValueMark } from "@/components/ui/commercial-value";
 import { statusTone } from "@/domain/status-tone";
 import { channelLabel, identityLine, isShortChannel } from "@/domain/format";
@@ -27,6 +34,7 @@ import { BUSINESS_BY_ID } from "@/fixtures";
 import { resolveBusiness } from "@/lib/workspace/resolve-business";
 import { SituationCard } from "./situation-card";
 import { AnswerBlocker } from "./answer-blocker";
+import { ServiceReadAs } from "./service-read-as";
 import { QuoteSheets, quoteSheets } from "./quote-sheet";
 import { WaitingDesk } from "./waiting-desk";
 import { detectPriceDrift, detectSheetLetterMismatch, alignLetterToSheet } from "@/domain/voice-detect";
@@ -220,6 +228,7 @@ export function Intelligence({
       {situation ? <SituationCard enquiry={enquiry} situation={situation} compact={compact} /> : null}
 
       {/* The honest refusal is only useful if the owner can answer it. */}
+      {demoMode ? null : <ServiceReadAs enquiry={enquiry} />}
       {demoMode ? null : <AnswerBlocker enquiry={enquiry} />}
 
       {enquiry.followUpDue && enquiry.followUpReason ? (
@@ -640,6 +649,11 @@ export function Intelligence({
                     <div>
                       <p className="text-2xs text-stone">{f.label}</p>
                       <p className="text-sm">{f.displayValue || "-"}</p>
+                      {f.status === "inferred" || f.status === "check_this" ? (
+                        <Badge tone={factStatusTone(f.status)} className="mt-1">
+                          {factStatusLabel(f.status)}
+                        </Badge>
+                      ) : null}
                     </div>
                     <Button
                       variant="ghost"
@@ -682,6 +696,11 @@ export function Intelligence({
                   <div>
                     <p className="text-2xs text-stone">{f.label}</p>
                     <p className="text-sm">{f.displayValue || "-"}</p>
+                    {f.status === "inferred" || f.status === "check_this" ? (
+                      <Badge tone={factStatusTone(f.status)} className="mt-1">
+                        {factStatusLabel(f.status)}
+                      </Badge>
+                    ) : null}
                   </div>
                   <Button
                     variant="ghost"
@@ -878,21 +897,6 @@ function labelStatus(result: EvaluatorResult, omitAmount?: boolean): string {
   }
 }
 
-function factStatusLabel(status: EnquiryFact["status"]) {
-  switch (status) {
-    case "confirmed":
-      return "Confirmed";
-    case "inferred":
-      return "Inferred";
-    case "check_this":
-      return "Check this";
-    case "range":
-      return "Range preserved";
-    default:
-      return "Unknown";
-  }
-}
-
 function FactList({
   heading,
   facts,
@@ -917,7 +921,13 @@ function FactList({
               <p className={cn("text-sm", f.status === "check_this" && "text-warn")}>
                 {f.displayValue || "-"}
               </p>
-              <p className="text-2xs text-stone">{factStatusLabel(f.status)}</p>
+              {f.status === "inferred" || f.status === "check_this" ? (
+                <Badge tone={factStatusTone(f.status)} className="mt-1">
+                  {factStatusLabel(f.status)}
+                </Badge>
+              ) : (
+                <p className="text-2xs text-stone">{factStatusLabel(f.status)}</p>
+              )}
             </div>
             <Button
               variant="ghost"
