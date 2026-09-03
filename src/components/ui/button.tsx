@@ -9,8 +9,10 @@ const buttonVariants = cva(
     variants: {
       variant: {
         primary: "bg-mark text-mark-fg hover:bg-mark-hover",
-        secondary:
-          "bg-raised text-ink shadow-border hover:shadow-border-hover",
+        // Reserved for a small set of high-confidence moments (landing hero
+        // CTA, onboarding submit) - never a default/site-wide swap.
+        "primary-strong": "bg-mark-strong text-mark-fg hover:bg-mark-hover",
+        secondary: "bg-raised text-ink shadow-border hover:shadow-border-hover",
         ghost: "text-ink-2 hover:bg-paper-2 hover:text-ink",
         inverse: "text-sidebar-fg hover:bg-sidebar-fg/10 hover:text-sidebar-fg",
         danger: "bg-danger text-paper hover:opacity-90",

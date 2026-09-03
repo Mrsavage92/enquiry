@@ -19,7 +19,14 @@ import {
 const VOLUMES = ["<5", "5-20", "21-50", "51-100", "100+"] as const;
 const CHANNELS = ["Email", "Website form", "Text", "Instagram", "Facebook", "Phone"] as const;
 
-export function WaitlistForm({ compact = false }: { compact?: boolean }) {
+export function WaitlistForm({
+  compact = false,
+  ctaVariant = "primary",
+}: {
+  compact?: boolean;
+  /** "primary-strong" is reserved for the landing hero - see button.tsx. */
+  ctaVariant?: "primary" | "primary-strong";
+}) {
   const [email, setEmail] = useState("");
   const [website, setWebsite] = useState("");
   const [step, setStep] = useState<"email" | "qualify" | "done">("email");
@@ -148,7 +155,9 @@ export function WaitlistForm({ compact = false }: { compact?: boolean }) {
     return (
       <div className="rounded-xl bg-raised px-5 py-6 shadow-border">
         <p className="text-lg font-semibold tracking-tight">
-          {already ? "You’re already on the Enquiry early-access list." : "You’re on the Enquiry early-access list."}
+          {already
+            ? "You’re already on the Enquiry early-access list."
+            : "You’re on the Enquiry early-access list."}
         </p>
         <p className="mt-2 text-sm leading-relaxed text-ink-2">
           Enquiry learns how your business works, understands what every customer is asking for, and
@@ -251,7 +260,9 @@ export function WaitlistForm({ compact = false }: { compact?: boolean }) {
           />
         </label>
         <fieldset>
-          <legend className="mb-2 text-sm text-stone">Want to test Enquiry before public release?</legend>
+          <legend className="mb-2 text-sm text-stone">
+            Want to test Enquiry before public release?
+          </legend>
           <div className="flex gap-2">
             {["Yes", "Maybe later"].map((v) => (
               <button
@@ -292,7 +303,9 @@ export function WaitlistForm({ compact = false }: { compact?: boolean }) {
 
   return (
     <form
-      className={compact ? "relative flex flex-col gap-2 sm:flex-row sm:flex-wrap" : "relative space-y-3"}
+      className={
+        compact ? "relative flex flex-col gap-2 sm:flex-row sm:flex-wrap" : "relative space-y-3"
+      }
       onSubmit={(e) => {
         e.preventDefault();
         void submitEmail();
@@ -328,7 +341,7 @@ export function WaitlistForm({ compact = false }: { compact?: boolean }) {
         </label>
       </div>
       {error ? <p className="w-full text-sm text-danger">{error}</p> : null}
-      <Button type="submit" className="min-h-12 px-6" disabled={busy}>
+      <Button type="submit" variant={ctaVariant} className="min-h-12 px-6" disabled={busy}>
         {busy ? "Joining…" : "Join early access"}
       </Button>
       <p className={compact ? "w-full text-xs text-stone" : "text-xs text-stone"}>

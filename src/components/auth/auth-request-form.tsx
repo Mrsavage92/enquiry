@@ -153,7 +153,10 @@ export function AuthRequestForm({
             {error ? "" : status}
           </p>
           {error ? (
-            <p role="alert" className="mt-4 text-sm text-danger">
+            <p
+              role="alert"
+              className="mt-4 animate-[rise-in_200ms_var(--ease-smooth-out)] text-sm text-danger"
+            >
               {error}
             </p>
           ) : null}
@@ -206,7 +209,10 @@ export function AuthRequestForm({
               />
             </label>
             {error ? (
-              <p role="alert" className="text-sm text-danger">
+              <p
+                role="alert"
+                className="animate-[rise-in_200ms_var(--ease-smooth-out)] text-sm text-danger"
+              >
                 {error}
               </p>
             ) : null}

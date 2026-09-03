@@ -178,7 +178,7 @@ function Onboarding() {
       <div key={stage} className="flex-1 animate-[rise-in_280ms_var(--ease-smooth-out)]">
         {stage === 1 ? (
           <section className="mt-8">
-            <h1 className="text-3xl font-semibold tracking-tight">Your business</h1>
+            <h1 className="site-display">Your business</h1>
             <p className="mt-2 text-sm text-ink-2">Your real business. Nothing here is a sample.</p>
             <div className="mt-6 space-y-3">
               <Field
@@ -219,9 +219,11 @@ function Onboarding() {
                 dominant row of equal weight to the business's own name.
               */}
               {editingTimezone ? (
-                <Field label="Time zone" value={timezone} onChange={setTimezone} />
+                <div className="animate-[rise-in_150ms_var(--ease-smooth-out)]">
+                  <Field label="Time zone" value={timezone} onChange={setTimezone} />
+                </div>
               ) : (
-                <div className="flex min-h-11 items-center justify-between gap-3 text-sm">
+                <div className="flex min-h-11 items-center justify-between gap-3 text-sm animate-[rise-in_150ms_var(--ease-smooth-out)]">
                   <p>
                     <span className="text-stone">Time zone </span>
                     <span className="font-medium">{timezone}</span>
@@ -239,9 +241,7 @@ function Onboarding() {
           </section>
         ) : (
           <section className="mt-8">
-            <h1 className="text-3xl font-semibold tracking-tight">
-              Review, then create your workspace
-            </h1>
+            <h1 className="site-display">Review, then create your workspace</h1>
             <p className="mt-2 text-sm text-ink-2">
               Check the details, then Enquiry sets up your workspace.
             </p>
@@ -307,7 +307,12 @@ function Onboarding() {
               Continue
             </Button>
           ) : (
-            <Button className="min-h-12 flex-1" disabled={submitting} onClick={() => void finish()}>
+            <Button
+              variant="primary-strong"
+              className="min-h-12 flex-1"
+              disabled={submitting}
+              onClick={() => void finish()}
+            >
               {submitting ? "Creating your workspace…" : "Create my workspace"}
             </Button>
           )}

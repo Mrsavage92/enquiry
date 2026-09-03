@@ -40,14 +40,14 @@ function Home() {
         </HeroIn>
         <HeroIn delay={160}>
           <p className="site-lede mt-6 sm:mt-8 sm:text-xl sm:leading-relaxed">
-            However the enquiry arrives, Enquiry puts the request together, understands what
-            matters for this business, works out what can safely be decided now, and prepares the
-            next action.
+            However the enquiry arrives, Enquiry puts the request together, understands what matters
+            for this business, works out what can safely be decided now, and prepares the next
+            action.
           </p>
         </HeroIn>
         <HeroIn delay={240}>
           <div className="site-well mt-8 max-w-xl sm:mt-12">
-            <WaitlistForm compact />
+            <WaitlistForm compact ctaVariant="primary-strong" />
           </div>
           <p className="mt-4 flex flex-wrap items-center gap-x-2 gap-y-1 px-1 text-sm text-stone">
             Built for service businesses.
@@ -115,9 +115,7 @@ function Home() {
         <div className="mx-auto max-w-5xl px-5 py-12 sm:py-20">
           <Reveal>
             <p className="eyebrow">Try it</p>
-            <h2 className="site-display mt-3 max-w-2xl">
-              Same job. Already understood. You send.
-            </h2>
+            <h2 className="site-display mt-3 max-w-2xl">Same job. Already understood. You send.</h2>
             <p className="mt-3 max-w-xl text-sm leading-relaxed text-ink-2">
               One enquiry. Not a gallery of the same screen.
             </p>
@@ -129,7 +127,9 @@ function Home() {
               className="flex min-h-16 items-center justify-between gap-4 rounded-xl bg-raised px-4 py-4 shadow-border"
             >
               <div className="min-w-0">
-                <p className="commercial-exact font-serif text-2xl tabular-nums tracking-tight">$625</p>
+                <p className="commercial-exact font-serif text-2xl tabular-nums tracking-tight">
+                  $625
+                </p>
                 <p className="mt-1 truncate text-sm text-ink-2">Priya Shah · Group mobile makeup</p>
               </div>
               <span className="shrink-0 text-sm font-medium text-mark">Open</span>
@@ -173,9 +173,7 @@ function Home() {
         <div className="mx-auto max-w-5xl px-5 py-12 sm:py-20">
           <Reveal>
             <p className="eyebrow">Who it’s for</p>
-            <h2 className="site-display mt-3 max-w-2xl">
-              If customers ask before they book.
-            </h2>
+            <h2 className="site-display mt-3 max-w-2xl">If customers ask before they book.</h2>
             <p className="mt-3 max-w-xl text-sm leading-relaxed text-ink-2">
               Makeup, photography, painting, consulting - the trade changes. The problem does not: a
               messy request, a decision that depends on how you work, and a next step that should
@@ -231,33 +229,33 @@ function Home() {
       </section>
 
       {desk ? (
-      <section className="border-t border-line">
-        {/*
+        <section className="border-t border-line">
+          {/*
           Wider than the rest of the page on purpose. This capture is the full
           operator desk, and at the 1024px measure the page uses for prose it
           rendered the app at about half scale - every label and line of the
           case file too small to read, which defeats the only thing the shot is
           there to show.
         */}
-        <div className="mx-auto max-w-[84rem] px-5 py-12 sm:py-20">
-          <Reveal>
-            <p className="eyebrow">At the desk</p>
-            <p className="mt-3 max-w-xl text-sm leading-relaxed text-ink-2">
-              Same job. Full case file. The website is here if you sit down.
-            </p>
-          </Reveal>
-          <Reveal>
-            <BrowserFrame className="mt-8" url="enquiry.app/enquiries">
-              <SiteVideo
-                className="block aspect-video w-full object-cover"
-                src="/product/send.mp4?v=18"
-                poster="/product/poster-desk.jpg"
-                label="The same send on a laptop - full case file, drafted reply, sent."
-              />
-            </BrowserFrame>
-          </Reveal>
-        </div>
-      </section>
+          <div className="mx-auto max-w-[84rem] px-5 py-12 sm:py-20">
+            <Reveal>
+              <p className="eyebrow">At the desk</p>
+              <p className="mt-3 max-w-xl text-sm leading-relaxed text-ink-2">
+                Same job. Full case file. The website is here if you sit down.
+              </p>
+            </Reveal>
+            <Reveal>
+              <BrowserFrame className="mt-8" url="enquiry.app/enquiries">
+                <SiteVideo
+                  className="block aspect-video w-full object-cover"
+                  src="/product/send.mp4?v=18"
+                  poster="/product/poster-desk.jpg"
+                  label="The same send on a laptop - full case file, drafted reply, sent."
+                />
+              </BrowserFrame>
+            </Reveal>
+          </div>
+        </section>
       ) : null}
 
       <section className="border-t border-line bg-raised">
@@ -283,9 +281,7 @@ function Home() {
       <section className="mx-auto max-w-5xl px-5 py-12 sm:py-20">
         <Reveal>
           <p className="eyebrow">Early access</p>
-          <h2 className="site-display mt-3 max-w-2xl">
-            We’re starting small.
-          </h2>
+          <h2 className="site-display mt-3 max-w-2xl">We’re starting small.</h2>
           <p className="mt-3 max-w-xl text-sm text-ink-2">
             Access opens gradually so we can work closely with the first businesses and make Enquiry
             trustworthy before opening it more widely.
@@ -338,9 +334,7 @@ function Home() {
             {preview.map((item, i) => (
               <Reveal key={item.id} delay={i * 50}>
                 <li className="py-5">
-                  <p className="text-xs uppercase tracking-wider text-stone">
-                    {item.statusLabel}
-                  </p>
+                  <p className="text-xs uppercase tracking-wider text-stone">{item.statusLabel}</p>
                   <p className="mt-1 font-medium">{item.title}</p>
                   <p className="mt-1 text-sm text-ink-2">{item.lede}</p>
                 </li>
@@ -357,8 +351,8 @@ function Home() {
               The enquiries aren’t going to decide themselves.
             </h2>
             <p className="mt-3 max-w-xl text-sm leading-relaxed text-ink-2">
-              Join early access. Open the app to see the product case file. We’re building
-              for service businesses - makeup, photography, painting, consulting - because someone
+              Join early access. Open the app to see the product case file. We’re building for
+              service businesses - makeup, photography, painting, consulting - because someone
               interested still has to become booked, or lost, without you reconstructing every job
               by hand.
             </p>
