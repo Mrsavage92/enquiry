@@ -1,8 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { BENCHMARK_CASES } from "./cases.ts";
-import { evaluateCase, runCase, toVariantCase } from "./harness.ts";
-import type { RunMode } from "./harness.ts";
+import { runCase, toVariantCase } from "./db.ts";
+import type { RunMode } from "./db.ts";
+import { evaluateCase } from "./evaluate.ts";
 import type { BenchmarkCase } from "./types.ts";
 
 /**

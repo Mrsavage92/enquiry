@@ -1,8 +1,10 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { BENCHMARK_CASES } from "./cases.ts";
-import { evaluateCase, runCase, toVariantCase } from "./harness.ts";
-import type { CaseEvaluation, RunMode } from "./harness.ts";
+import { runCase, toVariantCase } from "./db.ts";
+import type { RunMode } from "./db.ts";
+import { evaluateCase } from "./evaluate.ts";
+import type { CaseEvaluation } from "./evaluate.ts";
 import type { BenchmarkCase } from "./types.ts";
 
 /**
