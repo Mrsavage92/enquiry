@@ -10,7 +10,7 @@ import { safeReturnPath } from "./return-path.ts";
  *
  * `window.location.origin` is not that. A signup requested from a laptop on
  * `http://localhost:8080` produced `emailRedirectTo=http://localhost:8080/...`,
- * which is a dead link in the recipient's inbox — and when Supabase rejects it
+ * which is a dead link in the recipient's inbox - and when Supabase rejects it
  * for not being on the allow list, the customer is silently sent to the
  * project's Site URL instead, so the failure never surfaces as a failure.
  *
@@ -33,7 +33,7 @@ export const PUBLIC_APP_ORIGIN_VAR = "VITE_PUBLIC_APP_ORIGIN";
 export type AuthOriginEnvironment = "development" | "production";
 
 export type AuthOriginInputs = {
-  /** `VITE_PUBLIC_APP_ORIGIN` — the deployment-owned public origin. */
+  /** `VITE_PUBLIC_APP_ORIGIN` - the deployment-owned public origin. */
   configuredOrigin?: string | null;
   environment: AuthOriginEnvironment;
   /** `window.location.origin`. A development fallback only, never used in production. */
@@ -96,7 +96,7 @@ function fail(reason: AuthOriginFailure, message: string): AuthOriginResult {
  * Resolve the origin every auth return URL is built from.
  *
  * Production: `VITE_PUBLIC_APP_ORIGIN` is required, must be HTTPS, and must not
- * be loopback. There is no fallback — a missing value is an error, not a cue to
+ * be loopback. There is no fallback - a missing value is an error, not a cue to
  * guess from the browser.
  *
  * Development: the configured origin is used when present (loopback and plain

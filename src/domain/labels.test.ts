@@ -51,7 +51,7 @@ test("Tash's Instagram DM is an exact quote", () => {
   assert.equal(v.amountLabel, "$210");
 });
 
-test("Rowan (F17) pricing is not applicable — not 'Price not ready'", () => {
+test("Rowan (F17) pricing is not applicable - not 'Price not ready'", () => {
   const enquiry = byId("f17");
   assert.equal(pricingApplicability(enquiry), "not_applicable");
   const v = commercialValue(enquiry);

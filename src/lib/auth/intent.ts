@@ -9,9 +9,9 @@
  *
  * The split is behavioural, not cosmetic:
  *
- * - `signup`  — creation allowed. Existing addresses still just get a link, so
+ * - `signup`  - creation allowed. Existing addresses still just get a link, so
  *               there is nothing to enumerate.
- * - `signin`  — `shouldCreateUser: false`. Supabase then errors for an unknown
+ * - `signin`  - `shouldCreateUser: false`. Supabase then errors for an unknown
  *               address, and that error is exactly what MUST NOT reach the
  *               screen: it answers "does this person have an account?" for
  *               anyone who asks. `classifyAuthError` folds it back into the

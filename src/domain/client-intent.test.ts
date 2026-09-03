@@ -4,7 +4,7 @@ import { detectClientIntent } from "./client-intent.ts";
 
 test("yes / lock it in is an accept", () => {
   assert.equal(detectClientIntent("Yes that works. Please lock it in."), "accept");
-  assert.equal(detectClientIntent("Sounds good — book us"), "accept");
+  assert.equal(detectClientIntent("Sounds good - book us"), "accept");
   assert.equal(detectClientIntent("Perfect, go ahead"), "accept");
 });
 
