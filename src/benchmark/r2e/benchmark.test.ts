@@ -163,10 +163,16 @@ test("provider-failure case: a transport that times out is classified timeout, n
     await import("../../lib/interpret/anthropic-interpreter.server.ts");
   const hanging = createAnthropicInterpreter({
     apiKey: "sk-test-not-a-real-key",
-    timeoutMs: 20,
+    timeoutMs: 100,
     transport: ({ signal }) =>
-      new Promise((_resolve, reject) => {
+      new Promise((resolve, reject) => {
+        // The transport would settle at 300ms if left alone - comfortably
+        // longer than the 100ms timeout, so the abort has to win the race by
+        // a wide margin. This asserts the timeout classification itself, not
+        // how fast the runner happens to be.
+        const timer = setTimeout(() => resolve("{}"), 300);
         signal.addEventListener("abort", () => {
+          clearTimeout(timer);
           const err = new Error("aborted");
           err.name = "AbortError";
           reject(err);

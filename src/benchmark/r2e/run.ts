@@ -21,9 +21,12 @@ import type { BenchmarkCase } from "./types.ts";
  *     reading (or declared failure) - zero network calls, zero spend, runs
  *     every time.
  *   - real: the actual configured Anthropic adapter, only when
- *     `ANTHROPIC_API_KEY` is set. Not set in this environment, so this mode
- *     reports "skipped: no key" below - the code path is exercised nowhere
- *     near this run, and no key is ever read into a log or a report.
+ *     `ANTHROPIC_API_KEY` is set - except the provider-failure case, which
+ *     always runs against the real adapter's own error-classification path
+ *     because its transport is swapped for one that throws before any
+ *     network call, so it needs no key and spends nothing. `ANTHROPIC_API_KEY`
+ *     is not set in this environment, so every other case reports "skipped:
+ *     no key" below, and no key is ever read into a log or a report.
  *
  * Four dimensions, scored separately, one table each - phase doc section 12
  * is explicit that these must never collapse into one percentage.
@@ -157,9 +160,12 @@ async function main(): Promise<void> {
 
   const hasKey = Boolean(process.env.ANTHROPIC_API_KEY?.trim());
   const modeHeaderLines = MODES.map((mode) => {
-    if (mode === "real" && !hasKey)
-      return `- **${MODE_TITLE[mode]}**: SKIPPED - no ANTHROPIC_API_KEY set in this environment.`;
     const ran = results[mode].ranAtAll;
+    if (mode === "real" && !hasKey) {
+      return ran
+        ? `- **${MODE_TITLE[mode]}**: PARTIAL - no ANTHROPIC_API_KEY set in this environment; only the provider-failure case ran (its transport never calls the network).`
+        : `- **${MODE_TITLE[mode]}**: SKIPPED - no ANTHROPIC_API_KEY set in this environment.`;
+    }
     return `- **${MODE_TITLE[mode]}**: ${ran ? "RAN" : "SKIPPED"} - ${allCases.length} case runs.`;
   });
 

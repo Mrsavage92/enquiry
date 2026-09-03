@@ -165,14 +165,18 @@ export function interpreterFor(mode: RunMode, kase: BenchmarkCase): EnquiryInter
   }
 
   // mode === "real"
-  const apiKey = process.env.ANTHROPIC_API_KEY ?? "";
-  if (!apiKey.trim()) return null;
   if (kase.simulatedFailureReason) {
     // Exercise the real adapter's own error classification, not the live
     // network - the point of this category is failure handling, not a bet on
-    // the live API happening to fail. No spend for this case, key present or not.
+    // the live API happening to fail. Runs with or without a real key: the
+    // transport is swapped for one that throws before any network call, so a
+    // placeholder key only satisfies the adapter's own non-empty check and is
+    // never sent anywhere. No spend for this case, key present or not.
+    const apiKey = process.env.ANTHROPIC_API_KEY?.trim() || "r2e-benchmark-placeholder-key";
     return createAnthropicInterpreter({ apiKey, transport: throwingTransport });
   }
+  const apiKey = process.env.ANTHROPIC_API_KEY ?? "";
+  if (!apiKey.trim()) return null;
   return createInterpreter();
 }
 
