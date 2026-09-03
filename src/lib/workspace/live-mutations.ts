@@ -112,6 +112,8 @@ export function useLiveEnquiryMutations() {
   const demoMode = usePrototype((s) => s.demoMode);
   const setNoteLocal = usePrototype((s) => s.setNote);
   const snoozeLocal = usePrototype((s) => s.snooze);
+  const declineLetterLocal = usePrototype((s) => s.declineLetter);
+  const closeDeclinedLocal = usePrototype((s) => s.closeDeclined);
   const live = liveMode(demoMode);
 
   return {
@@ -130,6 +132,27 @@ export function useLiveEnquiryMutations() {
       const until =
         usePrototype.getState().enquiries.find((e) => e.id === enquiryId)?.snoozedUntil ?? null;
       await writeThrough("Snooze", () => snoozeEnquiry({ data: { enquiryId, until } }), onFailure);
+    },
+    /**
+     * Decline an enquiry. Demo mode keeps its existing scripted behaviour
+     * (declineLetter's fabricated letter is a narrated demo beat, store-only,
+     * exactly as before). A live enquiry gets the honest version: the local
+     * state closes immediately with no fabricated send, and the same close is
+     * written through to the server so it survives a reload.
+     */
+    decline: async (enquiryId: string, reason: string, onFailure: (m: string) => void) => {
+      if (demoMode) {
+        declineLetterLocal(enquiryId);
+        return;
+      }
+      closeDeclinedLocal(enquiryId, reason);
+      if (!live) return;
+      const { declineEnquiry } = await import("@/lib/server/enquiry-actions");
+      await writeThrough(
+        "Decline",
+        () => declineEnquiry({ data: { enquiryId, reason } }),
+        onFailure,
+      );
     },
   };
 }

@@ -314,6 +314,40 @@ export const recordSentReply = createServerFn({ method: "POST" })
   });
 
 /**
+ * Decline an enquiry: a state change, not a customer-facing send.
+ *
+ * The standalone "Decline" control used to be pure client-side state - real
+ * in the UI, gone on reload, and the toast said "Decline sent" when nothing
+ * had actually been sent to anyone. This closes the enquiry for real and
+ * records that the owner did it. It reads nothing from the client beyond the
+ * enquiry id and an optional reason - the closed state itself is fixed, not
+ * something the caller gets to choose.
+ */
+export const declineEnquiry = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .validator((raw: unknown) => {
+    const d = (raw ?? {}) as Record<string, unknown>;
+    const enquiryId = typeof d.enquiryId === "string" ? d.enquiryId : "";
+    const reason = (typeof d.reason === "string" ? d.reason : "").trim().slice(0, 400);
+    if (!enquiryId) throw new Error("An enquiry id is required.");
+    return { enquiryId, reason };
+  })
+  .handler(async ({ context, data }) => {
+    const { withTransaction } = await import("@/lib/db");
+    const { requireEnquiryAccess } = await import("@/lib/repo/tenancy.server");
+    const { declineEnquiryInTransaction } = await import("@/lib/repo/close-enquiry-core");
+    const { enquiryId, businessId } = await requireEnquiryAccess(context.userId, data.enquiryId);
+    return withTransaction((sql) =>
+      declineEnquiryInTransaction(sql, {
+        enquiryId,
+        businessId,
+        userId: context.userId,
+        reason: data.reason,
+      }),
+    );
+  });
+
+/**
  * Answer the one fact an enquiry is blocked on, then decide it again.
  *
  * Without this the loop dead-ends: Enquiry says it needs the guest count, the

@@ -3,6 +3,7 @@ import { test } from "node:test";
 import { ENQUIRIES } from "../fixtures/enquiries.ts";
 import {
   commercialValue,
+  filteredEnquiries,
   nextNeedsYou,
   pricingApplicability,
   queueHeadline,
@@ -82,4 +83,33 @@ test("queue summary is attention-first and does not require a commercial aggrega
   assert.equal(rowanOnly.exactValue, 0);
   assert.equal(queueHeadline(rowanOnly), `${rowanOnly.needsYou} need you`);
   assert.ok(rowanOnly.needsYou >= 1);
+});
+
+test("the queue's closed filter includes a declined live enquiry", () => {
+  const declined = structuredClone(byId("f01"));
+  declined.state = { ...declined.state, lifecycle: "DECLINED" };
+  const open = byId("f02");
+  const all = [declined, open];
+
+  const closed = filteredEnquiries(all, "all", "closed");
+  assert.deepEqual(
+    closed.map((e) => e.id),
+    [declined.id],
+  );
+
+  const needsYou = filteredEnquiries(all, "all", "needs_you");
+  assert.ok(
+    !needsYou.some((e) => e.id === declined.id),
+    "a declined enquiry does not also sit in an attention section",
+  );
+});
+
+test("the closed filter still surfaces the active enquiry even when it is open", () => {
+  const open = byId("f01");
+  const result = filteredEnquiries([open], "all", "closed", open.id);
+  assert.deepEqual(
+    result.map((e) => e.id),
+    [open.id],
+    "activeId always wins, regardless of the filter",
+  );
 });

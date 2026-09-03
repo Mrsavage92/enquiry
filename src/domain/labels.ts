@@ -97,6 +97,33 @@ export function queueSection(enquiry: Enquiry): "needs_you" | "waiting" | "at_ri
   return "recent";
 }
 
+/**
+ * The queue's own filter logic, kept here (not in `queue.tsx`) so it is a
+ * pure function reachable from a plain unit test - `queue.tsx` is a React
+ * component file (JSX), and the test runner's type-stripping mode cannot
+ * parse JSX, so nothing in this codebase's test suite has ever imported a
+ * `.tsx` file directly.
+ *
+ * "closed" is deliberately a raw lifecycle check, not `queueSection` - a
+ * closed enquiry (declined, lost, booked, cancelled) has left every
+ * attention-based section by definition, so this is the one filter that
+ * reads `state.lifecycle` directly rather than routing through it.
+ */
+export function filteredEnquiries(
+  enquiries: Enquiry[],
+  businessFilter: string,
+  queueFilter: string,
+  activeId?: string,
+): Enquiry[] {
+  return enquiries.filter((e) => {
+    if (businessFilter !== "all" && e.businessId !== businessFilter) return false;
+    if (activeId && e.id === activeId) return true;
+    if (queueFilter === "all") return true;
+    if (queueFilter === "closed") return e.state.lifecycle !== "OPEN";
+    return queueSection(e) === queueFilter;
+  });
+}
+
 export function nextNeedsYou(
   enquiries: Enquiry[],
   businessFilter: string,

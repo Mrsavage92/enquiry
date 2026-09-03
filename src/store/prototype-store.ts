@@ -196,6 +196,11 @@ type Actions = {
   snooze: (enquiryId: string) => void;
   setNote: (enquiryId: string, note: string) => void;
   declineLetter: (enquiryId: string) => void;
+  /** Live-mode decline: closes the enquiry honestly - no fabricated letter,
+   *  no fabricated send. Mirrors what declineEnquiryInTransaction persists,
+   *  so the local, optimistic view of the enquiry stays truthful about what
+   *  actually happened server-side. */
+  closeDeclined: (enquiryId: string, reason?: string) => void;
   setPrefs: (patch: Partial<WorkspacePrefs>) => void;
   connectIntegration: (businessId: string, integrationId: string) => void;
   disconnectIntegration: (businessId: string, integrationId: string) => void;
@@ -1473,6 +1478,33 @@ export const usePrototype = create<PrototypeState & Actions>()(
           }),
         });
         get().track(enquiry.fixtureId, "decline");
+      },
+      closeDeclined: (enquiryId, reason) => {
+        const s = get();
+        const enquiry = s.enquiries.find((e) => e.id === enquiryId);
+        if (!enquiry) return;
+        const business = s.businesses.find((b) => b.id === enquiry.businessId);
+        const next = structuredClone(enquiry);
+        next.state = {
+          lifecycle: "DECLINED",
+          decision: "NONE",
+          commercial: next.state.commercial,
+          responsibility: "NONE",
+        };
+        next.followUpDue = false;
+        next.followUpReason = undefined;
+        next.atRisk = false;
+        next.snoozedUntil = undefined;
+        set({
+          enquiries: bump(s.enquiries, next),
+          audit: appendAudit(s.audit, {
+            actor: business?.ownerName ?? "You",
+            summary: "Declined by the owner",
+            detail: reason || undefined,
+            objectType: "enquiry",
+            objectId: enquiryId,
+          }),
+        });
       },
       setPrefs: (patch) => set((s) => ({ prefs: { ...s.prefs, ...patch } })),
       connectIntegration: (businessId, integrationId) => {

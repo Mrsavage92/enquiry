@@ -7,6 +7,7 @@ import { Segmented } from "@/components/ui/segmented";
 import {
   derivedLabel,
   commercialValue,
+  filteredEnquiries,
   formatAud,
   queueSection,
   queueSummary,
@@ -40,20 +41,11 @@ const PHONE_FILTERS = [
   { id: "closed", label: "Done" },
 ] as const;
 
-export function filteredEnquiries(
-  enquiries: Enquiry[],
-  businessFilter: string,
-  queueFilter: string,
-  activeId?: string,
-) {
-  return enquiries.filter((e) => {
-    if (businessFilter !== "all" && e.businessId !== businessFilter) return false;
-    if (activeId && e.id === activeId) return true;
-    if (queueFilter === "all") return true;
-    if (queueFilter === "closed") return e.state.lifecycle !== "OPEN";
-    return queueSection(e) === queueFilter;
-  });
-}
+// Re-exported for `workspace.tsx`'s existing `import { Queue, filteredEnquiries }
+// from "./queue"` - the function itself now lives in `@/domain/labels` (a pure
+// .ts file), since it needs to be reachable from a plain unit test and this
+// file is JSX.
+export { filteredEnquiries };
 
 function matchesQuery(e: Enquiry, q: string, businessName?: string) {
   const hay =

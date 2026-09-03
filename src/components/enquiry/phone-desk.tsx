@@ -12,6 +12,7 @@ import { usePrototype } from "@/store/prototype-store";
 import { useLiveEnquiryMutations } from "@/lib/workspace/live-mutations";
 import { toastUndo } from "@/lib/toast-undo";
 import { Conversation } from "./conversation";
+import { DeclineConfirm } from "./decline-confirm";
 import { Intelligence } from "./intelligence";
 import { TeachDialog } from "./teach-dialog";
 import { WaitingDesk } from "./waiting-desk";
@@ -21,9 +22,11 @@ export function PhoneDesk({ enquiry }: { enquiry: Enquiry }) {
   const [thread, setThread] = useState(false);
   const [more, setMore] = useState(false);
   const [noteOpen, setNoteOpen] = useState(false);
+  const [declineOpen, setDeclineOpen] = useState(false);
+  const [declining, setDeclining] = useState(false);
   const navigate = useNavigate();
   const embedNav = useEmbedNav();
-  const declineLetter = usePrototype((s) => s.declineLetter);
+  const demoMode = usePrototype((s) => s.demoMode);
   // Persisted write-through: a note about a customer must survive a reload.
   const enq = useLiveEnquiryMutations();
   const inChat =
@@ -143,10 +146,8 @@ export function PhoneDesk({ enquiry }: { enquiry: Enquiry }) {
               variant="ghost"
               className="min-h-12 w-full"
               onClick={() => {
-                declineLetter(enquiry.id);
                 setMore(false);
-                toastUndo("Decline sent.");
-                advance();
+                setDeclineOpen(true);
               }}
             >
               Decline
@@ -175,6 +176,22 @@ export function PhoneDesk({ enquiry }: { enquiry: Enquiry }) {
           </Button>
         </SheetContent>
       </Dialog>
+      <DeclineConfirm
+        open={declineOpen}
+        onOpenChange={setDeclineOpen}
+        pending={declining}
+        compact
+        onConfirm={(reason) => {
+          setDeclining(true);
+          void enq.decline(enquiry.id, reason, (m) => toast.error(m)).then(() => {
+            setDeclining(false);
+            setDeclineOpen(false);
+            if (demoMode) toastUndo("Decline sent.");
+            else toast.success("Declined.");
+            advance();
+          });
+        }}
+      />
       <TeachDialog />
     </div>
   );

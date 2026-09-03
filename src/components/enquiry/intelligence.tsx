@@ -45,6 +45,7 @@ import { toastUndo } from "@/lib/toast-undo";
 import { toast } from "sonner";
 import { HearLetter } from "./hear-letter";
 import { SendPreview } from "./send-preview";
+import { DeclineConfirm } from "./decline-confirm";
 
 export function Intelligence({
   enquiry,
@@ -61,8 +62,9 @@ export function Intelligence({
   const [draftOpen, setDraftOpen] = useState(!compact);
   const [sendConfirm, setSendConfirm] = useState(false);
   const [noteOpen, setNoteOpen] = useState(false);
+  const [declineOpen, setDeclineOpen] = useState(false);
+  const [declining, setDeclining] = useState(false);
   const approve = usePrototype((s) => s.approve);
-  const declineLetter = usePrototype((s) => s.declineLetter);
   // Persisted write-through: a note about a customer must survive a reload.
   const enq = useLiveEnquiryMutations();
   const drafts = usePrototype((s) => s.drafts);
@@ -606,11 +608,7 @@ export function Intelligence({
                 <Button
                   size="sm"
                   variant="ghost"
-                  onClick={() => {
-                    declineLetter(enquiry.id);
-                    toastUndo("Decline sent.");
-                    onDone?.();
-                  }}
+                  onClick={() => setDeclineOpen(true)}
                 >
                   Decline
                 </Button>
@@ -743,6 +741,23 @@ export function Intelligence({
           void commitSend(clientRequestId, preview.edited ?? false).then(() => {
             setSendConfirm(false);
             if (!compact) onDone?.();
+          });
+        }}
+      />
+
+      <DeclineConfirm
+        open={declineOpen}
+        onOpenChange={setDeclineOpen}
+        pending={declining}
+        compact={compact}
+        onConfirm={(reason) => {
+          setDeclining(true);
+          void enq.decline(enquiry.id, reason, (m) => toast.error(m)).then(() => {
+            setDeclining(false);
+            setDeclineOpen(false);
+            if (demoMode) toastUndo("Decline sent.");
+            else toast.success("Declined.");
+            onDone?.();
           });
         }}
       />
