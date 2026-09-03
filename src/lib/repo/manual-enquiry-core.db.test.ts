@@ -372,6 +372,46 @@ test("a failed interpretation writes the honest 'could not read' audit line and 
   assert.equal(audit.rows[0]!.summary, "Could not read the message automatically (no_provider)");
 });
 
+test("every classified interpreter failure reason writes the same honest audit line, naming itself, not a guess", async () => {
+  // "no_provider" alone was covered above. `InterpretFailureReason` has four
+  // values (interpret/types.ts) - a timeout, an out-of-schema response, or a
+  // provider-side error must land in exactly the same honest shape as a
+  // missing provider, never a blank fact or a silently-swallowed failure.
+  for (const reason of ["timeout", "invalid_output", "provider_error"] as const) {
+    const pg = await freshDb();
+    const sql = sqlFor(pg);
+    const businessId = await seedBusiness(pg);
+    const { enquiryId, messageId } = await insertManualEnquiry(sql, {
+      businessId,
+      body: "whatever",
+      customerName: "Sarah",
+      customerEmail: "sarah@example.com",
+      customerPhone: "",
+      serviceLabel: "",
+      intakeNote: "",
+    });
+
+    const outcome = await interpretAndApply(sql, {
+      enquiryId,
+      businessId,
+      messageId,
+      rawMessage: "whatever",
+      interpreter: failingInterpreter(reason),
+    });
+    assert.deepEqual(outcome, { ok: false, reason });
+
+    const facts = await pg.query("select 1 from enquiry_fact where enquiry_id = $1", [enquiryId]);
+    assert.equal(facts.rows.length, 0, `a ${reason} failure must never leave a fact behind`);
+
+    const audit = await pg.query<{ summary: string }>(
+      "select summary from audit_event where business_id = $1 order by at",
+      [businessId],
+    );
+    assert.equal(audit.rows.length, 1);
+    assert.equal(audit.rows[0]!.summary, `Could not read the message automatically (${reason})`);
+  }
+});
+
 test("a successful read records the audit line naming the model and the fact count", async () => {
   const pg = await freshDb();
   const sql = sqlFor(pg);

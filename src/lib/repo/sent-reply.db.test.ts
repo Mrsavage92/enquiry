@@ -348,6 +348,50 @@ test("a manual send's audit line names the recipient it resolved, not 'no recipi
   assert.match(ev.rows[0]!.summary, /sarah@example\.com/);
 });
 
+test("a manual send with genuinely no contact on file reads 'no recipient on file' - the placeholder is earned, not a fallback for a partial contact", async () => {
+  const pg = await freshDb();
+  const { businessId, enquiryId } = await seedBusinessAndEnquiry(pg, {
+    customerEmail: "",
+    customerPhone: null,
+    customerHandle: null,
+  });
+  await recordSentReplyInTransaction(sqlFor(pg), {
+    enquiryId,
+    businessId,
+    userId: "u1",
+    body: "Hi, following up.",
+    channel: "manual",
+  });
+  const ev = await pg.query<{ summary: string }>(
+    "select summary from audit_event where business_id = $1",
+    [businessId],
+  );
+  assert.match(ev.rows[0]!.summary, /no recipient on file/);
+});
+
+test("the sent-reply audit line never claims Enquiry itself sent anything - it names the owner", async () => {
+  // The actor is always the human who clicked confirm, never the product. A
+  // regression here would be the same fabrication the old client-only
+  // "Decline sent" toast was: a persisted claim of an action nobody took.
+  const pg = await freshDb();
+  const { businessId, enquiryId } = await seedBusinessAndEnquiry(pg, {
+    customerEmail: "sarah@example.com",
+  });
+  await recordSentReplyInTransaction(sqlFor(pg), {
+    enquiryId,
+    businessId,
+    userId: "u1",
+    body: "Hi Sarah, that comes to $580.",
+    channel: "email",
+  });
+  const ev = await pg.query<{ summary: string }>(
+    "select summary from audit_event where business_id = $1",
+    [businessId],
+  );
+  assert.doesNotMatch(ev.rows[0]!.summary, /sent by Enquiry/i);
+  assert.match(ev.rows[0]!.summary, /sent by the owner/);
+});
+
 test("a repeated clientRequestId creates exactly one outbound message", async () => {
   const pg = await freshDb();
   const { businessId, enquiryId } = await seedBusinessAndEnquiry(pg);

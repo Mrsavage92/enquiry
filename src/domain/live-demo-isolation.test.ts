@@ -6,6 +6,7 @@ import {
   mayRecordSendViaShortcut,
   mayShowFixtureContent,
 } from "./live-demo-isolation.ts";
+import type { LiveHandoffState } from "./live-demo-isolation.ts";
 
 const live = { demoMode: false, onboarded: true, arrivalPlayed: false, framed: false };
 const demo = { demoMode: true, onboarded: true, arrivalPlayed: false, framed: false };
@@ -80,6 +81,45 @@ test("any fixture content left behind fails the handoff", () => {
   assert.equal(isLiveHandoffClean({ ...base, businesses: [{ id: "glow" }] }), false);
   assert.equal(isLiveHandoffClean({ ...base, enquiries: [{ id: "f01" }] }), false);
   assert.equal(isLiveHandoffClean({ ...base, bookings: [{ id: "b1" }] }), false);
+});
+
+test("every demo-only transient field independently fails a clean handoff - each is checked, none is a free pass", () => {
+  // `live-handoff.test.ts` proves the end-to-end store scenarios for several
+  // of these (undo, events, lastAutomated, offline). This is the pure
+  // per-field truth table `isLiveHandoffClean` itself owns: a stale value
+  // left in ANY one of these fields must fail the handoff on its own, with
+  // every other field clean - so a future field added to
+  // `LiveHandoffState` without being wired into the check here is caught by
+  // a new failing test, not silently waved through.
+  const clean: LiveHandoffState = {
+    onboarded: true,
+    demoMode: false,
+    businesses: [],
+    enquiries: [],
+    bookings: [],
+    arrivalPlayed: true,
+  };
+  assert.equal(isLiveHandoffClean(clean), true, "sanity: the base state is clean on its own");
+
+  const dirtyPatches: Record<string, Partial<LiveHandoffState>> = {
+    undo: { undo: { snapshot: "fixture" } },
+    events: { events: [{ id: "demo-event" }] },
+    lastAutomated: { lastAutomated: { customer: "Priya" } },
+    teach: { teach: { from: "old voice", to: "new voice" } },
+    brainPreview: { brainPreview: { proposal: "something" } },
+    lastMerge: { lastMerge: { winnerId: "f01", loserId: "f02" } },
+    voiceNotice: { voiceNotice: { reason: "demo voice drift" } },
+    offline: { offline: true },
+    offlineSimulated: { offlineSimulated: true },
+    networkOffline: { networkOffline: true },
+  };
+  for (const [field, patch] of Object.entries(dirtyPatches)) {
+    assert.equal(
+      isLiveHandoffClean({ ...clean, ...patch }),
+      false,
+      `a stale '${field}' must fail the handoff on its own`,
+    );
+  }
 });
 
 test("a live handoff that leaves demo mode on fails", () => {

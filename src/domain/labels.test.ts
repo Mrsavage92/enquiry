@@ -3,6 +3,8 @@ import { test } from "node:test";
 import { ENQUIRIES } from "../fixtures/enquiries.ts";
 import {
   commercialValue,
+  factStatusLabel,
+  factStatusTone,
   filteredEnquiries,
   nextNeedsYou,
   pricingApplicability,
@@ -10,10 +12,58 @@ import {
   queueSection,
   queueSummary,
 } from "./labels.ts";
+import type { EnquiryFact } from "./types.ts";
 
 function byId(id: string) {
   return ENQUIRIES.find((e) => e.id === id)!;
 }
+
+const ALL_FACT_STATUSES: EnquiryFact["status"][] = [
+  "confirmed",
+  "inferred",
+  "check_this",
+  "unknown",
+  "conflict",
+  "range",
+];
+
+test("every fact status has a distinct, non-empty visible label - no fallthrough reads blank", () => {
+  const labels = ALL_FACT_STATUSES.map(factStatusLabel);
+  for (const label of labels) {
+    assert.ok(label.trim().length > 0, "a fact status must never render as empty text");
+  }
+});
+
+test("only a genuinely confirmed fact ever reads as Confirmed - inferred and check_this never do", () => {
+  assert.equal(factStatusLabel("confirmed"), "Confirmed");
+  for (const status of ["inferred", "check_this", "unknown", "conflict", "range"] as const) {
+    assert.notEqual(
+      factStatusLabel(status),
+      "Confirmed",
+      `${status} must never read as Confirmed - that would fabricate provenance`,
+    );
+  }
+});
+
+test("check_this and inferred each carry their own visible text, not a generic placeholder", () => {
+  assert.equal(factStatusLabel("inferred"), "Inferred");
+  assert.equal(factStatusLabel("check_this"), "Check this");
+  assert.notEqual(factStatusLabel("inferred"), factStatusLabel("check_this"));
+});
+
+test("factStatusTone never returns the 'ok' (confirmed) tone for an unconfirmed status", () => {
+  // Tone is never the only signal (the label carries the same information in
+  // text), but a status that isn't confirmed must not borrow the confirmed
+  // colour either - that would fabricate the same trust signal visually.
+  for (const status of ["inferred", "check_this", "unknown", "conflict", "range"] as const) {
+    assert.notEqual(
+      factStatusTone(status),
+      "ok",
+      `${status} must not render with the same tone as a confirmed fact`,
+    );
+  }
+  assert.equal(factStatusTone("confirmed"), "ok");
+});
 
 test("Priya is an exact quote", () => {
   const v = commercialValue(byId("f01"));

@@ -11,7 +11,8 @@ import { PhoneDesk } from "./phone-desk";
 import { EmptyState } from "@/components/ui/empty-state";
 import { briefing } from "@/domain/briefing";
 import { isFramed } from "@/lib/embed";
-import { mayPlayDemoArrival, mayRecordSendViaShortcut } from "@/domain/live-demo-isolation";
+import { mayPlayDemoArrival } from "@/domain/live-demo-isolation";
+import { resolveSendKey } from "@/domain/send-keys";
 
 export function EnquiryWorkspace({ enquiryId }: { enquiryId?: string }) {
   const narrow = useNarrow(1100);
@@ -58,14 +59,21 @@ export function EnquiryWorkspace({ enquiryId }: { enquiryId?: string }) {
       const inDialog = Boolean(target?.closest("[role='dialog']"));
 
       if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
-        if (inDialog || !enquiryId) return;
-        // Demo only. A real send copies the letter and records the send through
-        // the same approval preview as the Send button, and a keyboard
-        // shortcut that quietly marks something sent without any of that is
-        // exactly the theatre this product exists to remove.
-        if (!mayRecordSendViaShortcut(demoMode)) return;
-        e.preventDefault();
-        approve(enquiryId);
+        // The decision - which keystrokes may ever fire this shortcut - is
+        // `resolveSendKey` (domain/send-keys.ts), tested in isolation. Demo
+        // only: a real send copies the letter and records it through the
+        // same approval preview as the Send button, and a keyboard shortcut
+        // that quietly marks something sent without any of that is exactly
+        // the theatre this product exists to remove.
+        const decision = resolveSendKey(
+          { key: e.key, metaKey: e.metaKey, ctrlKey: e.ctrlKey },
+          { inDialog },
+          demoMode,
+        );
+        if (decision === "submit" && enquiryId) {
+          e.preventDefault();
+          approve(enquiryId);
+        }
         return;
       }
       if (e.metaKey || e.ctrlKey || e.altKey) return;

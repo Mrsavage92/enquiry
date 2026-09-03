@@ -161,6 +161,22 @@ test("an audit event naming the owner is recorded, with the reason in detail whe
   assert.equal(ev.rows[0]!.object_type, "enquiry");
 });
 
+test("the declined audit line never claims anything was sent - declining is a state change, not a send", async () => {
+  // The standalone "Decline" control used to be pure client-side state with
+  // a toast reading "Decline sent" when nothing had reached anyone. This is
+  // the regression guard on the honest replacement: whatever the summary
+  // text is, it must never assert a send happened.
+  const pg = await freshDb();
+  const { businessId, enquiryId } = await seedBusinessAndEnquiry(pg);
+  await declineEnquiryInTransaction(sqlFor(pg), { enquiryId, businessId, userId: "u1" });
+
+  const ev = await pg.query<{ summary: string }>(
+    "select summary from audit_event where business_id = $1",
+    [businessId],
+  );
+  assert.doesNotMatch(ev.rows[0]!.summary, /\bsent\b/i);
+});
+
 test("no reason given records a null detail, never a fabricated one", async () => {
   const pg = await freshDb();
   const { businessId, enquiryId } = await seedBusinessAndEnquiry(pg);
