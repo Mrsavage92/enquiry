@@ -85,3 +85,44 @@ test("edited is null when the decision snapshot carries no prepared text to comp
   });
   assert.equal(preview.edited, null);
 });
+
+test("amount comes from the decision snapshot's price when nothing else supplies it yet (a live enquiry before send)", () => {
+  const priya = structuredClone(byId("f01"));
+  priya.valueExact = undefined;
+  priya.decision.quotes = [];
+  priya.decision.price = { kind: "EXACT", amountMinor: 58000, currency: "AUD" };
+  const preview = previewFor({
+    enquiry: priya,
+    draft: priya.decision.draft.body,
+    decision: priya.decision,
+  });
+  assert.equal(preview.amountLabel, "$580");
+});
+
+test("a range price in the decision snapshot is restated before send, not silently dropped", () => {
+  const priya = structuredClone(byId("f01"));
+  priya.valueExact = undefined;
+  priya.valueRange = undefined;
+  priya.decision.quotes = [];
+  priya.decision.price = { kind: "RANGE", minMinor: 72000, maxMinor: 108000, currency: "AUD" };
+  const preview = previewFor({
+    enquiry: priya,
+    draft: priya.decision.draft.body,
+    decision: priya.decision,
+  });
+  assert.equal(preview.amountLabel, "$720–$1,080");
+});
+
+test("a BLOCKED/unpriceable decision (no price on the snapshot) still has no amount before send", () => {
+  const leah = structuredClone(byId("f09"));
+  leah.valueExact = undefined;
+  leah.valueRange = undefined;
+  leah.decision.quotes = [];
+  assert.equal(leah.decision.price, undefined, "escalated enquiries never carry a computed price");
+  const preview = previewFor({
+    enquiry: leah,
+    draft: leah.decision.draft.body,
+    decision: leah.decision,
+  });
+  assert.equal(preview.amountLabel, null);
+});

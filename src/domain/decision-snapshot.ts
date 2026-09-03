@@ -85,6 +85,12 @@ export function snapshotFromDecision(
       body: composeReply(decision, who),
       groundedFacts: decision.blocker ? [decision.blocker.field] : [],
     },
+    // The computed price, before anything is sent - the only place a live,
+    // never-sent enquiry's figure lives, since `quote_version` (and so
+    // `quotes` above) is only written once a send actually happens.
+    price: decision.price.kind === "EXACT"
+      ? { kind: "EXACT", amountMinor: decision.price.amountMinor, currency: decision.price.currency }
+      : undefined,
   };
 }
 

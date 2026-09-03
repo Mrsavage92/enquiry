@@ -1,5 +1,5 @@
 import type { Sql } from "../db.ts";
-import type { Channel } from "../../domain/types.ts";
+import type { Channel, DecisionPrice, EvaluatorResult, LineItem } from "../../domain/types.ts";
 import { channelLabel } from "../../domain/channel.ts";
 
 /**
@@ -55,6 +55,26 @@ function normalizeForCompare(body: string): string {
 }
 
 /**
+ * The line items a quote_version row is recorded with.
+ *
+ * A structured breakdown when the decision's own pricing evaluator carries
+ * one (amounts already in major units, matching LineItem), otherwise a
+ * single line carrying the compiler's own workings sentence - never an
+ * invented breakdown of a number nobody itemised.
+ */
+function lineItemsForQuote(
+  evaluators: EvaluatorResult[] | null,
+  explanation: string | null,
+  amountMajor: number,
+): LineItem[] {
+  const pricing = (evaluators ?? []).find(
+    (e) => e.type === "pricing" && Array.isArray(e.lineItems) && e.lineItems.length > 0,
+  );
+  if (pricing?.lineItems?.length) return pricing.lineItems;
+  return [{ id: "line-1", label: explanation || "Quote", amount: amountMajor }];
+}
+
+/**
  * The recipient is derived here, server-side, from the enquiry's own stored
  * contact fields for the resolved channel - never from anything the client
  * sent. An unknown/unsupported channel (or a channel with nothing on file)
@@ -99,11 +119,19 @@ export async function recordSentReplyInTransaction(
     reason: string | null;
     action: string | null;
     prepared_body: string | null;
+    price: DecisionPrice | null;
+    explanation: string | null;
+    evaluators: EvaluatorResult[] | null;
+    engine_version: string;
   }>`
     select customer_email, customer_phone, customer_handle,
       decision_snapshot -> 'recommendation' ->> 'reason' as reason,
       decision_snapshot -> 'recommendation' ->> 'action' as action,
-      decision_snapshot -> 'draft' ->> 'body' as prepared_body
+      decision_snapshot -> 'draft' ->> 'body' as prepared_body,
+      decision_snapshot -> 'price' as price,
+      decision_snapshot ->> 'explanation' as explanation,
+      decision_snapshot -> 'evaluators' as evaluators,
+      engine_version
     from enquiry where id = ${input.enquiryId}
   `;
   if (!enq) throw new Error("That enquiry no longer exists.");
@@ -145,6 +173,56 @@ export async function recordSentReplyInTransaction(
         updated_at = now()
     where id = ${input.enquiryId}
   `;
+
+  // A structural quote/estimate record, not just prose in the message body -
+  // this is what lets the case file, the queue row and a reload all show the
+  // figure from data. Gated on the send actually being a priced one: a
+  // REQUEST_INFORMATION or ACKNOWLEDGE send writes no quote_version row at
+  // all, and neither does a duplicate (this code is never reached for one -
+  // the early return above already sent it back).
+  if (enq.action === "SEND_QUOTE" && enq.price?.kind === "EXACT") {
+    const [{ next_version }] = await sql<{ next_version: number }>`
+      select coalesce(max(version), 0) + 1 as next_version
+      from quote_version where enquiry_id = ${input.enquiryId}
+    `;
+    const lineItems = lineItemsForQuote(enq.evaluators, enq.explanation, enq.price.amountMinor / 100);
+    await sql`
+      insert into quote_version
+        (enquiry_id, version, status, sent_at, total_minor, currency, line_items, rule_set_version)
+      values (
+        ${input.enquiryId}, ${next_version}, ${"sent"}, now(),
+        ${enq.price.amountMinor}, ${enq.price.currency}, ${JSON.stringify(lineItems)}::jsonb,
+        ${enq.engine_version ?? "0"}
+      )
+    `;
+    await sql`
+      update enquiry
+      set value_exact_minor = ${enq.price.amountMinor}, currency = ${enq.price.currency}, updated_at = now()
+      where id = ${input.enquiryId}
+    `;
+  } else if (enq.action === "SEND_ESTIMATE" && enq.price?.kind === "RANGE") {
+    const [{ next_version }] = await sql<{ next_version: number }>`
+      select coalesce(max(version), 0) + 1 as next_version
+      from quote_version where enquiry_id = ${input.enquiryId}
+    `;
+    const midpointMajor = (enq.price.minMinor + enq.price.maxMinor) / 2 / 100;
+    const lineItems = lineItemsForQuote(enq.evaluators, enq.explanation, midpointMajor);
+    await sql`
+      insert into quote_version
+        (enquiry_id, version, status, sent_at, range_min_minor, range_max_minor, currency, line_items, rule_set_version)
+      values (
+        ${input.enquiryId}, ${next_version}, ${"sent"}, now(),
+        ${enq.price.minMinor}, ${enq.price.maxMinor}, ${enq.price.currency}, ${JSON.stringify(lineItems)}::jsonb,
+        ${enq.engine_version ?? "0"}
+      )
+    `;
+    await sql`
+      update enquiry
+      set value_range_min_minor = ${enq.price.minMinor}, value_range_max_minor = ${enq.price.maxMinor},
+          currency = ${enq.price.currency}, updated_at = now()
+      where id = ${input.enquiryId}
+    `;
+  }
 
   // `edited` is derived here, from what Enquiry actually prepared, rather
   // than trusted from the client - a client-reported value can't be told

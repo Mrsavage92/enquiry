@@ -53,6 +53,13 @@ async function seedBusinessAndEnquiry(
     /** The reply Enquiry itself prepared, if any - omit to leave the snapshot
      *  carrying no draft at all, the same as a hand-authored fixture. */
     draftBody?: string;
+    /** The decision snapshot's computed price, if any - omit to leave the
+     *  snapshot carrying no price at all (a non-quote action, or a decision
+     *  made before this slice existed). */
+    price?:
+      | { kind: "EXACT"; amountMinor: number; currency: string }
+      | { kind: "RANGE"; minMinor: number; maxMinor: number; currency: string };
+    engineVersion?: string;
   } = {},
 ): Promise<{ businessId: string; enquiryId: string }> {
   const biz = await pg.query<{ id: string }>(
@@ -76,12 +83,14 @@ async function seedBusinessAndEnquiry(
       action: overrides.action ?? "SEND_QUOTE",
     },
     ...(overrides.draftBody !== undefined ? { draft: { body: overrides.draftBody } } : {}),
+    ...(overrides.price !== undefined ? { price: overrides.price } : {}),
   };
   const enq = await pg.query<{ id: string }>(
     `insert into enquiry
        (business_id, customer_name, customer_email, customer_phone, customer_handle, source,
-        service_label, decision_state, commercial_state, responsibility, decision_snapshot)
-     values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11::jsonb)
+        service_label, decision_state, commercial_state, responsibility, decision_snapshot,
+        engine_version)
+     values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11::jsonb,$12)
      returning id`,
     [
       businessId,
@@ -95,6 +104,7 @@ async function seedBusinessAndEnquiry(
       "QUOTABLE",
       "BUSINESS",
       JSON.stringify(snapshot),
+      overrides.engineVersion ?? "1",
     ],
   );
   return { businessId, enquiryId: enq.rows[0]!.id };
@@ -414,4 +424,177 @@ test("a confirmed SEND_ESTIMATE moves commercial state to ESTIMATED", async () =
     [enquiryId],
   );
   assert.equal(row.rows[0]!.commercial_state, "ESTIMATED");
+});
+
+test("a quote send writes exactly one quote_version row, version 1, with the right total", async () => {
+  const pg = await freshDb();
+  const { businessId, enquiryId } = await seedBusinessAndEnquiry(pg, {
+    action: "SEND_QUOTE",
+    price: { kind: "EXACT", amountMinor: 58000, currency: "AUD" },
+    engineVersion: "3",
+  });
+  await recordSentReplyInTransaction(sqlFor(pg), {
+    enquiryId,
+    businessId,
+    userId: "u1",
+    body: "Hi Sarah, that comes to $580.",
+    channel: "email",
+  });
+  const rows = await pg.query<{
+    version: number;
+    status: string;
+    total_minor: number;
+    currency: string;
+    rule_set_version: string;
+  }>("select version, status, total_minor, currency, rule_set_version from quote_version where enquiry_id = $1", [
+    enquiryId,
+  ]);
+  assert.equal(rows.rows.length, 1, "exactly one quote_version row");
+  assert.equal(rows.rows[0]!.version, 1);
+  assert.equal(rows.rows[0]!.status, "sent");
+  assert.equal(rows.rows[0]!.total_minor, 58000);
+  assert.equal(rows.rows[0]!.currency, "AUD");
+  assert.equal(rows.rows[0]!.rule_set_version, "3");
+});
+
+test("a second real send writes version 2, not a second version 1", async () => {
+  const pg = await freshDb();
+  const { businessId, enquiryId } = await seedBusinessAndEnquiry(pg, {
+    action: "SEND_QUOTE",
+    price: { kind: "EXACT", amountMinor: 58000, currency: "AUD" },
+  });
+  await recordSentReplyInTransaction(sqlFor(pg), {
+    enquiryId,
+    businessId,
+    userId: "u1",
+    body: "Hi Sarah, that comes to $580.",
+    channel: "email",
+    clientRequestId: "55555555-5555-4555-8555-555555555555",
+  });
+  await recordSentReplyInTransaction(sqlFor(pg), {
+    enquiryId,
+    businessId,
+    userId: "u1",
+    body: "Hi Sarah, that comes to $580 - resending as requested.",
+    channel: "email",
+    clientRequestId: "66666666-6666-4666-8666-666666666666",
+  });
+  const rows = await pg.query<{ version: number }>(
+    "select version from quote_version where enquiry_id = $1 order by version",
+    [enquiryId],
+  );
+  assert.deepEqual(
+    rows.rows.map((r) => r.version),
+    [1, 2],
+  );
+});
+
+test("a duplicate clientRequestId writes no additional quote_version row", async () => {
+  const pg = await freshDb();
+  const { businessId, enquiryId } = await seedBusinessAndEnquiry(pg, {
+    action: "SEND_QUOTE",
+    price: { kind: "EXACT", amountMinor: 58000, currency: "AUD" },
+  });
+  const clientRequestId = "77777777-7777-4777-8777-777777777777";
+  await recordSentReplyInTransaction(sqlFor(pg), {
+    enquiryId,
+    businessId,
+    userId: "u1",
+    body: "Hi Sarah, that comes to $580.",
+    channel: "email",
+    clientRequestId,
+  });
+  await recordSentReplyInTransaction(sqlFor(pg), {
+    enquiryId,
+    businessId,
+    userId: "u1",
+    body: "Hi Sarah, that comes to $580.",
+    channel: "email",
+    clientRequestId,
+  });
+  const count = await pg.query<{ n: number }>(
+    "select count(*)::int n from quote_version where enquiry_id = $1",
+    [enquiryId],
+  );
+  assert.equal(count.rows[0]!.n, 1, "the retry must not create a second quote_version row");
+});
+
+test("a non-quote send writes no quote_version row", async () => {
+  const pg = await freshDb();
+  const { businessId, enquiryId } = await seedBusinessAndEnquiry(pg, {
+    action: "REQUEST_INFORMATION",
+    reason: "Guests decides the price.",
+  });
+  await recordSentReplyInTransaction(sqlFor(pg), {
+    enquiryId,
+    businessId,
+    userId: "u1",
+    body: "Hi Sarah, how many guests will there be?",
+    channel: "email",
+  });
+  const count = await pg.query<{ n: number }>(
+    "select count(*)::int n from quote_version where enquiry_id = $1",
+    [enquiryId],
+  );
+  assert.equal(count.rows[0]!.n, 0);
+});
+
+test("a quote send updates enquiry.value_exact_minor and currency, so the queue reads it from data", async () => {
+  const pg = await freshDb();
+  const { businessId, enquiryId } = await seedBusinessAndEnquiry(pg, {
+    action: "SEND_QUOTE",
+    price: { kind: "EXACT", amountMinor: 58000, currency: "AUD" },
+  });
+  const before = await pg.query<{ value_exact_minor: number | null }>(
+    "select value_exact_minor from enquiry where id = $1",
+    [enquiryId],
+  );
+  assert.equal(before.rows[0]!.value_exact_minor, null, "unset before the send");
+  await recordSentReplyInTransaction(sqlFor(pg), {
+    enquiryId,
+    businessId,
+    userId: "u1",
+    body: "Hi Sarah, that comes to $580.",
+    channel: "email",
+  });
+  const after = await pg.query<{ value_exact_minor: number; currency: string }>(
+    "select value_exact_minor, currency from enquiry where id = $1",
+    [enquiryId],
+  );
+  assert.equal(after.rows[0]!.value_exact_minor, 58000);
+  assert.equal(after.rows[0]!.currency, "AUD");
+});
+
+test("a SEND_ESTIMATE send writes range_min_minor/range_max_minor, not total_minor", async () => {
+  const pg = await freshDb();
+  const { businessId, enquiryId } = await seedBusinessAndEnquiry(pg, {
+    action: "SEND_ESTIMATE",
+    price: { kind: "RANGE", minMinor: 72000, maxMinor: 108000, currency: "AUD" },
+  });
+  await recordSentReplyInTransaction(sqlFor(pg), {
+    enquiryId,
+    businessId,
+    userId: "u1",
+    body: "Hi Sarah, roughly $720-$1,080.",
+    channel: "email",
+  });
+  const rows = await pg.query<{
+    total_minor: number | null;
+    range_min_minor: number;
+    range_max_minor: number;
+  }>(
+    "select total_minor, range_min_minor, range_max_minor from quote_version where enquiry_id = $1",
+    [enquiryId],
+  );
+  assert.equal(rows.rows.length, 1);
+  assert.equal(rows.rows[0]!.total_minor, null);
+  assert.equal(rows.rows[0]!.range_min_minor, 72000);
+  assert.equal(rows.rows[0]!.range_max_minor, 108000);
+
+  const enq = await pg.query<{ value_range_min_minor: number; value_range_max_minor: number }>(
+    "select value_range_min_minor, value_range_max_minor from enquiry where id = $1",
+    [enquiryId],
+  );
+  assert.equal(enq.rows[0]!.value_range_min_minor, 72000);
+  assert.equal(enq.rows[0]!.value_range_max_minor, 108000);
 });

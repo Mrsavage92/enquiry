@@ -410,6 +410,19 @@ export type ChangeDiff = {
   to: string;
 };
 
+/**
+ * What the decision computed, before anything is sent.
+ *
+ * A real `quote_version` row only exists once a quote is actually sent - this
+ * is the figure the *pending* recommendation carries, so the approval preview
+ * has a real number to show for an enquiry that has never been sent yet.
+ * `quotes` (below) still wins once a real row exists; this is the fallback
+ * that lets a live, un-sent enquiry read from data rather than staying blank.
+ */
+export type DecisionPrice =
+  | { kind: "EXACT"; amountMinor: number; currency: "AUD" }
+  | { kind: "RANGE"; minMinor: number; maxMinor: number; currency: "AUD" };
+
 export type DecisionSnapshot = {
   evaluators: EvaluatorResult[];
   missing: MissingInformation[];
@@ -425,6 +438,7 @@ export type DecisionSnapshot = {
   failedGates: string[];
   serviceComposition: string[];
   changeDiff?: ChangeDiff[];
+  price?: DecisionPrice;
 };
 
 export type WhyItem = {

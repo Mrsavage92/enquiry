@@ -198,3 +198,40 @@ test("an unconfirmed answer still does not price it", () => {
   assert.equal(guessed.price.kind, "BLOCKED");
   assert.equal(stateFromDecision(guessed).decisionState, "NEEDS_INFORMATION");
 });
+
+test("a priced decision's snapshot carries the price structurally, not only in prose", () => {
+  const business = {
+    knowledge: [
+      {
+        state: "Active",
+        rulePayload: { kind: "fixed_price", service: "Bridal trial", amount: 120, currency: "AUD" },
+      },
+    ],
+  };
+  const snapshot = snapshotFromDecision(
+    decideEnquiry(business, { serviceLabel: "Bridal trial", facts: [] }),
+  );
+  assert.deepEqual(snapshot.price, { kind: "EXACT", amountMinor: 12000, currency: "AUD" });
+});
+
+test("a blocked decision's snapshot carries no price - never a guessed figure", () => {
+  const business = {
+    knowledge: [
+      {
+        state: "Active",
+        rulePayload: {
+          kind: "per_unit",
+          service: "Group makeup",
+          amount: 145,
+          currency: "AUD",
+          unit: "person",
+          quantityField: "guests",
+        },
+      },
+    ],
+  };
+  const snapshot = snapshotFromDecision(
+    decideEnquiry(business, { serviceLabel: "Group makeup", facts: [] }),
+  );
+  assert.equal(snapshot.price, undefined);
+});
