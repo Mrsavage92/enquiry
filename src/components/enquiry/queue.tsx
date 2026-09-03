@@ -253,6 +253,7 @@ export function Queue({ activeId, phone = false }: { activeId?: string; phone?: 
             <span className="sr-only">Find an enquiry</span>
             <input
               ref={searchRef}
+              name="enquiry-search"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Find"

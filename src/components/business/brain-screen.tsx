@@ -155,7 +155,12 @@ export function BrainScreen() {
         {phone ? null : (
           <label className="block text-sm sm:w-56">
             <span className="mb-1.5 block text-stone">Working as</span>
-            <select className="field h-11" value={id} onChange={(e) => setFilter(e.target.value)}>
+            <select
+              name="working-as"
+              className="field h-11"
+              value={id}
+              onChange={(e) => setFilter(e.target.value)}
+            >
               {/* Live tenants pick from their own businesses. This selector
                   listed the fixture roster unconditionally, so a real signed-in
                   operator saw other studios' names ("Ridge & Co Painting",
@@ -247,6 +252,7 @@ export function BrainScreen() {
         <label className="mt-4 block">
           <span className="sr-only">Find in Business Brain</span>
           <input
+            name="brain-search"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Find a price, policy or source"

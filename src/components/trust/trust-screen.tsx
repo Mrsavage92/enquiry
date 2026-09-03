@@ -45,7 +45,12 @@ export function TrustOverview() {
         {phone ? null : (
           <label className="block text-sm sm:w-56">
             <span className="mb-1.5 block text-stone">Workspace</span>
-            <select className="field h-11" value={id} onChange={(e) => setFilter(e.target.value)}>
+            <select
+              name="workspace"
+              className="field h-11"
+              value={id}
+              onChange={(e) => setFilter(e.target.value)}
+            >
               {/* Live tenants pick from their own businesses. This selector
                   listed the fixture roster unconditionally, so a real signed-in
                   operator saw other studios' names as their "Workspace" options. */}

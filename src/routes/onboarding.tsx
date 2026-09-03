@@ -183,30 +183,38 @@ function Onboarding() {
             <div className="mt-6 space-y-3">
               <Field
                 label="Business name"
+                name="business-name"
                 value={name}
                 onChange={setName}
                 placeholder="e.g. Ridge & Co"
+                autoComplete="organization"
               />
               <Field
                 label="Your first name"
+                name="owner-first-name"
                 value={ownerFirstName}
                 onChange={setOwnerFirstName}
                 placeholder="Used when Enquiry signs off"
+                autoComplete="given-name"
               />
               <Field
                 label="What you do"
+                name="industry"
                 value={industry}
                 onChange={setIndustry}
                 placeholder="e.g. mobile makeup, painting, photography"
               />
               <Field
                 label="Where you work from"
+                name="base-location"
                 value={baseLocation}
                 onChange={setBaseLocation}
                 placeholder="Suburb, city or region"
+                autoComplete="address-level2"
               />
               <SelectField
                 label="Who does the work"
+                name="team-size"
                 value={team}
                 onChange={setTeam}
                 options={TEAMS.map((t) => t.label)}
@@ -220,7 +228,12 @@ function Onboarding() {
               */}
               {editingTimezone ? (
                 <div className="animate-[rise-in_150ms_var(--ease-smooth-out)]">
-                  <Field label="Time zone" value={timezone} onChange={setTimezone} />
+                  <Field
+                    label="Time zone"
+                    name="timezone"
+                    value={timezone}
+                    onChange={setTimezone}
+                  />
                 </div>
               ) : (
                 <div className="flex min-h-11 items-center justify-between gap-3 text-sm animate-[rise-in_150ms_var(--ease-smooth-out)]">
@@ -324,21 +337,27 @@ function Onboarding() {
 
 function Field({
   label,
+  name,
   value,
   onChange,
   placeholder,
+  autoComplete,
 }: {
   label: string;
+  name: string;
   value: string;
   onChange: (v: string) => void;
   placeholder?: string;
+  autoComplete?: string;
 }) {
   return (
     <label className="block text-sm">
       <span className="mb-1.5 block text-stone">{label}</span>
       <input
+        name={name}
         value={value}
         placeholder={placeholder}
+        autoComplete={autoComplete}
         onChange={(e) => onChange(e.target.value)}
         className="field h-11"
       />
@@ -348,12 +367,14 @@ function Field({
 
 function SelectField({
   label,
+  name,
   value,
   onChange,
   options,
   values,
 }: {
   label: string;
+  name: string;
   value: string;
   onChange: (v: string) => void;
   options: string[];
@@ -362,7 +383,12 @@ function SelectField({
   return (
     <label className="block text-sm">
       <span className="mb-1.5 block text-stone">{label}</span>
-      <select value={value} onChange={(e) => onChange(e.target.value)} className="field h-11">
+      <select
+        name={name}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="field h-11"
+      >
         {options.map((opt, i) => (
           <option key={opt} value={values?.[i] ?? opt}>
             {opt}
