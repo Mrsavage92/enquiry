@@ -25,7 +25,7 @@ export type DeclineEnquiryInput = {
   reason?: string;
 };
 
-export type DeclineEnquiryResult = { ok: true; alreadyDeclined: boolean };
+export type DeclineEnquiryResult = { ok: true; alreadyClosed: boolean };
 
 const MAX_REASON_LENGTH = 400;
 
@@ -33,25 +33,32 @@ export async function declineEnquiryInTransaction(
   sql: Sql,
   input: DeclineEnquiryInput,
 ): Promise<DeclineEnquiryResult> {
-  const [existing] = await sql<{ lifecycle: string }>`
-    select lifecycle from enquiry where id = ${input.enquiryId}
-  `;
-  if (!existing) throw new Error("That enquiry no longer exists.");
-
-  // Idempotent: a retried request (or a second click that raced the first)
-  // must not close an already-closed enquiry a second time or write a second
-  // audit line claiming it happened twice.
-  if (existing.lifecycle === "DECLINED") {
-    return { ok: true, alreadyDeclined: true };
-  }
-
-  await sql`
+  // A single conditional statement, not select-then-update: the previous
+  // version read `lifecycle`, decided in application code, and only then
+  // wrote - which left a window where two concurrent declines could both
+  // read "not yet declined" and both go on to update and insert an audit
+  // row. The `lifecycle <> 'DECLINED'` guard lives in the same statement as
+  // the write, so at most one concurrent call can ever see a returned row.
+  const [updated] = await sql<{ id: string }>`
     update enquiry
     set lifecycle = ${"DECLINED"}, decision_state = ${"NONE"}, responsibility = ${"NONE"},
         follow_up_due = ${false}, follow_up_reason = ${null}, at_risk = ${false},
         snoozed_until = ${null}, updated_at = now()
-    where id = ${input.enquiryId}
+    where id = ${input.enquiryId} and lifecycle <> ${"DECLINED"}
+    returning id
   `;
+
+  if (!updated) {
+    // No row came back either because the enquiry doesn't exist, or because
+    // it is already declined (a concurrent decline won the race, or this is
+    // a retried request). This read only tells the two apart for the error
+    // case below - it never gates a write.
+    const [existing] = await sql<{ lifecycle: string }>`
+      select lifecycle from enquiry where id = ${input.enquiryId}
+    `;
+    if (!existing) throw new Error("That enquiry no longer exists.");
+    return { ok: true, alreadyClosed: true };
+  }
 
   const reason = (input.reason ?? "").trim().slice(0, MAX_REASON_LENGTH);
   await sql`
@@ -62,5 +69,5 @@ export async function declineEnquiryInTransaction(
     )
   `;
 
-  return { ok: true, alreadyDeclined: false };
+  return { ok: true, alreadyClosed: false };
 }

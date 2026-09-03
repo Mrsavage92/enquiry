@@ -167,7 +167,9 @@ export function PhoneDesk({ enquiry }: { enquiry: Enquiry }) {
           <Button
             className="mt-4 min-h-12 w-full"
             onClick={() => {
-              const el = document.getElementById("phone-enquiry-note") as HTMLTextAreaElement | null;
+              const el = document.getElementById(
+                "phone-enquiry-note",
+              ) as HTMLTextAreaElement | null;
               void enq.setNote(enquiry.id, el?.value ?? "", (m) => toast.error(m));
               setNoteOpen(false);
             }}
@@ -183,13 +185,20 @@ export function PhoneDesk({ enquiry }: { enquiry: Enquiry }) {
         compact
         onConfirm={(reason) => {
           setDeclining(true);
-          void enq.decline(enquiry.id, reason, (m) => toast.error(m)).then(() => {
-            setDeclining(false);
-            setDeclineOpen(false);
-            if (demoMode) toastUndo("Decline sent.");
-            else toast.success("Declined.");
-            advance();
-          });
+          void enq
+            .decline(enquiry.id, reason, (m) => toast.error(m))
+            .then((ok) => {
+              setDeclining(false);
+              // A failed write already showed its own error toast via
+              // onFailure - do not also close the dialog, show a success
+              // toast, or navigate away. Leave the enquiry exactly where the
+              // operator found it so they can retry.
+              if (!ok) return;
+              setDeclineOpen(false);
+              if (demoMode) toastUndo("Decline sent.");
+              else toast.success("Declined.");
+              advance();
+            });
         }}
       />
       <TeachDialog />

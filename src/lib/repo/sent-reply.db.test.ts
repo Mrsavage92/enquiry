@@ -3,6 +3,7 @@ import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import test from "node:test";
 import { PGlite } from "@electric-sql/pglite";
+import type { Sql } from "../db.ts";
 import { recordSentReplyInTransaction } from "./sent-reply-core.ts";
 
 /**
@@ -40,6 +41,85 @@ function sqlFor(pg: PGlite) {
     return run<T>(text, values);
   }) as never;
   return sql;
+}
+
+/**
+ * `recordSentReplyInTransaction` assumes it runs inside a real transaction
+ * block (see the top-of-file comment in `sent-reply-core.ts`) - production
+ * always calls it through `withTransaction` in `db.ts`, which opens one.
+ * `sqlFor` alone auto-commits each statement individually, which is fine for
+ * every test that never reaches the quote_version insert, but the SAVEPOINT
+ * that insert's retry logic relies on errors with "SAVEPOINT can only be
+ * used in transaction blocks" without an explicit BEGIN around it. This
+ * gives the quote/estimate tests that real transaction, plus a raw `run`
+ * escape hatch bound to the same connection for setting up race scenarios
+ * the production `Sql` surface can't reach.
+ */
+async function inTransaction<T>(
+  pg: PGlite,
+  fn: (sql: Sql, run: <R>(text: string, params?: unknown[]) => Promise<R[]>) => Promise<T>,
+): Promise<T> {
+  return pg.transaction(async (tx) => {
+    const run = async <R>(text: string, params: unknown[] = []): Promise<R[]> => {
+      const res = await tx.query<R>(text, params);
+      return res.rows;
+    };
+    const sql = (async <R>(strings: TemplateStringsArray, ...values: unknown[]) => {
+      let text = strings[0] ?? "";
+      for (let i = 0; i < values.length; i += 1) text += `$${i + 1}${strings[i + 1] ?? ""}`;
+      return run<R>(text, values);
+    }) as never;
+    return fn(sql, run);
+  }) as Promise<T>;
+}
+
+/**
+ * When the test pre-inserts a quote_version row (e.g. version 1), the next
+ * `recordSentReplyInTransaction` call to insert a SEND_QUOTE will compute
+ * version 2 via its `coalesce((select max(version)...)) + 1` expression and
+ * succeed. To actually hit the race condition (two calls computing the same
+ * version because they both read the max at the same instant before either
+ * commits), this wrapper hijacks the version computation to use a version the
+ * test has already taken, forcing a unique constraint violation.
+ * It does this only the first `times` times the query runs.
+ *
+ * The trick: the coalesce subquery references enquiry_id twice in the
+ * resulting params: once as the first SELECT column, once inside the subquery.
+ * E.g. `select $1, coalesce((select max(version) from quote_version where
+ * enquiry_id = $2), 0) + 1, ...`. We replace the entire coalesce + arithmetic
+ * with just the forced version, but preserve the unused `$2` reference in the
+ * text so Postgres can still infer its type.
+ */
+function forceQuoteVersionCollisions(
+  sql: Sql,
+  run: <R>(text: string, params?: unknown[]) => Promise<R[]>,
+  collideAtVersion: number,
+  times: number,
+): Sql {
+  let collisionsRemaining = times;
+  const wrapped = (async <T>(strings: TemplateStringsArray, ...values: unknown[]) => {
+    let text = strings[0] ?? "";
+    for (let i = 0; i < values.length; i += 1) text += `$${i + 1}${strings[i + 1] ?? ""}`;
+    if (
+      collisionsRemaining > 0 &&
+      text.includes("insert into quote_version") &&
+      text.includes("select") &&
+      text.includes("coalesce((select max(version)")
+    ) {
+      collisionsRemaining -= 1;
+      const replaced = text.replace(
+        /coalesce\(\(select max\(version\) from quote_version where enquiry_id = \$\d+\), 0\) \+ 1/,
+        (match) => {
+          const paramMatch = match.match(/\$(\d+)/);
+          const paramNum = paramMatch ? parseInt(paramMatch[1], 10) : 2;
+          return `${collideAtVersion}, $${paramNum} -- forced collision`;
+        },
+      );
+      return run<T>(replaced, values);
+    }
+    return run<T>(text, values);
+  }) as never;
+  return wrapped;
 }
 
 async function seedBusinessAndEnquiry(
@@ -546,13 +626,15 @@ test("a quote send writes exactly one quote_version row, version 1, with the rig
     price: { kind: "EXACT", amountMinor: 58000, currency: "AUD" },
     engineVersion: "3",
   });
-  await recordSentReplyInTransaction(sqlFor(pg), {
-    enquiryId,
-    businessId,
-    userId: "u1",
-    body: "Hi Sarah, that comes to $580.",
-    channel: "email",
-  });
+  await inTransaction(pg, (sql) =>
+    recordSentReplyInTransaction(sql, {
+      enquiryId,
+      businessId,
+      userId: "u1",
+      body: "Hi Sarah, that comes to $580.",
+      channel: "email",
+    }),
+  );
   const rows = await pg.query<{
     version: number;
     status: string;
@@ -577,22 +659,26 @@ test("a second real send writes version 2, not a second version 1", async () => 
     action: "SEND_QUOTE",
     price: { kind: "EXACT", amountMinor: 58000, currency: "AUD" },
   });
-  await recordSentReplyInTransaction(sqlFor(pg), {
-    enquiryId,
-    businessId,
-    userId: "u1",
-    body: "Hi Sarah, that comes to $580.",
-    channel: "email",
-    clientRequestId: "55555555-5555-4555-8555-555555555555",
-  });
-  await recordSentReplyInTransaction(sqlFor(pg), {
-    enquiryId,
-    businessId,
-    userId: "u1",
-    body: "Hi Sarah, that comes to $580 - resending as requested.",
-    channel: "email",
-    clientRequestId: "66666666-6666-4666-8666-666666666666",
-  });
+  await inTransaction(pg, (sql) =>
+    recordSentReplyInTransaction(sql, {
+      enquiryId,
+      businessId,
+      userId: "u1",
+      body: "Hi Sarah, that comes to $580.",
+      channel: "email",
+      clientRequestId: "55555555-5555-4555-8555-555555555555",
+    }),
+  );
+  await inTransaction(pg, (sql) =>
+    recordSentReplyInTransaction(sql, {
+      enquiryId,
+      businessId,
+      userId: "u1",
+      body: "Hi Sarah, that comes to $580 - resending as requested.",
+      channel: "email",
+      clientRequestId: "66666666-6666-4666-8666-666666666666",
+    }),
+  );
   const rows = await pg.query<{ version: number }>(
     "select version from quote_version where enquiry_id = $1 order by version",
     [enquiryId],
@@ -610,22 +696,26 @@ test("a duplicate clientRequestId writes no additional quote_version row", async
     price: { kind: "EXACT", amountMinor: 58000, currency: "AUD" },
   });
   const clientRequestId = "77777777-7777-4777-8777-777777777777";
-  await recordSentReplyInTransaction(sqlFor(pg), {
-    enquiryId,
-    businessId,
-    userId: "u1",
-    body: "Hi Sarah, that comes to $580.",
-    channel: "email",
-    clientRequestId,
-  });
-  await recordSentReplyInTransaction(sqlFor(pg), {
-    enquiryId,
-    businessId,
-    userId: "u1",
-    body: "Hi Sarah, that comes to $580.",
-    channel: "email",
-    clientRequestId,
-  });
+  await inTransaction(pg, (sql) =>
+    recordSentReplyInTransaction(sql, {
+      enquiryId,
+      businessId,
+      userId: "u1",
+      body: "Hi Sarah, that comes to $580.",
+      channel: "email",
+      clientRequestId,
+    }),
+  );
+  await inTransaction(pg, (sql) =>
+    recordSentReplyInTransaction(sql, {
+      enquiryId,
+      businessId,
+      userId: "u1",
+      body: "Hi Sarah, that comes to $580.",
+      channel: "email",
+      clientRequestId,
+    }),
+  );
   const count = await pg.query<{ n: number }>(
     "select count(*)::int n from quote_version where enquiry_id = $1",
     [enquiryId],
@@ -664,13 +754,15 @@ test("a quote send updates enquiry.value_exact_minor and currency, so the queue 
     [enquiryId],
   );
   assert.equal(before.rows[0]!.value_exact_minor, null, "unset before the send");
-  await recordSentReplyInTransaction(sqlFor(pg), {
-    enquiryId,
-    businessId,
-    userId: "u1",
-    body: "Hi Sarah, that comes to $580.",
-    channel: "email",
-  });
+  await inTransaction(pg, (sql) =>
+    recordSentReplyInTransaction(sql, {
+      enquiryId,
+      businessId,
+      userId: "u1",
+      body: "Hi Sarah, that comes to $580.",
+      channel: "email",
+    }),
+  );
   const after = await pg.query<{ value_exact_minor: number; currency: string }>(
     "select value_exact_minor, currency from enquiry where id = $1",
     [enquiryId],
@@ -685,13 +777,15 @@ test("a SEND_ESTIMATE send writes range_min_minor/range_max_minor, not total_min
     action: "SEND_ESTIMATE",
     price: { kind: "RANGE", minMinor: 72000, maxMinor: 108000, currency: "AUD" },
   });
-  await recordSentReplyInTransaction(sqlFor(pg), {
-    enquiryId,
-    businessId,
-    userId: "u1",
-    body: "Hi Sarah, roughly $720-$1,080.",
-    channel: "email",
-  });
+  await inTransaction(pg, (sql) =>
+    recordSentReplyInTransaction(sql, {
+      enquiryId,
+      businessId,
+      userId: "u1",
+      body: "Hi Sarah, roughly $720-$1,080.",
+      channel: "email",
+    }),
+  );
   const rows = await pg.query<{
     total_minor: number | null;
     range_min_minor: number;
@@ -711,4 +805,95 @@ test("a SEND_ESTIMATE send writes range_min_minor/range_max_minor, not total_min
   );
   assert.equal(enq.rows[0]!.value_range_min_minor, 72000);
   assert.equal(enq.rows[0]!.value_range_max_minor, 108000);
+});
+
+/**
+ * Two genuinely concurrent sends computing the same next version is exactly
+ * the scenario `unique (enquiry_id, version)` exists to catch, and exactly
+ * the scenario `insertQuoteVersionWithRetry` exists to recover from. PGLite
+ * is one connection, so it can't reproduce real concurrency directly - these
+ * force the SAME outcome (the insert's own coalesce landing on a version
+ * another commit already took) via `forceQuoteVersionCollisions`, so the
+ * SAVEPOINT/retry code actually runs against a real unique-violation from
+ * the real constraint, not a fake one.
+ */
+test("a quote_version insert that collides once retries and lands on the correct next version", async () => {
+  const pg = await freshDb();
+  const { businessId, enquiryId } = await seedBusinessAndEnquiry(pg, {
+    action: "SEND_QUOTE",
+    price: { kind: "EXACT", amountMinor: 58000, currency: "AUD" },
+  });
+  // Stands in for a concurrent request's send that already committed version
+  // 1 by the time this one's insert runs.
+  await pg.query(
+    `insert into quote_version
+       (enquiry_id, version, status, sent_at, total_minor, currency, line_items, rule_set_version)
+     values ($1, 1, 'sent', now(), 1, 'AUD', '[]'::jsonb, '0')`,
+    [enquiryId],
+  );
+
+  const res = await inTransaction(pg, (sql, run) =>
+    recordSentReplyInTransaction(forceQuoteVersionCollisions(sql, run, 1, 1), {
+      enquiryId,
+      businessId,
+      userId: "u1",
+      body: "Hi Sarah, that comes to $580.",
+      channel: "email",
+    }),
+  );
+  assert.equal(res.ok, true, "the send must still succeed after one retry");
+
+  const rows = await pg.query<{ version: number }>(
+    "select version from quote_version where enquiry_id = $1 order by version",
+    [enquiryId],
+  );
+  assert.deepEqual(
+    rows.rows.map((r) => r.version),
+    [1, 2],
+    "the retry must land on version 2, not re-collide with the taken version 1",
+  );
+
+  // The retry must not have aborted the rest of the send - the message and
+  // the state-move that follow the quote_version insert still had to run.
+  const msg = await pg.query<{ n: number }>(
+    "select count(*)::int n from message where enquiry_id = $1",
+    [enquiryId],
+  );
+  assert.equal(msg.rows[0]!.n, 1, "the message insert must still have gone through");
+});
+
+test("two collisions in a row surface a friendly retry message, not a raw Postgres error", async () => {
+  const pg = await freshDb();
+  const { businessId, enquiryId } = await seedBusinessAndEnquiry(pg, {
+    action: "SEND_QUOTE",
+    price: { kind: "EXACT", amountMinor: 58000, currency: "AUD" },
+  });
+  await pg.query(
+    `insert into quote_version
+       (enquiry_id, version, status, sent_at, total_minor, currency, line_items, rule_set_version)
+     values ($1, 1, 'sent', now(), 1, 'AUD', '[]'::jsonb, '0')`,
+    [enquiryId],
+  );
+
+  await assert.rejects(
+    () =>
+      inTransaction(pg, (sql, run) =>
+        recordSentReplyInTransaction(forceQuoteVersionCollisions(sql, run, 1, 2), {
+          enquiryId,
+          businessId,
+          userId: "u1",
+          body: "Hi Sarah, that comes to $580.",
+          channel: "email",
+        }),
+      ),
+    /Another send for this enquiry landed at the same moment - please try again/,
+  );
+
+  // A failed send (even one that fails this deep in) must not leave a
+  // half-written message behind - the whole transaction rolls back.
+  const msg = await pg.query<{ n: number }>(
+    "select count(*)::int n from message where enquiry_id = $1",
+    [enquiryId],
+  );
+  assert.equal(msg.rows[0]!.n, 0, "a send that ultimately fails must not leave a message behind");
 });

@@ -99,7 +99,7 @@ test("declining an open enquiry sets lifecycle DECLINED, decision NONE, responsi
     userId: "u1",
   });
   assert.equal(res.ok, true);
-  assert.equal(res.alreadyDeclined, false);
+  assert.equal(res.alreadyClosed, false);
 
   const row = await pg.query<{
     lifecycle: string;
@@ -206,8 +206,8 @@ test("declining twice is idempotent - the second call writes no second audit row
     userId: "u1",
     reason: "Second reason - should not land.",
   });
-  assert.equal(first.alreadyDeclined, false);
-  assert.equal(second.alreadyDeclined, true);
+  assert.equal(first.alreadyClosed, false);
+  assert.equal(second.alreadyClosed, true);
 
   const count = await pg.query<{ n: number }>(
     "select count(*)::int n from audit_event where business_id = $1",
@@ -220,6 +220,48 @@ test("declining twice is idempotent - the second call writes no second audit row
     [businessId],
   );
   assert.equal(ev.rows[0]!.detail, "First reason.");
+});
+
+test("two concurrent declines on the same enquiry write exactly one audit row", async () => {
+  // The bug this guards against was select-then-update: two calls could both
+  // read "not yet declined" before either wrote, so both would update and
+  // both would insert an audit row. Firing both calls together (rather than
+  // awaiting the first before starting the second) is what actually exercises
+  // that interleaving - the earlier "declining twice" test above awaits each
+  // call in turn, which the old buggy code also passed.
+  const pg = await freshDb();
+  const { businessId, enquiryId } = await seedBusinessAndEnquiry(pg);
+  const [a, b] = await Promise.all([
+    declineEnquiryInTransaction(sqlFor(pg), {
+      enquiryId,
+      businessId,
+      userId: "u1",
+      reason: "Racer A.",
+    }),
+    declineEnquiryInTransaction(sqlFor(pg), {
+      enquiryId,
+      businessId,
+      userId: "u2",
+      reason: "Racer B.",
+    }),
+  ]);
+
+  // Exactly one of the two actually closed it; the other found it already
+  // closed. Order between them is not guaranteed, so check the pair, not a
+  // specific side.
+  const closedCount = [a, b].filter((r) => !r.alreadyClosed).length;
+  assert.equal(closedCount, 1, "exactly one of the two racing declines should win");
+
+  const row = await pg.query<{ lifecycle: string }>("select lifecycle from enquiry where id = $1", [
+    enquiryId,
+  ]);
+  assert.equal(row.rows[0]!.lifecycle, "DECLINED");
+
+  const count = await pg.query<{ n: number }>(
+    "select count(*)::int n from audit_event where business_id = $1",
+    [businessId],
+  );
+  assert.equal(count.rows[0]!.n, 1, "concurrent declines must not write two audit rows");
 });
 
 test("declining an enquiry that no longer exists throws rather than silently succeeding", async () => {

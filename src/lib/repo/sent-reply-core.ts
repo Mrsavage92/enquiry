@@ -55,6 +55,41 @@ function normalizeForCompare(body: string): string {
 }
 
 /**
+ * Two genuinely concurrent sends on the same enquiry can each compute the
+ * same "next" version; `unique (enquiry_id, version)` on `quote_version`
+ * (migrations/0004_product_core.sql) is what catches that. A caught 23505
+ * alone is not enough to recover from, though: Postgres marks the whole
+ * surrounding transaction ABORTED the moment any statement fails, and every
+ * later statement - even a harmless retry of this same insert - fails with
+ * 25P02 ("current transaction is aborted") until a ROLLBACK runs. The
+ * SAVEPOINT here is what makes a retry possible at all: on 23505, roll back
+ * to it (which un-aborts the transaction without discarding anything
+ * inserted before it) and run `insert` again, now reading the version the
+ * other request just committed. A second collision inside that retry means
+ * two sends are still landing in the same instant - that's left to fail
+ * loudly with a message the owner can act on, rather than looping forever.
+ */
+async function insertQuoteVersionWithRetry(
+  sql: Sql,
+  insert: () => Promise<unknown>,
+): Promise<void> {
+  await sql`savepoint quote_version_insert`;
+  try {
+    await insert();
+  } catch (err) {
+    if (!isUniqueViolation(err)) throw err;
+    await sql`rollback to savepoint quote_version_insert`;
+    try {
+      await insert();
+    } catch (retryErr) {
+      if (!isUniqueViolation(retryErr)) throw retryErr;
+      await sql`rollback to savepoint quote_version_insert`;
+      throw new Error("Another send for this enquiry landed at the same moment - please try again");
+    }
+  }
+}
+
+/**
  * The line items a quote_version row is recorded with.
  *
  * A structured breakdown when the decision's own pricing evaluator carries
@@ -187,49 +222,47 @@ export async function recordSentReplyInTransaction(
   // all, and neither does a duplicate (this code is never reached for one -
   // the early return above already sent it back).
   if (enq.action === "SEND_QUOTE" && enq.price?.kind === "EXACT") {
-    const [{ next_version }] = await sql<{ next_version: number }>`
-      select coalesce(max(version), 0) + 1 as next_version
-      from quote_version where enquiry_id = ${input.enquiryId}
-    `;
-    const lineItems = lineItemsForQuote(
-      enq.evaluators,
-      enq.explanation,
-      enq.price.amountMinor / 100,
+    const price = enq.price;
+    const lineItems = lineItemsForQuote(enq.evaluators, enq.explanation, price.amountMinor / 100);
+    await insertQuoteVersionWithRetry(
+      sql,
+      () =>
+        sql`
+        insert into quote_version
+          (enquiry_id, version, status, sent_at, total_minor, currency, line_items, rule_set_version)
+        select
+          ${input.enquiryId},
+          coalesce((select max(version) from quote_version where enquiry_id = ${input.enquiryId}), 0) + 1,
+          ${"sent"}, now(), ${price.amountMinor}, ${price.currency},
+          ${JSON.stringify(lineItems)}::jsonb, ${enq.engine_version ?? "0"}
+      `,
     );
     await sql`
-      insert into quote_version
-        (enquiry_id, version, status, sent_at, total_minor, currency, line_items, rule_set_version)
-      values (
-        ${input.enquiryId}, ${next_version}, ${"sent"}, now(),
-        ${enq.price.amountMinor}, ${enq.price.currency}, ${JSON.stringify(lineItems)}::jsonb,
-        ${enq.engine_version ?? "0"}
-      )
-    `;
-    await sql`
       update enquiry
-      set value_exact_minor = ${enq.price.amountMinor}, currency = ${enq.price.currency}, updated_at = now()
+      set value_exact_minor = ${price.amountMinor}, currency = ${price.currency}, updated_at = now()
       where id = ${input.enquiryId}
     `;
   } else if (enq.action === "SEND_ESTIMATE" && enq.price?.kind === "RANGE") {
-    const [{ next_version }] = await sql<{ next_version: number }>`
-      select coalesce(max(version), 0) + 1 as next_version
-      from quote_version where enquiry_id = ${input.enquiryId}
-    `;
-    const midpointMajor = (enq.price.minMinor + enq.price.maxMinor) / 2 / 100;
+    const price = enq.price;
+    const midpointMajor = (price.minMinor + price.maxMinor) / 2 / 100;
     const lineItems = lineItemsForQuote(enq.evaluators, enq.explanation, midpointMajor);
-    await sql`
-      insert into quote_version
-        (enquiry_id, version, status, sent_at, range_min_minor, range_max_minor, currency, line_items, rule_set_version)
-      values (
-        ${input.enquiryId}, ${next_version}, ${"sent"}, now(),
-        ${enq.price.minMinor}, ${enq.price.maxMinor}, ${enq.price.currency}, ${JSON.stringify(lineItems)}::jsonb,
-        ${enq.engine_version ?? "0"}
-      )
-    `;
+    await insertQuoteVersionWithRetry(
+      sql,
+      () =>
+        sql`
+        insert into quote_version
+          (enquiry_id, version, status, sent_at, range_min_minor, range_max_minor, currency, line_items, rule_set_version)
+        select
+          ${input.enquiryId},
+          coalesce((select max(version) from quote_version where enquiry_id = ${input.enquiryId}), 0) + 1,
+          ${"sent"}, now(), ${price.minMinor}, ${price.maxMinor}, ${price.currency},
+          ${JSON.stringify(lineItems)}::jsonb, ${enq.engine_version ?? "0"}
+      `,
+    );
     await sql`
       update enquiry
-      set value_range_min_minor = ${enq.price.minMinor}, value_range_max_minor = ${enq.price.maxMinor},
-          currency = ${enq.price.currency}, updated_at = now()
+      set value_range_min_minor = ${price.minMinor}, value_range_max_minor = ${price.maxMinor},
+          currency = ${price.currency}, updated_at = now()
       where id = ${input.enquiryId}
     `;
   }
