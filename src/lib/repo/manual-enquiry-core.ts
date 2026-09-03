@@ -108,7 +108,25 @@ function toDbConfidence(band: "low" | "medium" | "high"): ConfidenceBand {
   return "Low";
 }
 
-/** Mirrors `answerEnquiryFact`'s supersede-then-insert pattern exactly. */
+/**
+ * Supersede-then-insert, but ONLY when the current live row for this field
+ * (if any) is not itself `status = 'confirmed'` or `asserted_by = 'user'` - a
+ * model may never supersede a human. That guard is evaluated in the SAME
+ * statement as the write, not from a value read earlier in the request:
+ * `interpretAndApply` awaits an interpreter call that can take up to 8
+ * seconds, and a pre-read guard leaves that whole window open for an
+ * operator's confirmation (via `answerEnquiryFact` or `setEnquiryService`,
+ * from a second tab or a teammate) to be silently clobbered back to an
+ * inferred, unconfirmed value with no error and no UI explanation.
+ *
+ * The `blocked` CTE is read-only but is still evaluated exactly once, against
+ * one consistent snapshot, and both the `sup` update and the final insert key
+ * off it - so within this one statement there is no window between "check"
+ * and "write" for a concurrent confirm to land in.
+ *
+ * Returns whether a row was actually written, so the caller's `factsWritten`
+ * count and audit line reflect what landed, not what was attempted.
+ */
 async function supersedeAndInsertFact(
   sql: Sql,
   enquiryId: string,
@@ -118,22 +136,30 @@ async function supersedeAndInsertFact(
   status: FactStatus,
   confidence: ConfidenceBand,
   provenance: Record<string, unknown>,
-): Promise<void> {
-  await sql`
-    update enquiry_fact set superseded = true, updated_at = now()
-    where enquiry_id = ${enquiryId} and lower(field) = lower(${field})
-      and superseded = false
-  `;
-  await sql`
+): Promise<boolean> {
+  const rows = await sql<{ id: string }>`
+    with blocked as (
+      select 1 from enquiry_fact
+      where enquiry_id = ${enquiryId} and lower(field) = lower(${field})
+        and superseded = false
+        and (status = 'confirmed' or asserted_by = 'user')
+    ),
+    sup as (
+      update enquiry_fact set superseded = true, updated_at = now()
+      where enquiry_id = ${enquiryId} and lower(field) = lower(${field})
+        and superseded = false
+        and not exists (select 1 from blocked)
+      returning id
+    )
     insert into enquiry_fact
       (enquiry_id, field, label, value, display_value, status, confidence,
        asserted_by, provenance, customer_specific)
-    values (
-      ${enquiryId}, ${field}, ${field}, ${value}, ${displayValue},
-      ${status}, ${confidence}, ${"system"},
-      ${JSON.stringify(provenance)}::jsonb, ${true}
-    )
+    select ${enquiryId}, ${field}, ${field}, ${value}, ${displayValue},
+      ${status}, ${confidence}, ${"system"}, ${JSON.stringify(provenance)}::jsonb, ${true}
+    where not exists (select 1 from blocked)
+    returning id
   `;
+  return rows.length > 0;
 }
 
 /**
@@ -141,6 +167,13 @@ async function supersedeAndInsertFact(
  * persist what it proposes as `inferred`/`check_this` facts (NEVER
  * `confirmed` - only `answerEnquiryFact`/`setEnquiryService` may write that),
  * and re-decide so the desk reflects the new (still unconfirmed) evidence.
+ *
+ * The interpreter call this awaits can take up to 8 seconds. Facts and the
+ * service label are read once up front (`enq`, `rules`) to build its prompt,
+ * but every WRITE below re-checks the live row at write time rather than
+ * trusting that early read - an operator can confirm the very fact this call
+ * is about to propose, or set the service, in the seconds this is in flight.
+ * See `supersedeAndInsertFact` and the guarded service-label update.
  *
  * Every branch - a real result, a classified failure, an unexpected exception
  * bubbling from a query - is expected to be wrapped by the caller in its own
@@ -201,7 +234,7 @@ export async function interpretAndApply(
 
   for (const fact of result.facts) {
     const status: FactStatus = fact.confidence === "low" ? "check_this" : "inferred";
-    await supersedeAndInsertFact(
+    const written = await supersedeAndInsertFact(
       sql,
       input.enquiryId,
       fact.field,
@@ -217,55 +250,67 @@ export async function interpretAndApply(
         model,
       },
     );
-    factsWritten += 1;
+    if (written) factsWritten += 1;
   }
 
-  // Only apply a proposed service when the operator left it blank AND the
-  // candidate matches an Active rule for this business - never a guess the
-  // pricing compiler could act on without the owner having seen it.
-  if (result.serviceCandidate && !enq.service_label.trim()) {
+  // Only apply a proposed service when the field matches an Active rule for
+  // this business AND is still blank - never a guess the pricing compiler
+  // could act on without the owner having seen it. "Still blank" is re-checked
+  // INSIDE this update, not from `enq.service_label` read up to 8 seconds ago:
+  // the operator may have set it via `setEnquiryService` while the interpreter
+  // call was in flight, and a pre-read check would silently overwrite that.
+  if (result.serviceCandidate) {
     const candidate = result.serviceCandidate;
     const match = rules.find((r) => norm(r.service) === norm(candidate.label));
     if (match) {
-      serviceLabelSet = match.service;
-      await sql`
+      const updated = await sql<{ id: string }>`
         update enquiry set service_label = ${match.service}, updated_at = now()
         where id = ${input.enquiryId}
+          and (service_label is null or btrim(service_label) = '')
+        returning id
       `;
-      await supersedeAndInsertFact(
-        sql,
-        input.enquiryId,
-        "service",
-        match.service,
-        match.service,
-        // Always check_this, regardless of the candidate's own confidence -
-        // getting the service wrong cascades into which quantity field is
-        // even asked for, so this one always gets a second look.
-        "check_this",
-        toDbConfidence(candidate.confidence),
-        {
-          kind: "model",
-          label: "Read from the customer's message",
-          messageId: input.messageId,
-          span: candidate.span,
-          model,
-        },
-      );
-      factsWritten += 1;
+      if (updated.length > 0) {
+        serviceLabelSet = match.service;
+        const written = await supersedeAndInsertFact(
+          sql,
+          input.enquiryId,
+          "service",
+          match.service,
+          match.service,
+          // Always check_this, regardless of the candidate's own confidence -
+          // getting the service wrong cascades into which quantity field is
+          // even asked for, so this one always gets a second look.
+          "check_this",
+          toDbConfidence(candidate.confidence),
+          {
+            kind: "model",
+            label: "Read from the customer's message",
+            messageId: input.messageId,
+            span: candidate.span,
+            model,
+          },
+        );
+        if (written) factsWritten += 1;
+      }
     }
   }
 
+  // Re-decide from what's actually true after the guarded writes above - never
+  // from `enq`, which can be up to 8 seconds stale by the time we get here.
+  const [freshEnq] = await sql<{ service_label: string; customer_name: string }>`
+    select service_label, customer_name from enquiry where id = ${input.enquiryId}
+  `;
   const factRows = await sql<{ field: string; value: string; status: string }>`
     select field, value, status from enquiry_fact
     where enquiry_id = ${input.enquiryId} and superseded = false
   `;
-  const effectiveServiceLabel = serviceLabelSet ?? enq.service_label;
+  const effectiveServiceLabel = freshEnq?.service_label ?? enq.service_label;
   const decision = decideEnquiry(
     { knowledge },
     { serviceLabel: effectiveServiceLabel, facts: factRows as never },
   );
   const snapshot = snapshotFromDecision(decision, {
-    customerName: enq.customer_name,
+    customerName: freshEnq?.customer_name ?? enq.customer_name,
     ownerFirstName: biz?.owner_first_name ?? undefined,
     serviceLabel: effectiveServiceLabel,
   });

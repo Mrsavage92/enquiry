@@ -130,6 +130,12 @@ export const createManualEnquiry = createServerFn({ method: "POST" })
     // classified interpreter failure (it records the honest audit line and
     // returns); this catch is only for an unexpected exception elsewhere in
     // the step (e.g. a query failure while writing facts).
+    //
+    // Kept as an inline await rather than fired-and-forgotten: the operator
+    // gets any read facts on this same response instead of a page reload
+    // later, and the interpreter's own timeout (8s) bounds how long that
+    // takes - interpretAndApply's internal write guards are what keep this
+    // wait safe against a confirm landing on another tab in the meantime.
     try {
       const sql = await getSql();
       await interpretAndApply(sql, {

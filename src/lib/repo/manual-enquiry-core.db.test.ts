@@ -628,3 +628,212 @@ test("an injection-shaped message never yields a confirmed fact, a price, or sta
   );
   assert.equal(sentMessages.rows.length, 0, "nothing was sent");
 });
+
+/**
+ * Slice B2: a model may never supersede a human. `interpretAndApply` reads
+ * facts and `enquiry.service_label` once up front, then awaits the
+ * interpreter (up to 8 seconds in production), then writes - so an operator
+ * who confirms the blocked fact (via `answerEnquiryFact`, mirrored here by
+ * `confirmFact`) or corrects the service (via `setEnquiryService`) while that
+ * call is in flight must have their confirmation survive untouched, not be
+ * silently clobbered back to an inferred, unconfirmed value.
+ */
+
+test("a fact confirmed before interpretAndApply runs survives untouched - no inferred row is inserted, and the decision the confirm already produced stays put", async () => {
+  const pg = await freshDb();
+  const sql = sqlFor(pg);
+  const businessId = await seedBusiness(pg);
+  await seedActiveRule(pg, businessId, GROUP_MAKEUP_RULE);
+  const { enquiryId, messageId } = await insertManualEnquiry(sql, {
+    businessId,
+    body: "Need makeup for 4 people",
+    customerName: "Sarah",
+    customerEmail: "sarah@example.com",
+    customerPhone: "",
+    serviceLabel: "Group makeup",
+    intakeNote: "",
+  });
+
+  // The operator answers the blocked "guests" fact - e.g. from a second tab,
+  // or a teammate - BEFORE the (slow) interpreter call below resolves. This is
+  // exactly the race the review found: interpretAndApply's own facts/service
+  // read happened even earlier than this, at function entry.
+  await confirmFact(sql, businessId, enquiryId, "guests", "4");
+
+  const afterConfirm = await pg.query<{
+    decision_state: string;
+    commercial_state: string;
+  }>("select decision_state, commercial_state from enquiry where id = $1", [enquiryId]);
+  assert.equal(afterConfirm.rows[0]!.decision_state, "ACTION_READY");
+  assert.equal(afterConfirm.rows[0]!.commercial_state, "QUOTABLE");
+
+  const confirmedRow = await pg.query<{ id: string; updated_at: string }>(
+    "select id, updated_at from enquiry_fact where enquiry_id = $1 and field = 'guests' and superseded = false",
+    [enquiryId],
+  );
+  assert.equal(confirmedRow.rows.length, 1);
+  const confirmedFactId = confirmedRow.rows[0]!.id;
+
+  // The interpreter - modelling one that only resolves after the confirm
+  // above already landed - proposes the SAME field the operator just settled.
+  const result: InterpretationResult = {
+    ...emptyResult(),
+    facts: [
+      {
+        field: "guests",
+        value: "6",
+        displayValue: "6 guests",
+        confidence: "medium",
+        span: "6 people",
+      },
+    ],
+  };
+  const outcome = await interpretAndApply(sql, {
+    enquiryId,
+    businessId,
+    messageId,
+    rawMessage: "Need makeup for 4 people",
+    interpreter: fixedInterpreter(result),
+  });
+  assert.equal(outcome.ok, true);
+  if (!outcome.ok) return;
+
+  // Nothing was written: the model's candidate never superseded the confirmed
+  // row, so the count the caller sees, and the audit line built from it, must
+  // say zero.
+  assert.equal(outcome.factsWritten, 0);
+
+  const liveFacts = await pg.query<{
+    id: string;
+    value: string;
+    status: string;
+    asserted_by: string;
+    superseded: boolean;
+  }>("select id, value, status, asserted_by, superseded from enquiry_fact where enquiry_id = $1", [
+    enquiryId,
+  ]);
+  // The confirmed row is untouched - same id, still live - and the model's "6"
+  // never landed as any row, live or superseded.
+  const live = liveFacts.rows.filter((r) => !r.superseded);
+  assert.equal(live.length, 1);
+  assert.equal(live[0]!.id, confirmedFactId, "the confirmed row must not have been replaced");
+  assert.equal(live[0]!.value, "4");
+  assert.equal(live[0]!.status, "confirmed");
+  assert.equal(live[0]!.asserted_by, "user");
+  assert.equal(
+    liveFacts.rows.some((r) => r.value === "6"),
+    false,
+    "the model's superseded candidate must not exist at all, not even as a superseded row",
+  );
+
+  // The decision stays exactly what the confirm produced - the model's stale
+  // read must not re-decide it back to NEEDS_INFORMATION.
+  const afterInterpret = await pg.query<{
+    decision_state: string;
+    commercial_state: string;
+    decision_snapshot: { recommendation: { action: string } };
+  }>("select decision_state, commercial_state, decision_snapshot from enquiry where id = $1", [
+    enquiryId,
+  ]);
+  assert.equal(afterInterpret.rows[0]!.decision_state, "ACTION_READY");
+  assert.equal(afterInterpret.rows[0]!.commercial_state, "QUOTABLE");
+  assert.equal(afterInterpret.rows[0]!.decision_snapshot.recommendation.action, "SEND_QUOTE");
+
+  const audit = await pg.query<{ summary: string }>(
+    "select summary from audit_event where business_id = $1 and object_id = $2 order by at",
+    [businessId, enquiryId],
+  );
+  const readLine = audit.rows.find((r) => r.summary.startsWith("Enquiry read the message"));
+  assert.ok(readLine, "the read still gets an honest audit line");
+  assert.equal(readLine!.summary, "Enquiry read the message: 0 facts suggested");
+});
+
+test("a service set via setEnquiryService before interpretAndApply runs is never overwritten by the model's candidate, and no service fact is written", async () => {
+  const pg = await freshDb();
+  const sql = sqlFor(pg);
+  const businessId = await seedBusiness(pg);
+  await seedActiveRule(pg, businessId, GROUP_MAKEUP_RULE);
+  await seedActiveRule(pg, businessId, {
+    kind: "fixed_price",
+    service: "Bridal trial",
+    amount: 180,
+    currency: "AUD",
+  });
+  // Operator left the service blank on intake.
+  const { enquiryId, messageId } = await insertManualEnquiry(sql, {
+    businessId,
+    body: "Hi, need help for the big day",
+    customerName: "Sarah",
+    customerEmail: "sarah@example.com",
+    customerPhone: "",
+    serviceLabel: "",
+    intakeNote: "",
+  });
+
+  // The operator sets the service - the setEnquiryService path - BEFORE the
+  // (slow) interpreter call below resolves. This mirrors setEnquiryService's
+  // own write exactly: enquiry_fact('service', confirmed, asserted_by=user)
+  // and enquiry.service_label, together. Uses pg.query directly (like the
+  // other raw-assertion queries in this file) rather than the tagged-template
+  // `sql` const, which is only typed for use through a typed `sql: Sql`
+  // parameter (see `confirmFact`), not for a bare call at the test level.
+  await pg.query(
+    "update enquiry_fact set superseded = true, updated_at = now() where enquiry_id = $1 and lower(field) = lower($2) and superseded = false",
+    [enquiryId, "service"],
+  );
+  await pg.query(
+    `insert into enquiry_fact
+      (enquiry_id, field, label, value, display_value, status, confidence, asserted_by, provenance, customer_specific)
+     values ($1, $2, $2, $3, $3, 'confirmed', 'High', 'user', $4::jsonb, true)`,
+    [
+      enquiryId,
+      "service",
+      "Bridal trial",
+      JSON.stringify({ kind: "user", label: "Confirmed by the owner" }),
+    ],
+  );
+  await pg.query("update enquiry set service_label = $1, updated_at = now() where id = $2", [
+    "Bridal trial",
+    enquiryId,
+  ]);
+
+  // The model, reading the raw message, proposes a DIFFERENT service that also
+  // matches an Active rule.
+  const result: InterpretationResult = {
+    ...emptyResult(),
+    serviceCandidate: { label: "Group makeup", confidence: "high", span: "help" },
+  };
+  const outcome = await interpretAndApply(sql, {
+    enquiryId,
+    businessId,
+    messageId,
+    rawMessage: "Hi, need help for the big day",
+    interpreter: fixedInterpreter(result),
+  });
+  assert.equal(outcome.ok, true);
+  if (!outcome.ok) return;
+  assert.equal(outcome.serviceLabelSet, null, "the model's candidate must not have been applied");
+  assert.equal(outcome.factsWritten, 0);
+
+  const enq = await pg.query<{ service_label: string }>(
+    "select service_label from enquiry where id = $1",
+    [enquiryId],
+  );
+  assert.equal(
+    enq.rows[0]!.service_label,
+    "Bridal trial",
+    "the operator's confirmed service must survive the in-flight model read",
+  );
+
+  const serviceFacts = await pg.query<{ value: string; superseded: boolean }>(
+    "select value, superseded from enquiry_fact where enquiry_id = $1 and field = 'service'",
+    [enquiryId],
+  );
+  assert.equal(
+    serviceFacts.rows.length,
+    1,
+    "no second service fact - live or superseded - was written",
+  );
+  assert.equal(serviceFacts.rows[0]!.value, "Bridal trial");
+  assert.equal(serviceFacts.rows[0]!.superseded, false);
+});
