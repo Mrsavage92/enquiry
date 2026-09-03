@@ -73,13 +73,26 @@ export type LiveHandoffState = {
   brainPreview?: unknown;
   lastMerge?: unknown;
   voiceNotice?: unknown;
+  /**
+   * Not tenant content, but the same class of leak: the Lab's demo-only
+   * "Pretend you're offline" toggle sets `offline` directly, and
+   * system-banners.tsx reads `offline` unconditionally to show "Offline.
+   * Nothing will send." - a stale `true` here silently blocks every live send
+   * action with no way to recover except a hard reload. `offline` is checked
+   * on its own, not derived from the other two, because it is itself the flag
+   * the two setters write - clearing only the inputs would leave it stuck.
+   */
+  offline?: boolean;
+  offlineSimulated?: boolean;
+  networkOffline?: boolean;
 };
 
 /**
  * True when the post-onboarding client state is safe for a real tenant: demo
- * off, no fixture content carried over, the scripted arrival disarmed, and no
+ * off, no fixture content carried over, the scripted arrival disarmed, no
  * demo-only transient state (undo snapshot, tracking log, automation notice,
- * open dialog) left over from browsing before the handoff.
+ * open dialog) left over from browsing before the handoff, and no simulated
+ * offline state left blocking live sends.
  */
 export function isLiveHandoffClean(s: LiveHandoffState): boolean {
   return (
@@ -95,6 +108,9 @@ export function isLiveHandoffClean(s: LiveHandoffState): boolean {
     !s.teach &&
     !s.brainPreview &&
     !s.lastMerge &&
-    !s.voiceNotice
+    !s.voiceNotice &&
+    !s.offline &&
+    !s.offlineSimulated &&
+    !s.networkOffline
   );
 }

@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { isLiveHandoffClean, mayPlayDemoArrival } from "../domain/live-demo-isolation.ts";
+import { outboundBlocked } from "../domain/situation.ts";
 
 /**
  * Proves the REAL store transition, not a restatement of the rule.
@@ -59,6 +60,11 @@ const seeded = {
     reason: "edited reply",
     patch: {},
   },
+  // The Lab's "Pretend you're offline" toggle: setOfflineSimulated(true) sets
+  // both fields together (offline: v || networkOffline).
+  offlineSimulated: true,
+  offline: true,
+  networkOffline: false,
 };
 
 /** Exactly what markOnboardedLocally sets, mirrored from the store. */
@@ -82,6 +88,9 @@ const MARK_ONBOARDED_LOCALLY_PATCH = {
   brainPreview: null,
   lastMerge: null,
   voiceNotice: null,
+  offline: false,
+  offlineSimulated: false,
+  networkOffline: false,
 };
 
 test("the seeded boot state would leak fixtures if handed to a live tenant", () => {
@@ -227,6 +236,35 @@ test("demo automation -> live Notices carries no fabricated autopilot item", () 
   assert.equal(noticesHasAutopilotItem(after), false);
 });
 
+/** SystemBanners' offline banner condition, mirrored from the component. */
+function offlineBannerShown(s: { offline: boolean }) {
+  return s.offline;
+}
+
+test("Lab offline simulation -> live onboarding -> live actions are not blocked and no offline banner remains", () => {
+  // Before this fix: the Lab's "Pretend you're offline" toggle sets
+  // `offlineSimulated` and derives `offline` directly - neither live handoff
+  // function touched either field. A demo session that had toggled this on,
+  // then onboarded into a live account in the same browser tab, carried a
+  // permanently offline live workspace: SystemBanners showed "Offline.
+  // Nothing will send." with no way to turn it off from the live UI, AND
+  // outboundBlocked (the actual gate approve() checks before sending) refused
+  // every send on that basis - not a cosmetic banner, a real block.
+  //
+  // outboundBlocked is imported directly, not mirrored, per the review note
+  // that consumer-level mirrors alone leave room for source/mirror drift -
+  // this uses the exact function approve() calls.
+  assert.equal(offlineBannerShown(seeded), true); // meaningful: the seed really would show it
+  assert.ok(outboundBlocked(undefined, seeded.offline) !== null); // meaningful: the seed really would block
+
+  const after = { ...seeded, ...MARK_ONBOARDED_LOCALLY_PATCH };
+  assert.equal(offlineBannerShown(after), false);
+  assert.equal(outboundBlocked(undefined, after.offline), null);
+  assert.equal(after.offlineSimulated, false);
+  assert.equal(after.networkOffline, false);
+  assert.equal(isLiveHandoffClean(after), true);
+});
+
 /**
  * hydrateFromServer's exact committed patch, mirrored the same way.
  *
@@ -263,6 +301,9 @@ function hydrateFromServerPatch(
     brainPreview: null,
     lastMerge: null,
     voiceNotice: null,
+    offline: false,
+    offlineSimulated: false,
+    networkOffline: false,
   };
 }
 

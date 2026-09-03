@@ -352,6 +352,18 @@ export const usePrototype = create<PrototypeState & Actions>()(
           //    (a live id will never match a fixture id, so today they cannot
           //    actually surface), but they hold demo customer/business content
           //    and belong in this list on the same principle as the rest.
+          //  - offlineSimulated/networkOffline/offline are not tenant content,
+          //    but the same class of leak: setOfflineSimulated (the Lab's
+          //    "Pretend you're offline" toggle, demo-only) sets
+          //    `offline: v || s.networkOffline` directly, and system-banners.tsx
+          //    reads `offline` unconditionally to show "Offline. Nothing will
+          //    send." A demo session that had toggled this on carried a
+          //    permanently-blocked live workspace across the handoff - every
+          //    live send action stayed refused with no way to recover except a
+          //    hard reload. `offline` is reset explicitly because it is a
+          //    derived flag the two setters write, not one recomputed from the
+          //    other two on read - clearing only the inputs would leave a
+          //    stale `true` behind.
           undo: null,
           events: [],
           lastAutomated: null,
@@ -359,6 +371,9 @@ export const usePrototype = create<PrototypeState & Actions>()(
           brainPreview: null,
           lastMerge: null,
           voiceNotice: null,
+          offline: false,
+          offlineSimulated: false,
+          networkOffline: false,
         })),
 
       // NOTE: the exact patch below is mirrored in src/store/live-handoff.test.ts,
@@ -392,6 +407,9 @@ export const usePrototype = create<PrototypeState & Actions>()(
           brainPreview: null,
           lastMerge: null,
           voiceNotice: null,
+          offline: false,
+          offlineSimulated: false,
+          networkOffline: false,
         });
       },
       completeOnboarding: (profile) => {
