@@ -628,12 +628,18 @@ export function Intelligence({
             {sendable || enquiry.state.lifecycle === "OPEN" ? (
               compact ? null : (
                 <div className="flex flex-wrap gap-2">
-                  <Button size="sm" variant="ghost" onClick={() => setNoteOpen(true)}>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="min-h-11"
+                    onClick={() => setNoteOpen(true)}
+                  >
                     Note
                   </Button>
                   <Button
                     size="sm"
                     variant="ghost"
+                    className="min-h-11"
                     onClick={() => {
                       void enq.snooze(enquiry.id, (m) => toast.error(m));
                       toastUndo("Snoozed for two days.");
@@ -642,7 +648,12 @@ export function Intelligence({
                   >
                     Snooze
                   </Button>
-                  <Button size="sm" variant="ghost" onClick={() => setDeclineOpen(true)}>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="min-h-11"
+                    onClick={() => setDeclineOpen(true)}
+                  >
                     Decline
                   </Button>
                 </div>
