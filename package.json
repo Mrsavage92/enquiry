@@ -15,6 +15,7 @@
     "typecheck": "tsc --noEmit",
     "check:auth": "node scripts/check-auth-invariant.mjs",
     "test": "node scripts/run-tests.mjs",
+    "benchmark:r2e": "node --experimental-strip-types --import ./scripts/test-resolve-hook.mjs src/benchmark/r2e/run.ts",
     "lint": "eslint .",
     "format": "prettier --write ."
   },
