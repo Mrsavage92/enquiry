@@ -452,7 +452,7 @@ function KnowledgeRow({
       </p>
       <button
         type="button"
-        className="mt-1.5 text-xs font-medium text-ink-2 underline-offset-4 hover:text-ink hover:underline"
+        className="mt-1.5 inline-flex min-h-11 items-center text-xs font-medium text-ink-2 underline-offset-4 hover:text-ink hover:underline"
         onClick={() => setSrcOpen(true)}
       >
         Provenance

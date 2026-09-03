@@ -10,7 +10,11 @@ export function quoteSheets(enquiry: Enquiry): QuoteVersion[] {
   }
   const pricing = enquiry.decision.evaluators.find((e) => e.type === "pricing");
   if (!pricing) return [];
-  if (pricing.status === "NOT_QUOTABLE" || pricing.status === "UNKNOWN" || pricing.status === "NOT_APPLICABLE") {
+  if (
+    pricing.status === "NOT_QUOTABLE" ||
+    pricing.status === "UNKNOWN" ||
+    pricing.status === "NOT_APPLICABLE"
+  ) {
     return [];
   }
   if (!pricing.total && !pricing.range) return [];
@@ -104,7 +108,13 @@ export function QuoteSheets({
           />
         ))}
         {current.map((q) => (
-          <QuoteSheet key={q.id} quote={q} enquiry={enquiry} business={business} estimate={estimate} />
+          <QuoteSheet
+            key={q.id}
+            quote={q}
+            enquiry={enquiry}
+            business={business}
+            estimate={estimate}
+          />
         ))}
       </div>
     </section>
@@ -146,9 +156,7 @@ export function QuoteSheet({
             {business?.ownerName ? ` · ${business.ownerName}` : ""}
           </p>
         </div>
-        <p className="eyebrow text-right">
-          Version {quote.version}
-        </p>
+        <p className="eyebrow text-right">Version {quote.version}</p>
       </header>
       <p className="mt-3 text-xs text-ink-2">{statusLine(quote, isEstimate, customer)}</p>
       <p className="mt-4 text-sm">
@@ -163,7 +171,10 @@ export function QuoteSheet({
       {quote.lineItems.length > 0 ? (
         <ul className="mt-4 border-t border-line">
           {quote.lineItems.map((item) => (
-            <li key={item.id} className="flex items-baseline justify-between gap-3 border-b border-line py-2 text-sm">
+            <li
+              key={item.id}
+              className="flex items-baseline justify-between gap-3 border-b border-line py-2 text-sm"
+            >
               <span>{item.label}</span>
               <span className="font-serif tabular-nums">{formatAud(item.amount)}</span>
             </li>
@@ -212,15 +223,15 @@ export function QuoteSheet({
         </p>
       ) : null}
       {customer || compact ? null : (
-      <div className="mt-3 flex flex-wrap gap-2 print:hidden">
-        <button
-          type="button"
-          className="text-xs font-medium text-ink-2 underline-offset-4 hover:text-ink hover:underline"
-          onClick={() => window.print()}
-        >
-          Print this sheet
-        </button>
-      </div>
+        <div className="mt-3 flex flex-wrap gap-2 print:hidden">
+          <button
+            type="button"
+            className="inline-flex min-h-11 items-center text-xs font-medium text-ink-2 underline-offset-4 hover:text-ink hover:underline"
+            onClick={() => window.print()}
+          >
+            Print this sheet
+          </button>
+        </div>
       )}
     </article>
   );
