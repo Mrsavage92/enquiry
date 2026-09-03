@@ -1,5 +1,13 @@
 # Enquiry - Current Implementation Phase
 
+## 2026-09-03 - Delivery-owner sign-off and active-slice update
+
+- The R2A corrections below were reviewed and **signed off by external review at commit `d382f2d`**.
+- The first-beta live loop (real Supabase Auth, real onboarding, a confirmed pricing rule, a typed enquiry, an owner-answered blocking fact, a recorded send, reload persistence, and an honest no-price refusal path for an unpriced service) is shipped on `main` and was **verified end-to-end in a real browser on 2026-09-03**. See the verification dossier at `C:\Users\Adam\Documents\Enquiry\research\agent-runs\2026-09-03\08-live-loop-verification.md` (external research trail, not tracked in this repo).
+- By delivery-owner decision, the active slice is now **"first-beta approval preview + interpretation with null fallback"**. This supersedes the "R2E arbitrary enquiry interpretation" line under "Do not broaden into" further down this file - that line described a prior sequencing rule that no longer reflects the authorised slice. The approval-preview half of that slice (Slice A: `needsSendConfirm` unconditional for every commercial send, a shared `SendPreview` component on both send paths, a server-side idempotent `recordSentReply` with a `to_addr` derived server-side) is implemented; the interpretation half (LLM-proposed facts with a null-interpreter fallback) has not started. See `C:\Users\Adam\Documents\Enquiry\research\agent-runs\2026-09-03\04-r2e-implementation-architecture.md` and `07-accessibility-trust-guardrails.md` for the design and guardrails this slice follows.
+
+---
+
 ## Current phase
 
 **R2A - Real workspace bootstrap + persisted onboarding**
