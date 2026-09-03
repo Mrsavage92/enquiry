@@ -11,7 +11,7 @@ import { PhoneDesk } from "./phone-desk";
 import { EmptyState } from "@/components/ui/empty-state";
 import { briefing } from "@/domain/briefing";
 import { isFramed } from "@/lib/embed";
-import { mayPlayDemoArrival } from "@/domain/live-demo-isolation";
+import { mayPlayDemoArrival, mayRecordSendViaShortcut } from "@/domain/live-demo-isolation";
 
 export function EnquiryWorkspace({ enquiryId }: { enquiryId?: string }) {
   const narrow = useNarrow(1100);
@@ -59,10 +59,11 @@ export function EnquiryWorkspace({ enquiryId }: { enquiryId?: string }) {
 
       if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
         if (inDialog || !enquiryId) return;
-        // Demo only. A real send copies the letter and records the send, and a
-        // keyboard shortcut that quietly marks something sent without either is
+        // Demo only. A real send copies the letter and records the send through
+        // the same approval preview as the Send button, and a keyboard
+        // shortcut that quietly marks something sent without any of that is
         // exactly the theatre this product exists to remove.
-        if (!demoMode) return;
+        if (!mayRecordSendViaShortcut(demoMode)) return;
         e.preventDefault();
         approve(enquiryId);
         return;

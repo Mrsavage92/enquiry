@@ -3,6 +3,7 @@ import test from "node:test";
 import {
   isLiveHandoffClean,
   mayPlayDemoArrival,
+  mayRecordSendViaShortcut,
   mayShowFixtureContent,
 } from "./live-demo-isolation.ts";
 
@@ -42,6 +43,15 @@ test("demo mode still respects the existing once-only and preview guards", () =>
 test("fixture content is demo-only", () => {
   assert.equal(mayShowFixtureContent({ demoMode: false }), false);
   assert.equal(mayShowFixtureContent({ demoMode: true }), true);
+});
+
+test("the Cmd/Ctrl+Enter workspace shortcut can only record a send in demo mode", () => {
+  // A real send always goes through the same copy-and-record step as a
+  // click on the Send button (which itself now always opens the approval
+  // preview - see isCustomerFacingSend in commercial.ts). A keyboard
+  // shortcut that skipped both would be a silent-send regression.
+  assert.equal(mayRecordSendViaShortcut(false), false);
+  assert.equal(mayRecordSendViaShortcut(true), true);
 });
 
 test("a clean live handoff carries no fixture business, enquiry or booking", () => {

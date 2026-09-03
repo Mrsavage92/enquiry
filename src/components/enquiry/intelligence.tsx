@@ -39,7 +39,7 @@ import { QuoteSheets, quoteSheets } from "./quote-sheet";
 import { WaitingDesk } from "./waiting-desk";
 import { detectPriceDrift, detectSheetLetterMismatch, alignLetterToSheet } from "@/domain/voice-detect";
 import { CaseFile } from "./case-file";
-import { needsSendConfirm, resolvedHold } from "@/domain/commercial";
+import { isCustomerFacingSend, resolvedHold } from "@/domain/commercial";
 import { previewFor } from "@/domain/send-preview";
 import { toastUndo } from "@/lib/toast-undo";
 import { toast } from "sonner";
@@ -532,7 +532,14 @@ export function Intelligence({
                   sending || !rec.primaryEnabled || Boolean(rec.blockedReason) || Boolean(blocked)
                 }
                 onClick={() => {
-                  if (needsSendConfirm(enquiry)) {
+                  // Every action reaching this button is sendable
+                  // (isSendableAction gates the branch above), so this is
+                  // always a customer-facing send - preview first, never a
+                  // bare commitSend(). The check stays explicit rather than
+                  // unconditional so the intent (and the invariant it
+                  // depends on) is provable and testable on its own, not
+                  // just true by accident of this component's structure.
+                  if (isCustomerFacingSend(rec.action)) {
                     setSendConfirm(true);
                     return;
                   }

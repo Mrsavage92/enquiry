@@ -5,6 +5,7 @@ import { BUSINESSES } from "../fixtures/businesses.ts";
 import {
   autopilotEligible,
   enableFollowUp,
+  isCustomerFacingSend,
   needsSendConfirm,
   proposeRevision,
   snoozeEnquiry,
@@ -12,6 +13,7 @@ import {
   defaultHold,
   resolvedHold,
 } from "./commercial.ts";
+import { ACTION_CATALOGUE } from "./action-catalogue.ts";
 import { detectSheetLetterMismatch, alignLetterToSheet } from "./voice-detect.ts";
 
 function byId(id: string) {
@@ -92,6 +94,45 @@ test("send confirm is required for every commercial send, regardless of amount o
   const nonSend = structuredClone(byId("f01"));
   nonSend.decision.recommendation.action = "REQUEST_INFORMATION";
   assert.equal(needsSendConfirm(nonSend), false, "non-send actions never need a send preview");
+});
+
+test("isCustomerFacingSend covers every action-catalogue class - the floor a business can be granted is always a send", () => {
+  // ACTION_CATALOGUE is the product's own list of action classes a business
+  // can be permitted to perform (action-catalogue.ts). Every one of them is,
+  // by definition, a customer-facing send - REQUEST_INFORMATION included,
+  // which carries no amount and no risk above LOW but still writes a real
+  // outbound record when sent.
+  for (const entry of ACTION_CATALOGUE) {
+    assert.equal(
+      isCustomerFacingSend(entry.action),
+      true,
+      `${entry.action} is in ACTION_CATALOGUE and must be gated as a customer-facing send`,
+    );
+  }
+});
+
+test("isCustomerFacingSend also covers the sendable actions not yet promoted into the catalogue", () => {
+  // ACKNOWLEDGE, SEND_QUALIFICATION_RESPONSE, SEND_AVAILABILITY,
+  // RECOMMEND_OFFER and OFFER_BOOKING reach the exact same primary button and
+  // the exact same commitSend/recordSent call as the six catalogue actions -
+  // they are just not yet action classes a business can be granted autonomy
+  // over. Missing this list was the actual bug: ACKNOWLEDGE (the "Needs
+  // info"/no-amount reply) went straight to commitSend with no preview.
+  for (const action of [
+    "ACKNOWLEDGE",
+    "SEND_QUALIFICATION_RESPONSE",
+    "SEND_AVAILABILITY",
+    "RECOMMEND_OFFER",
+    "OFFER_BOOKING",
+  ] as const) {
+    assert.equal(isCustomerFacingSend(action), true, `${action} must be gated as a customer-facing send`);
+  }
+});
+
+test("isCustomerFacingSend is false for actions that never write an outbound record", () => {
+  for (const action of ["ROUTE_ENQUIRY", "WAIT", "ESCALATE_HUMAN", "NO_ACTION"] as const) {
+    assert.equal(isCustomerFacingSend(action), false, `${action} must not be gated as a send - it never reaches commitSend`);
+  }
 });
 
 test("snooze hides an enquiry from needs-you until the time passes", () => {

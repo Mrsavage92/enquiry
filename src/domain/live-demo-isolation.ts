@@ -44,6 +44,19 @@ export function mayShowFixtureContent(s: Pick<SessionShape, "demoMode">): boolea
   return s.demoMode;
 }
 
+/**
+ * Whether the workspace's Cmd/Ctrl+Enter keyboard shortcut may record a send.
+ *
+ * Demo only, deliberately. A real send copies the letter and records it
+ * through the same approval preview as a click on the Send button; a
+ * keyboard shortcut that quietly marked something sent without either step
+ * would be exactly the theatre this product exists to remove. There is no
+ * live-mode path here to gate more finely - it is demoMode or nothing.
+ */
+export function mayRecordSendViaShortcut(demoMode: boolean): boolean {
+  return demoMode;
+}
+
 /** The client state a successful LIVE onboarding must leave behind. */
 export type LiveHandoffState = {
   onboarded: boolean;

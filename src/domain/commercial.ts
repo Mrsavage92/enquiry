@@ -1,6 +1,6 @@
-import type { AutomatedSend, Business, Channel, Enquiry, QuoteVersion } from "./types";
+import type { AutomatedSend, Business, Channel, Enquiry, QuoteVersion, RecommendationAction } from "./types";
 import { formatAud } from "./labels";
-import { outboundBlocked } from "./situation";
+import { isSendableAction, outboundBlocked } from "./situation";
 import { isShortChannel, replyChannel } from "./channel";
 
 export function firstName(name: string): string {
@@ -184,6 +184,31 @@ export function canAutopilotSend(enquiry: Enquiry, business: Business | undefine
   if (!business) return false;
   if (outboundBlocked(business, offline, enquiry)) return false;
   return autopilotEligible(enquiry, business, enquiry.decision.recommendation.action);
+}
+
+/**
+ * Whether an action class writes a real outbound record when its primary
+ * button is clicked - `firstBeta.recordSent` live, the demo `approve()` in
+ * demo mode. Every such action must open the approval preview first; there is
+ * no other kind of "send".
+ *
+ * The floor used to be `needsSendConfirm`, gated to `SEND_QUOTE` /
+ * `SEND_ESTIMATE` only. That left every other sendable action - ACKNOWLEDGE,
+ * REQUEST_INFORMATION, HANDOFF_BOOKING, FOLLOW_UP, DECLINE and the rest -
+ * going straight from a single click to a persisted send with nothing shown
+ * first, non-commercial replies included. `ACTION_CATALOGUE` is the product's
+ * own list of action classes a business can be granted, and every entry in it
+ * is, by definition, a customer-facing send (verified in
+ * `commercial.test.ts`); `isSendableAction` is the wider set that also
+ * includes the action classes not yet promoted into the catalogue
+ * (ACKNOWLEDGE, SEND_QUALIFICATION_RESPONSE, SEND_AVAILABILITY,
+ * RECOMMEND_OFFER, OFFER_BOOKING) but which reach the exact same primary
+ * button and the exact same `commitSend`/`recordSent` call. `needsSendConfirm`
+ * stays for whatever extra commercial friction (amount, risk) the UI layers
+ * on top of the floor - it no longer decides whether the floor exists.
+ */
+export function isCustomerFacingSend(action: RecommendationAction): boolean {
+  return isSendableAction(action);
 }
 
 /**
