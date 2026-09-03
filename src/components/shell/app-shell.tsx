@@ -1,13 +1,5 @@
 import { Link, Outlet, useRouterState, useNavigate } from "@tanstack/react-router";
-import {
-  BookMarked,
-  Brain,
-  Inbox,
-  LineChart,
-  MoreHorizontal,
-  Pause,
-  Shield,
-} from "lucide-react";
+import { BookMarked, Brain, Inbox, LineChart, MoreHorizontal, Pause, Shield } from "lucide-react";
 import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 import { Wordmark } from "@/components/ui/wordmark";
@@ -159,30 +151,28 @@ export function AppShell() {
   }, [goChord, navigate, undoLast]);
 
   useEffect(() => {
-    const title =
-      pathname.startsWith("/enquiries")
-        ? "Today · Enquiry"
-        : pathname.startsWith("/bookings")
-          ? "Booked · Enquiry"
-          : pathname.startsWith("/insights")
-            ? "Insights · Enquiry"
-            : pathname.startsWith("/business")
-              ? "Business Brain · Enquiry"
-              : pathname.startsWith("/trust")
-                ? "Trust · Enquiry"
-                : pathname.startsWith("/settings")
-                  ? "Settings · Enquiry"
-                  : pathname.startsWith("/lab")
-                    ? "Lab · Enquiry"
-                    : "Enquiry";
+    const title = pathname.startsWith("/enquiries")
+      ? "Today · Enquiry"
+      : pathname.startsWith("/bookings")
+        ? "Booked · Enquiry"
+        : pathname.startsWith("/insights")
+          ? "Insights · Enquiry"
+          : pathname.startsWith("/business")
+            ? "Business Brain · Enquiry"
+            : pathname.startsWith("/trust")
+              ? "Trust · Enquiry"
+              : pathname.startsWith("/settings")
+                ? "Settings · Enquiry"
+                : pathname.startsWith("/lab")
+                  ? "Lab · Enquiry"
+                  : "Enquiry";
     document.title = title;
   }, [pathname]);
 
   const nav = (inverse: boolean) => (
     <nav aria-label="Primary" className="flex flex-col gap-0.5">
       {NAV.map((item) => {
-        const active =
-          pathname === item.to || pathname.startsWith(item.to + "/");
+        const active = pathname === item.to || pathname.startsWith(item.to + "/");
         const Icon = item.icon;
         return (
           <Link
@@ -192,7 +182,7 @@ export function AppShell() {
               "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium min-h-11 transition-[background-color,color] duration-150 ease-out",
               inverse
                 ? active
-                  ? "bg-sidebar-fg/10 text-sidebar-fg"
+                  ? "bg-sidebar-fg/10 text-sidebar-fg shadow-[inset_2px_0_0_var(--color-mark)]"
                   : "text-sidebar-muted hover:bg-sidebar-fg/5 hover:text-sidebar-fg"
                 : active
                   ? "bg-ink text-paper"
@@ -231,8 +221,7 @@ export function AppShell() {
     pathname.startsWith("/insights") ||
     pathname.startsWith("/settings") ||
     pathname.startsWith("/lab");
-  const enquiryOpen =
-    pathname.startsWith("/enquiries/") && pathname !== "/enquiries";
+  const enquiryOpen = pathname.startsWith("/enquiries/") && pathname !== "/enquiries";
 
   return (
     <div className="app-root flex h-dvh flex-col overflow-hidden bg-paper text-ink">
@@ -250,58 +239,57 @@ export function AppShell() {
         <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
           <main
             id="main"
-            className={cn("flex min-h-0 flex-1 flex-col overflow-hidden", enquiryOpen ? undefined : "phone-safe-top")}
+            className={cn(
+              "flex min-h-0 flex-1 flex-col overflow-hidden",
+              enquiryOpen ? undefined : "phone-safe-top",
+            )}
           >
             <Outlet />
           </main>
           {enquiryOpen ? null : (
-          <nav
-            aria-label="App"
-            className="app-nav shrink-0 flex border-t border-line bg-raised"
-          >
-            {PHONE_NAV.map((item) => {
-              const active =
-                pathname === item.to || pathname.startsWith(item.to + "/");
-              const Icon = item.icon;
-              return (
-                <Link
-                  key={item.to}
-                  to={item.to}
-                  className={cn(
-                    "relative flex flex-1 flex-col items-center gap-0.5 py-2 text-2xs font-medium min-h-14 transition-colors duration-150",
-                    active ? "text-ink" : "text-stone",
-                  )}
-                >
-                  {active ? (
-                    <span className="absolute top-0 h-0.5 w-6 rounded-full bg-ink" aria-hidden />
-                  ) : null}
-                  <span className="relative">
-                    <Icon className="size-5" aria-hidden />
-                    {item.to === "/enquiries" && openCount > 0 ? (
-                      <span className="absolute -right-2.5 -top-1 min-w-4 rounded-full bg-ink px-1 text-center text-[10px] leading-4 text-paper">
-                        {openCount > 9 ? "9+" : openCount}
-                      </span>
+            <nav aria-label="App" className="app-nav shrink-0 flex border-t border-line bg-raised">
+              {PHONE_NAV.map((item) => {
+                const active = pathname === item.to || pathname.startsWith(item.to + "/");
+                const Icon = item.icon;
+                return (
+                  <Link
+                    key={item.to}
+                    to={item.to}
+                    className={cn(
+                      "relative flex flex-1 flex-col items-center gap-0.5 py-2 text-2xs font-medium min-h-14 transition-colors duration-150",
+                      active ? "text-ink" : "text-stone",
+                    )}
+                  >
+                    {active ? (
+                      <span className="absolute top-0 h-0.5 w-6 rounded-full bg-mark" aria-hidden />
                     ) : null}
-                  </span>
-                  {item.label}
-                </Link>
-              );
-            })}
-            <button
-              type="button"
-              onClick={() => setMore(true)}
-              className={cn(
-                "relative flex flex-1 flex-col items-center gap-0.5 py-2 text-2xs font-medium min-h-14",
-                moreActive ? "text-ink" : "text-stone",
-              )}
-            >
-              {moreActive ? (
-                <span className="absolute top-0 h-0.5 w-6 rounded-full bg-ink" aria-hidden />
-              ) : null}
-              <MoreHorizontal className="size-5" aria-hidden />
-              More
-            </button>
-          </nav>
+                    <span className="relative">
+                      <Icon className="size-5" aria-hidden />
+                      {item.to === "/enquiries" && openCount > 0 ? (
+                        <span className="absolute -right-2.5 -top-1 min-w-4 rounded-full bg-ink px-1 text-center text-[10px] leading-4 text-paper">
+                          {openCount > 9 ? "9+" : openCount}
+                        </span>
+                      ) : null}
+                    </span>
+                    {item.label}
+                  </Link>
+                );
+              })}
+              <button
+                type="button"
+                onClick={() => setMore(true)}
+                className={cn(
+                  "relative flex flex-1 flex-col items-center gap-0.5 py-2 text-2xs font-medium min-h-14",
+                  moreActive ? "text-ink" : "text-stone",
+                )}
+              >
+                {moreActive ? (
+                  <span className="absolute top-0 h-0.5 w-6 rounded-full bg-ink" aria-hidden />
+                ) : null}
+                <MoreHorizontal className="size-5" aria-hidden />
+                More
+              </button>
+            </nav>
           )}
         </div>
       ) : (

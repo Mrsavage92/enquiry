@@ -64,7 +64,7 @@ export function AccountMenu({ compact, inverse }: { compact?: boolean; inverse?:
             {demoMode ? (
               <Dropdown.RadioItem
                 value="all"
-                className="rounded-md px-2 py-2 text-sm outline-none data-[highlighted]:bg-paper-2"
+                className="rounded-md px-2 py-2 text-sm outline-none data-[highlighted]:bg-paper-2 data-[highlighted]:shadow-[var(--shadow-mark-focus)]"
               >
                 All businesses
               </Dropdown.RadioItem>
@@ -73,7 +73,7 @@ export function AccountMenu({ compact, inverse }: { compact?: boolean; inverse?:
               <Dropdown.RadioItem
                 key={b.id}
                 value={b.id}
-                className="rounded-md px-2 py-2 text-sm outline-none data-[highlighted]:bg-paper-2"
+                className="rounded-md px-2 py-2 text-sm outline-none data-[highlighted]:bg-paper-2 data-[highlighted]:shadow-[var(--shadow-mark-focus)]"
               >
                 {b.name}
               </Dropdown.RadioItem>
@@ -83,7 +83,7 @@ export function AccountMenu({ compact, inverse }: { compact?: boolean; inverse?:
           <Dropdown.Item asChild>
             <Link
               to="/"
-              className="flex items-center gap-2 rounded-md px-2 py-2 text-sm outline-none data-[highlighted]:bg-paper-2"
+              className="flex items-center gap-2 rounded-md px-2 py-2 text-sm outline-none data-[highlighted]:bg-paper-2 data-[highlighted]:shadow-[var(--shadow-mark-focus)]"
             >
               Enquiry website
             </Link>
@@ -91,7 +91,7 @@ export function AccountMenu({ compact, inverse }: { compact?: boolean; inverse?:
           <Dropdown.Item asChild>
             <Link
               to="/settings"
-              className="flex items-center gap-2 rounded-md px-2 py-2 text-sm outline-none data-[highlighted]:bg-paper-2"
+              className="flex items-center gap-2 rounded-md px-2 py-2 text-sm outline-none data-[highlighted]:bg-paper-2 data-[highlighted]:shadow-[var(--shadow-mark-focus)]"
             >
               <Settings className="size-4" aria-hidden />
               Settings
@@ -101,13 +101,13 @@ export function AccountMenu({ compact, inverse }: { compact?: boolean; inverse?:
             <Link
               to="/onboarding"
               onClick={() => startSetup()}
-              className="flex items-center gap-2 rounded-md px-2 py-2 text-sm outline-none data-[highlighted]:bg-paper-2"
+              className="flex items-center gap-2 rounded-md px-2 py-2 text-sm outline-none data-[highlighted]:bg-paper-2 data-[highlighted]:shadow-[var(--shadow-mark-focus)]"
             >
               Set up Business Brain
             </Link>
           </Dropdown.Item>
           <Dropdown.Item
-            className="flex items-center gap-2 rounded-md px-2 py-2 text-sm outline-none data-[highlighted]:bg-paper-2"
+            className="flex items-center gap-2 rounded-md px-2 py-2 text-sm outline-none data-[highlighted]:bg-paper-2 data-[highlighted]:shadow-[var(--shadow-mark-focus)]"
             onSelect={() => {
               const id = filter === "all" ? businesses[0]?.id : filter;
               if (!id) return;
@@ -129,14 +129,14 @@ export function AccountMenu({ compact, inverse }: { compact?: boolean; inverse?:
               <Dropdown.Item asChild>
                 <Link
                   to="/lab"
-                  className="flex items-center gap-2 rounded-md px-2 py-2 text-sm outline-none data-[highlighted]:bg-paper-2"
+                  className="flex items-center gap-2 rounded-md px-2 py-2 text-sm outline-none data-[highlighted]:bg-paper-2 data-[highlighted]:shadow-[var(--shadow-mark-focus)]"
                 >
                   <FlaskConical className="size-4" aria-hidden />
                   Fixture lab
                 </Link>
               </Dropdown.Item>
               <Dropdown.Item
-                className="flex items-center gap-2 rounded-md px-2 py-2 text-sm outline-none data-[highlighted]:bg-paper-2"
+                className="flex items-center gap-2 rounded-md px-2 py-2 text-sm outline-none data-[highlighted]:bg-paper-2 data-[highlighted]:shadow-[var(--shadow-mark-focus)]"
                 onSelect={() => reset()}
               >
                 <RotateCcw className="size-4" aria-hidden />
