@@ -2,12 +2,10 @@ import { Link, createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { ChevronLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Wordmark } from "@/components/ui/wordmark";
 import { usePrototype } from "@/store/prototype-store";
 import { completeOnboarding } from "@/lib/server/workspace";
 import { cn } from "@/lib/utils";
-import { useNarrow } from "@/lib/use-narrow";
 import { RequireAuth } from "@/lib/auth/gates";
 import { WorkspaceGate } from "@/components/shell/workspace-boundary";
 
@@ -33,16 +31,6 @@ function GuardedOnboarding() {
   );
 }
 
-const LAST = 5;
-
-const SOURCES = [
-  { id: "website", title: "Use my website", body: "Public pages only. You’ll see what it found before anything is Active." },
-  { id: "upload", title: "Upload a price list", body: "PDF or spreadsheet. Provenance stays on every price." },
-  { id: "paste", title: "Paste information", body: "Price lists, FAQs, policies. No mailbox required." },
-  { id: "tell", title: "Tell Enquiry", body: "Describe how you work in your own words." },
-  { id: "manual", title: "Set up manually", body: "Escape hatch. Not the default." },
-];
-
 /**
  * The browser's own IANA zone, confirmable by the operator.
  *
@@ -65,74 +53,49 @@ const TEAMS = [
   { id: "studio", label: "Studio (6+)" },
 ];
 
+/**
+ * At most two stages (R2A Slice 5).
+ *
+ * The six-step flow this replaced had two steps whose state - a "what should
+ * it read first" preference and a warmth/formality voice slider - was never
+ * sent to `completeOnboarding` at all. They looked like settings and were
+ * discarded on submit, and the mobile path silently skipped one of them,
+ * which meant the product asked a different set of questions depending on
+ * viewport. Neither exists here: the only Stage 1 inputs are the ones the
+ * server actually persists, and Business Brain / voice grow later, from
+ * confirmed information and reviewed work, not a slider on day one.
+ */
 function Onboarding() {
-  const step = usePrototype((s) => s.onboardingStep);
-  const setStep = usePrototype((s) => s.setOnboardingStep);
-  const source = usePrototype((s) => s.onboardingSource);
-  const setSource = usePrototype((s) => s.setOnboardingSource);
   const markOnboarded = usePrototype((s) => s.markOnboardedLocally);
   const navigate = useNavigate();
 
+  const [stage, setStage] = useState<1 | 2>(1);
   const [name, setName] = useState("");
   const [ownerFirstName, setOwnerFirstName] = useState("");
   const [industry, setIndustry] = useState("");
   const [timezone, setTimezone] = useState(detectTimezone);
+  const [editingTimezone, setEditingTimezone] = useState(false);
   const [baseLocation, setBaseLocation] = useState("");
   // The live money domain is AUD-only (Money.currency, MoneyRange.currency and
   // Business.currency are all the literal "AUD"), so offering a currency field
-  // would let someone pick EUR and have it silently treated as AUD. The database
-  // columns stay currency-capable; making the domain multi-currency is a
-  // deliberate later change (R2A correction s6).
+  // would let someone pick EUR and have it silently treated as AUD. The
+  // database columns stay currency-capable; making the domain multi-currency
+  // is a deliberate later change (R2A correction s6). Nothing to confirm yet
+  // is the honest state, so no field is shown for it.
   const currency = "AUD";
   const [team, setTeam] = useState("solo");
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
-  const [arrival, setArrival] = useState<"private" | "email" | "sms" | "instagram" | "facebook">("private");
-  const [warmth, setWarmth] = useState("Warm");
-  const [formality, setFormality] = useState("Conversational");
 
-  const phone = useNarrow(860) !== false;
-  /**
-   * Steps 2 and 3 were a sample Business Brain: confirm-able rule cards sourced
-   * from "glowandco.example/pricing" and a test against a fixture enquiry. In a
-   * signed-in tenant those could be confirmed into, or read as, that business's
-   * learned truth - which it has none of (R2A correction s6). They are gone from
-   * the live path; /demo remains the fixture demonstration surface, and real
-   * machine-usable Brain persistence is R2C.
-   */
-  const steps = phone ? [0, 4, 5] : [0, 1, 4, 5];
-  const stageLabels = phone
-    ? ["The business", "How it sounds", "Ready"]
-    : ["The business", "What to learn from", "Your voice", "Ready"];
-  const stepIndex = Math.max(0, steps.indexOf(step));
+  const canContinue = name.trim().length > 0;
 
-  const go = (n: number) => setStep(Math.max(0, Math.min(LAST, n)));
-  const goNext = () => {
-    const next = steps[stepIndex + 1];
-    if (next != null) go(next);
-  };
   const back = () => {
-    if (stepIndex <= 0) {
+    if (stage === 1) {
       void navigate({ to: "/" });
       return;
     }
-    go(steps[stepIndex - 1] ?? 0);
+    setStage(1);
   };
-
-  // Illustrative only, and built from what the operator just typed rather than
-  // from a fixture customer and price. Nothing here is persisted or claimed as a
-  // real quote.
-  /**
-   * Illustrative wording only. Deliberately asserts NO business fact - no
-   * availability, coverage, price or commitment - because this screen persists
-   * nothing and the business has taught Enquiry nothing yet. An earlier version
-   * said "yes, we can cover X that weekend", which implies availability the
-   * product cannot know (R2A correction s5).
-   */
-  const quoteSample =
-    warmth === "Warm"
-      ? "Hi - thanks for getting in touch. Here's where things are."
-      : "Thanks for getting in touch. Here is where things are.";
 
   /**
    * Persist the real workspace, then continue.
@@ -145,12 +108,8 @@ function Onboarding() {
    * workspace that did not exist.
    *
    * Now: submit, await, and only then continue. A failure leaves onboarding
-   * incomplete with a retryable message (R2A correction s1-s5).
-   *
-   * The selected channel is a stated PREFERENCE, not integration state. Nothing
-   * is marked connected without a real handshake, which does not exist yet.
-   * Voice and Business Brain rules are deliberately not persisted here - that is
-   * R2C - so nothing typed on these screens is presented as learned truth.
+   * incomplete with a retryable message, and the entered values stay exactly
+   * as typed (R2A correction s1-s5).
    */
   const finish = async () => {
     if (submitting) return;
@@ -171,10 +130,11 @@ function Onboarding() {
       if (!result?.ok) throw new Error("Workspace could not be created.");
       // Server is the authority. Deliberately does NOT call the prototype
       // store's completeOnboarding, which selects fixture business "glow" and
-      // pulls fixture enquiries, Brain, trust and integration state into view as
-      // if they were this tenant's (R2A correction s1). The only client state is
-      // a transient "this browser finished onboarding" marker; real workspace
-      // hydration is R2B.
+      // pulls fixture enquiries, Brain, trust and integration state into view
+      // as if they were this tenant's (R2A correction s1). The only client
+      // state is a transient "this browser finished onboarding" marker; the
+      // destination route's own WorkspaceGate refetches the real workspace
+      // the moment it mounts, before rendering anything that reads it.
       markOnboarded();
       await navigate({ to: "/enquiries" });
     } catch (err) {
@@ -199,41 +159,27 @@ function Onboarding() {
 
       <div className="mt-6">
         <p className="text-sm text-stone">
-          {stageLabels[stepIndex]} · {stepIndex + 1} of {steps.length}
+          {stage === 1 ? "Your business" : "Review and create"} · {stage} of 2
         </p>
         <div className="mt-2 flex gap-1" role="navigation" aria-label="Setup steps">
-          {stageLabels.map((label, i) => {
-            const target = steps[i] ?? 0;
-            const reachable = target <= step || i <= stepIndex;
-            return (
-              <button
-                key={label}
-                type="button"
-                disabled={!reachable}
-                aria-current={i === stepIndex ? "step" : undefined}
-                aria-label={label}
-                onClick={() => reachable && go(target)}
-                className="min-h-11 flex-1 py-4"
-              >
-                <span
-                  className={cn(
-                    "block h-1.5 w-full rounded-full transition-colors duration-150",
-                    i === stepIndex ? "bg-ink" : i < stepIndex ? "bg-ink/35" : "bg-line",
-                  )}
-                />
-              </button>
-            );
-          })}
+          {[1, 2].map((i) => (
+            <span
+              key={i}
+              aria-hidden
+              className={cn(
+                "block h-1.5 flex-1 rounded-full transition-colors duration-150",
+                i === stage ? "bg-ink" : i < stage ? "bg-ink/35" : "bg-line",
+              )}
+            />
+          ))}
         </div>
       </div>
 
-      <div key={step} className="flex-1 animate-[rise-in_280ms_var(--ease-smooth-out)]">
-        {step === 0 ? (
+      <div key={stage} className="flex-1 animate-[rise-in_280ms_var(--ease-smooth-out)]">
+        {stage === 1 ? (
           <section className="mt-8">
             <h1 className="text-3xl font-semibold tracking-tight">Your business</h1>
-            <p className="mt-2 text-sm text-ink-2">
-              Your real business. Nothing here is a sample.
-            </p>
+            <p className="mt-2 text-sm text-ink-2">Your real business. Nothing here is a sample.</p>
             <div className="mt-6 space-y-3">
               <Field
                 label="Business name"
@@ -259,12 +205,6 @@ function Onboarding() {
                 onChange={setBaseLocation}
                 placeholder="Suburb, city or region"
               />
-              <Field
-                label="Time zone"
-                value={timezone}
-                onChange={setTimezone}
-                placeholder="Detected from your browser"
-              />
               <SelectField
                 label="Who does the work"
                 value={team}
@@ -272,141 +212,83 @@ function Onboarding() {
                 options={TEAMS.map((t) => t.label)}
                 values={TEAMS.map((t) => t.id)}
               />
+              {/*
+                Progressive disclosure: a safe default already exists (the
+                browser's own zone), so this does not compete for attention
+                with the fields above it. Editing it is one click away, not a
+                dominant row of equal weight to the business's own name.
+              */}
+              {editingTimezone ? (
+                <Field label="Time zone" value={timezone} onChange={setTimezone} />
+              ) : (
+                <div className="flex min-h-11 items-center justify-between gap-3 text-sm">
+                  <p>
+                    <span className="text-stone">Time zone </span>
+                    <span className="font-medium">{timezone}</span>
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setEditingTimezone(true)}
+                    className="flex min-h-11 items-center px-1 text-stone underline-offset-4 hover:text-ink hover:underline"
+                  >
+                    Change
+                  </button>
+                </div>
+              )}
             </div>
           </section>
-        ) : null}
-
-        {step === 1 ? (
-          <section className="mt-8">
-            <h1 className="text-3xl font-semibold tracking-tight">What should it read first?</h1>
-            <p className="mt-2 text-sm text-ink-2">Pick one. You can add more later.</p>
-            <ul className="mt-6">
-              {SOURCES.map((s, i) => {
-                const selected = source === s.id;
-                return (
-                  <li key={s.id}>
-                    <button
-                      type="button"
-                      onClick={() => setSource(s.id)}
-                      className={cn(
-                        "flex w-full gap-4 border-t border-line px-0 py-4 text-left last:border-b",
-                        selected ? "bg-paper-2/80" : "hover:bg-paper-2/50",
-                      )}
-                    >
-                      <span className="w-6 shrink-0 font-mono text-xs tabular-nums text-stone">
-                        {String(i + 1).padStart(2, "0")}
-                      </span>
-                      <span className="min-w-0 flex-1">
-                        <span className="flex items-center justify-between gap-2">
-                          <span className="font-medium">{s.title}</span>
-                          {selected ? <Badge>Selected</Badge> : null}
-                        </span>
-                        <span className="mt-1 block text-sm text-ink-2">{s.body}</span>
-                      </span>
-                    </button>
-                  </li>
-                );
-              })}
-            </ul>
-          </section>
-        ) : null}
-
-        {step === 4 ? (
-          <section className="mt-8">
-            <h1 className="text-3xl font-semibold tracking-tight">How it should sound</h1>
-            <p className="mt-2 text-sm text-ink-2">Change a setting. Watch the line.</p>
-            <div className="mt-6 grid gap-3 sm:grid-cols-2">
-              <SelectField
-                label="Warmth"
-                value={warmth}
-                onChange={setWarmth}
-                options={["Warm", "Reserved"]}
-              />
-              <SelectField
-                label="Formality"
-                value={formality}
-                onChange={setFormality}
-                options={["Conversational", "Formal"]}
-              />
-            </div>
-            <div className="mt-6 space-y-5 border-t border-line pt-6">
-              <div>
-                <p className="eyebrow">Quote</p>
-                <p className="letter-body mt-2">{quoteSample}</p>
-              </div>
-              <div>
-                <p className="eyebrow">One question</p>
-                <p className="letter-body mt-2">
-                  {warmth === "Warm"
-                    ? "Hi Chris - I can do the work dinner makeup. What’s the suburb, so I can check travel?"
-                    : "Chris, I can do the work dinner makeup. What suburb is it, so travel can be checked?"}
-                </p>
-              </div>
-              <p className="text-xs text-stone">Avoids: Don’t hesitate · Just circling back</p>
-            </div>
-          </section>
-        ) : null}
-
-        {step === 5 ? (
+        ) : (
           <section className="mt-8">
             <h1 className="text-3xl font-semibold tracking-tight">
-              {name.trim() || "Your studio"} is ready
+              Review, then create your workspace
             </h1>
             <p className="mt-2 text-sm text-ink-2">
-              Today will be empty until work arrives. Open sample jobs if you want to feel the desk.
+              Check the details, then Enquiry sets up your workspace.
             </p>
-            <p className="eyebrow mt-8">How work arrives</p>
-            <div className="mt-3 space-y-2">
-              <Choice
-                selected={arrival === "private"}
-                title="Form, forwarding or paste"
-                body="No mailbox needed."
-                onClick={() => setArrival("private")}
-              />
-              <Choice
-                selected={arrival === "email"}
-                title="Email"
-                body="Not connected yet. Tells us what to build first."
-                onClick={() => setArrival("email")}
-              />
-              <Choice
-                selected={arrival === "sms"}
-                title="Texts"
-                body="Not connected yet. Tells us what to build first."
-                onClick={() => setArrival("sms")}
-              />
-              <Choice
-                selected={arrival === "instagram"}
-                title="Instagram"
-                body="Not connected yet. Tells us what to build first."
-                onClick={() => setArrival("instagram")}
-              />
-              <Choice
-                selected={arrival === "facebook"}
-                title="Facebook"
-                body="Not connected yet. Tells us what to build first."
-                onClick={() => setArrival("facebook")}
-              />
-            </div>
-            <ul className="mt-6">
-              {/*
-                Only states what is actually persisted. Voice is not saved in
-                R2A and the channel choice is a preference, so claiming either
-                is "on file" or "chosen" would be false.
-              */}
+
+            <dl className="mt-6">
               {[
-                name.trim() || "Your business",
-                "Saved to your workspace",
-                "Nothing is connected yet",
-                "You’ll still send every reply",
-              ].map((item) => (
-                <li key={item} className="border-t border-line py-3 text-sm last:border-b">
-                  {item}
+                ["Business", name.trim() || "-"],
+                ["Owner", ownerFirstName.trim() || "-"],
+                ["What you do", industry.trim() || "-"],
+                ["Where you work from", baseLocation.trim() || "-"],
+                ["Who does the work", TEAMS.find((t) => t.id === team)?.label ?? "-"],
+                ["Time zone", timezone],
+              ].map(([label, value]) => (
+                <div
+                  key={label}
+                  className="flex items-baseline justify-between gap-4 border-t border-line py-3 text-sm last:border-b"
+                >
+                  <dt className="text-stone">{label}</dt>
+                  <dd className="text-right font-medium">{value}</dd>
+                </div>
+              ))}
+            </dl>
+
+            {/*
+              The real authority boundary, stated plainly, per the R2A brief -
+              not a claim about what has been learned or connected, because
+              nothing has been yet. This is the whole product's trust model in
+              four sentences: it prepares, it does not decide unsupervised,
+              and it starts knowing nothing about this specific business.
+            */}
+            <ul className="mt-8">
+              {[
+                "Your workspace starts empty. Nothing is pre-loaded from another business.",
+                "Enquiry prepares replies. Nothing sends without your approval.",
+                "No mailbox or social account is connected yet.",
+                "Enquiry learns your prices and rules from what you confirm, and your voice from replies you approve or edit - not from a quiz.",
+              ].map((line) => (
+                <li
+                  key={line}
+                  className="border-t border-line py-3 text-sm text-ink-2 last:border-b"
+                >
+                  {line}
                 </li>
               ))}
             </ul>
           </section>
-        ) : null}
+        )}
       </div>
 
       <div className="sticky bottom-0 -mx-5 mt-8 border-t border-line bg-paper/95 px-5 py-3 pb-[max(0.75rem,var(--app-safe-bottom))] backdrop-blur-sm sm:-mx-8 sm:px-8">
@@ -420,21 +302,13 @@ function Onboarding() {
             <ChevronLeft className="size-4" aria-hidden />
             Back
           </Button>
-          {step < LAST ? (
-            <Button
-              className="min-h-12 flex-1"
-              disabled={(step === 0 && !name.trim()) || (step === 1 && !source)}
-              onClick={goNext}
-            >
+          {stage === 1 ? (
+            <Button className="min-h-12 flex-1" disabled={!canContinue} onClick={() => setStage(2)}>
               Continue
             </Button>
           ) : (
-            <Button
-              className="min-h-12 flex-1"
-              disabled={submitting}
-              onClick={() => void finish()}
-            >
-              {submitting ? "Creating your workspace…" : "Handle my first enquiry"}
+            <Button className="min-h-12 flex-1" disabled={submitting} onClick={() => void finish()}>
+              {submitting ? "Creating your workspace…" : "Create my workspace"}
             </Button>
           )}
         </div>
@@ -493,30 +367,3 @@ function SelectField({
     </label>
   );
 }
-
-function Choice({
-  selected,
-  title,
-  body,
-  onClick,
-}: {
-  selected: boolean;
-  title: string;
-  body: string;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={cn(
-        "flex w-full flex-col items-start rounded-md px-4 py-3 text-left transition-colors duration-150",
-        selected ? "bg-ink text-paper" : "bg-raised text-ink shadow-border hover:shadow-border-hover",
-      )}
-    >
-      <span className="text-sm font-medium">{title}</span>
-      <span className={cn("mt-1 text-sm", selected ? "text-paper/75" : "text-ink-2")}>{body}</span>
-    </button>
-  );
-}
-
