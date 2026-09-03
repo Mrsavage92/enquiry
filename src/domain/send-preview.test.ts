@@ -75,6 +75,61 @@ test("no-recipient preview reads 'no recipient on file' as an empty string, neve
   assert.equal(preview.recipient, "", "empty string, not a fabricated name or address");
 });
 
+/**
+ * A "manual" channel has no address of its own - the owner sends by hand
+ * from their own inbox or phone, which is every first-beta send. These four
+ * cases mirror `resolveToAddr()`'s server-side fallback exactly (email, then
+ * phone, then handle, then "") so the preview shown before a send and the
+ * audit line written after it never disagree about who it went to.
+ */
+test("manual-channel preview resolves to the enquiry's email when only email is on file", () => {
+  const emailOnly = structuredClone(byId("f01"));
+  emailOnly.customerName = "";
+  emailOnly.customerEmail = "priya.shah@example.com";
+  emailOnly.customerPhone = undefined;
+  emailOnly.customerHandle = undefined;
+  emailOnly.source = "manual";
+  emailOnly.conversation = [];
+  const preview = previewFor({
+    enquiry: emailOnly,
+    draft: emailOnly.decision.draft.body,
+    decision: emailOnly.decision,
+  });
+  assert.equal(preview.recipient, "priya.shah@example.com");
+});
+
+test("manual-channel preview resolves to the enquiry's phone when only phone is on file", () => {
+  const phoneOnly = structuredClone(byId("f01"));
+  phoneOnly.customerName = "";
+  phoneOnly.customerEmail = "";
+  phoneOnly.customerPhone = "0412 773 091";
+  phoneOnly.customerHandle = undefined;
+  phoneOnly.source = "manual";
+  phoneOnly.conversation = [];
+  const preview = previewFor({
+    enquiry: phoneOnly,
+    draft: phoneOnly.decision.draft.body,
+    decision: phoneOnly.decision,
+  });
+  assert.equal(preview.recipient, "0412 773 091");
+});
+
+test("manual-channel preview resolves to the enquiry's handle when only a handle is on file", () => {
+  const handleOnly = structuredClone(byId("f01"));
+  handleOnly.customerName = "";
+  handleOnly.customerEmail = "";
+  handleOnly.customerPhone = undefined;
+  handleOnly.customerHandle = "@priya.shah";
+  handleOnly.source = "manual";
+  handleOnly.conversation = [];
+  const preview = previewFor({
+    enquiry: handleOnly,
+    draft: handleOnly.decision.draft.body,
+    decision: handleOnly.decision,
+  });
+  assert.equal(preview.recipient, "@priya.shah");
+});
+
 test("edited is null when the decision snapshot carries no prepared text to compare against", () => {
   const priya = structuredClone(byId("f01"));
   priya.decision.draft.body = "";

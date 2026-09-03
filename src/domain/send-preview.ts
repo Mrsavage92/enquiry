@@ -1,5 +1,5 @@
 import type { Business, DecisionSnapshot, Enquiry } from "./types";
-import { channelLabel, replyChannel, replyTo } from "./channel";
+import { channelLabel, replyChannel } from "./channel";
 import { formatAud } from "./labels";
 
 /**
@@ -21,7 +21,12 @@ export type SendPreviewInput = {
 
 export type SendPreviewData = {
   channelLabel: string;
-  /** Empty string means no recipient on file. Never invented - reuses replyTo()'s own fallbacks. */
+  /**
+   * Empty string means no recipient on file. Never invented - mirrors
+   * `resolveToAddr()` in `lib/repo/sent-reply-core.ts` exactly, so the
+   * preview shown before a send and the audit line written after it always
+   * agree on who it went to.
+   */
   recipient: string;
   body: string;
   amountLabel: string | null;
@@ -54,13 +59,32 @@ function amountLabelFor(enquiry: Enquiry, decision: DecisionSnapshot): string | 
   return null;
 }
 
+/**
+ * Deliberately separate from `channel.ts`'s `replyTo()`, which also falls
+ * back to `customerName` for a channel with no native address - a name is
+ * never a real address, and `resolveToAddr()` server-side never emits one.
+ * Kept in lock-step with `resolveToAddr()` in `lib/repo/sent-reply-core.ts`:
+ * same channel-native mapping for email/sms/instagram/facebook, same
+ * email-then-phone-then-handle fallback for every other channel (manual,
+ * forward, comment, form - a manual send is the owner copying the prepared
+ * text and sending it by hand, which is every first-beta send), same ""
+ * when nothing is on file.
+ */
+function recipientFor(enquiry: Enquiry): string {
+  const channel = replyChannel(enquiry);
+  if (channel === "email") return enquiry.customerEmail;
+  if (channel === "sms") return enquiry.customerPhone || "";
+  if (channel === "instagram" || channel === "facebook") return enquiry.customerHandle || "";
+  return enquiry.customerEmail || enquiry.customerPhone || enquiry.customerHandle || "";
+}
+
 export function previewFor(input: SendPreviewInput): SendPreviewData {
   const { enquiry, draft, decision } = input;
   const preparedText = decision.draft?.body ?? "";
   const edited = preparedText ? draft !== preparedText : null;
   return {
     channelLabel: channelLabel(replyChannel(enquiry)),
-    recipient: replyTo(enquiry),
+    recipient: recipientFor(enquiry),
     body: draft,
     amountLabel: amountLabelFor(enquiry, decision),
     reason: decision.recommendation.reason,

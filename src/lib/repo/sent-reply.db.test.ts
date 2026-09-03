@@ -155,6 +155,119 @@ test("an unresolvable channel yields an empty to_addr, never a fabricated one", 
   assert.equal(msg.rows[0]!.to_addr, "", "no phone on file - empty, not invented");
 });
 
+/**
+ * A "manual" send is the owner copying the prepared text and sending it by
+ * hand from their own inbox or phone - every first-beta send is this
+ * channel. It has no channel-native address of its own, so it falls back to
+ * whatever contact the enquiry actually holds, in the same order the send
+ * preview uses: email, then phone, then handle.
+ */
+test("a manual send resolves to_addr to the enquiry's email when only email is on file", async () => {
+  const pg = await freshDb();
+  const { businessId, enquiryId } = await seedBusinessAndEnquiry(pg, {
+    customerEmail: "sarah@example.com",
+    customerPhone: null,
+    customerHandle: null,
+  });
+  await recordSentReplyInTransaction(sqlFor(pg), {
+    enquiryId,
+    businessId,
+    userId: "u1",
+    body: "Hi Sarah, that comes to $580.",
+    channel: "manual",
+  });
+  const msg = await pg.query<{ to_addr: string }>(
+    "select to_addr from message where enquiry_id = $1",
+    [enquiryId],
+  );
+  assert.equal(msg.rows[0]!.to_addr, "sarah@example.com");
+});
+
+test("a manual send resolves to_addr to the enquiry's phone when only phone is on file", async () => {
+  const pg = await freshDb();
+  const { businessId, enquiryId } = await seedBusinessAndEnquiry(pg, {
+    customerEmail: "",
+    customerPhone: "0412 773 091",
+    customerHandle: null,
+  });
+  await recordSentReplyInTransaction(sqlFor(pg), {
+    enquiryId,
+    businessId,
+    userId: "u1",
+    body: "Hi Sarah, that comes to $580.",
+    channel: "manual",
+  });
+  const msg = await pg.query<{ to_addr: string }>(
+    "select to_addr from message where enquiry_id = $1",
+    [enquiryId],
+  );
+  assert.equal(msg.rows[0]!.to_addr, "0412 773 091");
+});
+
+test("a manual send resolves to_addr to the enquiry's handle when only a handle is on file", async () => {
+  const pg = await freshDb();
+  const { businessId, enquiryId } = await seedBusinessAndEnquiry(pg, {
+    customerEmail: "",
+    customerPhone: null,
+    customerHandle: "@sarah.makeup",
+  });
+  await recordSentReplyInTransaction(sqlFor(pg), {
+    enquiryId,
+    businessId,
+    userId: "u1",
+    body: "Hi Sarah, that comes to $580.",
+    channel: "manual",
+  });
+  const msg = await pg.query<{ to_addr: string }>(
+    "select to_addr from message where enquiry_id = $1",
+    [enquiryId],
+  );
+  assert.equal(msg.rows[0]!.to_addr, "@sarah.makeup");
+});
+
+test("a manual send with no contact on file still resolves to_addr to empty, never invented", async () => {
+  const pg = await freshDb();
+  const { businessId, enquiryId } = await seedBusinessAndEnquiry(pg, {
+    customerEmail: "",
+    customerPhone: null,
+    customerHandle: null,
+  });
+  await recordSentReplyInTransaction(sqlFor(pg), {
+    enquiryId,
+    businessId,
+    userId: "u1",
+    body: "Hi, following up.",
+    channel: "manual",
+  });
+  const msg = await pg.query<{ to_addr: string }>(
+    "select to_addr from message where enquiry_id = $1",
+    [enquiryId],
+  );
+  assert.equal(msg.rows[0]!.to_addr, "", "no contact on file - empty, not a fabricated name");
+});
+
+test("a manual send's audit line names the recipient it resolved, not 'no recipient on file'", async () => {
+  const pg = await freshDb();
+  const { businessId, enquiryId } = await seedBusinessAndEnquiry(pg, {
+    customerEmail: "sarah@example.com",
+    customerPhone: null,
+    customerHandle: null,
+  });
+  await recordSentReplyInTransaction(sqlFor(pg), {
+    enquiryId,
+    businessId,
+    userId: "u1",
+    body: "Hi Sarah, that comes to $580.",
+    channel: "manual",
+  });
+  const ev = await pg.query<{ summary: string }>(
+    "select summary from audit_event where business_id = $1",
+    [businessId],
+  );
+  assert.match(ev.rows[0]!.summary, /Entered manually/);
+  assert.match(ev.rows[0]!.summary, /sarah@example\.com/);
+});
+
 test("a repeated clientRequestId creates exactly one outbound message", async () => {
   const pg = await freshDb();
   const { businessId, enquiryId } = await seedBusinessAndEnquiry(pg);
@@ -446,9 +559,10 @@ test("a quote send writes exactly one quote_version row, version 1, with the rig
     total_minor: number;
     currency: string;
     rule_set_version: string;
-  }>("select version, status, total_minor, currency, rule_set_version from quote_version where enquiry_id = $1", [
-    enquiryId,
-  ]);
+  }>(
+    "select version, status, total_minor, currency, rule_set_version from quote_version where enquiry_id = $1",
+    [enquiryId],
+  );
   assert.equal(rows.rows.length, 1, "exactly one quote_version row");
   assert.equal(rows.rows[0]!.version, 1);
   assert.equal(rows.rows[0]!.status, "sent");

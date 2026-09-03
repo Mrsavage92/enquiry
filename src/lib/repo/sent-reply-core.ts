@@ -77,9 +77,15 @@ function lineItemsForQuote(
 /**
  * The recipient is derived here, server-side, from the enquiry's own stored
  * contact fields for the resolved channel - never from anything the client
- * sent. An unknown/unsupported channel (or a channel with nothing on file)
- * resolves to "", which the UI already reads as "no recipient on file",
- * never an invented address.
+ * sent. Email/SMS/Instagram/Facebook each have one channel-native address.
+ * Every other channel (manual, forward, comment, form) has no address of
+ * its own - a "manual" send is the owner copying the prepared text and
+ * sending it by hand from their own inbox or phone, which is every
+ * first-beta send - so it falls back to whatever contact the enquiry
+ * actually holds, in the order most likely to be real: email, then phone,
+ * then a social handle. Still resolves to "" when none of those exist,
+ * which the UI already reads as "no recipient on file" - never an invented
+ * address.
  */
 function resolveToAddr(
   channel: Channel,
@@ -92,7 +98,7 @@ function resolveToAddr(
   if (channel === "email") return enquiry.customer_email;
   if (channel === "sms") return enquiry.customer_phone ?? "";
   if (channel === "instagram" || channel === "facebook") return enquiry.customer_handle ?? "";
-  return "";
+  return enquiry.customer_email || enquiry.customer_phone || enquiry.customer_handle || "";
 }
 
 export async function recordSentReplyInTransaction(
@@ -185,7 +191,11 @@ export async function recordSentReplyInTransaction(
       select coalesce(max(version), 0) + 1 as next_version
       from quote_version where enquiry_id = ${input.enquiryId}
     `;
-    const lineItems = lineItemsForQuote(enq.evaluators, enq.explanation, enq.price.amountMinor / 100);
+    const lineItems = lineItemsForQuote(
+      enq.evaluators,
+      enq.explanation,
+      enq.price.amountMinor / 100,
+    );
     await sql`
       insert into quote_version
         (enquiry_id, version, status, sent_at, total_minor, currency, line_items, rule_set_version)
