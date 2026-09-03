@@ -7,7 +7,8 @@ import { BUSINESS_BY_ID, ENQUIRY_BY_ID } from "@/fixtures";
 import { usePrototype } from "@/store/prototype-store";
 import { fixtureLinksAllowed } from "@/lib/public-links";
 import { authEnabled } from "@/lib/auth/client";
-import { QuoteSheet, quoteSheets } from "@/components/enquiry/quote-sheet";
+import { QuoteSheet } from "@/components/enquiry/quote-sheet";
+import { quoteSheets } from "@/domain/quote-sheets";
 
 /**
  * R1D containment. These links are keyed by a short internal id that ships in
@@ -35,9 +36,8 @@ function LinkUnavailable() {
       </Link>
       <p className="text-lg font-semibold tracking-tight">This link isn’t available</p>
       <p className="mt-2 text-sm leading-relaxed text-ink-2">
-        Shareable customer links are not switched on for this deployment. If you were
-        expecting a quote or a booking, reply to the message the business sent you and
-        they’ll sort it out.
+        Shareable customer links are not switched on for this deployment. If you were expecting a
+        quote or a booking, reply to the message the business sent you and they’ll sort it out.
       </p>
       <Button asChild variant="secondary" className="mt-6">
         <Link to="/">Go to Enquiry</Link>
@@ -90,7 +90,9 @@ function CustomerBook() {
               {formatAud(booking.value.amount)}
             </p>
           ) : null}
-          <p className="mt-4 text-sm text-ink-2">Start {booking.when.replace("T", " · ").slice(0, 22)}</p>
+          <p className="mt-4 text-sm text-ink-2">
+            Start {booking.when.replace("T", " · ").slice(0, 22)}
+          </p>
           <Button className="mt-8 w-full min-h-11" onClick={() => setStep("terms")}>
             Continue
           </Button>
@@ -100,8 +102,8 @@ function CustomerBook() {
         <section className="mt-8">
           <h1 className="text-2xl font-semibold tracking-tight">Terms</h1>
           <p className="mt-3 text-sm leading-relaxed text-ink-2">
-            30% commencement fee holds the start date. The balance is invoiced at delivery. Cancellation inside 14 days
-            of start is at the studio’s discretion.
+            30% commencement fee holds the start date. The balance is invoiced at delivery.
+            Cancellation inside 14 days of start is at the studio’s discretion.
           </p>
           <Button className="mt-8 w-full min-h-11" onClick={() => setStep("pay")}>
             Accept and pay commencement fee
@@ -114,7 +116,9 @@ function CustomerBook() {
           <p className="mt-3 font-serif text-3xl tabular-nums tracking-tight">
             {booking.value ? formatAud(Math.round(booking.value.amount * 0.3)) : ""}
           </p>
-          <p className="mt-2 text-sm text-stone">Simulated hosted payment. No card is collected in this prototype.</p>
+          <p className="mt-2 text-sm text-stone">
+            Simulated hosted payment. No card is collected in this prototype.
+          </p>
           <Button
             className="mt-8 w-full min-h-11"
             onClick={() => {
@@ -131,7 +135,8 @@ function CustomerBook() {
         <section className="mt-8">
           <h1 className="text-2xl font-semibold tracking-tight">Booked</h1>
           <p className="mt-3 text-sm leading-relaxed">
-            The commencement fee is recorded. {business?.ownerFirstName} will write with the first workshop time.
+            The commencement fee is recorded. {business?.ownerFirstName} will write with the first
+            workshop time.
           </p>
           <Button asChild variant="secondary" className="mt-8 w-full">
             <Link to="/">Home</Link>

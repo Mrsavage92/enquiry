@@ -4,7 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Wordmark } from "@/components/ui/wordmark";
 import { BUSINESS_BY_ID } from "@/fixtures";
 import { usePrototype } from "@/store/prototype-store";
-import { QuoteSheet, quoteSheets } from "@/components/enquiry/quote-sheet";
+import { QuoteSheet } from "@/components/enquiry/quote-sheet";
+import { quoteSheets } from "@/domain/quote-sheets";
 import { toastUndo } from "@/lib/toast-undo";
 import { fixtureLinksAllowed } from "@/lib/public-links";
 import { authEnabled } from "@/lib/auth/client";
@@ -35,9 +36,8 @@ function LinkUnavailable() {
       </Link>
       <p className="text-lg font-semibold tracking-tight">This link isn’t available</p>
       <p className="mt-2 text-sm leading-relaxed text-ink-2">
-        Shareable customer links are not switched on for this deployment. If you were
-        expecting a quote or a booking, reply to the message the business sent you and
-        they’ll sort it out.
+        Shareable customer links are not switched on for this deployment. If you were expecting a
+        quote or a booking, reply to the message the business sent you and they’ll sort it out.
       </p>
       <Button asChild variant="secondary" className="mt-6">
         <Link to="/">Go to Enquiry</Link>
@@ -95,7 +95,9 @@ function CustomerQuote() {
       {booked ? (
         <p className="mt-8 text-sm text-ok">Accepted. You’re booked.</p>
       ) : asked ? (
-        <p className="mt-8 text-sm text-ink-2">Question sent to the studio. The quote stays as written.</p>
+        <p className="mt-8 text-sm text-ink-2">
+          Question sent to the studio. The quote stays as written.
+        </p>
       ) : asking ? (
         <form
           className="mt-8 space-y-3"
@@ -123,7 +125,12 @@ function CustomerQuote() {
             <Button type="submit" className="min-h-11 w-full" disabled={!question.trim()}>
               Send question
             </Button>
-            <Button type="button" variant="ghost" className="min-h-11 w-full" onClick={() => setAsking(false)}>
+            <Button
+              type="button"
+              variant="ghost"
+              className="min-h-11 w-full"
+              onClick={() => setAsking(false)}
+            >
               Cancel
             </Button>
           </div>
@@ -145,7 +152,8 @@ function CustomerQuote() {
         </div>
       )}
       <p className="mt-6 text-xs leading-relaxed text-stone">
-        Accepting records the booking. The studio will write separately with start details. No card is collected on this page.
+        Accepting records the booking. The studio will write separately with start details. No card
+        is collected on this page.
       </p>
       <p className="mt-16 flex justify-center opacity-60">
         <Link to="/">

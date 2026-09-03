@@ -16,7 +16,6 @@ function dist(a, b) {
 }
 const PAPER = [243, 238, 230];
 const MARK = [47, 74, 60];
-const INK = [26, 24, 20];
 
 async function colors(page) {
   return page.evaluate(() => {
@@ -106,7 +105,10 @@ console.log("early", JSON.stringify(earlyC));
 assertWarm("early join", earlyC.primaryBg, MARK, 18);
 await shot(phone, "taste-early");
 
-const desk = await browser.newPage({ viewport: { width: 1440, height: 900 }, deviceScaleFactor: 1 });
+const desk = await browser.newPage({
+  viewport: { width: 1440, height: 900 },
+  deviceScaleFactor: 1,
+});
 desk.on("pageerror", (e) => errors.push(`desk ${e.message}`));
 await desk.goto(`${base}/`, { waitUntil: "networkidle" });
 await desk.waitForTimeout(500);

@@ -3,7 +3,7 @@ import { Dialog } from "@/components/ui/dialog";
 import { SheetContent } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { usePrototype } from "@/store/prototype-store";
-import { useAppInstall } from "./install-app";
+import { useAppInstall } from "@/lib/use-app-install";
 import { useEmbed } from "@/lib/embed";
 
 export function InstallCue() {

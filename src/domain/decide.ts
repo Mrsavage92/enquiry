@@ -1,4 +1,4 @@
-import type { Business, Enquiry, EnquiryFact, KnowledgeItem } from "./types";
+import type { Enquiry, EnquiryFact, KnowledgeItem } from "./types";
 import { parseBusinessRule, type BusinessRule } from "./business-rule.ts";
 import { compilePrice, type CompilerFact, type PriceOutcome } from "./price-compiler.ts";
 

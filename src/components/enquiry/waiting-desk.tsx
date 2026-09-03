@@ -10,7 +10,7 @@ import { isSendableAction } from "@/domain/situation";
 import { channelLabel, isShortChannel, replyChannel } from "@/domain/channel";
 import { usePrototype } from "@/store/prototype-store";
 import { toastUndo } from "@/lib/toast-undo";
-import { useEmbedNav } from "@/components/site/embed-nav";
+import { useEmbedNav } from "@/lib/use-embed-nav";
 import { useFirstBetaActions } from "@/lib/workspace/live-mutations";
 import { previewFor } from "@/domain/send-preview";
 import { SendPreview } from "./send-preview";
@@ -98,11 +98,7 @@ export function WaitingDesk({ enquiry, onDone }: { enquiry: Enquiry; onDone?: ()
           </Button>
         ) : null}
         {embedNav ? (
-          <Button
-            className="min-h-11 w-full"
-            variant="secondary"
-            onClick={() => embedNav.today()}
-          >
+          <Button className="min-h-11 w-full" variant="secondary" onClick={() => embedNav.today()}>
             Back to today
           </Button>
         ) : (
@@ -248,7 +244,11 @@ export function WaitingDesk({ enquiry, onDone }: { enquiry: Enquiry; onDone?: ()
             )}
             {embedNav ? null : (
               <Button asChild variant="secondary" className="min-h-12 w-full">
-                <Link to="/q/$enquiryId" params={{ enquiryId: enquiry.id }} onClick={() => setMoreOpen(false)}>
+                <Link
+                  to="/q/$enquiryId"
+                  params={{ enquiryId: enquiry.id }}
+                  onClick={() => setMoreOpen(false)}
+                >
                   Customer quote
                 </Link>
               </Button>

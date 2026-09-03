@@ -31,7 +31,8 @@ import { resolveBusiness } from "@/lib/workspace/resolve-business";
 import { SituationCard } from "./situation-card";
 import { AnswerBlocker } from "./answer-blocker";
 import { ServiceReadAs } from "./service-read-as";
-import { QuoteSheets, quoteSheets } from "./quote-sheet";
+import { QuoteSheets } from "./quote-sheet";
+import { quoteSheets } from "@/domain/quote-sheets";
 import { WaitingDesk } from "./waiting-desk";
 import {
   detectPriceDrift,

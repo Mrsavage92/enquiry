@@ -21,7 +21,6 @@ async function metrics() {
     const header = document.querySelector(".site-nav");
     const h1 = document.querySelector("h1");
     const videos = [...document.querySelectorAll("video")];
-    const live = document.querySelector("[aria-label='Phone']") || document.querySelector("figure");
     const hr = header?.getBoundingClientRect();
     const r1 = h1?.getBoundingClientRect();
     const headerPos = header ? getComputedStyle(header).position : null;
@@ -62,7 +61,12 @@ await page.mouse.wheel(0, 220);
 await page.waitForTimeout(300);
 const mid = await metrics();
 await page.screenshot({ path: "/workspace/screenshots/scroll-mid.png" });
-if (mid.headerPos === "sticky" && mid.overlap != null && mid.overlap > 8 && mid.h1Top < (mid.headerBottom ?? 0)) {
+if (
+  mid.headerPos === "sticky" &&
+  mid.overlap != null &&
+  mid.overlap > 8 &&
+  mid.h1Top < (mid.headerBottom ?? 0)
+) {
   errors.push(`sticky header covering h1 after scroll by ${mid.overlap}px`);
 }
 

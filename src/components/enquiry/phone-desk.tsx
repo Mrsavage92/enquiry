@@ -16,7 +16,7 @@ import { DeclineConfirm } from "./decline-confirm";
 import { Intelligence } from "./intelligence";
 import { TeachDialog } from "./teach-dialog";
 import { WaitingDesk } from "./waiting-desk";
-import { useEmbedNav } from "@/components/site/embed-nav";
+import { useEmbedNav } from "@/lib/use-embed-nav";
 
 export function PhoneDesk({ enquiry }: { enquiry: Enquiry }) {
   const [thread, setThread] = useState(false);

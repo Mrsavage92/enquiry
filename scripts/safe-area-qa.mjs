@@ -32,7 +32,6 @@ async function insets() {
     const header = document.querySelector(".app-root header");
     const root = document.querySelector(".app-root");
     const h1 = document.querySelector("h1, .text-3xl");
-    const send = document.querySelector("button");
     const r = root?.getBoundingClientRect();
     return {
       tokenTop: cs.getPropertyValue("--app-safe-top").trim(),
@@ -64,7 +63,8 @@ if (px(today.tokenTop) !== 59) errors.push(`token top ${today.tokenTop}`);
 if (px(today.tokenBottom) !== 34) errors.push(`token bottom ${today.tokenBottom}`);
 if (px(today.phoneSafeTop) !== 59) errors.push(`Today phone-safe-top ${today.phoneSafeTop}`);
 if (px(today.navPadBottom) !== 34) errors.push(`nav pad ${today.navPadBottom}`);
-if (today.titleTop != null && today.titleTop < 59) errors.push(`title under notch ${today.titleTop}`);
+if (today.titleTop != null && today.titleTop < 59)
+  errors.push(`title under notch ${today.titleTop}`);
 if (today.navBottom != null && today.innerHeight - today.navBottom > 2) {
   errors.push(`nav not flush to bottom, gap ${today.innerHeight - today.navBottom}`);
 }

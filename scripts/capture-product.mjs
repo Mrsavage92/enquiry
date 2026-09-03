@@ -1,8 +1,6 @@
 import { chromium } from "playwright";
 import { mkdir, cp } from "node:fs/promises";
 import { spawn } from "node:child_process";
-import { fileURLToPath } from "node:url";
-import path from "node:path";
 
 const base = process.argv[2] || "http://127.0.0.1:8080";
 const out = "/workspace/public/product";
@@ -113,15 +111,29 @@ await deskCtx.close();
 await browser.close();
 
 await ffmpeg([
-  "-y", "-i", phoneWebm,
-  "-c:v", "libx264", "-pix_fmt", "yuv420p", "-an",
-  "-movflags", "+faststart",
+  "-y",
+  "-i",
+  phoneWebm,
+  "-c:v",
+  "libx264",
+  "-pix_fmt",
+  "yuv420p",
+  "-an",
+  "-movflags",
+  "+faststart",
   `${out}/send-phone.mp4`,
 ]);
 await ffmpeg([
-  "-y", "-i", deskWebm,
-  "-c:v", "libx264", "-pix_fmt", "yuv420p", "-an",
-  "-movflags", "+faststart",
+  "-y",
+  "-i",
+  deskWebm,
+  "-c:v",
+  "libx264",
+  "-pix_fmt",
+  "yuv420p",
+  "-an",
+  "-movflags",
+  "+faststart",
   `${out}/send.mp4`,
 ]);
 
