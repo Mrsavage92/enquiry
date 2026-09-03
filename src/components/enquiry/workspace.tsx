@@ -35,8 +35,7 @@ export function EnquiryWorkspace({ enquiryId }: { enquiryId?: string }) {
     // is what the tests assert. It previously fired on `onboarded` alone, which
     // handed a real business a hard-coded Instagram enquiry 4.8 seconds after
     // setup as though a customer had contacted them.
-    if (!mayPlayDemoArrival({ demoMode, onboarded, arrivalPlayed, framed: isFramed() }))
-      return;
+    if (!mayPlayDemoArrival({ demoMode, onboarded, arrivalPlayed, framed: isFramed() })) return;
     const t = window.setTimeout(() => {
       if (usePrototype.getState().arrivalPlayed) return;
       arriveEnquiry();
@@ -175,10 +174,18 @@ export function EnquiryWorkspace({ enquiryId }: { enquiryId?: string }) {
       <Queue activeId={enquiry?.id} />
       {enquiry ? (
         <>
-          <div className={narrow ? "hidden xl:block min-h-0" : "min-h-0"}>
+          <div
+            key={enquiry.id}
+            className={
+              (narrow ? "hidden xl:block min-h-0" : "min-h-0") +
+              " animate-[rise-in_200ms_var(--ease-smooth-out)]"
+            }
+          >
             <Conversation enquiry={enquiry} />
           </div>
-          <Intelligence enquiry={enquiry} />
+          <div key={enquiry.id} className="min-h-0 animate-[rise-in_200ms_var(--ease-smooth-out)]">
+            <Intelligence enquiry={enquiry} />
+          </div>
         </>
       ) : (
         <DeskEmpty />

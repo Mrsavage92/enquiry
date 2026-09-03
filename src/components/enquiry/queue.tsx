@@ -268,7 +268,7 @@ export function Queue({ activeId, phone = false }: { activeId?: string; phone?: 
           {visible.length} match{visible.length === 1 ? "" : "es"}
         </p>
       ) : (
-        <div className="px-3 pb-1 pt-2">
+        <div className="overflow-x-auto px-3 pb-1 pt-2">
           <Segmented
             ariaLabel="Queue filter"
             value={phone ? phoneFilter : queueFilter}
