@@ -277,14 +277,19 @@ export async function recordSentReplyInTransaction(
     ? normalizeForCompare(input.body) !== normalizeForCompare(preparedBody)
     : null;
 
-  const recipientLabel = toAddr || "no recipient on file";
   const editedLabel = typeof edited === "boolean" ? String(edited) : "unknown";
   const reasonLabel = enq.reason || "no reason recorded";
+  // "to no recipient on file" reads as if a recipient were named and then
+  // negated - a genuinely empty contact gets its own clause instead, so the
+  // sentence never implies an address that was never there.
+  const summary = toAddr
+    ? `Reply confirmed sent by the owner via ${channelLabel(input.channel)} to ${toAddr}`
+    : `Reply confirmed sent by the owner via ${channelLabel(input.channel)}; no recipient on file`;
   await sql`
     insert into audit_event (business_id, actor, summary, detail, object_type, object_id)
     values (
       ${input.businessId}, ${input.userId},
-      ${`Reply confirmed sent by the owner via ${channelLabel(input.channel)} to ${recipientLabel}`},
+      ${summary},
       ${`Reason: ${reasonLabel}. Edited: ${editedLabel}`},
       ${"enquiry"}, ${input.enquiryId}
     )

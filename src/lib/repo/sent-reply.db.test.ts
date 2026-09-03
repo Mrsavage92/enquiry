@@ -344,11 +344,13 @@ test("a manual send's audit line names the recipient it resolved, not 'no recipi
     "select summary from audit_event where business_id = $1",
     [businessId],
   );
-  assert.match(ev.rows[0]!.summary, /Entered manually/);
-  assert.match(ev.rows[0]!.summary, /sarah@example\.com/);
+  assert.equal(
+    ev.rows[0]!.summary,
+    "Reply confirmed sent by the owner via Entered manually to sarah@example.com",
+  );
 });
 
-test("a manual send with genuinely no contact on file reads 'no recipient on file' - the placeholder is earned, not a fallback for a partial contact", async () => {
+test("a manual send with genuinely no contact on file reads 'no recipient on file' as its own clause, not 'to no recipient on file' - the placeholder is earned, not a fallback for a partial contact", async () => {
   const pg = await freshDb();
   const { businessId, enquiryId } = await seedBusinessAndEnquiry(pg, {
     customerEmail: "",
@@ -366,7 +368,11 @@ test("a manual send with genuinely no contact on file reads 'no recipient on fil
     "select summary from audit_event where business_id = $1",
     [businessId],
   );
-  assert.match(ev.rows[0]!.summary, /no recipient on file/);
+  assert.equal(
+    ev.rows[0]!.summary,
+    "Reply confirmed sent by the owner via Entered manually; no recipient on file",
+  );
+  assert.doesNotMatch(ev.rows[0]!.summary, /to no recipient/);
 });
 
 test("the sent-reply audit line never claims Enquiry itself sent anything - it names the owner", async () => {

@@ -67,7 +67,7 @@ export function SendPreview({
               <p className="mt-1 text-sm">{preview.recipient}</p>
             ) : (
               <p className="mt-1 text-sm text-warn">
-                No email or phone on file - you will need to reach them yourself.
+                No recipient on file - you will need to reach them yourself.
               </p>
             )}
           </div>
