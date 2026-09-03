@@ -186,12 +186,17 @@ export function canAutopilotSend(enquiry: Enquiry, business: Business | undefine
   return autopilotEligible(enquiry, business, enquiry.decision.recommendation.action);
 }
 
+/**
+ * Every commercial send gets an approval preview - the channel, the exact
+ * recipient, the exact text, the amount and the reason - before the record is
+ * written. Risk and amount used to gate whether the owner saw any of that at
+ * all: a $40 makeup quote went out on a single undifferentiated click. The
+ * floor is now unconditional; risk and amount are free to change how much
+ * friction sits on top of it, never whether a preview exists at all.
+ */
 export function needsSendConfirm(enquiry: Enquiry): boolean {
   const action = enquiry.decision.recommendation.action;
-  if (action !== "SEND_QUOTE" && action !== "SEND_ESTIMATE") return false;
-  if (enquiry.decision.risk === "HIGH" || enquiry.decision.risk === "PROHIBITED_AUTO") return true;
-  const amount = enquiry.valueExact?.amount ?? enquiry.decision.quotes.find((q) => q.status === "draft")?.total?.amount;
-  return typeof amount === "number" && amount >= 2000;
+  return action === "SEND_QUOTE" || action === "SEND_ESTIMATE";
 }
 
 export function recordAutomatedSend(

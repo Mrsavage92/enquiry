@@ -64,12 +64,34 @@ test("F12 complaint is never Autopilot-eligible", () => {
   assert.equal(autopilotEligible(gwen, harbour, gwen.decision.recommendation.action), false);
 });
 
-test("send confirm is for large or high-risk quotes, not Priya", () => {
-  assert.equal(needsSendConfirm(byId("f01")), false);
+test("send confirm is required for every commercial send, regardless of amount or risk", () => {
+  // Priya's $625 quote is LOW risk and well under the old $2000 floor - it
+  // still must not skip the preview. The floor is unconditional now; amount
+  // and risk no longer decide whether a preview exists, only how much
+  // friction sits on top of it.
+  const priya = byId("f01");
+  assert.equal(priya.decision.risk, "LOW");
+  assert.equal(needsSendConfirm(priya), true, "a low-risk, under-$2000 quote still needs a preview");
+
   const harper = structuredClone(byId("f05"));
   harper.decision.recommendation.action = "SEND_QUOTE";
   harper.valueExact = { amount: 4800, currency: "AUD" };
-  assert.equal(needsSendConfirm(harper), true);
+  assert.equal(needsSendConfirm(harper), true, "large/high-risk quotes still need a preview");
+
+  const tinyQuote = structuredClone(byId("f01"));
+  tinyQuote.valueExact = { amount: 12, currency: "AUD" };
+  tinyQuote.decision.risk = "LOW";
+  assert.equal(needsSendConfirm(tinyQuote), true, "for ANY amount, not just amounts above a floor");
+
+  const estimate = structuredClone(byId("f01"));
+  estimate.decision.recommendation.action = "SEND_ESTIMATE";
+  estimate.decision.risk = "LOW";
+  estimate.valueExact = { amount: 5, currency: "AUD" };
+  assert.equal(needsSendConfirm(estimate), true, "SEND_ESTIMATE is governed the same as SEND_QUOTE");
+
+  const nonSend = structuredClone(byId("f01"));
+  nonSend.decision.recommendation.action = "REQUEST_INFORMATION";
+  assert.equal(needsSendConfirm(nonSend), false, "non-send actions never need a send preview");
 });
 
 test("snooze hides an enquiry from needs-you until the time passes", () => {

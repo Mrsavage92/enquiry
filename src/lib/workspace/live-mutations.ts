@@ -187,10 +187,24 @@ export function useFirstBetaActions() {
       return res;
     },
     /** Record that the owner sent the reply themselves. */
-    recordSent: async (enquiryId: string, body: string, channel = "manual") => {
+    recordSent: async (
+      enquiryId: string,
+      body: string,
+      channel = "manual",
+      opts?: { clientRequestId?: string; edited?: boolean },
+    ) => {
       const { recordSentReply } = await import("@/lib/server/enquiry-actions");
-      await recordSentReply({ data: { enquiryId, body, channel } });
+      const res = await recordSentReply({
+        data: {
+          enquiryId,
+          body,
+          channel,
+          clientRequestId: opts?.clientRequestId,
+          edited: opts?.edited,
+        },
+      });
       await refresh();
+      return res;
     },
     refresh,
   };

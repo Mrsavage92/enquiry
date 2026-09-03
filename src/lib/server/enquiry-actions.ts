@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { authMiddleware } from "@/lib/auth/middleware";
 import { parseBusinessRule } from "@/domain/business-rule";
+import type { Channel } from "@/domain/types";
 
 /**
  * The first-beta loop, server side.
@@ -171,6 +172,8 @@ export const createManualEnquiry = createServerFn({ method: "POST" })
  * having actually sent it, and gone on reload. This is the honest version, and
  * it is the difference between the product's central claim being true or theatre.
  */
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 export const recordSentReply = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .validator((raw: unknown) => {
@@ -190,36 +193,33 @@ export const recordSentReply = createServerFn({ method: "POST" })
       "facebook",
       "comment",
     ];
-    return { enquiryId, body, channel: allowed.includes(channel) ? channel : "manual" };
+    const rawClientRequestId = typeof d.clientRequestId === "string" ? d.clientRequestId : "";
+    const clientRequestId = UUID_RE.test(rawClientRequestId) ? rawClientRequestId : undefined;
+    const edited = typeof d.edited === "boolean" ? d.edited : undefined;
+    return {
+      enquiryId,
+      body,
+      channel: allowed.includes(channel) ? channel : "manual",
+      clientRequestId,
+      edited,
+    };
   })
   .handler(async ({ context, data }) => {
     const { withTransaction } = await import("@/lib/db");
-    const { requireEnquiryAccess, recordAudit } = await import("@/lib/repo/tenancy.server");
+    const { requireEnquiryAccess } = await import("@/lib/repo/tenancy.server");
+    const { recordSentReplyInTransaction } = await import("@/lib/repo/sent-reply-core");
     const { enquiryId, businessId } = await requireEnquiryAccess(context.userId, data.enquiryId);
-    await withTransaction(async (sql) => {
-      await sql`
-        insert into message
-          (enquiry_id, direction, channel, at, from_addr, to_addr, body, intake, sent_at, sent_by)
-        values (
-          ${enquiryId}, ${"outbound"}, ${data.channel}, now(), ${""}, ${""},
-          ${data.body}, ${"manual"}, now(), ${context.userId}
-        )
-      `;
-      // The ball is now with the customer, not the business.
-      await sql`
-        update enquiry
-        set responsibility = ${"CUSTOMER"}, decision_state = ${"WAITING_ON_CLIENT"},
-            updated_at = now()
-        where id = ${enquiryId}
-      `;
-    });
-    await recordAudit(businessId, {
-      actor: context.userId,
-      summary: "Reply confirmed sent by the owner",
-      objectType: "enquiry",
-      objectId: enquiryId,
-    });
-    return { ok: true as const };
+    return withTransaction((sql) =>
+      recordSentReplyInTransaction(sql, {
+        enquiryId,
+        businessId,
+        userId: context.userId,
+        body: data.body,
+        channel: data.channel as Channel,
+        clientRequestId: data.clientRequestId,
+        edited: data.edited,
+      }),
+    );
   });
 
 /**

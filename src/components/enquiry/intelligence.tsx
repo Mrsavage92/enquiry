@@ -32,9 +32,11 @@ import { WaitingDesk } from "./waiting-desk";
 import { detectPriceDrift, detectSheetLetterMismatch, alignLetterToSheet } from "@/domain/voice-detect";
 import { CaseFile } from "./case-file";
 import { needsSendConfirm, resolvedHold } from "@/domain/commercial";
+import { previewFor } from "@/domain/send-preview";
 import { toastUndo } from "@/lib/toast-undo";
 import { toast } from "sonner";
 import { HearLetter } from "./hear-letter";
+import { SendPreview } from "./send-preview";
 
 export function Intelligence({
   enquiry,
@@ -108,7 +110,7 @@ export function Intelligence({
    * clipboard, let the owner send it from their own mailbox or phone, and
    * record the send as a real outbound message with a real timestamp.
    */
-  const commitSend = async () => {
+  const commitSend = async (clientRequestId?: string, edited?: boolean) => {
     if (demoMode) {
       approve(enquiry.id);
       toastUndo("Sent.");
@@ -127,7 +129,10 @@ export function Intelligence({
       } catch {
         /* clipboard unavailable - the text is still on screen to copy */
       }
-      await firstBeta.recordSent(enquiry.id, draftBody, reply);
+      await firstBeta.recordSent(enquiry.id, draftBody, reply, {
+        clientRequestId: clientRequestId ?? crypto.randomUUID(),
+        edited,
+      });
       toast.success("Copied. Send it from your own inbox - Enquiry has recorded it.");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Could not record that send.");
@@ -138,6 +143,7 @@ export function Intelligence({
   const short = isShortChannel(reply);
   const integ = integrationForChannel(business, reply, enquiry);
   const Panel = compact ? SheetContent : DialogContent;
+  const preview = previewFor({ enquiry, business, draft: draftBody, decision: enquiry.decision });
 
   return (
     <div
@@ -701,29 +707,19 @@ export function Intelligence({
         sheet={compact}
       />
 
-      <Dialog open={sendConfirm} onOpenChange={setSendConfirm}>
-        <Panel title="Send this quote?">
-          <p className="text-sm leading-relaxed text-ink-2">
-            This is a commercial send. The sheet on file becomes the record. Editing the letter later will not change the figure.
-          </p>
-          <div className="mt-5 flex flex-col gap-2">
-            <Button
-              className="min-h-12 w-full"
-              onClick={() => {
-                void commitSend().then(() => {
-                  setSendConfirm(false);
-                  if (!compact) onDone?.();
-                });
-              }}
-            >
-              {rec.label}
-            </Button>
-            <Button variant="secondary" className="min-h-11 w-full" onClick={() => setSendConfirm(false)}>
-              Keep drafting
-            </Button>
-          </div>
-        </Panel>
-      </Dialog>
+      <SendPreview
+        open={sendConfirm}
+        onOpenChange={setSendConfirm}
+        preview={preview}
+        pending={sending}
+        compact={compact}
+        onConfirm={(clientRequestId) => {
+          void commitSend(clientRequestId, preview.edited ?? false).then(() => {
+            setSendConfirm(false);
+            if (!compact) onDone?.();
+          });
+        }}
+      />
 
       <Dialog open={noteOpen} onOpenChange={setNoteOpen}>
         <Panel title="Note on this enquiry">

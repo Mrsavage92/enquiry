@@ -12,6 +12,8 @@ import { usePrototype } from "@/store/prototype-store";
 import { toastUndo } from "@/lib/toast-undo";
 import { useEmbedNav } from "@/components/site/embed-nav";
 import { useFirstBetaActions } from "@/lib/workspace/live-mutations";
+import { previewFor } from "@/domain/send-preview";
+import { SendPreview } from "./send-preview";
 
 export function WaitingDesk({ enquiry, onDone }: { enquiry: Enquiry; onDone?: () => void }) {
   const acceptQuote = usePrototype((s) => s.acceptQuote);
@@ -31,11 +33,18 @@ export function WaitingDesk({ enquiry, onDone }: { enquiry: Enquiry; onDone?: ()
   const firstBeta = useFirstBetaActions();
   const [sending, setSending] = useState(false);
   const [lostOpen, setLostOpen] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const followUpBody = enquiry.decision.draft.body;
+  const followUpPreview = previewFor({
+    enquiry,
+    draft: followUpBody,
+    decision: enquiry.decision,
+  });
 
   /** Same rule as the main send: outside the demo, nothing is "sent" until the
    *  owner sends it and Enquiry records that it happened. */
-  const sendFollowUp = async () => {
-    const body = enquiry.decision.draft.body;
+  const sendFollowUp = async (clientRequestId?: string, edited?: boolean) => {
+    const body = followUpBody;
     if (demoMode) {
       approve(enquiry.id);
       toastUndo("Follow-up sent. The quote stays on file.");
@@ -53,7 +62,10 @@ export function WaitingDesk({ enquiry, onDone }: { enquiry: Enquiry; onDone?: ()
       } catch {
         /* clipboard unavailable - the text is still on screen to copy */
       }
-      await firstBeta.recordSent(enquiry.id, body, replyChannel(enquiry));
+      await firstBeta.recordSent(enquiry.id, body, replyChannel(enquiry), {
+        clientRequestId: clientRequestId ?? crypto.randomUUID(),
+        edited,
+      });
       toast.success("Copied. Send it yourself - the quote stays on file.");
       onDone?.();
     } catch (err) {
@@ -142,9 +154,7 @@ export function WaitingDesk({ enquiry, onDone }: { enquiry: Enquiry; onDone?: ()
             <Button
               variant="secondary"
               className="min-h-11 w-full"
-              onClick={() => {
-                void sendFollowUp();
-              }}
+              onClick={() => setConfirmOpen(true)}
               disabled={sending}
             >
               {sending ? "Recording…" : rec.label}
@@ -279,6 +289,18 @@ export function WaitingDesk({ enquiry, onDone }: { enquiry: Enquiry; onDone?: ()
           </div>
         </Panel>
       </Dialog>
+      <SendPreview
+        open={confirmOpen}
+        onOpenChange={setConfirmOpen}
+        preview={followUpPreview}
+        pending={sending}
+        compact={Boolean(phone)}
+        onConfirm={(clientRequestId) => {
+          void sendFollowUp(clientRequestId, followUpPreview.edited ?? false).then(() => {
+            setConfirmOpen(false);
+          });
+        }}
+      />
     </div>
   );
 }
