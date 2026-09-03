@@ -328,6 +328,37 @@ export const usePrototype = create<PrototypeState & Actions>()(
             s.businessFilter === "all" || businesses.some((b) => b.id === s.businessFilter)
               ? s.businessFilter
               : "all",
+          // Same-session demo carryover, closed the same way as the arrays
+          // above. Every one of these is content, not a preference, and every
+          // one renders unconditionally on the field being non-null/non-empty -
+          // none of them re-check demoMode at the point they display:
+          //  - undo restores enquiries/bookings/businesses/drafts/confirmSent
+          //    from a snapshot taken BEFORE this hydration. A demo action
+          //    captured before switching to a live account left a fixture
+          //    snapshot sitting in `undo`; the global "u" shortcut and every
+          //    toastUndo() action button call undoLast() with no gate at all,
+          //    so it would have restored fixture content directly into a live,
+          //    demoMode:false workspace.
+          //  - events feeds TrustAudit's fallback when `audit` is empty - the
+          //    normal state for a brand-new live tenant. A demo `track()` log
+          //    would have rendered as this tenant's own action history.
+          //  - lastAutomated drives the Notices bell's "Autopilot sent to
+          //    {customerName}" item, unconditionally. A demo autopilot send
+          //    would have announced a fabricated send to a live operator.
+          //  - teach and brainPreview are dialogs whose `open` is
+          //    `Boolean(field)` with no id check - a stale one POPS OPEN over
+          //    the live workspace showing the demo proposal/pricing text.
+          //  - lastMerge and voiceNotice are id-gated at their render sites
+          //    (a live id will never match a fixture id, so today they cannot
+          //    actually surface), but they hold demo customer/business content
+          //    and belong in this list on the same principle as the rest.
+          undo: null,
+          events: [],
+          lastAutomated: null,
+          teach: null,
+          brainPreview: null,
+          lastMerge: null,
+          voiceNotice: null,
         })),
 
       // NOTE: the exact patch below is mirrored in src/store/live-handoff.test.ts,
@@ -352,6 +383,15 @@ export const usePrototype = create<PrototypeState & Actions>()(
           businessFilter: "all",
           lastArrivalId: null,
           arrivalPlayed: true,
+          // Same-session demo carryover - see the matching comment in
+          // hydrateFromServer, which this mirrors exactly.
+          undo: null,
+          events: [],
+          lastAutomated: null,
+          teach: null,
+          brainPreview: null,
+          lastMerge: null,
+          voiceNotice: null,
         });
       },
       completeOnboarding: (profile) => {

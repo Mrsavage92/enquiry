@@ -12,7 +12,15 @@ import { isLiveHandoffClean, mayPlayDemoArrival } from "../domain/live-demo-isol
  * prototype-store.ts is the pointer back here.
  */
 
-/** The seeded boot state: fixtures loaded, demo on. */
+/**
+ * The seeded boot state: fixtures loaded, demo on, AND every demo-only
+ * transient field populated as if the browser had actually been used - an
+ * approved demo send (undo + lastAutomated), a demo click tracked (events), a
+ * teach proposal and a Brain price change left open (teach + brainPreview),
+ * and a cross-channel merge banner showing a demo customer's name (lastMerge).
+ * If any of these survive a live handoff, the corresponding "after" assertion
+ * below would fail.
+ */
 const seeded = {
   onboarded: true,
   demoMode: true,
@@ -21,6 +29,36 @@ const seeded = {
   bookings: [{ id: "b1" }],
   arrivalPlayed: false,
   businessFilter: "all",
+  undo: {
+    enquiries: [{ id: "f01" }],
+    bookings: [{ id: "b1" }],
+    businesses: [{ id: "glow" }],
+    drafts: { f01: "Hi Priya, ..." },
+    confirmSent: {},
+  },
+  events: [{ id: "ev1", fixtureId: "f01", action: "approve_quote", at: Date.now() }],
+  lastAutomated: {
+    enquiryId: "f01",
+    customerName: "Priya Shah",
+    at: Date.now(),
+    reason: "Missing-info question, low risk",
+  },
+  teach: { enquiryId: "f01", factId: "fact1", proposal: "Always needs a 15% deposit" },
+  brainPreview: {
+    input: "raise prices 10%",
+    current: "$145",
+    next: "$160",
+    appliesTo: "Group makeup",
+  },
+  lastMerge: { fromId: "f01", toId: "f02", toName: "Priya Shah" },
+  voiceNotice: {
+    enquiryId: "f01",
+    businessId: "glow",
+    from: "Warm",
+    to: "Reserved",
+    reason: "edited reply",
+    patch: {},
+  },
 };
 
 /** Exactly what markOnboardedLocally sets, mirrored from the store. */
@@ -37,6 +75,13 @@ const MARK_ONBOARDED_LOCALLY_PATCH = {
   businessFilter: "all",
   lastArrivalId: null,
   arrivalPlayed: true,
+  undo: null,
+  events: [] as unknown[],
+  lastAutomated: null,
+  teach: null,
+  brainPreview: null,
+  lastMerge: null,
+  voiceNotice: null,
 };
 
 test("the seeded boot state would leak fixtures if handed to a live tenant", () => {
@@ -85,6 +130,104 @@ test("the demo path is untouched by the live handoff patch", () => {
 });
 
 /**
+ * Three consumers of the transient fields above, mirrored the same way as
+ * `undoLast`/`TrustAudit`/`Notices` themselves - proving the FIELD is null is
+ * necessary but not sufficient; these prove the thing a real operator would
+ * actually see is also clean, the same distinction that made the TrustAudit
+ * fallback worth gating at its own render site rather than trusting the store
+ * alone.
+ */
+
+/** undoLast's exact restore semantics, mirrored from the store. */
+function undoLastResult(s: {
+  undo: null | {
+    enquiries: unknown[];
+    bookings: unknown[];
+    businesses: unknown[];
+    drafts: unknown;
+    confirmSent: unknown;
+  };
+  enquiries: unknown[];
+  bookings: unknown[];
+  businesses: unknown[];
+}) {
+  if (!s.undo)
+    return {
+      changed: false,
+      enquiries: s.enquiries,
+      bookings: s.bookings,
+      businesses: s.businesses,
+    };
+  return {
+    changed: true,
+    enquiries: s.undo.enquiries,
+    bookings: s.undo.bookings,
+    businesses: s.undo.businesses,
+  };
+}
+
+/** TrustAudit's row selection, mirrored from the post-fix component. */
+function trustAuditRows(s: { audit: unknown[]; demoMode: boolean; events: unknown[] }) {
+  if (s.audit.length > 0) return s.audit;
+  if (!s.demoMode) return [];
+  return [...s.events].reverse();
+}
+
+/** Notices' automation item, mirrored from the component. */
+function noticesHasAutopilotItem(s: { lastAutomated: unknown }) {
+  return Boolean(s.lastAutomated);
+}
+
+test("demo action -> live onboarding -> the Undo shortcut restores nothing", () => {
+  // Before this fix: a demo approve left a fixture snapshot in `undo`. The
+  // global "u" key and every toastUndo() button call undoLast() with no gate
+  // of any kind, so onboarding straight into a live workspace and pressing
+  // "u" restored fixture enquiries/bookings/businesses over the real (empty)
+  // ones - on a tenant who never took the action that "Undo" claimed to undo.
+  const dirty = undoLastResult({
+    ...seeded,
+    enquiries: seeded.enquiries,
+    bookings: seeded.bookings,
+    businesses: seeded.businesses,
+  });
+  assert.equal(dirty.changed, true); // meaningful: the seed really would have restored something
+
+  const after = { ...seeded, ...MARK_ONBOARDED_LOCALLY_PATCH };
+  const result = undoLastResult(after);
+  assert.equal(result.changed, false);
+  assert.deepEqual(result.enquiries, []);
+  assert.deepEqual(result.bookings, []);
+  assert.deepEqual(result.businesses, []);
+});
+
+test("demo action -> live Trust Audit shows no history, not the demo click log", () => {
+  // Before this fix: TrustAudit fell back to `events` whenever `audit` was
+  // empty, with no regard for demoMode - the ordinary state for a brand-new
+  // live tenant is an empty `audit`, so this rendered a demo customer's
+  // fixture id and action as the live tenant's own "what Enquiry did" history.
+  const dirtyRows = trustAuditRows({ audit: [], demoMode: seeded.demoMode, events: seeded.events });
+  assert.ok(dirtyRows.length > 0); // meaningful: the seed really would have shown demo history
+
+  const after = { ...seeded, ...MARK_ONBOARDED_LOCALLY_PATCH };
+  const rows = trustAuditRows({
+    audit: after.businesses.length ? [] : [],
+    demoMode: after.demoMode,
+    events: after.events,
+  });
+  assert.deepEqual(rows, []);
+});
+
+test("demo automation -> live Notices carries no fabricated autopilot item", () => {
+  // Before this fix: Notices pushed an "Autopilot sent to {customerName}" item
+  // whenever `lastAutomated` was non-null, unconditionally - a demo automated
+  // send announced a fabricated send to the live operator's notice bell.
+  assert.equal(noticesHasAutopilotItem(seeded), true); // meaningful: the seed really would have shown it
+
+  const after = { ...seeded, ...MARK_ONBOARDED_LOCALLY_PATCH };
+  assert.equal(noticesHasAutopilotItem(after), false);
+});
+
+/**
  * hydrateFromServer's exact committed patch, mirrored the same way.
  *
  * This is the "stale local/session state" case: a browser that previously ran
@@ -110,6 +253,16 @@ function hydrateFromServerPatch(
       prior.businessFilter === "all" || server.businesses.some((b) => b.id === prior.businessFilter)
         ? prior.businessFilter
         : "all",
+    // Same-session demo carryover, mirrored the same way as
+    // MARK_ONBOARDED_LOCALLY_PATCH above - see the source comment in
+    // hydrateFromServer for what each one leaks if left uncleared.
+    undo: null,
+    events: [] as unknown[],
+    lastAutomated: null,
+    teach: null,
+    brainPreview: null,
+    lastMerge: null,
+    voiceNotice: null,
   };
 }
 

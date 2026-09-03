@@ -52,11 +52,34 @@ export type LiveHandoffState = {
   enquiries: unknown[];
   bookings: unknown[];
   arrivalPlayed: boolean;
+  /**
+   * Same-session demo transient state. Optional so every existing caller
+   * asserting only the six fields above keeps compiling; a field simply
+   * absent from the state passed in is treated as already clear, so this
+   * never weakens a check that was already passing.
+   *
+   * Each of these renders unconditionally on being non-null/non-empty, with
+   * no demoMode or id check of its own at the point it displays - a stale one
+   * carried across the live handoff surfaces directly: undo restores fixture
+   * enquiries/bookings/businesses/drafts on the next Undo; events becomes
+   * TrustAudit's fallback "what Enquiry did" history; lastAutomated becomes a
+   * fabricated "Autopilot sent to {customer}" Notices item; teach and
+   * brainPreview are dialogs that pop open showing demo proposal/pricing text.
+   */
+  undo?: unknown;
+  events?: unknown[];
+  lastAutomated?: unknown;
+  teach?: unknown;
+  brainPreview?: unknown;
+  lastMerge?: unknown;
+  voiceNotice?: unknown;
 };
 
 /**
  * True when the post-onboarding client state is safe for a real tenant: demo
- * off, no fixture content carried over, and the scripted arrival disarmed.
+ * off, no fixture content carried over, the scripted arrival disarmed, and no
+ * demo-only transient state (undo snapshot, tracking log, automation notice,
+ * open dialog) left over from browsing before the handoff.
  */
 export function isLiveHandoffClean(s: LiveHandoffState): boolean {
   return (
@@ -65,6 +88,13 @@ export function isLiveHandoffClean(s: LiveHandoffState): boolean {
     s.businesses.length === 0 &&
     s.enquiries.length === 0 &&
     s.bookings.length === 0 &&
-    s.arrivalPlayed
+    s.arrivalPlayed &&
+    !s.undo &&
+    (s.events?.length ?? 0) === 0 &&
+    !s.lastAutomated &&
+    !s.teach &&
+    !s.brainPreview &&
+    !s.lastMerge &&
+    !s.voiceNotice
   );
 }

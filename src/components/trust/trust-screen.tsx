@@ -393,16 +393,28 @@ export function TrustAutomation() {
 
 export function TrustAudit() {
   const audit = usePrototype((s) => s.audit);
+  const demoMode = usePrototype((s) => s.demoMode);
   const events = usePrototype((s) => s.events);
+  // `events` is the demo click-tracking log (track()), never real audit
+  // evidence - it exists so the fixture demo has something to show under
+  // "What Enquiry did" without a real send ever happening. audit.length===0
+  // is the ordinary state for a brand-new live tenant, and falling back to
+  // `events` there regardless of mode rendered a demo customer's fixture id
+  // and action as if it were this tenant's own history. The store also clears
+  // `events` on the live handoff now, but the fallback is gated here too
+  // rather than relying on that alone - a UI reading demo-only state must
+  // check demo-only state's own name, not assume upstream cleanup ran.
   const rows =
     audit.length > 0
       ? audit
-      : [...events].reverse().map((e) => ({
-          id: e.id,
-          at: new Date(e.at).toISOString(),
-          actor: "You",
-          summary: `${e.fixtureId} · ${e.action.replaceAll("_", " ")}`,
-        }));
+      : demoMode
+        ? [...events].reverse().map((e) => ({
+            id: e.id,
+            at: new Date(e.at).toISOString(),
+            actor: "You",
+            summary: `${e.fixtureId} · ${e.action.replaceAll("_", " ")}`,
+          }))
+        : [];
   return (
     <div className="mx-auto h-full max-w-3xl overflow-y-auto px-4 py-5 pb-8 sm:py-8">
       <PageHeader title="Audit" description="What Enquiry did, and who allowed it. Newest first." />
