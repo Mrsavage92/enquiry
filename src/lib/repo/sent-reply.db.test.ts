@@ -112,7 +112,7 @@ function forceQuoteVersionCollisions(
         (match) => {
           const paramMatch = match.match(/\$(\d+)/);
           const paramNum = paramMatch ? parseInt(paramMatch[1], 10) : 2;
-          return `${collideAtVersion}, $${paramNum} -- forced collision`;
+          return `(${collideAtVersion} + (length(cast($${paramNum} as text)) * 0))`;
         },
       );
       return run<T>(replaced, values);
