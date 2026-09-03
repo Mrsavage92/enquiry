@@ -47,7 +47,7 @@ Enquiry does not become a dark, gradient-lit AI-tool clone of BridgeMind. It bor
 
 ---
 
-9. **Layout/density (added after independent critique flagged this as missing).** style-mirror's Cardinal Rule 2 - "layout is not optional" - was not given an Enquiry-side answer in the first draft. BridgeMind's structural quality is "one concept per section, sparse density, progressive reveal down the page." Enquiry's landing page already does this (screenshot evidence: eyebrow -> headline -> subline -> single CTA -> proof, one idea per scroll segment - see `01-landing-1440.png`). No layout restructure is needed there; the gap is entirely inside the app shell, where Business Brain and Trust (Section 4 baseline evidence) present many small facts at flat, equal visual weight in one dense pass. Phase 4 applies the same "one concept, progressive reveal" principle there: group related facts under clearer visual hierarchy rather than a flat list, without adding new navigation or hiding information the operator needs.
+9. **Layout/density (added after independent critique flagged this as missing) - planned, not shipped this pass.** style-mirror's Cardinal Rule 2 - "layout is not optional" - was not given an Enquiry-side answer in the first draft. BridgeMind's structural quality is "one concept per section, sparse density, progressive reveal down the page." Enquiry's landing page already does this (screenshot evidence: eyebrow -> headline -> subline -> single CTA -> proof, one idea per scroll segment - see `01-landing-1440.png`). No layout restructure is needed there; the gap is inside the app shell, where Business Brain and Trust (Section 4 baseline evidence) present many small facts at flat, equal visual weight in one dense pass. **Correction after independent review of the shipped commits**: Phase 4 as actually implemented only extended the accent colour into shell navigation (sidebar active-state indicator, mobile nav) - it did not restructure Brain/Trust's information density as this decision originally described. That restructuring remains real, still-valid future work, not something this document should claim as done. Do not treat this section as evidence it shipped; check the Phase 4 commit (`7243fd2`) for what actually changed.
 10. **Eyebrow/dot label pattern.** BridgeMind pairs small tracked-out eyebrow labels with a coloured dot. Enquiry already has an eyebrow pattern (`.eyebrow` class: uppercase, tracked, `--color-stone`, confirmed in `styles.css` and visible in every baseline screenshot - "THE APP", "BUSINESS BRAIN", "TRUST CENTRE"). Adopt the coloured-dot pairing as a small, cheap addition (a 4-6px `--color-mark` dot before the eyebrow text) - it reinforces the single-accent system (decision 4) at negligible risk and directly closes a gap the independent critique found had no decision either way.
 
 ## 3. Hypotheses (to validate through the build and Phase 5 QA, not assumed true)
@@ -172,3 +172,15 @@ Findings (3 P0, 4 P1, 2 P2) and the resulting fixes, applied directly into the s
 - **P2** - confirmed the landing hero itself needed a real decision, not silent omission - resolved by decision 7's bounded dark section rather than a hero rewrite (the hero's headline/CTA/copy stay; the section beneath it is where "high contrast" lands).
 
 Full agent transcript available in this session; not reproduced here. This document reflects the fixed plan, not the pre-critique draft.
+
+---
+
+## 12. External handoff review (post-implementation)
+
+A separate reviewer examined the pushed commits (through `6a52c51`) independently and found:
+
+- **[P1, fixed in `80df0fe`]** Duplicate React `key={enquiry.id}` on the two sibling panels in `workspace.tsx` (Conversation and Intelligence) - identical keys among siblings is invalid regardless of whether it visibly breaks anything at small scale. Fixed with `${enquiry.id}-conversation` / `-intelligence`.
+- **Scope-accuracy note**: this document's decision 9 overstated what Phase 4 shipped - it planned a Business Brain/Trust density restructure that was never implemented (Phase 4 only extended the accent colour into shell navigation). Corrected in Section 2 above.
+- **Verdict**: approved after the key fix, with an explicit instruction not to spend a further cycle on decorative polish. The reviewer's stated next work pack: build the R2E server-authoritative arbitrary-enquiry vertical slice (real enquiry creation, interpretation, blocker detection, prepared reply, approval, recorded send), re-run visual QA against a real non-fixture enquiry once that exists, and only then add the "received -> understood -> decision ready" signature motion moment this document named in Section 2 decision 5 but could not build honestly without a real decision pipeline behind it.
+
+This is deliberately not executed in this task. The product's next real signature comes from the decision layer, not more visual effects on top of an honestly-empty queue.
