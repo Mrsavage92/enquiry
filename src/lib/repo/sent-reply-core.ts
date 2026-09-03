@@ -23,8 +23,6 @@ export type RecordSentInput = {
   channel: Channel;
   /** One idempotency key per dialog open on the client - a uuid, or absent. */
   clientRequestId?: string;
-  /** Whether the owner edited the prepared text before sending, if known. */
-  edited?: boolean;
 };
 
 export type RecordSentResult = { ok: true; duplicate: boolean };
@@ -36,6 +34,24 @@ function isUniqueViolation(err: unknown): boolean {
     "code" in err &&
     (err as { code?: unknown }).code === "23505"
   );
+}
+
+/**
+ * The DB-level unique index that backstops the duplicate check is
+ * `(channel, external_id)` - it has no enquiry column, because it also
+ * has to dedupe inbound provider webhook ids across the whole table.
+ * Namespacing the stored value by enquiry here is what keeps a client
+ * idempotency key reused across two different enquiries from colliding on
+ * that index: without it, the second enquiry's insert would 23505 and get
+ * reported as `duplicate: true` while nothing had actually been written
+ * for it.
+ */
+function namespacedExternalId(enquiryId: string, clientRequestId: string): string {
+  return `${enquiryId}:${clientRequestId}`;
+}
+
+function normalizeForCompare(body: string): string {
+  return body.replace(/\r\n?/g, "\n").trim();
 }
 
 /**
@@ -63,10 +79,14 @@ export async function recordSentReplyInTransaction(
   sql: Sql,
   input: RecordSentInput,
 ): Promise<RecordSentResult> {
-  if (input.clientRequestId) {
+  const externalId = input.clientRequestId
+    ? namespacedExternalId(input.enquiryId, input.clientRequestId)
+    : null;
+
+  if (externalId) {
     const existing = await sql<{ id: string }>`
       select id from message
-      where enquiry_id = ${input.enquiryId} and external_id = ${input.clientRequestId}
+      where enquiry_id = ${input.enquiryId} and external_id = ${externalId}
       limit 1
     `;
     if (existing[0]) return { ok: true, duplicate: true };
@@ -78,10 +98,12 @@ export async function recordSentReplyInTransaction(
     customer_handle: string | null;
     reason: string | null;
     action: string | null;
+    prepared_body: string | null;
   }>`
     select customer_email, customer_phone, customer_handle,
       decision_snapshot -> 'recommendation' ->> 'reason' as reason,
-      decision_snapshot -> 'recommendation' ->> 'action' as action
+      decision_snapshot -> 'recommendation' ->> 'action' as action,
+      decision_snapshot -> 'draft' ->> 'body' as prepared_body
     from enquiry where id = ${input.enquiryId}
   `;
   if (!enq) throw new Error("That enquiry no longer exists.");
@@ -98,7 +120,7 @@ export async function recordSentReplyInTransaction(
         (enquiry_id, direction, channel, at, from_addr, to_addr, body, intake, sent_at, sent_by, external_id)
       values (
         ${input.enquiryId}, ${"outbound"}, ${input.channel}, now(), ${fromAddr}, ${toAddr},
-        ${input.body}, ${"manual"}, now(), ${input.userId}, ${input.clientRequestId ?? null}
+        ${input.body}, ${"manual"}, now(), ${input.userId}, ${externalId}
       )
     `;
   } catch (err) {
@@ -124,8 +146,18 @@ export async function recordSentReplyInTransaction(
     where id = ${input.enquiryId}
   `;
 
+  // `edited` is derived here, from what Enquiry actually prepared, rather
+  // than trusted from the client - a client-reported value can't be told
+  // apart from a stale or spoofed one. A blank prepared body (no decision
+  // ever ran a compose step, e.g. a hand-authored fixture) has nothing to
+  // compare against, so it stays "unknown" rather than a false "unedited".
+  const preparedBody = enq.prepared_body ?? "";
+  const edited = preparedBody
+    ? normalizeForCompare(input.body) !== normalizeForCompare(preparedBody)
+    : null;
+
   const recipientLabel = toAddr || "no recipient on file";
-  const editedLabel = typeof input.edited === "boolean" ? String(input.edited) : "unknown";
+  const editedLabel = typeof edited === "boolean" ? String(edited) : "unknown";
   const reasonLabel = enq.reason || "no reason recorded";
   await sql`
     insert into audit_event (business_id, actor, summary, detail, object_type, object_id)

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { SheetContent } from "@/components/ui/sheet";
@@ -14,6 +14,12 @@ import { cn } from "@/lib/utils";
  * anywhere else on the page (the draft textarea included) can never reach
  * this dialog's confirm action. Radix's Dialog moves focus in on open and
  * returns it to the trigger on close.
+ *
+ * Radix's own default open-focus lands on the content panel itself, not on
+ * any control inside it - fine for a form, wrong here, where the one thing
+ * an owner should be able to do immediately is confirm the send. Escape
+ * still closes and returns focus to the trigger; that is Radix's own
+ * behaviour and this override does not touch it.
  */
 export function SendPreview({
   open,
@@ -32,6 +38,7 @@ export function SendPreview({
   compact?: boolean;
 }) {
   const [clientRequestId, setClientRequestId] = useState<string>(() => crypto.randomUUID());
+  const confirmButtonRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     if (open) setClientRequestId(crypto.randomUUID());
@@ -41,7 +48,14 @@ export function SendPreview({
 
   return (
     <Dialog open={open} onOpenChange={(next) => !pending && onOpenChange(next)}>
-      <Panel title="Send this?" className={compact ? undefined : "max-h-[85vh] overflow-y-auto"}>
+      <Panel
+        title="Send this?"
+        className={compact ? undefined : "max-h-[85vh] overflow-y-auto"}
+        onOpenAutoFocus={(event) => {
+          event.preventDefault();
+          confirmButtonRef.current?.focus();
+        }}
+      >
         <div className="space-y-4">
           <div>
             <p className="eyebrow">Channel</p>
@@ -81,6 +95,7 @@ export function SendPreview({
         </div>
         <div className={cn("mt-5 flex flex-col gap-2", compact && "pb-[var(--app-safe-bottom)]")}>
           <Button
+            ref={confirmButtonRef}
             className="min-h-12 w-full"
             disabled={pending}
             onClick={() => onConfirm(clientRequestId)}

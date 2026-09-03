@@ -195,13 +195,15 @@ export const recordSentReply = createServerFn({ method: "POST" })
     ];
     const rawClientRequestId = typeof d.clientRequestId === "string" ? d.clientRequestId : "";
     const clientRequestId = UUID_RE.test(rawClientRequestId) ? rawClientRequestId : undefined;
-    const edited = typeof d.edited === "boolean" ? d.edited : undefined;
+    // `edited` used to be read from the client here. It is no longer trusted -
+    // `recordSentReplyInTransaction` derives it itself, from the enquiry's own
+    // prepared draft, so a spoofed or stale client value can't reach the audit
+    // trail.
     return {
       enquiryId,
       body,
       channel: allowed.includes(channel) ? channel : "manual",
       clientRequestId,
-      edited,
     };
   })
   .handler(async ({ context, data }) => {
@@ -217,7 +219,6 @@ export const recordSentReply = createServerFn({ method: "POST" })
         body: data.body,
         channel: data.channel as Channel,
         clientRequestId: data.clientRequestId,
-        edited: data.edited,
       }),
     );
   });

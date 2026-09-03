@@ -50,6 +50,9 @@ async function seedBusinessAndEnquiry(
     customerHandle?: string | null;
     reason?: string;
     action?: string;
+    /** The reply Enquiry itself prepared, if any - omit to leave the snapshot
+     *  carrying no draft at all, the same as a hand-authored fixture. */
+    draftBody?: string;
   } = {},
 ): Promise<{ businessId: string; enquiryId: string }> {
   const biz = await pg.query<{ id: string }>(
@@ -72,6 +75,7 @@ async function seedBusinessAndEnquiry(
       reason: overrides.reason ?? "4 people at $145 each.",
       action: overrides.action ?? "SEND_QUOTE",
     },
+    ...(overrides.draftBody !== undefined ? { draft: { body: overrides.draftBody } } : {}),
   };
   const enq = await pg.query<{ id: string }>(
     `insert into enquiry
@@ -152,7 +156,6 @@ test("a repeated clientRequestId creates exactly one outbound message", async ()
     body: "Hi Sarah, that comes to $580.",
     channel: "email",
     clientRequestId,
-    edited: false,
   });
   const second = await recordSentReplyInTransaction(sqlFor(pg), {
     enquiryId,
@@ -161,7 +164,6 @@ test("a repeated clientRequestId creates exactly one outbound message", async ()
     body: "Hi Sarah, that comes to $580.",
     channel: "email",
     clientRequestId,
-    edited: false,
   });
   assert.equal(first.duplicate, false);
   assert.equal(second.duplicate, true, "the retry must not create a second message");
@@ -199,11 +201,139 @@ test("a different clientRequestId on the same enquiry is a genuinely new send, n
   assert.equal(count.rows[0]!.n, 2);
 });
 
+test("the same clientRequestId reused on a different enquiry creates a second real message, not a false duplicate", async () => {
+  // The DB-level backstop is a unique index on (channel, external_id) with no
+  // enquiry column - it also has to dedupe inbound provider webhook ids
+  // across the whole table. Before this fix a client key reused across two
+  // enquiries on the same channel hit that index, was caught as a unique
+  // violation, and was reported `duplicate: true` even though the second
+  // enquiry's message was never written.
+  const pg = await freshDb();
+  const { businessId: businessIdA, enquiryId: enquiryA } = await seedBusinessAndEnquiry(pg, {
+    customerEmail: "sarah@example.com",
+  });
+  const { businessId: businessIdB, enquiryId: enquiryB } = await seedBusinessAndEnquiry(pg, {
+    customerEmail: "jordan@example.com",
+  });
+  const clientRequestId = "44444444-4444-4444-8444-444444444444";
+
+  const first = await recordSentReplyInTransaction(sqlFor(pg), {
+    enquiryId: enquiryA,
+    businessId: businessIdA,
+    userId: "u1",
+    body: "Hi Sarah, that comes to $580.",
+    channel: "email",
+    clientRequestId,
+  });
+  const second = await recordSentReplyInTransaction(sqlFor(pg), {
+    enquiryId: enquiryB,
+    businessId: businessIdB,
+    userId: "u1",
+    body: "Hi Jordan, that comes to $720.",
+    channel: "email",
+    clientRequestId,
+  });
+
+  assert.equal(first.duplicate, false);
+  assert.equal(
+    second.duplicate,
+    false,
+    "a client key reused on a DIFFERENT enquiry must not read as a duplicate",
+  );
+
+  const messages = await pg.query<{ enquiry_id: string; to_addr: string }>(
+    "select enquiry_id, to_addr from message where enquiry_id in ($1, $2)",
+    [enquiryA, enquiryB],
+  );
+  assert.equal(messages.rows.length, 2, "both sends must have actually written a message row");
+  const forA = messages.rows.find((m) => m.enquiry_id === enquiryA);
+  const forB = messages.rows.find((m) => m.enquiry_id === enquiryB);
+  assert.equal(forA?.to_addr, "sarah@example.com");
+  assert.equal(forB?.to_addr, "jordan@example.com");
+});
+
+test("edited is derived server-side as false when the sent body exactly matches Enquiry's prepared draft", async () => {
+  const pg = await freshDb();
+  const draftBody = "Hi Sarah, that comes to $580.";
+  const { businessId, enquiryId } = await seedBusinessAndEnquiry(pg, { draftBody });
+  await recordSentReplyInTransaction(sqlFor(pg), {
+    enquiryId,
+    businessId,
+    userId: "u1",
+    body: draftBody,
+    channel: "email",
+  });
+  const ev = await pg.query<{ detail: string }>(
+    "select detail from audit_event where business_id = $1",
+    [businessId],
+  );
+  assert.match(ev.rows[0]!.detail, /Edited: false/);
+});
+
+test("edited stays false across a trailing-whitespace and CRLF-only difference from the prepared draft", async () => {
+  const pg = await freshDb();
+  const draftBody = "Hi Sarah, that comes to $580.";
+  const { businessId, enquiryId } = await seedBusinessAndEnquiry(pg, { draftBody });
+  await recordSentReplyInTransaction(sqlFor(pg), {
+    enquiryId,
+    businessId,
+    userId: "u1",
+    body: "  Hi Sarah, that comes to $580.  \r\n",
+    channel: "email",
+  });
+  const ev = await pg.query<{ detail: string }>(
+    "select detail from audit_event where business_id = $1",
+    [businessId],
+  );
+  assert.match(
+    ev.rows[0]!.detail,
+    /Edited: false/,
+    "trimming and line-ending differences alone are not an edit",
+  );
+});
+
+test("edited is derived server-side as true when the sent body differs from Enquiry's prepared draft", async () => {
+  const pg = await freshDb();
+  const { businessId, enquiryId } = await seedBusinessAndEnquiry(pg, {
+    draftBody: "Hi Sarah, that comes to $580.",
+  });
+  await recordSentReplyInTransaction(sqlFor(pg), {
+    enquiryId,
+    businessId,
+    userId: "u1",
+    body: "Hi Sarah, that comes to $650 actually - I miscounted the first time.",
+    channel: "email",
+  });
+  const ev = await pg.query<{ detail: string }>(
+    "select detail from audit_event where business_id = $1",
+    [businessId],
+  );
+  assert.match(ev.rows[0]!.detail, /Edited: true/);
+});
+
+test("edited is recorded as unknown when the decision snapshot carries no prepared draft to compare against", async () => {
+  const pg = await freshDb();
+  const { businessId, enquiryId } = await seedBusinessAndEnquiry(pg);
+  await recordSentReplyInTransaction(sqlFor(pg), {
+    enquiryId,
+    businessId,
+    userId: "u1",
+    body: "Hi Sarah, that comes to $580.",
+    channel: "email",
+  });
+  const ev = await pg.query<{ detail: string }>(
+    "select detail from audit_event where business_id = $1",
+    [businessId],
+  );
+  assert.match(ev.rows[0]!.detail, /Edited: unknown/);
+});
+
 test("the audit row names the channel and recipient, and carries the decision reason and edited flag", async () => {
   const pg = await freshDb();
   const { businessId, enquiryId } = await seedBusinessAndEnquiry(pg, {
     customerEmail: "sarah@example.com",
     reason: "Group makeup: $145/person x 4, minimum 3.",
+    draftBody: "Hi Sarah, here is a first draft of the reply.",
   });
   await recordSentReplyInTransaction(sqlFor(pg), {
     enquiryId,
@@ -211,7 +341,6 @@ test("the audit row names the channel and recipient, and carries the decision re
     userId: "u1",
     body: "Hi Sarah, that comes to $580.",
     channel: "email",
-    edited: true,
   });
   const ev = await pg.query<{ summary: string; detail: string; object_type: string }>(
     "select summary, detail, object_type from audit_event where business_id = $1",

@@ -59,7 +59,11 @@ export function useLiveTrustMutations() {
     ) => {
       pause(businessId, level);
       if (!live) return;
-      await writeThrough("Pause", () => setBusinessPause({ data: { businessId, level } }), onFailure);
+      await writeThrough(
+        "Pause",
+        () => setBusinessPause({ data: { businessId, level } }),
+        onFailure,
+      );
     },
     resumeBusiness: async (businessId: string, onFailure: (m: string) => void) => {
       resume(businessId);
@@ -84,11 +88,7 @@ export function useLiveTrustMutations() {
         onFailure,
       );
     },
-    setTrustMode: async (
-      businessId: string,
-      mode: TrustMode,
-      onFailure: (m: string) => void,
-    ) => {
+    setTrustMode: async (businessId: string, mode: TrustMode, onFailure: (m: string) => void) => {
       setModeLocal(businessId, mode);
       if (!live) return;
       await writeThrough(
@@ -186,7 +186,22 @@ export function useFirstBetaActions() {
       await refresh();
       return res;
     },
-    /** Record that the owner sent the reply themselves. */
+    /** Correct or confirm what the model read as the service, then reload. */
+    setService: async (enquiryId: string, serviceLabel: string) => {
+      const { setEnquiryService } = await import("@/lib/server/enquiry-actions");
+      const res = await setEnquiryService({ data: { enquiryId, serviceLabel } });
+      await refresh();
+      return res;
+    },
+    /**
+     * Record that the owner sent the reply themselves.
+     *
+     * `opts.edited` is still accepted so existing callers that pass a
+     * client-side edited flag keep compiling, but it is no longer sent to the
+     * server - `recordSentReplyInTransaction` now derives `edited` itself
+     * from the enquiry's own prepared draft, since a client-reported value
+     * can't be told apart from a stale or spoofed one.
+     */
     recordSent: async (
       enquiryId: string,
       body: string,
@@ -200,7 +215,6 @@ export function useFirstBetaActions() {
           body,
           channel,
           clientRequestId: opts?.clientRequestId,
-          edited: opts?.edited,
         },
       });
       await refresh();

@@ -11,19 +11,24 @@ export function SheetContent({
   className,
   title,
   flush,
+  onOpenAutoFocus,
 }: {
   children: ReactNode;
   className?: string;
   title: string;
   flush?: boolean;
+  onOpenAutoFocus?: (event: Event) => void;
 }) {
   return (
     <DialogPrimitive.Portal>
       <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-ink/40 data-[state=open]:animate-overlay-in data-[state=closed]:animate-overlay-out" />
       <DialogPrimitive.Content
+        onOpenAutoFocus={onOpenAutoFocus}
         className={cn(
           "fixed inset-x-0 bottom-0 z-50 flex max-h-[92dvh] w-full flex-col rounded-t-2xl bg-raised shadow-float data-[state=open]:animate-sheet-in data-[state=closed]:animate-sheet-out",
-          flush ? "p-0 pb-[var(--app-safe-bottom)]" : "px-5 pb-[calc(1.25rem+var(--app-safe-bottom))] pt-2",
+          flush
+            ? "p-0 pb-[var(--app-safe-bottom)]"
+            : "px-5 pb-[calc(1.25rem+var(--app-safe-bottom))] pt-2",
           className,
         )}
       >
@@ -58,7 +63,9 @@ export function SheetContent({
             </Button>
           </DialogPrimitive.Close>
         </div>
-        <div className={cn("min-h-0 flex-1", flush ? "overflow-hidden pt-14" : "overflow-y-auto")}>{children}</div>
+        <div className={cn("min-h-0 flex-1", flush ? "overflow-hidden pt-14" : "overflow-y-auto")}>
+          {children}
+        </div>
       </DialogPrimitive.Content>
     </DialogPrimitive.Portal>
   );

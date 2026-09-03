@@ -12,15 +12,18 @@ export function DialogContent({
   children,
   className,
   title,
+  onOpenAutoFocus,
 }: {
   children: ReactNode;
   className?: string;
   title: string;
+  onOpenAutoFocus?: (event: Event) => void;
 }) {
   return (
     <DialogPrimitive.Portal>
       <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-ink/40 data-[state=open]:animate-overlay-in data-[state=closed]:animate-overlay-out" />
       <DialogPrimitive.Content
+        onOpenAutoFocus={onOpenAutoFocus}
         className={cn(
           "fixed left-1/2 top-1/2 z-50 w-[min(92vw,32rem)] -translate-x-1/2 -translate-y-1/2 rounded-lg bg-raised p-5 shadow-float data-[state=open]:animate-dialog-in data-[state=closed]:animate-dialog-out",
           className,
