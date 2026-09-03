@@ -40,7 +40,7 @@ export function SheetContent({
         </div>
         <div
           className={cn(
-            "flex items-start justify-between gap-3",
+            "flex items-center justify-between gap-3",
             flush ? "absolute inset-x-0 top-4 z-10 px-4" : "mb-4 mt-2",
           )}
         >

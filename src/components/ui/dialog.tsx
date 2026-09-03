@@ -29,7 +29,7 @@ export function DialogContent({
           className,
         )}
       >
-        <div className="mb-4 flex items-start justify-between gap-3">
+        <div className="mb-4 flex items-center justify-between gap-3">
           <DialogPrimitive.Title className="text-lg font-semibold tracking-tight text-ink">
             {title}
           </DialogPrimitive.Title>
