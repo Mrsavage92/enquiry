@@ -175,7 +175,7 @@ export function EnquiryWorkspace({ enquiryId }: { enquiryId?: string }) {
       {enquiry ? (
         <>
           <div
-            key={enquiry.id}
+            key={`${enquiry.id}-conversation`}
             className={
               (narrow ? "hidden xl:block min-h-0" : "min-h-0") +
               " animate-[rise-in_200ms_var(--ease-smooth-out)]"
@@ -183,7 +183,10 @@ export function EnquiryWorkspace({ enquiryId }: { enquiryId?: string }) {
           >
             <Conversation enquiry={enquiry} />
           </div>
-          <div key={enquiry.id} className="min-h-0 animate-[rise-in_200ms_var(--ease-smooth-out)]">
+          <div
+            key={`${enquiry.id}-intelligence`}
+            className="min-h-0 animate-[rise-in_200ms_var(--ease-smooth-out)]"
+          >
             <Intelligence enquiry={enquiry} />
           </div>
         </>
