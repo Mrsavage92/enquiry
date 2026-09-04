@@ -296,9 +296,22 @@ export function Intelligence({
                     <CircleHelp className="size-4" aria-hidden />
                     Why?
                   </button>
-                  <span className="text-xs text-stone">
-                    Confidence {enquiry.decision.confidence}
-                  </span>
+                  {enquiry.decision.confidence === "Low" ? (
+                    // The token that governs whether the human should
+                    // approve cannot read as a caption. Sized and coloured
+                    // at least as prominently as the recommendation's
+                    // supporting line (text-sm text-ink-2) - warn amber is
+                    // the existing token already used for exactly this kind
+                    // of "look before you approve" signal elsewhere in the
+                    // panel. Medium/High stay the calm, quiet default below.
+                    <span className="inline-flex items-center gap-1 rounded-sm bg-warn-bg px-2 py-1 text-sm font-semibold text-warn">
+                      Confidence Low
+                    </span>
+                  ) : (
+                    <span className="text-xs text-stone">
+                      Confidence {enquiry.decision.confidence}
+                    </span>
+                  )}
                   {enquiry.decision.risk === "PROHIBITED_AUTO" ? (
                     <Badge tone="danger">Autopilot blocked</Badge>
                   ) : enquiry.decision.automationEligible ? (
