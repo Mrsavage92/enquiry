@@ -16,7 +16,6 @@ import { mayPlayDemoArrival } from "@/domain/live-demo-isolation";
 import { resolveSendKey } from "@/domain/send-keys";
 
 export function EnquiryWorkspace({ enquiryId }: { enquiryId?: string }) {
-  const narrow = useNarrow(1100);
   const mobile = useNarrow(860);
   const enquiries = usePrototype((s) => s.enquiries);
   const businessFilter = usePrototype((s) => s.businessFilter);
@@ -180,16 +179,20 @@ export function EnquiryWorkspace({ enquiryId }: { enquiryId?: string }) {
   }
 
   return (
-    <div className="grid h-full min-h-full grid-cols-1 overflow-hidden lg:grid-cols-[18.5rem_1fr] xl:grid-cols-[18.5rem_minmax(0,1fr)_24.5rem]">
+    <div className="grid h-full min-h-full grid-cols-1 overflow-hidden lg:grid-cols-[18.5rem_minmax(0,1fr)] xl:grid-cols-[18.5rem_minmax(0,1fr)_24.5rem]">
       <Queue activeId={enquiry?.id} />
       {enquiry ? (
         <>
+          {/*
+            Hidden below `xl` purely by this media query, matching the grid's
+            own `xl:` column - a JS-computed threshold here previously drifted
+            from the CSS breakpoint (1100 vs 1280), so between those two widths
+            this column was never hidden while the grid still only had two
+            explicit tracks, and three children fought over two columns.
+          */}
           <div
             key={`${enquiry.id}-conversation`}
-            className={
-              (narrow ? "hidden xl:block min-h-0" : "min-h-0") +
-              " animate-[rise-in_200ms_var(--ease-smooth-out)]"
-            }
+            className="hidden min-h-0 animate-[rise-in_200ms_var(--ease-smooth-out)] xl:block"
           >
             <Conversation enquiry={enquiry} />
           </div>
