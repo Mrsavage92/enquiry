@@ -22,10 +22,13 @@ const CHANNELS = ["Email", "Website form", "Text", "Instagram", "Facebook", "Pho
 export function WaitlistForm({
   compact = false,
   ctaVariant = "primary",
+  ctaLabel = "Join early access",
 }: {
   compact?: boolean;
   /** "primary-strong" is reserved for the landing hero - see button.tsx. */
   ctaVariant?: "primary" | "primary-strong";
+  /** Same action everywhere - label can differ so two different-weight CTAs never read as identical asks. */
+  ctaLabel?: string;
 }) {
   const [email, setEmail] = useState("");
   const [website, setWebsite] = useState("");
@@ -342,7 +345,7 @@ export function WaitlistForm({
       </div>
       {error ? <p className="w-full text-sm text-danger">{error}</p> : null}
       <Button type="submit" variant={ctaVariant} className="min-h-12 px-6" disabled={busy}>
-        {busy ? "Joining…" : "Join early access"}
+        {busy ? "Joining…" : ctaLabel}
       </Button>
       <p className={compact ? "w-full text-xs text-stone" : "text-xs text-stone"}>
         We’ll only email about Enquiry access.{" "}

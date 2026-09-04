@@ -357,7 +357,7 @@ function Home() {
               by hand.
             </p>
             <div className="site-well mt-8 max-w-xl">
-              <WaitlistForm compact />
+              <WaitlistForm compact ctaLabel="Request early access" />
             </div>
           </Reveal>
         </div>
