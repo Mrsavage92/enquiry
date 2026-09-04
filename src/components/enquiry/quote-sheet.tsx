@@ -181,7 +181,16 @@ export function QuoteSheet({
           ))}
         </ul>
       ) : null}
-      {quote.ruleSetVersion ? (
+      {/*
+        "0" is the persistence-layer placeholder written when the sending
+        engine's own version wasn't available at send time (see
+        sent-reply-core.ts's `enq.engine_version ?? "0"` fallback) - a real
+        string, so `quote.ruleSetVersion ? ... : null` alone treats it as
+        truthy and renders a bare, unlabelled "0" inside the quote sheet.
+        Excluded here rather than upstream: this component only controls
+        what a viewer sees, not what gets written.
+      */}
+      {quote.ruleSetVersion && quote.ruleSetVersion !== "0" ? (
         <p className="mt-3 text-2xs text-stone">{quote.ruleSetVersion}</p>
       ) : null}
       {filed && !customer ? (
