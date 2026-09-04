@@ -179,7 +179,11 @@ export function EnquiryWorkspace({ enquiryId }: { enquiryId?: string }) {
   }
 
   return (
-    <div className="grid h-full min-h-full grid-cols-1 overflow-hidden lg:grid-cols-[18.5rem_minmax(0,1fr)] xl:grid-cols-[18.5rem_minmax(20rem,30rem)_minmax(24.5rem,1fr)]">
+    // xl: hard minimums 18.5rem + 20rem + 24.5rem = 296 + 320 + 392 = 1008px,
+    // against a container measured live at ~1030px at the 1280px xl: breakpoint
+    // (240px app-shell sidebar reserved outside this component). Padding added
+    // to <main> in app-shell.tsx, or a non-overlay scrollbar, reopens 4e05616.
+    <div className="grid h-full min-h-full grid-cols-1 overflow-hidden lg:grid-cols-[18.5rem_minmax(0,1fr)] xl:grid-cols-[18.5rem_minmax(20rem,36rem)_minmax(24.5rem,40rem)]">
       <Queue activeId={enquiry?.id} />
       {enquiry ? (
         <>
