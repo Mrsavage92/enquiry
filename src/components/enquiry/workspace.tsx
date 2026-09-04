@@ -179,7 +179,7 @@ export function EnquiryWorkspace({ enquiryId }: { enquiryId?: string }) {
   }
 
   return (
-    <div className="grid h-full min-h-full grid-cols-1 overflow-hidden lg:grid-cols-[18.5rem_minmax(0,1fr)] xl:grid-cols-[18.5rem_minmax(0,1fr)_24.5rem]">
+    <div className="grid h-full min-h-full grid-cols-1 overflow-hidden lg:grid-cols-[18.5rem_minmax(0,1fr)] xl:grid-cols-[18.5rem_minmax(20rem,30rem)_minmax(24.5rem,1fr)]">
       <Queue activeId={enquiry?.id} />
       {enquiry ? (
         <>
