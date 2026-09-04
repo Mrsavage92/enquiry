@@ -654,6 +654,10 @@ export function Intelligence({
                   : " the price or feasibility."}
                 {demoMode ? null : " This copies the text - it does not send from here."}
               </p>
+            ) : sendable && compact && !demoMode ? (
+              <p className="text-xs text-stone">
+                This copies the text - it does not send from here.
+              </p>
             ) : null}
             {sendable || enquiry.state.lifecycle === "OPEN" ? (
               compact ? null : (
