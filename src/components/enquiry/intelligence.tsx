@@ -177,7 +177,13 @@ export function Intelligence({
     >
       <div className={cn(compact ? "flex min-h-0 flex-1 flex-col overflow-hidden" : undefined)}>
         {!compact ? (
-          <header className="border-b border-line px-5 py-5">
+          // Sticky within this panel's own overflow-y-auto container (the
+          // outer div above), not the window - the business line and the
+          // decision-state badge are the one-word answer to "what state is
+          // this enquiry in", and a scrolled-past panel that hid it was the
+          // gap this closes. bg-raised is required on a sticky element or
+          // scrolled content shows through underneath it.
+          <header className="sticky top-0 z-10 border-b border-line bg-raised px-5 py-5">
             <div className="flex items-start justify-between gap-3">
               <div>
                 <p className="eyebrow">
