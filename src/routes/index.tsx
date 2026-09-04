@@ -26,7 +26,9 @@ export const Route = createFileRoute("/")({
 
 function Home() {
   const preview = ROADMAP_PREVIEW;
-  const desk = useNarrow(640) === false;
+  const narrowState = useNarrow(640);
+  const desk = narrowState === false;
+  const mounted = narrowState !== null;
 
   return (
     <SiteShell>
@@ -120,27 +122,30 @@ function Home() {
               One enquiry. Not a gallery of the same screen.
             </p>
           </Reveal>
-          <div className="mt-8 sm:hidden">
-            <Link
-              to="/enquiries/$enquiryId"
-              params={{ enquiryId: "f01" }}
-              className="flex min-h-16 items-center justify-between gap-4 rounded-xl bg-raised px-4 py-4 shadow-border"
-            >
-              <div className="min-w-0">
-                <p className="commercial-exact font-serif text-2xl tabular-nums tracking-tight">
-                  $625
-                </p>
-                <p className="mt-1 truncate text-sm text-ink-2">Priya Shah · Group mobile makeup</p>
-              </div>
-              <span className="shrink-0 text-sm font-medium text-mark">Open</span>
-            </Link>
-            <p className="mt-3 text-sm text-stone">The live app. Next action already prepared.</p>
-          </div>
-          {desk ? (
-            <Reveal delay={80} className="mt-10">
+          {mounted ? (
+            <Reveal delay={80} className="mt-8 sm:mt-10">
               <LivePhone caption="This is the app. Priya’s next action is ready." />
             </Reveal>
-          ) : null}
+          ) : (
+            <div className="mt-8 sm:hidden">
+              <Link
+                to="/enquiries/$enquiryId"
+                params={{ enquiryId: "f01" }}
+                className="flex min-h-16 items-center justify-between gap-4 rounded-xl bg-raised px-4 py-4 shadow-border"
+              >
+                <div className="min-w-0">
+                  <p className="commercial-exact font-serif text-2xl tabular-nums tracking-tight">
+                    $625
+                  </p>
+                  <p className="mt-1 truncate text-sm text-ink-2">
+                    Priya Shah · Group mobile makeup
+                  </p>
+                </div>
+                <span className="shrink-0 text-sm font-medium text-mark">Open</span>
+              </Link>
+              <p className="mt-3 text-sm text-stone">The live app. Next action already prepared.</p>
+            </div>
+          )}
         </div>
       </section>
 

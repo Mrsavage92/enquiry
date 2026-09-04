@@ -31,7 +31,7 @@ export function LivePhone({
         <span>{caption}</span>
         <button
           type="button"
-          className="font-medium text-ink underline-offset-4 hover:underline"
+          className="inline-flex min-h-11 items-center font-medium text-ink underline-offset-4 hover:underline"
           onClick={() => {
             restoreFixture(enquiryId);
             setId(enquiryId);
