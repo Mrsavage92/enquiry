@@ -268,7 +268,7 @@ export function Intelligence({
                   </p>
                 ) : (
                   <>
-                    <p id="rec-heading" className="eyebrow">
+                    <p id="rec-heading" className="eyebrow-decision">
                       Recommendation
                     </p>
                     <p className="mt-2 text-xl font-semibold leading-snug tracking-tight">
@@ -345,7 +345,10 @@ export function Intelligence({
                 className={cn("border-b border-line px-5", compact ? "py-4" : "py-5")}
                 aria-labelledby="missing-heading"
               >
-                <p id="missing-heading" className={compact ? "text-sm font-medium" : "eyebrow"}>
+                <p
+                  id="missing-heading"
+                  className={compact ? "text-sm font-medium" : "eyebrow-decision"}
+                >
                   {compact ? "Still needed" : "Blocking the next decision"}
                 </p>
                 <ul className="mt-3 space-y-2">
