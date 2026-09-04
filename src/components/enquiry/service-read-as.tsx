@@ -67,7 +67,12 @@ export function ServiceReadAs({ enquiry }: { enquiry: Enquiry }) {
             }}
           />
         </label>
-        <Button className="min-h-11 max-w-full" disabled={saving} onClick={() => void submit()}>
+        <Button
+          className="min-h-11 max-w-full"
+          disabled={saving}
+          onClick={() => void submit()}
+          title={saving ? "Working it out…" : `Confirm service: ${value.trim() || fact.value}`}
+        >
           <span className="min-w-0 truncate">
             {saving ? "Working it out…" : `Confirm service: ${value.trim() || fact.value}`}
           </span>
