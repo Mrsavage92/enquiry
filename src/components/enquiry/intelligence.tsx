@@ -621,7 +621,7 @@ export function Intelligence({
                   });
                 }}
               >
-                {sending ? "Recording…" : demoMode ? rec.label : `${rec.label} (copies it)`}
+                {sending ? "Recording…" : rec.label}
               </Button>
             ) : situation ? (
               <p className="text-sm text-ink-2">Settle the detail above first.</p>
@@ -655,6 +655,7 @@ export function Intelligence({
                 {commercial.kind === "not_applicable"
                   ? " the decision."
                   : " the price or feasibility."}
+                {demoMode ? null : " This copies the text - it does not send from here."}
               </p>
             ) : null}
             {sendable || enquiry.state.lifecycle === "OPEN" ? (
