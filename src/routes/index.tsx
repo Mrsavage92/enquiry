@@ -117,14 +117,17 @@ function Home() {
         <div className="mx-auto max-w-5xl px-5 py-12 sm:py-20">
           <Reveal>
             <p className="eyebrow">Try it</p>
-            <h2 className="site-display mt-3 max-w-2xl">Same job. Already understood. You send.</h2>
+            <h2 className="site-display mt-3 max-w-2xl">
+              The enquiry you just watched. Now you drive it.
+            </h2>
             <p className="mt-3 max-w-xl text-sm leading-relaxed text-ink-2">
-              One enquiry. Not a gallery of the same screen.
+              That was a recording. This is the live app - open the thread, read the case file, and
+              send the quote yourself.
             </p>
           </Reveal>
           {mounted ? (
             <Reveal delay={80} className="mt-8 sm:mt-10">
-              <LivePhone caption="This is the app. Priya’s next action is ready." />
+              <LivePhone caption="Live and interactive. Work the reply, then send it." />
             </Reveal>
           ) : (
             <div className="mt-8 sm:hidden">
