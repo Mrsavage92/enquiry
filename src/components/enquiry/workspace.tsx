@@ -190,16 +190,10 @@ export function EnquiryWorkspace({ enquiryId }: { enquiryId?: string }) {
             this column was never hidden while the grid still only had two
             explicit tracks, and three children fought over two columns.
           */}
-          <div
-            key={`${enquiry.id}-conversation`}
-            className="hidden min-h-0 animate-[rise-in_200ms_var(--ease-smooth-out)] xl:block"
-          >
+          <div key={`${enquiry.id}-conversation`} className="hidden min-h-0 xl:block">
             <Conversation enquiry={enquiry} />
           </div>
-          <div
-            key={`${enquiry.id}-intelligence`}
-            className="min-h-0 animate-[rise-in_200ms_var(--ease-smooth-out)]"
-          >
+          <div key={`${enquiry.id}-intelligence`} className="min-h-0">
             <Intelligence enquiry={enquiry} />
           </div>
         </>
