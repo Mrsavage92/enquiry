@@ -87,6 +87,14 @@ export function Intelligence({
     fixtures: BUSINESS_BY_ID,
   });
   const rec = enquiry.decision.recommendation;
+  // One fact, one place: when the recommendation's reason is the exact same
+  // sentence as a missing fact's reason (guaranteed identical for a live
+  // REQUEST_INFORMATION decision - see decide.ts - and true for some fixture
+  // data too), the "Blocking the next decision" section below already states
+  // it, so the recommendation body should not restate it. A fixture whose
+  // wording genuinely differs keeps both, since the string comparison only
+  // suppresses a true duplicate.
+  const recReasonIsMissingReason = enquiry.decision.missing.some((m) => m.reason === rec.reason);
   const applicable = enquiry.decision.evaluators.filter((e) => e.status !== "NOT_APPLICABLE");
   const pricing = applicable.find((e) => e.type === "pricing");
   const capacity = applicable.find((e) => e.type === "capacity");
@@ -266,7 +274,9 @@ export function Intelligence({
                     <p className="mt-2 text-xl font-semibold leading-snug tracking-tight">
                       {rec.label}
                     </p>
-                    <p className="mt-2 text-sm leading-relaxed text-ink-2">{rec.reason}</p>
+                    {recReasonIsMissingReason ? null : (
+                      <p className="mt-2 text-sm leading-relaxed text-ink-2">{rec.reason}</p>
+                    )}
                   </>
                 )}
                 <div
@@ -326,16 +336,24 @@ export function Intelligence({
                   {compact ? "Still needed" : "Blocking the next decision"}
                 </p>
                 <ul className="mt-3 space-y-2">
-                  {enquiry.decision.missing.map((m) => (
-                    <li key={m.factField} className="callout bg-warn-bg text-warn">
-                      <p className="text-sm font-medium">{m.label}</p>
-                      {compact ? null : (
-                        <p className="mt-0.5 text-sm text-ink-2">
-                          {m.reason} Unlocks: {m.unlocks}.
-                        </p>
-                      )}
-                    </li>
-                  ))}
+                  {enquiry.decision.missing.map((m) => {
+                    // "Needed to price this" (AnswerBlocker) already states
+                    // this exact reason, with the input to resolve it,
+                    // whenever it is live and rendered - one fact, one place.
+                    // In demo mode AnswerBlocker never renders, so this stays
+                    // the only place the reason appears.
+                    const reasonShownElsewhere = m.blocking && !demoMode;
+                    return (
+                      <li key={m.factField} className="callout bg-warn-bg text-warn">
+                        <p className="text-sm font-medium">{m.label}</p>
+                        {compact ? null : (
+                          <p className="mt-0.5 text-sm text-ink-2">
+                            {reasonShownElsewhere ? "" : `${m.reason} `}Unlocks: {m.unlocks}.
+                          </p>
+                        )}
+                      </li>
+                    );
+                  })}
                 </ul>
               </section>
             ) : null}
