@@ -22,7 +22,7 @@ import {
   isSendableAction,
   outboundBlocked,
 } from "@/domain/situation";
-import type { Enquiry, EnquiryFact, EvaluatorResult } from "@/domain/types";
+import type { ConfidenceBand, Enquiry, EnquiryFact, EvaluatorResult } from "@/domain/types";
 import { cn } from "@/lib/utils";
 import { usePrototype } from "@/store/prototype-store";
 import { useLiveEnquiryMutations, useFirstBetaActions } from "@/lib/workspace/live-mutations";
@@ -302,22 +302,7 @@ export function Intelligence({
                     <CircleHelp className="size-4" aria-hidden />
                     Why?
                   </button>
-                  {enquiry.decision.confidence === "Low" ? (
-                    // The token that governs whether the human should
-                    // approve cannot read as a caption. Sized and coloured
-                    // at least as prominently as the recommendation's
-                    // supporting line (text-sm text-ink-2) - warn amber is
-                    // the existing token already used for exactly this kind
-                    // of "look before you approve" signal elsewhere in the
-                    // panel. Medium/High stay the calm, quiet default below.
-                    <span className="inline-flex items-center gap-1 rounded-sm bg-warn-bg px-2 py-1 text-sm font-semibold text-warn">
-                      Confidence Low
-                    </span>
-                  ) : (
-                    <span className="text-xs text-stone">
-                      Confidence {enquiry.decision.confidence}
-                    </span>
-                  )}
+                  <ConfidenceBadge confidence={enquiry.decision.confidence} />
                   {enquiry.decision.risk === "PROHIBITED_AUTO" ? (
                     <Badge tone="danger">Autopilot blocked</Badge>
                   ) : enquiry.decision.automationEligible ? (
@@ -596,16 +581,19 @@ export function Intelligence({
         ) : (
           <div className="flex flex-col gap-2">
             {compact && sendable ? (
-              <button
-                type="button"
-                className="inline-flex min-h-11 items-center text-sm text-stone underline-offset-4 hover:text-ink hover:underline"
-                onClick={() => {
-                  setWhyOpen(true);
-                  track(enquiry.fixtureId, "open_why");
-                }}
-              >
-                Why this?
-              </button>
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <button
+                  type="button"
+                  className="inline-flex min-h-11 items-center text-sm text-stone underline-offset-4 hover:text-ink hover:underline"
+                  onClick={() => {
+                    setWhyOpen(true);
+                    track(enquiry.fixtureId, "open_why");
+                  }}
+                >
+                  Why this?
+                </button>
+                <ConfidenceBadge confidence={enquiry.decision.confidence} />
+              </div>
             ) : null}
             {sendable ? (
               <Button
@@ -908,6 +896,25 @@ export function Intelligence({
       ) : null}
     </div>
   );
+}
+
+function ConfidenceBadge({ confidence }: { confidence: ConfidenceBand }) {
+  // The token that governs whether the human should approve cannot read as
+  // a caption. Sized and coloured at least as prominently as the
+  // recommendation's supporting line (text-sm text-ink-2) - warn amber is
+  // the existing token already used for exactly this kind of "look before
+  // you approve" signal elsewhere in the panel. Medium/High stay the calm,
+  // quiet default below. Shared between the desktop recommendation section
+  // and the compact bottom action bar so both surfaces show the same
+  // qualifier before the primary send action.
+  if (confidence === "Low") {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-sm bg-warn-bg px-2 py-1 text-sm font-semibold text-warn">
+        Confidence Low
+      </span>
+    );
+  }
+  return <span className="text-xs text-stone">Confidence {confidence}</span>;
 }
 
 function groundedSummary(enquiry: Enquiry): string | null {
