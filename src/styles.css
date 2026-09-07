@@ -124,11 +124,48 @@
   rather than getting invented B-specific numbers. Measured result of that
   inheritance (both improve further under B, neither regresses): see
   research/agent-runs/2026-09-07/44-visual-slice-tokens-and-palette-b.md.
+
+  Two repairs from the 2026-09-08 cold walkthrough
+  (research/agent-runs/2026-09-07/56-cold-walkthrough-preview-v1.md, Part 4):
+
+  1. --color-notebook was missing entirely, so every `.notebook` surface
+     (/roadmap) silently kept --color-paper's A value (#f3eee6) while the
+     rest of the site turned neutral under B - measured mean dE 0.32 across
+     the whole page, i.e. B did nothing there. --color-notebook is #f3eee6
+     under A, identical to --color-paper (dE 0.00) - the design intent is
+     that notebook mirrors paper. B now keeps that same relationship:
+     --color-notebook equals B's --color-paper.
+
+  2. --color-paper-2 was transcribed as the study's own --tint (#eff2ef),
+     which is only dE 1.7 / 1.04:1 off B's --color-paper (#f5f6f3) - the
+     study never tested this pairing (its layout never puts tint directly
+     against canvas), and #eff2ef was tuned to keep plain muted text
+     passing on it, not to read as a recessed surface. Under B every
+     recessed surface that depends on paper-2 (queue hover/selected rows,
+     incoming-message bubbles, neutral badges) collapsed to indistinguishable
+     from paper. #dfe1de replaces it: darkened within B's own cool-neutral
+     family (not a reversion to A's warm beige), chosen at the point of
+     maximum simultaneous margin in the only valid window - light enough to
+     keep the inherited Part-1 paper-2 text tokens (--color-stone-on-paper-2,
+     --color-warn-on-paper-2) at >=4.5:1, dark enough to keep >=1.2:1
+     luminance contrast against paper. Measured: paper vs paper-2 1.213:1
+     (dE 7.44, more separated than A's own 1.14:1 / dE 5.67); stone-on-
+     paper-2 on it 4.587:1; warn-on-paper-2 on it 4.635:1; ink-2 on it
+     5.340:1. Full derivation and every alternative tried:
+     research/agent-runs/2026-09-07/61-w3f-palette-b-repair.md.
+     Plain --color-stone/--color-warn (not the -on-paper-2 tokens) no longer
+     clear 4.5:1 against this darker paper-2 - by construction, no value can
+     satisfy both the 1.2:1 paper/paper-2 floor and keep the plain (lighter)
+     tokens passing at once. Not a regression in practice: the review's
+     rendered DOM sweep (research/agent-runs/2026-09-07/50-review-visual-
+     tokens.md) found zero reachable instances of plain text-stone/text-warn
+     on a bg-paper-2 container - every one was already migrated to the
+     dedicated -on-paper-2 token.
 */
 html[data-palette="b"] {
   --color-paper: #f5f6f3;
   --color-raised: #ffffff;
-  --color-paper-2: #eff2ef;
+  --color-paper-2: #dfe1de;
   --color-ink: #18221f;
   --color-ink-2: #4e5c56;
   --color-stone: #5e6a63;
@@ -146,6 +183,7 @@ html[data-palette="b"] {
   --color-ok-bg: #eaf4ed;
   --color-danger: #af302a;
   --color-danger-bg: #fff0ed;
+  --color-notebook: #f5f6f3;
 }
 
 @layer base {
