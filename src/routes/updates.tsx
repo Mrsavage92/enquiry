@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { SiteShell } from "@/components/site/site-shell";
 import { WaitlistForm } from "@/components/site/waitlist-form";
+import { canonicalLink } from "@/lib/site/canonical";
 
 export const Route = createFileRoute("/updates")({
   component: Updates,
@@ -12,6 +13,7 @@ export const Route = createFileRoute("/updates")({
         content: "Meaningful notes from building Enquiry in public. Not a changelog.",
       },
     ],
+    links: [canonicalLink("/updates")],
   }),
 });
 

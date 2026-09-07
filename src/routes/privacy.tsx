@@ -1,5 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { SiteShell } from "@/components/site/site-shell";
+import { canonicalLink } from "@/lib/site/canonical";
 
 export const Route = createFileRoute("/privacy")({
   component: Privacy,
@@ -11,6 +12,7 @@ export const Route = createFileRoute("/privacy")({
         content: "How Enquiry handles early-access emails and the in-browser demo.",
       },
     ],
+    links: [canonicalLink("/privacy")],
   }),
 });
 
@@ -46,8 +48,8 @@ function Privacy() {
           </p>
           <h2 className="text-lg font-semibold tracking-tight text-ink">Keeping the waitlist</h2>
           <p>
-            Waitlist records live in our database so a refresh does not lose your place. Roadmap
-            “I need this” is tied to a browser session, not a public leaderboard.
+            Waitlist records live in our database so a refresh does not lose your place. Roadmap “I
+            need this” is tied to a browser session, not a public leaderboard.
           </p>
           <h2 className="text-lg font-semibold tracking-tight text-ink">Your choices</h2>
           <p>

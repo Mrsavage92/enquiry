@@ -8,6 +8,7 @@ import { ROADMAP_PREVIEW } from "@/lib/launch/roadmap";
 import { HeroIn, Reveal, SiteVideo } from "@/components/site/motion";
 import { BrowserFrame, PhoneFrame } from "@/components/site/device-frame";
 import { useNarrow } from "@/lib/use-narrow";
+import { canonicalLink } from "@/lib/site/canonical";
 
 export const Route = createFileRoute("/")({
   component: Home,
@@ -21,6 +22,7 @@ export const Route = createFileRoute("/")({
       },
       { property: "og:image", content: "/product/phone-job.png" },
     ],
+    links: [canonicalLink("/")],
   }),
 });
 

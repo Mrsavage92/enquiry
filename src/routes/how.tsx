@@ -6,6 +6,7 @@ import { WaitlistForm } from "@/components/site/waitlist-form";
 import { Button } from "@/components/ui/button";
 import { Reveal } from "@/components/site/motion";
 import { SIGNATURE_DEMO } from "@/lib/site/signature-demo";
+import { canonicalLink } from "@/lib/site/canonical";
 
 export const Route = createFileRoute("/how")({
   component: How,
@@ -18,6 +19,7 @@ export const Route = createFileRoute("/how")({
           "Work arrives from any channel. Enquiry reconstructs the request, applies how your business works, and prepares the next action.",
       },
     ],
+    links: [canonicalLink("/how")],
   }),
 });
 
@@ -105,7 +107,8 @@ function How() {
               A different job. Exact quote, ready to send.
             </h2>
             <p className="mt-3 max-w-xl text-sm leading-relaxed text-ink-2">
-              Some enquiries resolve to a number. That is still Enquiry - it is not the whole product.
+              Some enquiries resolve to a number. That is still Enquiry - it is not the whole
+              product.
             </p>
           </Reveal>
           <div className="mt-8">

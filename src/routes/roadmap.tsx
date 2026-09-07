@@ -6,6 +6,7 @@ import { ROADMAP_ACCESS, ROADMAP_PHASE, ROADMAP_WRITTEN } from "@/lib/launch/roa
 import { trackLaunchEvent } from "@/lib/launch/api";
 import { currentTouch, launchSessionId } from "@/lib/launch/session";
 import { HeroIn } from "@/components/site/motion";
+import { canonicalLink } from "@/lib/site/canonical";
 
 export const Route = createFileRoute("/roadmap")({
   component: RoadmapPage,
@@ -18,6 +19,7 @@ export const Route = createFileRoute("/roadmap")({
           "See what we’re building now, what comes next, and the long-term direction for Enquiry - the intelligence layer for service-business enquiries.",
       },
     ],
+    links: [canonicalLink("/roadmap")],
   }),
 });
 
@@ -36,12 +38,14 @@ function RoadmapPage() {
         </HeroIn>
         <HeroIn delay={160}>
           <p className="text-halo mt-6 max-w-lg text-lg leading-relaxed text-ink-2 sm:text-xl">
-            Some of this works today. Some of it is being built. Some of it still needs to earn its place.
+            Some of this works today. Some of it is being built. Some of it still needs to earn its
+            place.
           </p>
         </HeroIn>
         <HeroIn delay={220}>
           <p className="mt-4 max-w-lg text-base leading-relaxed text-ink-2">
-            Rather than pretend otherwise, this is where Enquiry is going - and what has to be true for us to get there.
+            Rather than pretend otherwise, this is where Enquiry is going - and what has to be true
+            for us to get there.
           </p>
         </HeroIn>
         <HeroIn delay={280}>

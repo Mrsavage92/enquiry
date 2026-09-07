@@ -1,0 +1,15 @@
+=== canonical link tags, all 7 public routes, npm run dev (port 5177) ===
+--- GET / ---
+<link rel="canonical" href="https://enquiry-ashy.vercel.app/"/>
+--- GET /how ---
+<link rel="canonical" href="https://enquiry-ashy.vercel.app/how"/>
+--- GET /roadmap ---
+<link rel="canonical" href="https://enquiry-ashy.vercel.app/roadmap"/>
+--- GET /updates ---
+<link rel="canonical" href="https://enquiry-ashy.vercel.app/updates"/>
+--- GET /early-access ---
+<link rel="canonical" href="https://enquiry-ashy.vercel.app/early-access"/>
+--- GET /privacy ---
+<link rel="canonical" href="https://enquiry-ashy.vercel.app/privacy"/>
+--- GET /terms ---
+<link rel="canonical" href="https://enquiry-ashy.vercel.app/terms"/>
