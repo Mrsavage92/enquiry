@@ -527,3 +527,48 @@ clean end-to-end pass has been performed at the final head.
 
 Not signed off by this work - browser observation only, per the package's own
 evidence-levels rule.
+
+## C03 at final head (810ebd0)
+
+The independent reviewer's re-review of `810ebd0`
+(`research/agent-runs/2026-09-04/35-review-pr11-cc1.md`) ruled a full 13-step
+re-run unnecessary before sign-off, but named one optional residual: "no
+**successful** C03 was observed at the final head - the only confirm attempted
+there was deliberately made stale in a second tab and correctly refused."
+This section closes that residual with a clean, real-auth browser pass
+against `810ebd09550506dd5cd82b657b09507bd6347887` itself. Full log in
+`evidence/implementation/810ebd09550506dd5cd82b657b09507bd6347887/c03-confirm/C03-CONFIRM-LOG.md`.
+
+A fresh business ("CC1 C03 Studio"), pricing rule (Group makeup, AUD 145 per
+person, minimum 3), and enquiry ("Taylor", guests missing at creation) were
+built from scratch under real Supabase Auth. Answering guests=4 produced the
+exact AUD 580 draft. Opening the send preview showed AMOUNT $580 matching the
+draft body exactly; "Copy the message" produced "Copied to your clipboard.
+Nothing has been sent or recorded yet."; "I've sent this externally" produced
+"Recorded as sent by you." and the enquiry moved straight to "Sent". The live
+network trace showed `createManualEnquiry` -> `answerEnquiryFact` ->
+`prepareSendReview` -> `recordSentReply`, all HTTP 200, with
+`recordSentReply` returning `{ok: true, duplicate: false, stale: false,
+messageId: "176c6464-..."}`. A full page reload showed exactly one "You sent"
+case-file entry and exactly one quote version (VERSION 1, $580) - no
+duplicates. Replaying the identical `recordSentReply` request (same
+`enquiryId` + `reviewedSendId`, captured from DevTools Network and re-sent via
+`fetch()` in the authenticated page context) returned `{ok: true, duplicate:
+true, messageId: "176c6464-..."}` - the same message id, confirming
+idempotency rather than a second record - and a further reload confirmed the
+UI was unchanged. No console error and no failed network request occurred at
+any point.
+
+The session running this check was interrupted mid-task by a host process
+exit after an identical first pass had already succeeded; on resume, the dev
+server (and its in-memory PGLite data) was gone but the worktree and Supabase
+disposable auth user survived, so the auth user was reused and the live
+journey was redone in full to produce one coherent evidence set at the same
+head - see the log for detail. `select count(*) from public.contacts` on the
+shared Supabase project (`qzzvxfbitixpmfuirvhq`) was 5 before, during, and
+after this work, and `app_user`/`business`/`business_member` cross-checks
+returned zero rows throughout, consistent with the PGLite finding that no
+application data reaches that project from this dev server.
+
+Browser observation only, per the package's own evidence-levels rule - not a
+CC1 sign-off.
