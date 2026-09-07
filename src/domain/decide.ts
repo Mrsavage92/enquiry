@@ -30,8 +30,8 @@ export type Decision = {
    * the premise it rests on - the service - was proposed by a model and never
    * confirmed by the owner. Deliberately separate from the decision's price so
    * that nothing downstream which reads a decided price can mistake it for one:
-   * `recordSentReplyInTransaction` writes a quote row from the snapshot's
-   * `price`, and a provisional figure must never reach it.
+   * `confirmReviewedSendInTransaction` writes a quote row from the reviewed
+   * artefact's frozen `price`, and a provisional figure must never reach it.
    */
   provisional?: { amountMinor: number; currency: "AUD"; service: string; workings: string };
   /**

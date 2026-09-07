@@ -24,10 +24,13 @@ import { isClosed, lockEnquiry } from "./decision-apply.ts";
  *  - a retry, a refresh or a lost response created a second send, because the
  *    idempotency key was a fresh uuid generated on every dialog open (P1-04).
  *
- * The last one is why identity is content-derived: one row per (enquiry,
- * decision revision, exact text). Preparing the same review twice returns the
- * same row, so every one of those recoveries confirms the SAME send. Two
- * genuinely different follow-ups differ in their text and get their own rows.
+ * The last one is why identity is content-derived: one row per (enquiry, exact
+ * text). The decision revision is deliberately NOT part of that key - recording
+ * a send bumps it, so including it would let a refresh-and-retry create a second
+ * artefact and record the same message twice. See migrations/0007 for the full
+ * reasoning. Preparing the same review twice returns the same row, so every one
+ * of those recoveries confirms the SAME send, while two genuinely different
+ * follow-ups differ in their text and get their own rows.
  */
 
 export type PrepareReviewInput = {
@@ -266,6 +269,8 @@ export async function prepareReviewedSendInTransaction(
     id: string;
     consumed_at: string | null;
     decision_revision: string | number;
+    amount_minor: string | number | null;
+    currency: string | null;
   }>`
     insert into reviewed_send
       (enquiry_id, business_id, reviewed_by, decision_revision, action, channel,
@@ -285,7 +290,7 @@ export async function prepareReviewedSendInTransaction(
     )
     on conflict (enquiry_id, body_hash)
       do update set reviewed_by = excluded.reviewed_by
-    returning id, consumed_at, decision_revision
+    returning id, consumed_at, decision_revision, amount_minor, currency
   `;
   if (!row) throw new Error("Could not prepare that send for review.");
 
@@ -299,8 +304,11 @@ export async function prepareReviewedSendInTransaction(
     channel: input.channel,
     action,
     body,
-    amountMinor: price?.kind === "EXACT" ? price.amountMinor : null,
-    currency: price?.currency ?? null,
+    // The artefact's OWN frozen figures, not the live snapshot's. An artefact
+    // that already existed keeps the amount it was prepared with, so this
+    // payload cannot report an old revision beside a new price.
+    amountMinor: row.amount_minor === null ? null : Number(row.amount_minor),
+    currency: row.currency,
     alreadyConfirmed: Boolean(row.consumed_at),
   };
 }

@@ -16,8 +16,8 @@ import { isClosed } from "./decision-apply.ts";
  * requests could both pass the check and both insert.
  *
  * There used to be a second entry point here, `recordSentReplyInTransaction`,
- * which took the body from the client and the amount from the enquiry's current
- * snapshot. That combination is what let a recorded message say AUD 500 beside
+ * now deleted, which took the body from the client and the amount from the
+ * enquiry's current snapshot. That combination is what let a recorded message say AUD 500 beside
  * a recorded quote saying AUD 580 (review P1-05), so it is gone rather than
  * kept alongside: two ways to record a send, one of them unsafe, is how the
  * unsafe one gets called.
@@ -172,6 +172,24 @@ export async function confirmReviewedSendInTransaction(
   sql: Sql,
   input: ConfirmReviewedSendInput,
 ): Promise<ConfirmReviewedSendResult> {
+  // Lock the ENQUIRY first, then the artefact - the same order
+  // `prepareReviewedSendInTransaction` takes them in. This function used to
+  // take them the other way round, so a prepare and a confirm racing on one
+  // enquiry could each hold what the other wanted and deadlock (40P01) on real
+  // Postgres. Invisible under single-connection PGLite, which is exactly why it
+  // has to be got right by construction rather than by testing.
+  const [enq] = await sql<{
+    lifecycle: string;
+    decision_revision: string | number;
+  }>`
+    select lifecycle, decision_revision from enquiry
+    where id = ${input.enquiryId}
+    for update
+  `;
+  if (!enq) {
+    return { ok: false, reason: "missing", message: "That enquiry no longer exists." };
+  }
+
   const [reviewed] = await sql<ReviewedSendRow>`
     select * from reviewed_send
     where id = ${input.reviewedSendId} and enquiry_id = ${input.enquiryId}
@@ -190,19 +208,6 @@ export async function confirmReviewedSendInTransaction(
   // all of them land here, and all of them are the same send.
   if (reviewed.consumed_at) {
     return { ok: true, duplicate: true, stale: false, messageId: reviewed.consumed_message_id };
-  }
-
-  const [enq] = await sql<{
-    lifecycle: string;
-    decision_revision: string | number;
-    customer_email: string;
-  }>`
-    select lifecycle, decision_revision, customer_email from enquiry
-    where id = ${input.enquiryId}
-    for update
-  `;
-  if (!enq) {
-    return { ok: false, reason: "missing", message: "That enquiry no longer exists." };
   }
 
   const reviewedRevision = Number(reviewed.decision_revision);

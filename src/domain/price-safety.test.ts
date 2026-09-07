@@ -343,3 +343,42 @@ test("A01: a provisional price implies the same amounts it would if confirmed", 
   assert.equal(out.kind, "PROVISIONAL");
   assert.deepEqual(impliedAmountsMinor(out), [14_500, 58_000]);
 });
+
+test("Q04/S-10: an open-ended quantity is a bound, not a number", () => {
+  // "4 plus" was read as exactly 4, quietly discarding the part that mattered,
+  // while "up to 5" was already caught. The inconsistency, not the parse, was
+  // the defect.
+  for (const value of [
+    "4 plus",
+    "4+",
+    "5 max",
+    "5 maximum",
+    "3 minimum",
+    "3 min",
+    "at least 4",
+    "at most 6",
+    "4 or more",
+    "6 or fewer",
+    "over 5",
+    "under 5",
+    "4 people maybe",
+    "roughly 4",
+    "about 4",
+  ]) {
+    const out = compilePrice([perPerson], "Group makeup", [confirmed("guests", value)]);
+    assert.equal(
+      out.kind,
+      "UNRESOLVED_QUANTITY",
+      `${JSON.stringify(value)} produced ${JSON.stringify(out)}`,
+    );
+  }
+});
+
+test("Q05/S-10: widening the markers must not swallow an ordinary answer", () => {
+  for (const value of ["4", "4 people", " 4 ", "4 guests", "4 adults"]) {
+    const out = compilePrice([makeupAt145], "Group makeup", [confirmed("guests", value)]);
+    assert.equal(out.kind, "EXACT", `${JSON.stringify(value)} must still price`);
+    if (out.kind !== "EXACT") continue;
+    assert.equal(out.amountMinor, 58_000);
+  }
+});

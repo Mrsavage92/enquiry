@@ -49,8 +49,44 @@ const SINGLE_NUMBER = /^\d{1,9}(?:\.\d{1,4})?$/;
  */
 const TRAILING_UNIT = /^[a-z][a-z\s.'-]*$/;
 
-const RANGE_MARKERS = [/\d\s*-\s*\d/, /\bto\b/, /\bbetween\b/, /–/, /—/, /\bup to\b/];
-const ALTERNATIVE_MARKERS = [/\bor\b/, /\//, /\bapprox\b/, /\baround\b/, /\bish\b/, /~/];
+/**
+ * Text that means "more than one possible quantity" rather than a quantity.
+ *
+ * Open-ended forms belong here as much as two-ended ones: "4 plus", "5 max" and
+ * "3 minimum" each describe a bound the owner has in mind, and reading them as
+ * the bare number quietly discards the part that mattered. "up to 5" was caught
+ * from the start and its siblings were not, which was an inconsistency rather
+ * than a decision.
+ */
+const RANGE_MARKERS = [
+  /\d\s*-\s*\d/,
+  /\bto\b/,
+  /\bbetween\b/,
+  /–/,
+  /—/,
+  /\bup to\b/,
+  /\bplus\b/,
+  /\+/,
+  /\bmax(imum)?\b/,
+  /\bmin(imum)?\b/,
+  /\bat least\b/,
+  /\bat most\b/,
+  /\bor more\b/,
+  /\bor fewer\b/,
+  /\bover\b/,
+  /\bunder\b/,
+];
+const ALTERNATIVE_MARKERS = [
+  /\bor\b/,
+  /\//,
+  /\bapprox\b/,
+  /\baround\b/,
+  /\bish\b/,
+  /~/,
+  /\bmaybe\b/,
+  /\broughly\b/,
+  /\babout\b/,
+];
 
 /**
  * Read one confirmed answer as a billable quantity, or explain why it is not

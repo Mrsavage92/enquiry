@@ -46,7 +46,7 @@ test("fixture content is demo-only", () => {
   assert.equal(mayShowFixtureContent({ demoMode: true }), true);
 });
 
-test("the Cmd/Ctrl+Enter workspace shortcut can only record a send in demo mode", () => {
+test("the Cmd/Ctrl+Enter workspace shortcut can record a send in no mode at all", () => {
   // A real send always goes through the same copy-and-record step as a
   // click on the Send button (which itself now always opens the approval
   // preview - see isCustomerFacingSend in commercial.ts). A keyboard

@@ -884,3 +884,104 @@ test("T05: a declined enquiry refuses a fresh confirmation outright", async () =
   assert.equal(res.ok, false);
   assert.equal((await counts(pg, ids.enquiryId)).messages, 0);
 });
+
+/**
+ * S-6: the SAVEPOINT retry inside `insertQuoteVersionWithRetry` is live code on
+ * the only path that records a quote, and both its branches lost their tests
+ * when the previous suite was deleted. Carried over here against the reviewed
+ * send path.
+ *
+ * Two genuinely concurrent sends can each compute the same "next" version;
+ * `unique (enquiry_id, version)` catches that, but a caught 23505 leaves the
+ * surrounding transaction ABORTED until a rollback, so the SAVEPOINT is what
+ * makes a retry possible at all. To reach it deterministically this rewrites
+ * the version expression to a version the test has already taken, forcing the
+ * collision, for the first `times` inserts only.
+ */
+function forceQuoteVersionCollisions(
+  run: <R>(text: string, params?: unknown[]) => Promise<R[]>,
+  collideAtVersion: number,
+  times: number,
+): Sql {
+  let remaining = times;
+  return (async <T>(strings: TemplateStringsArray, ...values: unknown[]) => {
+    let text = strings[0] ?? "";
+    for (let i = 0; i < values.length; i += 1) text += `$${i + 1}${strings[i + 1] ?? ""}`;
+    if (
+      remaining > 0 &&
+      text.includes("insert into quote_version") &&
+      text.includes("coalesce((select max(version)")
+    ) {
+      remaining -= 1;
+      // Keep the unused parameter referenced so Postgres can still infer it.
+      const replaced = text.replace(
+        /coalesce\(\(select max\(version\) from quote_version where enquiry_id = \$(\d+)\), 0\) \+ 1/,
+        (_m, n) => `(${collideAtVersion} + (length(cast($${n} as text)) * 0))`,
+      );
+      return run<T>(replaced, values);
+    }
+    return run<T>(text, values);
+  }) as never;
+}
+
+test("T04/S-6: a quote_version collision retries once and lands on the correct next version", async () => {
+  const pg = await freshDb();
+  const ids = await seed(pg);
+  await pg.query(
+    `insert into quote_version (enquiry_id, version, status, total_minor, currency, line_items, rule_set_version)
+     values ($1, 1, 'sent', 58000, 'AUD', '[]'::jsonb, '0')`,
+    [ids.enquiryId],
+  );
+  const prepared = await prepare(pg, ids, DRAFT);
+  assert.equal(prepared.ok, true);
+  if (!prepared.ok) return;
+
+  const res = await pg.transaction(async (tx) => {
+    const run = async <R>(text: string, params: unknown[] = []): Promise<R[]> =>
+      (await tx.query<R>(text, params)).rows;
+    return confirmReviewedSendInTransaction(forceQuoteVersionCollisions(run, 1, 1), {
+      reviewedSendId: prepared.reviewedSendId,
+      enquiryId: ids.enquiryId,
+      businessId: ids.businessId,
+      userId: USER,
+    });
+  });
+  assert.equal(res.ok, true);
+
+  const rows = await pg.query<{ version: number }>(
+    "select version from quote_version where enquiry_id = $1 order by version",
+    [ids.enquiryId],
+  );
+  assert.deepEqual(
+    rows.rows.map((r) => r.version),
+    [1, 2],
+    "the retry must land on the next free version, not overwrite or duplicate one",
+  );
+});
+
+test("T04/S-6: two collisions in a row surface a friendly retry message, not a raw Postgres error", async () => {
+  const pg = await freshDb();
+  const ids = await seed(pg);
+  await pg.query(
+    `insert into quote_version (enquiry_id, version, status, total_minor, currency, line_items, rule_set_version)
+     values ($1, 1, 'sent', 58000, 'AUD', '[]'::jsonb, '0')`,
+    [ids.enquiryId],
+  );
+  const prepared = await prepare(pg, ids, DRAFT);
+  if (!prepared.ok) return;
+
+  await assert.rejects(
+    pg.transaction(async (tx) => {
+      const run = async <R>(text: string, params: unknown[] = []): Promise<R[]> =>
+        (await tx.query<R>(text, params)).rows;
+      return confirmReviewedSendInTransaction(forceQuoteVersionCollisions(run, 1, 2), {
+        reviewedSendId: prepared.reviewedSendId,
+        enquiryId: ids.enquiryId,
+        businessId: ids.businessId,
+        userId: USER,
+      });
+    }),
+    /landed at the same moment - please try again/,
+    "an owner must get a sentence they can act on, not a constraint name",
+  );
+});
