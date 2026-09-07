@@ -90,8 +90,15 @@ async function seed(pg: PGlite, o: Seed = {}): Promise<{ businessId: string; enq
       reasonCodes: [],
       primaryEnabled: true,
     },
-    draft: { body: o.draftBody ?? "Hi Sarah,\n\nThat comes to $580.\n\nMina" },
+    draft: { body: o.draftBody ?? DRAFT },
     price: o.price === undefined ? { kind: "EXACT", amountMinor: 58_000, currency: "AUD" } : o.price,
+    // What the rule behind that price implies, exactly as
+    // `snapshotFromDecision` stores it. Present because the default draft
+    // above is the shape the product actually composes - a total AND the unit
+    // rate that multiplies out to it - and a seed carrying only the total is
+    // what let this suite stay green while every real per-unit quote was
+    // refused by the server.
+    impliedAmountsMinor: o.price === undefined ? [14_500, 58_000] : undefined,
     evaluators: [],
     explanation: o.reason ?? "4 people at $145 each.",
   };
@@ -151,7 +158,14 @@ async function confirm(pg: PGlite, ids: { businessId: string; enquiryId: string 
   );
 }
 
-const DRAFT = "Hi Sarah,\n\nThat comes to $580.\n\nMina";
+/**
+ * The shape `composeReply` actually produces for a per-unit quote: the total
+ * and the unit rate in one sentence. `composed-draft-send.db.test.ts` drives
+ * the real composer end to end; this constant keeps every case in THIS file
+ * honest about the body a live enquiry carries, rather than the single-figure
+ * body that hid the defect.
+ */
+const DRAFT = "Hi Sarah,\n\nThat comes to $580. 4 people at $145 each.\n\nMina";
 
 async function counts(pg: PGlite, enquiryId: string) {
   const msg = await pg.query<{ n: number }>(

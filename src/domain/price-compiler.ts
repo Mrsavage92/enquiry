@@ -341,3 +341,31 @@ export function compilePrice(
       : `${billable} ${pluraliseUnit(rule.unit, billable)} at $${rule.amount} each.`,
   );
 }
+
+/**
+ * Every amount a priced decision legitimately implies, in minor units.
+ *
+ * The reviewed message and the recorded quote must agree, but "agree" is not
+ * "name exactly one number". `composeReply` writes the product's own draft as
+ * "That comes to $580. 4 people at $145 each." - a total and the unit rate that
+ * multiplies out to it. Comparing every figure in that sentence against the
+ * total alone made the product's own unedited words unsendable on every
+ * per-unit quote, which is the rule kind this whole slice was specified around.
+ *
+ * So the allowed set is derived from the STRUCTURED rule - the total, the unit
+ * rate, and the minimum-billed total where one applies - never from parsing the
+ * prose. A figure outside this set was not implied by the decision, and is the
+ * disagreement the check exists to catch.
+ */
+export function impliedAmountsMinor(outcome: PriceOutcome): number[] {
+  if (outcome.kind !== "EXACT" && outcome.kind !== "PROVISIONAL") return [];
+  const rule = outcome.rule;
+  const out = new Set<number>([outcome.amountMinor]);
+  const rate = amountMinorFor(rule.amount, 1);
+  if (rate !== null) out.add(rate);
+  if (rule.kind === "per_unit" && rule.minimumQuantity) {
+    const floor = amountMinorFor(rule.amount, rule.minimumQuantity);
+    if (floor !== null) out.add(floor);
+  }
+  return [...out].sort((a, b) => a - b);
+}

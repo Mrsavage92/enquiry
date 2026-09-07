@@ -116,8 +116,29 @@ const SENDABLE = new Set([
  * would then say different things, and that is refused rather than recorded
  * with a warning attached. Repricing goes through the decision, not the
  * textarea.
+ *
+ * Two conditions, and both matter:
+ *
+ *  1. **Nothing unimplied.** Every figure named must be one the decision itself
+ *     implies - the total, the unit rate, or the minimum-billed total (see
+ *     `impliedAmountsMinor`). This is what lets the product send its own
+ *     composed draft, "That comes to $580. 4 people at $145 each.", which the
+ *     first version of this check refused on every per-unit quote because it
+ *     compared each figure against the total alone.
+ *  2. **The total is still stated.** If the message talks about money at all,
+ *     it must still name the amount the quote will be recorded at. Without
+ *     this, quietly replacing "$580" with "$145" would pass condition 1 - every
+ *     remaining figure is implied - while the message told the customer one
+ *     number and the quote recorded another.
+ *
+ * A message that names no money is left alone: the structured quote carries the
+ * figure, and an owner is allowed to write a covering note.
  */
-export function amountAgrees(body: string, price: DecisionPrice | null): boolean {
+export function amountAgrees(
+  body: string,
+  price: DecisionPrice | null,
+  impliedMinor: number[] = [],
+): boolean {
   const named = dollarAmounts(body);
   if (named.length === 0) return true;
   if (!price) {
@@ -125,11 +146,16 @@ export function amountAgrees(body: string, price: DecisionPrice | null): boolean
     // with, and recording it would create a quote-shaped message with no quote.
     return false;
   }
-  const allowed =
+  // The amounts that must appear, and the wider set that may.
+  const required =
     price.kind === "EXACT"
-      ? [price.amountMinor / 100]
-      : [price.minMinor / 100, price.maxMinor / 100];
-  return named.every((n) => allowed.includes(n));
+      ? [price.amountMinor]
+      : [price.minMinor, price.maxMinor];
+  const allowed = new Set<number>([...required, ...impliedMinor]);
+
+  if (!named.every((n) => allowed.has(Math.round(n * 100)))) return false;
+  const namedMinor = new Set(named.map((n) => Math.round(n * 100)));
+  return required.every((r) => namedMinor.has(r));
 }
 
 type SnapshotRow = {
@@ -140,6 +166,7 @@ type SnapshotRow = {
   action: string | null;
   reason: string | null;
   price: DecisionPrice | null;
+  implied_amounts: number[] | null;
   evaluators: EvaluatorResult[] | null;
   engine_version: string;
 };
@@ -170,6 +197,7 @@ export async function prepareReviewedSendInTransaction(
       decision_snapshot -> 'recommendation' ->> 'action' as action,
       decision_snapshot -> 'recommendation' ->> 'reason' as reason,
       decision_snapshot -> 'price' as price,
+      decision_snapshot -> 'impliedAmountsMinor' as implied_amounts,
       decision_snapshot -> 'evaluators' as evaluators,
       engine_version
     from enquiry where id = ${input.enquiryId}
@@ -212,7 +240,7 @@ export async function prepareReviewedSendInTransaction(
   }
 
   const price = enq.price ?? null;
-  if (!amountAgrees(input.body, price)) {
+  if (!amountAgrees(input.body, price, enq.implied_amounts ?? [])) {
     return {
       ok: false,
       reason: "amount_mismatch",

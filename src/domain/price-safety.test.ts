@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { compilePrice, matchRule } from "./price-compiler.ts";
+import { compilePrice, impliedAmountsMinor, matchRule } from "./price-compiler.ts";
 import type { BusinessRule, FixedPriceRule } from "./business-rule.ts";
 import type { CompilerFact } from "./price-compiler.ts";
 
@@ -299,4 +299,47 @@ test("A01: an unconfirmed service also leaves a per-unit price provisional, quan
   assert.equal(out.kind, "PROVISIONAL");
   if (out.kind !== "PROVISIONAL") return;
   assert.equal(out.amountMinor, 58_000);
+});
+
+// ---------------------------------------------------------------------------
+// CC1-05 - what a priced decision implies about money (B-1 regression)
+// ---------------------------------------------------------------------------
+
+test("P01/P02: a per-unit decision implies its total AND its unit rate", () => {
+  const out = compilePrice([makeupAt145], "Group makeup", [confirmed("guests", "4")]);
+  assert.equal(out.kind, "EXACT");
+  // "That comes to $580. 4 people at $145 each." - both figures come from the
+  // same structured rule, so neither is a disagreement.
+  assert.deepEqual(impliedAmountsMinor(out), [14_500, 58_000]);
+});
+
+test("P01/P02: a minimum-billed decision also implies the floor total", () => {
+  const out = compilePrice([makeupAt145Min3], "Group makeup", [confirmed("guests", "2")]);
+  assert.equal(out.kind, "EXACT");
+  assert.deepEqual(impliedAmountsMinor(out), [14_500, 43_500]);
+});
+
+test("P01: a fixed price implies exactly one amount", () => {
+  const out = compilePrice([bridal], "Bridal makeup", [confirmed("service", "Bridal makeup")]);
+  assert.deepEqual(impliedAmountsMinor(out), [19_000]);
+});
+
+test("P01: an unpriced outcome implies no amounts at all", () => {
+  for (const out of [
+    compilePrice([makeupAt145], "Group makeup", []),
+    compilePrice([bridal], "Plumbing", []),
+    compilePrice([bridal, event], "makeup", []),
+    compilePrice([makeupAt145], "Group makeup", [confirmed("guests", "5-6")]),
+  ]) {
+    assert.deepEqual(impliedAmountsMinor(out), [], `${out.kind} must imply nothing`);
+  }
+});
+
+test("A01: a provisional price implies the same amounts it would if confirmed", () => {
+  const out = compilePrice([makeupAt145], "Group makeup", [
+    confirmed("guests", "4"),
+    { field: "service", value: "Group makeup", status: "check_this" },
+  ]);
+  assert.equal(out.kind, "PROVISIONAL");
+  assert.deepEqual(impliedAmountsMinor(out), [14_500, 58_000]);
 });

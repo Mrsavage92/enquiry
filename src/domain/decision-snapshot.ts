@@ -1,5 +1,6 @@
 import type { Decision } from "./decide.ts";
 import { composeReply } from "./compose-reply.ts";
+import { impliedAmountsMinor } from "./price-compiler.ts";
 import type { CommercialState, DecisionSnapshot, DecisionState, Recommendation, Responsibility } from "./types";
 
 /**
@@ -110,6 +111,10 @@ export function snapshotFromDecision(
     // The choices an ambiguous request leaves open, so the desk asks which one
     // rather than presenting whichever rule happened to be listed first.
     conflicts: decision.serviceChoices ?? base.conflicts,
+    // What the reviewed message is allowed to say about money. Stored with the
+    // decision because it is derived from the rule that produced the price, not
+    // from the text of any particular draft.
+    impliedAmountsMinor: impliedAmountsMinor(decision.price),
   };
 }
 
