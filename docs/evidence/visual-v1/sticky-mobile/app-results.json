@@ -1,0 +1,42 @@
+{
+  "queueScrollInfo": {
+    "hasAppRoot": true,
+    "htmlOverflow": "hidden",
+    "bodyOverflow": "hidden",
+    "appRootOverflow": "hidden"
+  },
+  "queueConsole": [],
+  "bottomBarBeforeScroll": [
+    {
+      "tag": "DIV",
+      "cls": "app-root flex h-dvh flex-col overflow-hidden bg-paper text-ink",
+      "rect": {
+        "x": 0,
+        "y": 0,
+        "width": 390,
+        "height": 800,
+        "top": 0,
+        "right": 390,
+        "bottom": 800,
+        "left": 0
+      }
+    }
+  ],
+  "bottomBarAfterScroll": [
+    {
+      "tag": "DIV",
+      "cls": "app-root flex h-dvh flex-col overflow-hidden bg-paper text-ink",
+      "rect": {
+        "x": 0,
+        "y": 0,
+        "width": 390,
+        "height": 800,
+        "top": 0,
+        "right": 390,
+        "bottom": 800,
+        "left": 0
+      }
+    }
+  ],
+  "enquiryConsole": []
+}

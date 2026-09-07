@@ -983,8 +983,22 @@ html.embed .site-nav {
 }
 
 @media (max-width: 860px) {
-  html:not(:has(.app-root)),
-  html:not(:has(.app-root)) body {
+  /*
+    Marketing pages only (.app-root absent). Previously this rule also
+    applied to body, giving both html and body an overflow-y: auto scroll
+    box. body's own height is never less than its content (height: auto, no
+    cap), so it can never actually scroll internally - but merely declaring
+    overflow-y: auto makes it a scroll container per the CSS Position spec,
+    and position: sticky computes against the *nearest* scroll-container
+    ancestor. Below 860px that ancestor became body, whose scrollTop never
+    moves (window.scrollTo only moves html, the real
+    document.scrollingElement), so every sticky element on these pages -
+    not just this rule's own target - silently stopped pinning. html alone
+    already carries overflow-y: auto unconditionally (see the base `html`
+    rule above), so dropping body here restores the single-scroll-container
+    setup that already works at >=860px, with no visual change to layout.
+  */
+  html:not(:has(.app-root)) {
     height: auto;
     overflow-x: clip;
     overflow-y: auto;
