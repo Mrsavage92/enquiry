@@ -16,12 +16,14 @@ const SHARE_META_KEYS = new Set([
   "og:image",
   "og:image:width",
   "og:image:height",
+  "og:image:alt",
   "og:type",
   "og:url",
   "og:site_name",
   "twitter:card",
   "twitter:title",
   "twitter:image",
+  "twitter:image:alt",
   "twitter:description",
   "x:game:image",
   "x:game:image:width",
@@ -410,6 +412,13 @@ export function grokOgHeadTags({
     tags.push(`<meta property="og:image" content="${escapeHtml(image)}">`);
     tags.push(`<meta property="og:image:width" content="1200">`);
     tags.push(`<meta property="og:image:height" content="630">`);
+    // Only a real on-disk card gets a hand-written alt - the dynamically
+    // generated og.grok.me placeholder has no fixed content to describe.
+    const imageAlt = custom ? String(site.imageAlt ?? "").trim() : "";
+    if (imageAlt) {
+      tags.push(`<meta property="og:image:alt" content="${escapeHtml(imageAlt)}">`);
+      tags.push(`<meta name="twitter:image:alt" content="${escapeHtml(imageAlt)}">`);
+    }
     const banner = String(site.banner ?? "").trim();
     if (banner) {
       const bannerUrl = `https://${publicHost}${banner.startsWith("/") ? banner : `/${banner}`}`;
@@ -486,13 +495,9 @@ export function injectGrokPwaHead(html, ctx = {}) {
   const { site, projectId, creator, creatorId, host, cwd, siteIsExplicit, consultFs } =
     normalizeHeadContext(ctx);
   const documentTitle = titleFromDocument(html);
-  const appName = resolveOgTitle(
-    site,
-    ctx.appName ?? DEFAULT_APP_NAME,
-    host,
-    documentTitle,
-    { siteIsExplicit },
-  );
+  const appName = resolveOgTitle(site, ctx.appName ?? DEFAULT_APP_NAME, host, documentTitle, {
+    siteIsExplicit,
+  });
   let next = stripShareMetaTags(html);
 
   const missing = grokPwaHeadTags(appName)
