@@ -50,6 +50,8 @@ const lineStrong = "#cfc4b4";
 // Part 1 fixes.
 const stoneOnPaper2 = "#686259";
 const lineControl = "#8e867a";
+const warn = "#8f5a00";
+const warnOnPaper2 = "#8a5700";
 
 test("baseline: --color-stone still passes on paper and raised, unchanged", () => {
   assert.ok(contrastRatio(stone, paper) >= AA_NORMAL_TEXT);
@@ -73,6 +75,20 @@ test("baseline: --color-line-strong is the documented pre-fix control-outline fa
 test("Part 1 fix: --color-line-control clears 3:1 on both paper and raised", () => {
   assert.ok(contrastRatio(lineControl, paper) >= AA_NON_TEXT);
   assert.ok(contrastRatio(lineControl, raised) >= AA_NON_TEXT);
+});
+
+test("baseline: --color-warn passes on paper and raised, unchanged", () => {
+  assert.ok(contrastRatio(warn, paper) >= AA_NORMAL_TEXT);
+  assert.ok(contrastRatio(warn, raised) >= AA_NORMAL_TEXT);
+});
+
+test("baseline: --color-warn on --color-paper-2 is a real failure, found by the computed-style sweep", () => {
+  const ratio = contrastRatio(warn, paper2);
+  assert.ok(ratio < AA_NORMAL_TEXT, `expected the known failure, got ${ratio}`);
+});
+
+test("review follow-up fix: --color-warn-on-paper-2 clears 4.5:1 on paper-2", () => {
+  assert.ok(contrastRatio(warnOnPaper2, paper2) >= AA_NORMAL_TEXT);
 });
 
 // Palette B ("refined warm") - values transcribed from
@@ -110,10 +126,11 @@ test("Palette B: action foreground and sidebar foreground pass", () => {
 });
 
 test("Part 1 fixes inherited under Palette B still clear their gates (no regression)", () => {
-  // --color-stone-on-paper-2 and --color-line-control are NOT part of the
-  // study - Palette B does not override them, so they keep their Part-1
-  // hex values while the surfaces around them change under B.
+  // --color-stone-on-paper-2, --color-line-control and --color-warn-on-paper-2
+  // are NOT part of the study - Palette B does not override them, so they
+  // keep their Part-1 hex values while the surfaces around them change under B.
   assert.ok(contrastRatio(stoneOnPaper2, bPaper2) >= AA_NORMAL_TEXT);
   assert.ok(contrastRatio(lineControl, bPaper) >= AA_NON_TEXT);
   assert.ok(contrastRatio(lineControl, bRaised) >= AA_NON_TEXT);
+  assert.ok(contrastRatio(warnOnPaper2, bPaper2) >= AA_NORMAL_TEXT);
 });

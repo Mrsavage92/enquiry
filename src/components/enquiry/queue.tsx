@@ -387,7 +387,7 @@ export function Queue({ activeId, phone = false }: { activeId?: string; phone?: 
                       </div>
                       <p className="mt-0.5 truncate text-sm text-ink-2">
                         {e.serviceLabel}
-                        <span className="text-stone">
+                        <span className="text-stone-on-paper-2">
                           {" · "}
                           {channelLabel(e.source)}
                           {" · "}
@@ -412,7 +412,7 @@ export function Queue({ activeId, phone = false }: { activeId?: string; phone?: 
                         <Badge tone={statusTone(e)}>{derivedLabel(e.state, e)}</Badge>
                       </div>
                       {blocking ? (
-                        <p className="mt-1 text-2xs text-warn">
+                        <p className="mt-1 text-2xs text-warn-on-paper-2">
                           {queueSituationLabel(situation.kind)}
                         </p>
                       ) : null}
@@ -429,7 +429,7 @@ export function Queue({ activeId, phone = false }: { activeId?: string; phone?: 
                         {e.serviceLabel}
                         {e.dateLabel ? ` · ${e.dateLabel}` : ""}
                       </p>
-                      <div className="mt-2 flex items-baseline justify-between gap-2 text-xs text-stone">
+                      <div className="mt-2 flex items-baseline justify-between gap-2 text-xs text-stone-on-paper-2">
                         {situation?.kind === "evaluating" ? (
                           <span className="text-ink-2">Reading</span>
                         ) : showValue ? (
@@ -440,11 +440,11 @@ export function Queue({ activeId, phone = false }: { activeId?: string; phone?: 
                         <span className="shrink-0">{queueTime(e)}</span>
                       </div>
                       {situation && situation.kind !== "evaluating" ? (
-                        <p className="mt-1 text-2xs text-warn">
+                        <p className="mt-1 text-2xs text-warn-on-paper-2">
                           {queueSituationLabel(situation.kind)}
                         </p>
                       ) : null}
-                      <p className="mt-1 text-2xs text-stone">
+                      <p className="mt-1 text-2xs text-stone-on-paper-2">
                         {businessFilter === "all" && business?.name ? `${business.name} · ` : ""}
                         {channelLabel(e.source)}
                       </p>

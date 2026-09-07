@@ -100,12 +100,13 @@ function How() {
       <section className="border-t border-line bg-paper-2">
         <div className="mx-auto max-w-5xl px-5 py-10 sm:py-16">
           <Reveal>
-            <p className="eyebrow">When the price can be decided</p>
+            <p className="eyebrow text-stone-on-paper-2">When the price can be decided</p>
             <h2 className="mt-3 max-w-2xl text-2xl font-semibold tracking-tight sm:text-3xl">
               A different job. Exact quote, ready to send.
             </h2>
             <p className="mt-3 max-w-xl text-sm leading-relaxed text-ink-2">
-              Some enquiries resolve to a number. That is still Enquiry - it is not the whole product.
+              Some enquiries resolve to a number. That is still Enquiry - it is not the whole
+              product.
             </p>
           </Reveal>
           <div className="mt-8">

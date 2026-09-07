@@ -58,6 +58,18 @@
   */
   --color-mark-strong: color-mix(in oklab, var(--color-mark) 82%, black);
   --color-warn: #8f5a00;
+  /*
+    Same failure as --color-stone-on-paper-2 above, found by a computed-style
+    sweep rather than a grep: plain (unpilled) --color-warn text measures
+    5.01:1 on paper and 5.41:1 on raised, but 4.38:1 on --color-paper-2 -
+    below 4.5:1. Reachable wherever a queue row's blocking-situation label
+    (queue.tsx) renders on the row's hover/active paper-2 background, with
+    no --color-warn-bg pill underneath to lift the surface first. #8a5700
+    measures 4.62:1 on paper-2 - the smallest step that clears AA there
+    without touching the passing --color-warn value used everywhere else
+    (including every --color-warn-bg pill, which stays untouched).
+  */
+  --color-warn-on-paper-2: #8a5700;
   --color-warn-bg: #f7edd4;
   --color-danger: #b42318;
   --color-danger-bg: #f8ece8;
