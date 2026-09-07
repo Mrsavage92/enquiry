@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { txRunner } from "./pglite-tx.ts";
 import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import test from "node:test";
@@ -121,6 +122,7 @@ test("A01: a model-proposed fixed-price service is provisional, never a ready qu
     messageId,
     rawMessage: "Hi, after bridal makeup for my wedding",
     interpreter: fixedInterpreter(proposesBridal()),
+    runInTransaction: txRunner(pg),
   });
 
   const enq = await readEnquiry(pg, enquiryId);
@@ -195,6 +197,7 @@ test("A03: a model that never answers leaves the enquiry without a confirmed ser
     businessId,
     messageId,
     rawMessage: "hello?",
+    runInTransaction: txRunner(pg),
     interpreter: {
       async interpret() {
         return { ok: false, reason: "provider_error" };
@@ -231,6 +234,7 @@ test("A02: confirming the service recomputes to a real quote, and it survives a 
     messageId,
     rawMessage: "after bridal makeup",
     interpreter: fixedInterpreter(proposesBridal()),
+    runInTransaction: txRunner(pg),
   });
   assert.equal((await readEnquiry(pg, enquiryId)).decision_snapshot.price, undefined);
 
@@ -312,6 +316,7 @@ test("A04: a model result arriving after the owner set the service never overrid
     messageId,
     rawMessage: "wedding stuff",
     interpreter: fixedInterpreter(proposesBridal()),
+    runInTransaction: txRunner(pg),
   });
 
   const enq = await readEnquiry(pg, enquiryId);

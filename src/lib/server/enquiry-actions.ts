@@ -151,6 +151,12 @@ export const createManualEnquiry = createServerFn({ method: "POST" })
         messageId,
         rawMessage: data.body,
         interpreter: createInterpreter(),
+        // The reads that build the prompt, and the provider call itself, run on
+        // the pool - a model taking eight seconds must not hold a transaction
+        // open. Everything it writes afterwards runs inside ONE, because a
+        // `for update` issued on a pooled connection is released at the end of
+        // its own statement and guards nothing.
+        runInTransaction: withTransaction,
       });
     } catch (err) {
       console.error("[interpret] best-effort read of a new enquiry failed:", err);

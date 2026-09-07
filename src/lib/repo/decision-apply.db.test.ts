@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { txRunner } from "./pglite-tx.ts";
 import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import test from "node:test";
@@ -234,6 +235,7 @@ test("T02: an interpreter result landing after an owner's confirm never overwrit
     messageId: messageRows.rows[0]!.id,
     rawMessage: "twelve of us",
     interpreter: late,
+    runInTransaction: txRunner(pg),
   });
 
   const after = await readEnquiry(pg, ids.enquiryId);
@@ -270,6 +272,7 @@ test("T05: an interpreter result landing after the enquiry is closed leaves it c
     businessId: ids.businessId,
     messageId: messageRows.rows[0]!.id,
     rawMessage: "four of us",
+    runInTransaction: txRunner(pg),
     interpreter: {
       async interpret() {
         return {
@@ -309,4 +312,71 @@ test("isClosed names every lifecycle a late write must not disturb", () => {
   assert.equal(isClosed("DECLINED"), true);
   assert.equal(isClosed("LOST"), true);
   assert.equal(isClosed("BOOKED"), true);
+});
+
+test("B-3/T02: the interpreter's write-back is one transaction - a failure in it leaves nothing behind", async () => {
+  // The production call site used to hand interpretAndApply a pooled `Sql`, so
+  // every statement was its own implicit transaction and the `for update` it
+  // takes guarded nothing. This proves the boundary exists: a failure part-way
+  // through the write-back must roll back the facts it had already written, not
+  // leave the enquiry carrying a model's fact under the previous decision.
+  const pg = await freshDb();
+  const ids = await seedWorkspace(pg);
+  const messageRows = await pg.query<{ id: string }>(
+    "select id from message where enquiry_id = $1",
+    [ids.enquiryId],
+  );
+  const before = await readEnquiry(pg, ids.enquiryId);
+
+  const failingRunner = <T,>(fn: (sql: Sql) => Promise<T>): Promise<T> =>
+    pg.transaction(async (tx) => {
+      const sql = (async <R,>(strings: TemplateStringsArray, ...values: unknown[]) => {
+        let text = strings[0] ?? "";
+        for (let i = 0; i < values.length; i += 1) text += `$${i + 1}${strings[i + 1] ?? ""}`;
+        // Fail once the facts are in but before the decision is stored.
+        if (text.includes("set decision_snapshot")) throw new Error("injected failure");
+        const res = await tx.query<R>(text, values);
+        return res.rows;
+      }) as never as Sql;
+      return fn(sql);
+    }) as Promise<T>;
+
+  await assert.rejects(
+    interpretAndApply(sqlFor(pg), {
+      enquiryId: ids.enquiryId,
+      businessId: ids.businessId,
+      messageId: messageRows.rows[0]!.id,
+      rawMessage: "four of us",
+      runInTransaction: failingRunner,
+      interpreter: {
+        async interpret() {
+          return {
+            ok: true,
+            model: "fake-model-test",
+            result: {
+              serviceCandidate: null,
+              facts: [
+                { field: "guests", value: "4", displayValue: "4", confidence: "high", span: "four" },
+              ],
+              ambiguities: [],
+              candidateMissingFacts: [],
+            },
+          };
+        },
+      },
+    }),
+  );
+
+  const facts = await pg.query<{ field: string }>(
+    "select field from enquiry_fact where enquiry_id = $1 and asserted_by = 'system' and superseded = false",
+    [ids.enquiryId],
+  );
+  assert.equal(facts.rows.length, 0, "a model fact must not survive its own decision failing");
+  const after = await readEnquiry(pg, ids.enquiryId);
+  assert.equal(after.decision_revision, before.decision_revision, "no half-applied revision");
+  const audit = await pg.query<{ n: number }>(
+    "select count(*)::int as n from audit_event where object_id = $1 and actor = 'system'",
+    [ids.enquiryId],
+  );
+  assert.equal(audit.rows[0]!.n, 0, "no audit line for a write-back that rolled back");
 });

@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { txRunner } from "./pglite-tx.ts";
 import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import test from "node:test";
@@ -148,6 +149,7 @@ test("a medium-confidence fact lands as inferred, with model provenance, never c
     messageId,
     rawMessage: "Need makeup for 4 people",
     interpreter: fixedInterpreter(result),
+    runInTransaction: txRunner(pg),
   });
   assert.equal(outcome.ok, true);
   if (!outcome.ok) return;
@@ -202,6 +204,7 @@ test("a low-confidence fact lands as check_this, not inferred", async () => {
     messageId,
     rawMessage: "maybe 4ish?",
     interpreter: fixedInterpreter(result),
+    runInTransaction: txRunner(pg),
   });
 
   const facts = await pg.query<{ status: string }>(
@@ -239,6 +242,7 @@ test("a service candidate matching an Active rule sets service_label and writes 
     messageId,
     rawMessage: "Hi! Need makeup for a group",
     interpreter: fixedInterpreter(result),
+    runInTransaction: txRunner(pg),
   });
 
   const enq = await pg.query<{ service_label: string }>(
@@ -285,6 +289,7 @@ test("a service candidate matching no Active rule never touches service_label", 
     messageId,
     rawMessage: "Do you do wedding photography?",
     interpreter: fixedInterpreter(result),
+    runInTransaction: txRunner(pg),
   });
 
   const enq = await pg.query<{ service_label: string }>(
@@ -330,6 +335,7 @@ test("a service candidate is ignored when the operator already typed a service",
     messageId,
     rawMessage: "Need makeup for 4 people",
     interpreter: fixedInterpreter(result),
+    runInTransaction: txRunner(pg),
   });
 
   const enq = await pg.query<{ service_label: string }>(
@@ -363,6 +369,7 @@ test("a failed interpretation writes the honest 'could not read' audit line and 
     messageId,
     rawMessage: "whatever",
     interpreter: failingInterpreter("no_provider"),
+    runInTransaction: txRunner(pg),
   });
   assert.deepEqual(outcome, { ok: false, reason: "no_provider" });
 
@@ -402,6 +409,7 @@ test("every classified interpreter failure reason writes the same honest audit l
       messageId,
       rawMessage: "whatever",
       interpreter: failingInterpreter(reason),
+      runInTransaction: txRunner(pg),
     });
     assert.deepEqual(outcome, { ok: false, reason });
 
@@ -450,6 +458,7 @@ test("a successful read records the audit line naming the model and the fact cou
     messageId,
     rawMessage: "Need makeup for 4 people",
     interpreter: fixedInterpreter(result, "claude-haiku-4-5"),
+    runInTransaction: txRunner(pg),
   });
 
   const audit = await pg.query<{ summary: string; detail: string }>(
@@ -557,6 +566,7 @@ test("an inferred quantity never prices the enquiry - decision stays BLOCKED unt
     messageId,
     rawMessage: "Need makeup for 4 people",
     interpreter: fixedInterpreter(result),
+    runInTransaction: txRunner(pg),
   });
 
   // The inferred fact now sits in the array. The decision must still be
@@ -639,6 +649,7 @@ test("an injection-shaped message never yields a confirmed fact, a price, or sta
     messageId,
     rawMessage: injected,
     interpreter: fixedInterpreter(result),
+    runInTransaction: txRunner(pg),
   });
   assert.equal(outcome.ok, true);
   if (!outcome.ok) return;
@@ -748,6 +759,7 @@ test("a fact confirmed before interpretAndApply runs survives untouched - no inf
     messageId,
     rawMessage: "Need makeup for 4 people",
     interpreter: fixedInterpreter(result),
+    runInTransaction: txRunner(pg),
   });
   assert.equal(outcome.ok, true);
   if (!outcome.ok) return;
@@ -864,6 +876,7 @@ test("a service set via setEnquiryService before interpretAndApply runs is never
     messageId,
     rawMessage: "Hi, need help for the big day",
     interpreter: fixedInterpreter(result),
+    runInTransaction: txRunner(pg),
   });
   assert.equal(outcome.ok, true);
   if (!outcome.ok) return;
