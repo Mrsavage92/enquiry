@@ -1,0 +1,42 @@
+=== npm run preview (built .vercel/output via Nitro, port 8081) ===
+--- GET / ---
+HTTP/1.1 200 
+Vary: Origin
+content-type: text/html; charset=utf-8
+permissions-policy: camera=(), microphone=(), geolocation=()
+referrer-policy: strict-origin-when-cross-origin
+x-content-type-options: nosniff
+x-frame-options: DENY
+Date: Mon, 07 Sep 2026 00:10:42 GMT
+Connection: keep-alive
+Keep-Alive: timeout=5
+
+--- GET /how ---
+HTTP/1.1 200 
+Vary: Origin
+content-type: text/html; charset=utf-8
+permissions-policy: camera=(), microphone=(), geolocation=()
+referrer-policy: strict-origin-when-cross-origin
+x-content-type-options: nosniff
+x-frame-options: DENY
+Date: Mon, 07 Sep 2026 00:10:42 GMT
+Connection: keep-alive
+Keep-Alive: timeout=5
+
+--- GET /nope (404, static-simulator gap noted in report) ---
+HTTP/1.1 404 
+Vary: Origin
+content-type: text/html; charset=utf-8
+Date: Mon, 07 Sep 2026 00:10:42 GMT
+Connection: keep-alive
+Keep-Alive: timeout=5
+
+
+=== npm run dev (plain vite dev, port 5177) - nitro plugin NOT loaded, headers expected absent ===
+HTTP/1.1 200 
+Vary: Origin
+content-type: text/html; charset=utf-8
+Date: Mon, 07 Sep 2026 00:10:42 GMT
+Connection: keep-alive
+Keep-Alive: timeout=5
+
