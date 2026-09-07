@@ -6,6 +6,7 @@ import { PGlite } from "@electric-sql/pglite";
 import type { Sql } from "../db.ts";
 import { prepareReviewedSendInTransaction } from "./reviewed-send-core.ts";
 import { confirmReviewedSendInTransaction } from "./sent-reply-core.ts";
+import { declineEnquiryInTransaction } from "./close-enquiry-core.ts";
 import type { Channel } from "../../domain/types.ts";
 
 /**
@@ -795,4 +796,91 @@ test("T05: a closed enquiry cannot even have a new send prepared for it", async 
   assert.equal(res.ok, false);
   if (res.ok) return;
   assert.equal(res.reason, "closed");
+});
+
+test("T05/P05: a client staleAttestation flag cannot revive a declined enquiry", async () => {
+  // The threat model P05 names: a crafted call from an authenticated member of
+  // the tenant. The lifecycle guard used to be gated on this client boolean, so
+  // passing it reopened a DECLINED enquiry to WAITING_ON_CLIENT / QUOTED with a
+  // live `sent` quote against it.
+  const pg = await freshDb();
+  const ids = await seed(pg);
+  const prepared = await prepare(pg, ids, DRAFT);
+  assert.equal(prepared.ok, true);
+  if (!prepared.ok) return;
+
+  await inTransaction(pg, (sql) =>
+    declineEnquiryInTransaction(sql, {
+      enquiryId: ids.enquiryId,
+      businessId: ids.businessId,
+      userId: USER,
+      reason: "not a fit",
+    }),
+  );
+
+  const res = await confirm(pg, ids, prepared.reviewedSendId, true);
+
+  const state = await pg.query<{
+    lifecycle: string;
+    decision_state: string;
+    commercial_state: string;
+    responsibility: string;
+    value_exact_minor: number | null;
+  }>(
+    "select lifecycle, decision_state, commercial_state, responsibility, value_exact_minor from enquiry where id = $1",
+    [ids.enquiryId],
+  );
+  const after = state.rows[0]!;
+  assert.equal(after.lifecycle, "DECLINED");
+  assert.notEqual(after.decision_state, "WAITING_ON_CLIENT", "a declined enquiry must not reopen");
+  assert.notEqual(after.commercial_state, "QUOTED");
+  assert.notEqual(after.responsibility, "CUSTOMER");
+  assert.equal(after.value_exact_minor, null, "a declined enquiry gains no live quote value");
+
+  const live = await pg.query<{ status: string }>(
+    "select status from quote_version where enquiry_id = $1",
+    [ids.enquiryId],
+  );
+  for (const row of live.rows) {
+    assert.notEqual(row.status, "sent", "no live sent quote against a declined enquiry");
+  }
+  assert.ok(res.ok !== undefined);
+});
+
+test("T05: declining bumps the decision revision, so every outstanding review goes stale", async () => {
+  const pg = await freshDb();
+  const ids = await seed(pg);
+  const before = await enquiryState(pg, ids.enquiryId);
+  await inTransaction(pg, (sql) =>
+    declineEnquiryInTransaction(sql, {
+      enquiryId: ids.enquiryId,
+      businessId: ids.businessId,
+      userId: USER,
+      reason: "",
+    }),
+  );
+  const after = await enquiryState(pg, ids.enquiryId);
+  assert.equal(
+    after.decision_revision,
+    before.decision_revision + 1,
+    "a decline changes the decision, so an artefact frozen before it is stale",
+  );
+});
+
+test("T05: a declined enquiry refuses a fresh confirmation outright", async () => {
+  const pg = await freshDb();
+  const ids = await seed(pg);
+  const prepared = await prepare(pg, ids, DRAFT);
+  if (!prepared.ok) return;
+  await inTransaction(pg, (sql) =>
+    declineEnquiryInTransaction(sql, {
+      enquiryId: ids.enquiryId,
+      businessId: ids.businessId,
+      userId: USER,
+      reason: "",
+    }),
+  );
+  const res = await confirm(pg, ids, prepared.reviewedSendId, false);
+  assert.equal(res.ok, false);
+  assert.equal((await counts(pg, ids.enquiryId)).messages, 0);
 });

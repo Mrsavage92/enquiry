@@ -43,7 +43,14 @@ export async function declineEnquiryInTransaction(
     update enquiry
     set lifecycle = ${"DECLINED"}, decision_state = ${"NONE"}, responsibility = ${"NONE"},
         follow_up_due = ${false}, follow_up_reason = ${null}, at_risk = ${false},
-        snoozed_until = ${null}, updated_at = now()
+        snoozed_until = ${null},
+        -- Closing an enquiry IS a decision about it, so it moves the revision
+        -- like any other. That is what makes every send review frozen before
+        -- the decline stale, and therefore refused, rather than leaving an
+        -- outstanding approval that still looks current against a closed
+        -- enquiry.
+        decision_revision = decision_revision + 1,
+        updated_at = now()
     where id = ${input.enquiryId} and lifecycle <> ${"DECLINED"}
     returning id
   `;

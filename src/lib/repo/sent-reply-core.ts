@@ -226,7 +226,19 @@ export async function confirmReviewedSendInTransaction(
     };
   }
 
-  if (isClosed(enq.lifecycle) && !input.staleAttestation) {
+  // The lifecycle guard is the server's own, and it is not negotiable by
+  // anything the caller sends. It used to be gated on `input.staleAttestation`,
+  // so a crafted call carrying that boolean walked straight past it and revived
+  // a DECLINED enquiry to WAITING_ON_CLIENT / QUOTED with a live sent quote
+  // against it - exactly the bypass acceptance P05 exists to prevent, and the
+  // opposite of what T05 requires.
+  //
+  // `stale` above is computed here from the stored revisions, never asserted by
+  // the caller, and declining now bumps that revision - so an artefact prepared
+  // before a close is always stale, and a fresh one against a closed enquiry
+  // never gets past this line.
+  const closed = isClosed(enq.lifecycle);
+  if (closed && !stale) {
     return {
       ok: false,
       reason: "closed",
@@ -273,8 +285,10 @@ export async function confirmReviewedSendInTransaction(
 
   // A stale attestation records history without rewriting the present: the
   // newer decision keeps its own state, and no responsibility transfer is
-  // implied by a message the owner sent before it existed.
-  if (!stale) {
+  // implied by a message the owner sent before it existed. A closed enquiry
+  // never advances either, whatever the caller claims - the send is real and is
+  // recorded, but a declined enquiry does not acquire a waiting customer.
+  if (!stale && !closed) {
     const commercialState =
       reviewed.action === "SEND_QUOTE"
         ? "QUOTED"
@@ -311,11 +325,11 @@ export async function confirmReviewedSendInTransaction(
         select
           ${input.enquiryId},
           coalesce((select max(version) from quote_version where enquiry_id = ${input.enquiryId}), 0) + 1,
-          ${stale ? "superseded" : "sent"}, now(), ${amountMinor}, ${currency},
+          ${stale || closed ? "superseded" : "sent"}, now(), ${amountMinor}, ${currency},
           ${JSON.stringify(lineItems)}::jsonb, ${reviewed.engine_version ?? "0"}, ${reviewed.id}
       `,
     );
-    if (!stale) {
+    if (!stale && !closed) {
       await sql`
         update enquiry
         set value_exact_minor = ${amountMinor}, currency = ${currency}, updated_at = now()
@@ -343,11 +357,11 @@ export async function confirmReviewedSendInTransaction(
         select
           ${input.enquiryId},
           coalesce((select max(version) from quote_version where enquiry_id = ${input.enquiryId}), 0) + 1,
-          ${stale ? "superseded" : "sent"}, now(), ${rangeMin}, ${rangeMax}, ${currency},
+          ${stale || closed ? "superseded" : "sent"}, now(), ${rangeMin}, ${rangeMax}, ${currency},
           ${JSON.stringify(lineItems)}::jsonb, ${reviewed.engine_version ?? "0"}, ${reviewed.id}
       `,
     );
-    if (!stale) {
+    if (!stale && !closed) {
       await sql`
         update enquiry
         set value_range_min_minor = ${rangeMin}, value_range_max_minor = ${rangeMax},
@@ -364,10 +378,16 @@ export async function confirmReviewedSendInTransaction(
     insert into audit_event (business_id, actor, summary, detail, object_type, object_id)
     values (
       ${input.businessId}, ${input.userId},
-      ${stale ? `${summary} (an earlier approved message, recorded after the enquiry moved on)` : summary},
+      ${
+        closed
+          ? `${summary} (recorded against a closed enquiry, which was left closed)`
+          : stale
+            ? `${summary} (an earlier approved message, recorded after the enquiry moved on)`
+            : summary
+      },
       ${`Reason: ${reviewed.reason || "no reason recorded"}. Reviewed revision: ${reviewedRevision}.${
         stale ? ` Current revision: ${currentRevision}. The newer decision was left unchanged.` : ""
-      }`},
+      }${closed ? " The enquiry is closed and was not reopened." : ""}`},
       ${"enquiry"}, ${input.enquiryId}
     )
   `;
