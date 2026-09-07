@@ -1,20 +1,30 @@
 import { format, formatDistanceToNow, parseISO } from "date-fns";
 import { enAU } from "date-fns/locale";
 
-export { channelLabel, identityLine, replyChannel, replyTo, isShortChannel, threadLabel } from "./channel";
+export {
+  channelLabel,
+  identityLine,
+  replyChannel,
+  replyTo,
+  isShortChannel,
+  threadLabel,
+} from "./channel";
 
-/** Wall-clock from the timestamp, ignoring the viewer's zone. */
+/**
+ * Business wall-clock (Australia/Brisbane) for a timestamp, converted from
+ * whatever offset it was written in.
+ *
+ * Previously this regex-extracted the literal digits out of the ISO string
+ * and ignored the offset entirely - correct by coincidence for fixtures
+ * written `+10:00`, but wrong by exactly that offset for every
+ * `new Date().toISOString()` runtime timestamp (UTC / `Z`), which rendered
+ * up to ~10 hours behind and on the wrong day. See launch-audit run 29,
+ * P0-3/P0-4 (2026-09-04).
+ */
 export function wallDate(iso: string): Date {
-  const m = iso.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2}))?/);
-  if (!m) return parseISO(iso);
-  return new Date(
-    Number(m[1]),
-    Number(m[2]) - 1,
-    Number(m[3]),
-    Number(m[4]),
-    Number(m[5]),
-    Number(m[6] ?? 0),
-  );
+  const parsed = parseISO(iso);
+  if (Number.isNaN(parsed.getTime())) return parsed;
+  return wallNow(parsed, "Australia/Brisbane");
 }
 
 export function dayKeyFromDate(d: Date): string {
@@ -142,7 +152,14 @@ export function wallNow(now = new Date(), timeZone = "Australia/Brisbane"): Date
   }).formatToParts(now);
   const get = (type: Intl.DateTimeFormatPartTypes) =>
     Number(parts.find((p) => p.type === type)?.value ?? 0);
-  return new Date(get("year"), get("month") - 1, get("day"), get("hour"), get("minute"), get("second"));
+  return new Date(
+    get("year"),
+    get("month") - 1,
+    get("day"),
+    get("hour"),
+    get("minute"),
+    get("second"),
+  );
 }
 
 export function todayKey(now = new Date(), timeZone = "Australia/Brisbane"): string {
