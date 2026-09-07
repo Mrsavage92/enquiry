@@ -4,6 +4,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Segmented } from "@/components/ui/segmented";
+import { ScrollFade } from "@/components/ui/scroll-fade";
+import { useScrollFade } from "@/lib/use-scroll-fade";
 import {
   derivedLabel,
   commercialValue,
@@ -108,6 +110,7 @@ export function Queue({ activeId, phone = false }: { activeId?: string; phone?: 
   const [query, setQuery] = useState("");
   const [findOpen, setFindOpen] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
+  const { scrollRef: filterScrollRef, edges: filterFade } = useScrollFade<HTMLDivElement>([phone]);
   const scoped = enquiries.filter(
     (e) => businessFilter === "all" || e.businessId === businessFilter,
   );
@@ -270,18 +273,21 @@ export function Queue({ activeId, phone = false }: { activeId?: string; phone?: 
           {visible.length} match{visible.length === 1 ? "" : "es"}
         </p>
       ) : (
-        <div className="overflow-x-auto px-3 pb-1 pt-2">
-          <Segmented
-            ariaLabel="Queue filter"
-            value={phone ? phoneFilter : queueFilter}
-            onChange={setQueueFilter}
-            fullWidth={phone}
-            options={(phone ? PHONE_FILTERS : FILTERS).map((f) => ({
-              id: f.id,
-              label: f.label,
-              count: counts[f.id],
-            }))}
-          />
+        <div className="relative px-3 pb-1 pt-2">
+          <div ref={filterScrollRef} className="overflow-x-auto">
+            <Segmented
+              ariaLabel="Queue filter"
+              value={phone ? phoneFilter : queueFilter}
+              onChange={setQueueFilter}
+              fullWidth={phone}
+              options={(phone ? PHONE_FILTERS : FILTERS).map((f) => ({
+                id: f.id,
+                label: f.label,
+                count: counts[f.id],
+              }))}
+            />
+          </div>
+          <ScrollFade edges={filterFade} background="paper-2" />
         </div>
       )}
       <ul className="min-h-0 flex-1 space-y-0.5 overflow-y-auto px-2 pb-6 pt-1 stagger-in">
