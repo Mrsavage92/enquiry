@@ -1,0 +1,21 @@
+{
+  "reviewed_source_commit": "6eba9a4cee9759cad54d891e8e7515fe438b1c8b",
+  "review_commit": "fb58a02b1a7675621529e0c3a548b9151b349b79",
+  "rechecked_on": "2026-09-07",
+  "timezone": "Australia/Brisbane",
+  "node_version": "v22.16.0",
+  "execution_scope": "Isolated byte-matched source subset from conversation archive, not a full checkout",
+  "archive_sha256": "a20b6428e14075343b24e87db4769c8cb6e6bafc9b161555ecf8c04af551c068",
+  "source_blobs": [
+    {"path": "src/domain/business-rule.ts", "git_blob_sha": "8f679c96506f3de655c69533f4893abe7dc15a55", "bytes": 5525, "verified": true},
+    {"path": "src/domain/price-compiler.ts", "git_blob_sha": "57d3a950fc4a4c507d09a9f6d9fa30cc555a77ca", "bytes": 4987, "verified": true},
+    {"path": "src/domain/price-compiler.test.ts", "git_blob_sha": "0a4f90fad1f4acaaa4f2234b3a3b0eb8e9abcd58", "bytes": 5886, "verified": true}
+  ],
+  "runs": [
+    {"command": "node --experimental-strip-types --test src/domain/price-compiler.test.ts", "exit_code": 0, "tests": 14, "passed": 14, "failed": 0, "skipped": 0, "cancelled": 0, "todo": 0},
+    {"command": "node --experimental-strip-types --test price-safety-regressions.test.ts", "exit_code": 1, "tests": 6, "passed": 0, "failed": 6, "skipped": 0, "cancelled": 0, "todo": 0}
+  ],
+  "not_run": ["full repository test suite", "typecheck", "lint", "build", "auth invariant command", "browser", "live database", "multi-connection concurrency", "real provider", "two-tenant endpoints"],
+  "implementation_status": "pending",
+  "independent_signoff": "pending"
+}

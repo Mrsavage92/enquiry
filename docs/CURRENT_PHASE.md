@@ -1,155 +1,50 @@
 # Enquiry - Current Implementation Phase
 
-## 2026-09-03 - Delivery-owner sign-off and active-slice update
+Updated: 2026-09-07 (Australia/Brisbane).
 
-- The R2A corrections below were reviewed and **signed off by external review at commit `d382f2d`**.
-- The first-beta live loop (real Supabase Auth, real onboarding, a confirmed pricing rule, a typed enquiry, an owner-answered blocking fact, a recorded send, reload persistence, and an honest no-price refusal path for an unpriced service) is shipped on `main` and was **verified end-to-end in a real browser on 2026-09-03**. See the verification dossier at `C:\Users\Adam\Documents\Enquiry\research\agent-runs\2026-09-03\08-live-loop-verification.md` (external research trail, not tracked in this repo).
-- By delivery-owner decision, the active slice is now **"first-beta approval preview + interpretation with null fallback"**. This supersedes the "R2E arbitrary enquiry interpretation" line under "Do not broaden into" further down this file - that line described a prior sequencing rule that no longer reflects the authorised slice. The approval-preview half of that slice (Slice A: `needsSendConfirm` unconditional for every commercial send, a shared `SendPreview` component on both send paths, a server-side idempotent `recordSentReply` with a `to_addr` derived server-side) is implemented; the interpretation half (LLM-proposed facts with a null-interpreter fallback) has not started. See `C:\Users\Adam\Documents\Enquiry\research\agent-runs\2026-09-03\04-r2e-implementation-architecture.md` and `07-accessibility-trust-guardrails.md` for the design and guardrails this slice follows.
+## Active slice: CC1 - Commercial correctness and truthful action recording
 
----
+**Status: AUTHORISED FOR IMPLEMENTATION. Not implemented or signed off by this package.**
 
-## Current phase
+Product-owner instruction on 2026-09-07: add the commercial-correctness review to GitHub as a package for Claude to implement. This authorises the bounded CC1 correction below, not a rewrite, general R2 completion, deployment or external beta release.
 
-**R2A - Real workspace bootstrap + persisted onboarding**
+Start here: [CC1 implementation package](./implementation/CC1_COMMERCIAL_CORRECTNESS/README.md).
 
-Source of truth:
+Read `AGENTS.project.md`, this file, the package and its linked review before editing. The package contains the implementation order, source map, acceptance cases, executable diagnostic probes and required handoff.
 
-- `AGENTS.project.md`
-- `docs/phases/PHASE_R2A_REAL_WORKSPACE_ONBOARDING.md`
-- `docs/phases/PHASE_R2_PERSISTED_OPERATOR_CUTOVER.md`
-- `docs/R2_FOUNDATION_REVIEW.md`
-- `docs/TEST_REGRESSION_POLICY.md`
-- `docs/BETA_READINESS_GATE.md`
+## Exactly what Claude should implement
 
-The implementation agent must execute **R2A only**, report, and stop.
+- CC1-01 / review P1-01: preserve quantity meaning; never turn ranges, alternatives or negatives into a different exact quantity.
+- CC1-02 / P1-02: resolve service/rule ambiguity explicitly, never by rule-array order.
+- CC1-03 / P1-03: enforce owner confirmation of model-proposed commercial service identity.
+- CC1-04 / P1-04: separate copying a draft from confirming an actual external send.
+- CC1-05 / P1-05: keep reviewed message, structured price and recorded quote consistent; protect stale approvals.
+- CC1-06 / P2-01: transaction/revision safeguards directly necessary to keep related facts, decisions and sent records consistent.
 
-Do not begin R2B, R2C, R2D, R2E, R2F, Phase 9B or Phase 10 until product management reviews and signs off R2A.
+Follow the package sequence within this one authorised slice. Do not stop for a new phase approval between its implementation steps. Run the specified checks, record the evidence and stop for independent review at the end. An unavailable verification environment must be reported as a blocker, not silently treated as a pass.
 
----
+## Current status and historical reconciliation
 
-# R2A correction gate after review of `3d0207a502d48e78169bed12f35e4aaf77798418`
+- The previous authority recorded R2A sign-off at `d382f2d`. Preserve that recorded decision; do not reopen the old live/demo transition fix merely because an archived instruction calls it active.
+- A real manual first-beta loop was reported browser-verified on 2026-09-03. Its detailed external dossier has not been independently rerun by this package, and that historical result does not clear the commercial defects found subsequently.
+- Approval-preview and interpreter/null-fallback source now exists. The former statement that interpretation had not started is obsolete. Existence is not full R2E sign-off or proof of real-provider quality.
+- Full R2B-R2F completion and the complete first-beta gate are not certified here. Existing work must be preserved and evaluated, not assumed absent or complete from a phase label.
+- The prior current-phase file is preserved byte-for-byte in [history](./history/2026-09-07_CURRENT_PHASE_PRE_CC1.md). Its contradictory R2A-only and prior active-slice instructions are historical, not current execution authority.
 
-## Decision
+The [registry](./PHASE_REGISTRY.md) reflects this bounded sequencing update. `AGENTS.project.md` remains the product contract. This file is the current execution authority; the CC1 package supplies the detailed brief.
 
-**R2A is NOT signed off yet.**
+## Preserve
 
-The latest correction materially improves the server and onboarding path, but one live/demo isolation defect remains on the actual post-onboarding runtime path.
+Keep server-side auth/membership checks, tenant isolation, explicit demo separation, raw-message persistence before best-effort interpretation, deterministic commercial validation, proposed-fact provenance, AUD-only supported money semantics and human action authority. The original review remains an immutable historical assessment of its stated commit.
 
-## Accepted work from `3d0207a...`
+## Not authorised by CC1
 
-Preserve all of the following:
+No production mailbox/social/SMS/payment/calendar/booking integration programme; no visual redesign or PWA phase; no new broad evaluator family, generic rules engine or CRM; no model upgrade; no unrelated refactor; no automatic legacy financial-data rewrite. Necessary focused migrations, UI corrections, transaction helpers and tests for CC1 are permitted. Do not modify production data, rotate credentials, auto-merge or deploy merely because this package is authorised.
 
-- live onboarding no longer calls prototype `completeOnboarding(...)`;
-- direct onboarding ensures the verified `app_user` mirror before membership creation;
-- initial workspace creation remains transaction-scoped and concurrency-safe;
-- the real SQL creation path now has focused PGLite database tests;
-- unsupported email/SMS/Instagram/Facebook options are described as not connected;
-- completion copy no longer claims transient voice/source choices are persisted;
-- illustrative voice copy no longer asserts availability or other unverified business facts;
-- live first-beta currency is truthfully constrained to AUD while the current money domain is AUD-only;
-- no fake provider integration is created;
-- no fixture enquiry, booking, Brain knowledge or integration record is inserted into the server tenant during workspace creation.
+## Completion and release gates
 
-The server/domain direction is accepted and must not be reworked in the next correction.
+Use the package's [acceptance matrix](./implementation/CC1_COMMERCIAL_CORRECTNESS/ACCEPTANCE.md), [handoff template](./implementation/CC1_COMMERCIAL_CORRECTNESS/HANDOFF_TEMPLATE.md) and `docs/TEST_REGRESSION_POLICY.md`.
 
-## Remaining blocker - successful live onboarding still lands on fixture-backed runtime state
+The implementer reports implemented/verified/blocked status separately. Independent review, not the implementer, signs off CC1 and decides subsequent R2 sequencing. `docs/BETA_READINESS_GATE.md` and `docs/PUBLIC_TRAFFIC_GATE.md` remain open unless separately evidenced and approved. Historical credential rotation, auth/deployment and visual/public-claim checks are not cleared by this document.
 
-`src/routes/onboarding.tsx` now calls `markOnboardedLocally()` after the authenticated server workspace is created, then navigates to `/enquiries`.
-
-That marker is narrower than the old prototype completion action, but the existing prototype store is still initially populated with fixture businesses, enquiries and bookings. `markOnboardedLocally()` only flips local onboarding/demo flags and does not clear or quarantine those fixture arrays.
-
-The live Enquiry workspace still reads `usePrototype(...)` directly. On the normal `/enquiries` path it therefore can render the preloaded fixture enquiries as though they are the newly created tenant's work.
-
-There is a second consequence on the same path: `src/components/enquiry/workspace.tsx` currently schedules `arriveEnquiry()` whenever `onboarded` is true and the arrival has not played. The effect does not require demo mode. After live onboarding, that can inject the hard-coded arriving fixture into a real signed-in session after roughly 4.8 seconds.
-
-This still breaches:
-
-- strict demo/live isolation;
-- server-authoritative live tenant truth;
-- R2A acceptance that sample records do not leak into a tenant;
-- first-beta truthfulness.
-
-It is not acceptable to call the server workspace correct while immediately presenting local fixtures as the operator workspace.
-
----
-
-# Smallest authorised correction
-
-Claude may correct **only this remaining R2A live/demo transition defect and directly necessary focused tests**.
-
-Required outcome:
-
-1. After successful live onboarding, no fixture business, enquiry, booking, Brain, trust evidence or integration state may be displayed as the newly created tenant's live state.
-2. The live post-onboarding transition must not select, mutate, reuse or implicitly rely on fixture `glow` or any other fixture tenant identity.
-3. The hard-coded demo arrival mechanism must not fire in a real signed-in tenant/session.
-4. Do not implement the wider R2B server-authoritative operator-store hydration in this correction.
-5. Until R2B owns real workspace hydration, use the smallest truthful transitional behaviour available. A neutral empty/loading/setup-complete state is acceptable. Displaying fixtures is not.
-6. Demo behaviour must continue to work in the explicit demo/sample path.
-7. Add focused proof that:
-   - successful live onboarding cannot expose existing fixture enquiries/bookings/businesses as live tenant content;
-   - `arriveEnquiry()` cannot run on the live post-onboarding path;
-   - explicit demo mode still retains its fixture/demo behaviour;
-   - server failure remains retryable and cannot mark onboarding complete.
-8. Run the focused tests plus typecheck, the full default test command and build under `docs/TEST_REGRESSION_POLICY.md`.
-
-Do not broaden into:
-
-- R2B workspace hydration/read-store cutover;
-- R2C Business Brain/trust persistence;
-- R2D enquiry mutation cutover;
-- R2E arbitrary enquiry interpretation;
-- production mailbox/social/SMS/payment/booking integrations;
-- visual redesign.
-
-After this correction, report and stop for product-management review.
-
----
-
-# Test/regression note
-
-Claude reports for `3d0207a...`:
-
-- 317 tests discovered;
-- 305 passing;
-- the same 12 classified pre-existing failures;
-- typecheck clean;
-- build clean;
-- lint at the existing 10-problem baseline.
-
-GitHub exposes no commit status checks for this commit, so product management has not independently verified those command results through CI. The next handoff must continue to report exact commands and unchanged failure signatures per `docs/TEST_REGRESSION_POLICY.md`.
-
----
-
-# Completed / reviewed gates
-
-Phases 1-6 and Phase 8 are signed off. Phase 7 remains deferred by design.
-
-R1A, R1C, R1C1 and R1D are signed off. The R1 repository/runtime gate passed.
-
-Historical detail remains in `docs/PHASE_REGISTRY.md` and the R1 gate documents.
-
----
-
-# Parallel external/public-traffic blockers
-
-These do not idle unrelated R2 engineering once the repository/runtime gate is clean:
-
-- historical preview credential still requires external rotation/revocation before deliberate public traffic;
-- Phase 9A still requires final real-browser desktop/phone/reduced-motion visual QA before public traffic;
-- public claims must pass `docs/PUBLIC_TRAFFIC_GATE.md` before deliberate market traffic.
-
-Do not mix those corrections into R2A.
-
----
-
-# Deliberate sequence
-
-> **R2A active -> review -> R2B -> review -> R2C -> review -> R2D -> review -> R2E -> review -> R2F -> first-beta engineering gate -> 9B -> 10A -> 10B**
-
-Out-of-phase code already present on `main` remains ungated existing work and does not change this sequence.
-
-After R2 beta-core is signed off, first external product use is gated by `docs/BETA_READINESS_GATE.md`.
-
-## Current instruction to Claude
-
-Execute only the remaining R2A live/demo transition correction above, run the required checks, give the exact handoff, and stop.
+Current sequence: **CC1 implementation -> independent review -> explicit next R2 decision -> first-beta gate.** Later visual/PWA phases remain deferred to their own authority.

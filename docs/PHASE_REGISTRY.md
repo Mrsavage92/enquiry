@@ -1,265 +1,91 @@
 # Enquiry - Implementation Phase Registry
 
-This file is the management index for the sequenced Enquiry build.
+Updated: 2026-09-07 (Australia/Brisbane).
 
-**Execution authority remains `docs/CURRENT_PHASE.md`.**
+**Execution authority: [CURRENT_PHASE.md](./CURRENT_PHASE.md).** A prepared phase, a commit label or an existing implementation is not a sign-off.
 
-A phase being `PREPARED` here does not authorise implementation. A commit labelled with a later phase number also does not authorise or sign off that phase.
+## Current decision
 
----
+**CC1 - Commercial correctness and truthful action recording is the only active implementation slice.** The product owner requested a Claude implementation package for the 2026-09-07 commercial review. Read [the package](./implementation/CC1_COMMERCIAL_CORRECTNESS/README.md).
+
+CC1 corrects review P1-01 through P1-05 and the directly necessary P2-01 transaction/revision safeguards. It does not authorise the rest of R2E/R2F, broad integrations, visual redesign or external release. The previous internally inconsistent registry is preserved byte-for-byte in [history](./history/2026-09-07_PHASE_REGISTRY_PRE_CC1.md); its claims that R2A is still active and interpretation is absent are not current status.
 
 ## Operating rule
 
-1. The implementation agent (currently Claude) reads `AGENTS.project.md`.
-2. It reads `docs/CURRENT_PHASE.md`.
-3. It reads only the detailed brief referenced there plus source files needed for that slice.
-4. It implements that bounded slice.
-5. It tests/QA/reports and stops.
-6. Product management reviews the actual diff.
-7. Product management advances `CURRENT_PHASE.md` only after sign-off.
-
-Do not tell the implementation agent to "continue through the phases".
-
-If later-phase code lands before authorisation, treat it as **ungated existing code**. Do not infer completion from git history.
-
----
-
-# Registry
-
-| Phase | Status | Purpose | Dependency | First-beta importance |
-|---|---|---|---|---|
-| 0 | Complete | Product/build management guardrails | - | Required |
-| 1 | Complete | Reposition public site around decision layer | 0 | Required |
-| 2A | Complete | Signature cross-channel decision demo | 1 | Required |
-| 2B | Complete | Place signature proof into public sales journey | 2A reviewed | Required |
-| 3 | Complete | Remove universal price/commercial assumptions | 2B | Required |
-| 4 | Complete | Curate public roadmap as sales/trust narrative | 2B + 3 | Required |
-| 5 | Complete | Early Access + Updates trust copy | 4 | Required |
-| 6 | Complete | Persist roadmap qualitative feedback + attribution | 5 | Required |
-| 7A | Deferred | Future-safe identity/contact-point matching | 2A | Evidence-driven |
-| 7B | Deferred | Reviewable possible-match UX | 7A | Evidence-driven |
-| 8 | Complete | Pre-beta coherence QA | 1-6 | Complete |
-| 9A | Landed; final runtime sign-off held | Premium public visual system + homepage/Ridge polish | 8 | Direction accepted |
-| R1A | Complete | Cross-platform launcher + truthful full test discovery | 9A landed | Release blocker cleared |
-| R1B | Code complete; external rotation pending | Remove committed preview credential | R1A | Final R1 operational blocker |
-| R1C | Complete | Signed-in operator/auth boundary | R1B code | Release blocker cleared |
-| R1C1 | Complete | Same-origin auth return-path invariant | R1C review | Release blocker cleared |
-| R1D | Complete | Contain short-ID public quote/booking routes to demo/local use | R1C1 | Release blocker cleared |
-| R1 Final | Repo/runtime passed; operational close pending | Full release/security/runtime verification | R1A-D | Public traffic blocked by external rotation/visual QA |
-| R2A | **Active** | Real workspace bootstrap + persisted onboarding | R1 repo/runtime gate | Required for first beta |
-| R2B | Prepared | Cut signed-in operator reads over to persisted tenant state | R2A reviewed | Required for first beta |
-| R2C | Prepared | Persist Business Brain/trust/business mutations | R2B reviewed | Required for first beta |
-| R2D | Prepared | Persist enquiry decision-state mutations | R2C reviewed | Required for first beta |
-| R2E | Prepared | Arbitrary manual enquiry ingestion + interpretation | R2D reviewed | Required for first beta |
-| R2F | Prepared | Review-first manual action loop + beta telemetry | R2E reviewed | Required for first beta |
-| 9B | Prepared | Extend approved visual system across remaining public surfaces | R2 beta-core preferred | Before broader polished launch |
-| 10A | Prepared | Productise PWA installability + Enquiry branding | 9B preferred | Before claiming installable |
-| 10B | Prepared | Installed standalone mobile shell/operator polish | 10A reviewed | Recommended after beta core |
-
-`CURRENT_PHASE.md` remains authoritative if this table ever lags behind a phase transition.
-
----
-
-# Reviewed ungated foundation already on main
-
-These commits are useful foundation but do **not** count as R2 completion:
-
-- `f11c8d4a202b00c9f6b679de61810242c331b9c9` - relational product-core schema;
-- `7cd1ee4c57f18a365447038e11f80f15de4e4535` - RLS lockdown;
-- `43a7b287295638fc0cbbf91b88fa86f6be3e521f` - tenancy/repository/workspace server boundary;
-- `ced20e14fbbb08d4b7fa493c08cb3bdbcc7bd080` - removed live fixture seeding while still retaining placeholder auto-provisioning;
-- `118b2a8e2f1d9dcc2d37a322e6134868372cb06b` - made that initial creation path concurrency-safe;
-- `4fd5f480824001edd5aee8d8c78cdd860ee9e5f4` - moved workspace creation behind explicit onboarding, returned zero-membership as `needsOnboarding`, and moved the action-policy catalogue into the product/domain layer.
-
-Current reviewed foundation state:
-
-- normal workspace fetch no longer seeds fixture enquiries/bookings/knowledge/integrations into a real tenant;
-- workspace fetch no longer auto-creates a placeholder business;
-- zero membership is a valid onboarding state;
-- initial server-side workspace creation is concurrency-safe;
-- product action policies no longer depend on fixture businesses;
-- the signed-in operator runtime is still not server-authoritative because operator components still use `usePrototype` broadly;
-- authenticated persisted onboarding now succeeds without mutating the fixture business, but R2A remains open because the post-onboarding live runtime can still expose preloaded fixture businesses/enquiries/bookings and can still trigger the hard-coded demo arrival outside explicit demo mode;
-- arbitrary non-fixture enquiry interpretation is not implemented.
-
-Do not infer R2A completion from the accepted server foundation above. `docs/CURRENT_PHASE.md` remains the authority for the active onboarding correction gate.
-
-R2 is the controlled cutover from this foundation into a real first-beta product.
-
----
-
-# Detailed briefs
-
-## Phase 7
-`docs/phases/PHASE_7_SAFE_IDENTITY_CONTINUITY.md`
-
-Deferred unless real beta evidence requires broader identity continuity.
-
-## Phase 8
-`docs/phases/PHASE_8_FINAL_COHERENCE_QA.md`
-
-Signed off pre-beta coherence gate.
-
-## Phase 9
-`docs/phases/PHASE_9_VISUAL_BRAND_POLISH.md`
-
-- 9A landed and visually accepted.
-- Final runtime sign-off waits for R1.
-- 9B is intentionally secondary to making the operator product real/persisted.
-
-## R1
-`docs/phases/PHASE_R1_RELEASE_BLOCKER_STABILISATION.md`
-
-R1 state:
-
-- R1A complete;
-- R1B code remediation complete, external credential rotation/revocation pending;
-- R1C complete after R1C1;
-- R1C1 complete;
-- R1D complete;
-- final R1 repository/runtime gate passed;
-- external credential rotation/revocation remains operationally pending for public traffic;
-- Phase 9A final browser visual QA remains pending for public traffic.
-
-### R1C1
-`docs/phases/PHASE_R1C1_SAFE_AUTH_RETURN_PATH.md`
-
-Complete. One tested invariant now protects same-origin post-auth return paths.
-
-### R1D
-`docs/phases/PHASE_R1D_PUBLIC_ROUTE_CONTAINMENT.md`
-
-Complete. Fixture-backed no-account customer routes are contained; real capability links remain deferred.
-
-### R1 Final
-`docs/phases/PHASE_R1_FINAL_STABILISATION_GATE.md`
-
-Repository/runtime verification passed. Result: `docs/phases/R1_FINAL_GATE_RESULT.md`.
-
-External credential rotation + browser visual/public-claim checks remain in `docs/PUBLIC_TRAFFIC_GATE.md` and do not idle R2 engineering.
-
-## R2
-`docs/phases/PHASE_R2_PERSISTED_OPERATOR_CUTOVER.md`
-
-Supporting source review: `docs/R2_FOUNDATION_REVIEW.md`.
-
-R2 turns the fixture/session-storage operator prototype into a truthful first-beta product.
-
-Split:
-
-- **R2A:** real workspace bootstrap + onboarding persistence - detailed brief `docs/phases/PHASE_R2A_REAL_WORKSPACE_ONBOARDING.md`;
-- **R2B:** signed-in server-authoritative workspace read cutover — detailed brief `docs/phases/PHASE_R2B_SERVER_AUTHORITATIVE_RUNTIME.md`;
-- **R2C:** persisted Business Brain/trust/business mutations — detailed brief `docs/phases/PHASE_R2C_PERSISTED_BRAIN_TRUST.md`;
-- **R2D:** persisted enquiry decision-state mutations — detailed brief `docs/phases/PHASE_R2D_PERSISTED_ENQUIRY_DECISIONS.md`;
-- **R2E:** arbitrary manual enquiry ingestion + interpretation — detailed brief `docs/phases/PHASE_R2E_ARBITRARY_ENQUIRY_INTERPRETATION.md`;
-- **R2F:** review-first manual action loop + beta telemetry — detailed brief `docs/phases/PHASE_R2F_REVIEW_FIRST_BETA_LOOP.md`.
-
-Cross-cutting R2 controls:
-
-- `docs/R2_LIVE_DEMO_SEPARATION_MAP.md`
-- `docs/R2_ACTION_SEMANTICS_MATRIX.md`
-- `docs/R2_TYPED_BUSINESS_RULE_CONTRACT.md`
-- `docs/evals/FIRST_BETA_NON_FIXTURE_EVAL_PACK.md`
-- `docs/BETA_TELEMETRY_SPEC.md`
-
-## Phase 9B
-`docs/phases/PHASE_9B_PUBLIC_SURFACES_POLISH.md`
-
-Prepared detailed continuation of the approved 9A design system across remaining public surfaces.
-
-## Phase 10
-`docs/phases/PHASE_10_INSTALLABLE_PWA_MOBILE.md`
-
-Pre-audit: `docs/PHASE_10_PWA_PRE_AUDIT.md`
-
-Installable/mobile productisation remains prepared, but it is not a blocker for the first five if the web product is safe, persisted and mobile-usable.
-
----
-
-# Current deliberate path
-
-The approved product/coherence path is complete:
-
-> **1 -> 2A -> 2B -> 3 -> 4 -> 5 -> 6 -> 8**
-
-Current release/productisation path:
-
-> **9A landed/source-accepted -> R1 repo/runtime passed -> R1 public/operational items pending in parallel -> R2A active -> R2B -> R2C -> R2D -> R2E -> R2F -> first-beta core gate -> 9B -> 10A -> 10B**
-
-### Market work in parallel
-
-Qualified market traffic begins only after `docs/PUBLIC_TRAFFIC_GATE.md` passes. R2 engineering continues meanwhile.
-
-Do not wait for PWA work to start audience building.
-
-Do not put external first-cohort businesses onto the product until the R2 beta-core gate passes.
-
----
-
-# First-beta engineering definition
-
-The engineering definition is maintained in:
-
-`docs/BETA_READINESS_GATE.md`
-
-A first-beta candidate must have, at minimum:
-
-- verified auth + tenancy;
-- no silent fixture seeding into live tenants;
-- real persisted onboarding;
-- server-authoritative signed-in workspace;
-- arbitrary non-fixture manual enquiry processing;
-- structured interpretation + deterministic decision validation;
-- persisted correction/re-evaluation;
-- review-first/manual truthful action loop;
-- audit/tenant isolation;
-- beta correction/outcome telemetry;
-- public demo isolated from live tenant data.
-
-Production Gmail/Instagram/SMS/payment integrations are **not** required for the first five.
-
----
-
-# Stop conditions
-
-Pause sequencing and return to product management if any slice reveals:
-
-- the core Decision Engine cannot support intended behaviour without major architecture work;
-- a public claim requires pretending an integration exists;
-- work starts turning Enquiry into a CRM/workflow builder/shared inbox/FSM;
-- cross-industry behaviour requires niche hard-coding;
-- a meaningful new security/privacy issue appears;
-- later phases land before authorisation;
-- demo fixtures leak into normal live tenant behaviour;
-- an LLM is allowed to directly authorise/transact commercial outcomes;
-- visual polish changes product truth rather than presentation;
-- installability becomes an unjustified native-platform rewrite.
-
----
-
-# Parking lot
-
-Do not pull these into an active phase without evidence/new decision:
-
-- production Gmail/Microsoft mailbox OAuth;
-- production Instagram/Facebook APIs;
-- production SMS provider;
-- deep booking integrations;
-- payment collection;
-- full CRM;
-- generic workflow builder;
-- complex identity graph;
-- post-booking project/fulfilment management;
-- native iOS/Android wrapper;
-- push notifications;
-- public server-backed capability links unless beta requires no-account quote/booking sharing.
-
----
-
-# Management principle
-
-The internal plan can be detailed.
-
-The public product stays simple:
-
-> enquiry arrives -> Enquiry understands -> business-specific decision -> next action -> booked or lost.
+1. Read `AGENTS.project.md`, `docs/CURRENT_PHASE.md` and the named package.
+2. Inspect the actual branch and establish a pre-change baseline.
+3. Implement only the authorised slice, including its ordered internal steps.
+4. Run checks, document exact evidence and report remaining blockers.
+5. Stop for independent review. Do not self-certify release or start another phase.
+
+## Registry
+
+Earlier completion labels below preserve recorded management decisions; this package did not rerun those historical gates.
+
+| Phase | Status | Purpose / boundary |
+|---|---|---|
+| 0 | Complete, previously recorded | Product/build guardrails |
+| 1 | Complete, previously recorded | Public positioning |
+| 2A | Complete, previously recorded | Signature cross-channel demo |
+| 2B | Complete, previously recorded | Signature proof in sales journey |
+| 3 | Complete, previously recorded | Remove universal pricing assumptions in reviewed scope |
+| 4 | Complete, previously recorded | Curated public roadmap |
+| 5 | Complete, previously recorded | Early Access and Updates copy |
+| 6 | Complete, previously recorded | Roadmap feedback persistence |
+| 7A / 7B | Deferred | Broader identity/contact matching and review UX |
+| 8 | Complete, historical coherence gate | Not a release test of the present live product |
+| 9A | Landed; external visual/runtime gate unresolved here | Preserve existing direction |
+| R1A | Complete, previously recorded | Launcher and full test discovery |
+| R1B | Code remediation recorded; external rotation unverified here | Operational public-traffic gate remains |
+| R1C / R1C1 | Complete, previously recorded | Auth and same-origin return paths |
+| R1D | Complete, previously recorded | Demo/local public-link containment |
+| R1 Final | Repository/runtime pass previously recorded | External operational/public gates remain separate |
+| R2A | Sign-off recorded at `d382f2d` in prior authority | Preserve onboarding and live/demo safeguards |
+| R2B | Existing implementation; full phase sign-off not established by CC1 | Persisted tenant reads; preserve and regression-test affected paths |
+| R2C | Existing implementation; full phase sign-off not established by CC1 | Brain/trust persistence; no broad expansion |
+| R2D | Existing implementation; full phase sign-off not established by CC1 | Enquiry mutations; CC1 fixes only relevant consistency paths |
+| R2E | Bounded interpreter source exists; full phase/provider gate not signed off here | Existing interpreter maintenance for CC1 only |
+| R2F | Manual review/recording source exists; full phase/telemetry gate not signed off here | CC1 repairs truthful action semantics only |
+| CC1 | **Authorised for implementation; not yet implemented/signed off** | Five commercial defects plus necessary transaction/version safeguards |
+| 9B | Prepared, not active | Remaining public-surface polish |
+| 10A | Prepared, not active | PWA installability and branding |
+| 10B | Prepared, not active | Installed mobile shell polish |
+
+The live decision path remains narrower than the full cross-industry product contract. This registry does not certify broader evaluator selection merely because historical demo/coherence phases were completed.
+
+## Current sequence
+
+**CC1 implement -> independent diff/evidence review -> explicit next R2 slice -> complete first-beta engineering gate -> subsequent public/mobile phases when authorised.**
+
+Do not mechanically restart or complete R2B-R2F from old instructions. Review existing implementation and remaining acceptance gaps when product management chooses the next slice. No percentage-complete estimate or completion-by-commit-count is implied.
+
+## Detailed references
+
+- Active: [CC1 README](./implementation/CC1_COMMERCIAL_CORRECTNESS/README.md), [acceptance](./implementation/CC1_COMMERCIAL_CORRECTNESS/ACCEPTANCE.md), [review](./reviews/2026-09-07_COMMERCIAL_CORRECTNESS_REVIEW.md).
+- Product contract: `AGENTS.project.md`; original programme: `docs/PRODUCT_CHANGE_PLAN.md`.
+- R2 parent: `docs/phases/PHASE_R2_PERSISTED_OPERATOR_CUTOVER.md`.
+- R2A: `docs/phases/PHASE_R2A_REAL_WORKSPACE_ONBOARDING.md`.
+- R2B: `docs/phases/PHASE_R2B_SERVER_AUTHORITATIVE_RUNTIME.md`.
+- R2C: `docs/phases/PHASE_R2C_PERSISTED_BRAIN_TRUST.md`.
+- R2D: `docs/phases/PHASE_R2D_PERSISTED_ENQUIRY_DECISIONS.md`.
+- R2E: `docs/phases/PHASE_R2E_ARBITRARY_ENQUIRY_INTERPRETATION.md`.
+- R2F: `docs/phases/PHASE_R2F_REVIEW_FIRST_BETA_LOOP.md`.
+- Phase 7: `docs/phases/PHASE_7_SAFE_IDENTITY_CONTINUITY.md`.
+- Phase 8: `docs/phases/PHASE_8_FINAL_COHERENCE_QA.md`.
+- Phase 9: `docs/phases/PHASE_9_VISUAL_BRAND_POLISH.md`; 9B: `docs/phases/PHASE_9B_PUBLIC_SURFACES_POLISH.md`.
+- Phase 10: `docs/phases/PHASE_10_INSTALLABLE_PWA_MOBILE.md`; pre-audit: `docs/PHASE_10_PWA_PRE_AUDIT.md`.
+- R1: `docs/phases/PHASE_R1_RELEASE_BLOCKER_STABILISATION.md`, `docs/phases/PHASE_R1_FINAL_STABILISATION_GATE.md`, `docs/phases/R1_FINAL_GATE_RESULT.md`.
+
+These briefs remain historical/design references unless the current authority activates their scope. Their older sequencing text does not override CC1. Preserve existing safety requirements; do not use this index to waive a beta/public gate.
+
+## Cross-cutting gates
+
+`docs/TEST_REGRESSION_POLICY.md`, `docs/BETA_READINESS_GATE.md`, `docs/PUBLIC_TRAFFIC_GATE.md`, `docs/AUTH_DEPLOYMENT_CONTRACT.md`, `docs/R2_LIVE_DEMO_SEPARATION_MAP.md`, `docs/R2_ACTION_SEMANTICS_MATRIX.md`, `docs/R2_TYPED_BUSINESS_RULE_CONTRACT.md`, `docs/evals/FIRST_BETA_NON_FIXTURE_EVAL_PACK.md`, `docs/BETA_TELEMETRY_SPEC.md`.
+
+Real auth/tenant isolation, persisted live state, arbitrary enquiry processing, correction/outcome evidence and honest action semantics remain first-beta requirements. Production mailbox/social/payment integrations and a native app remain outside the first-beta prerequisite list.
+
+## Stop and escalation conditions
+
+Report a material product-contract conflict, new security/data-loss risk, incompatible concurrent work or a change requiring a broad architecture/product decision. Do not hide failures, weaken tests or invent authority. Lack of a provider key or browser/test database does not prevent safe in-scope coding, but the unavailable gate stays blocked until actually verified.
+
+Keep the boundary: first enquiry -> correct next decision/action -> booked or lost -> downstream handoff. Do not expand into CRM, generic workflow-building, payments, complex identity graphs or fulfilment to avoid closing the current defects.
