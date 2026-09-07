@@ -238,28 +238,35 @@ export function useFirstBetaActions() {
       return res;
     },
     /**
+     * Freeze what the owner is about to review, server-side.
+     *
+     * Creates no outbound record. It exists so the text, amount, service,
+     * recipient and decision revision on screen are one server-held document,
+     * and so the confirmation that follows records THAT rather than re-reading
+     * a snapshot that may have moved. Its id is also the idempotency key: the
+     * same review always resolves to the same artefact, so a refresh, a
+     * reopened dialog or a retry after a lost response all confirm one send.
+     */
+    prepareReview: async (enquiryId: string, body: string, channel = "manual") => {
+      const { prepareSendReview } = await import("@/lib/server/enquiry-actions");
+      return prepareSendReview({ data: { enquiryId, body, channel } });
+    },
+    /**
      * Record that the owner sent the reply themselves.
      *
-     * `opts.edited` is still accepted so existing callers that pass a
-     * client-side edited flag keep compiling, but it is no longer sent to the
-     * server - `recordSentReplyInTransaction` now derives `edited` itself
-     * from the enquiry's own prepared draft, since a client-reported value
-     * can't be told apart from a stale or spoofed one.
+     * Nothing is taken from the client here except which reviewed artefact is
+     * being confirmed - the body, amount and recipient all come from that
+     * server-held row, so a crafted or stale payload cannot produce a message
+     * and a quote that disagree.
      */
     recordSent: async (
       enquiryId: string,
-      body: string,
-      channel = "manual",
-      opts?: { clientRequestId?: string; edited?: boolean },
+      reviewedSendId: string,
+      opts?: { staleAttestation?: boolean },
     ) => {
       const { recordSentReply } = await import("@/lib/server/enquiry-actions");
       const res = await recordSentReply({
-        data: {
-          enquiryId,
-          body,
-          channel,
-          clientRequestId: opts?.clientRequestId,
-        },
+        data: { enquiryId, reviewedSendId, staleAttestation: opts?.staleAttestation ?? false },
       });
       await refresh();
       return res;

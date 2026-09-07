@@ -45,7 +45,7 @@ import { previewFor } from "@/domain/send-preview";
 import { toastUndo } from "@/lib/toast-undo";
 import { toast } from "sonner";
 import { HearLetter } from "./hear-letter";
-import { SendPreview } from "./send-preview";
+import { SendPreview, type SendPreviewCopyState } from "./send-preview";
 import { DeclineConfirm } from "./decline-confirm";
 
 export function Intelligence({
@@ -62,6 +62,11 @@ export function Intelligence({
   const [correcting, setCorrecting] = useState<EnquiryFact | null>(null);
   const [draftOpen, setDraftOpen] = useState(!compact);
   const [sendConfirm, setSendConfirm] = useState(false);
+  // The server-frozen artefact this preview is about, and why the server would
+  // not let it proceed. Both cleared every time the preview is opened afresh.
+  const [reviewedSendId, setReviewedSendId] = useState<string | null>(null);
+  const [reviewBlocked, setReviewBlocked] = useState<string | null>(null);
+  const [reviewStale, setReviewStale] = useState<string | null>(null);
   const [noteOpen, setNoteOpen] = useState(false);
   const [declineOpen, setDeclineOpen] = useState(false);
   const [declining, setDeclining] = useState(false);
@@ -123,40 +128,95 @@ export function Intelligence({
   const [sending, setSending] = useState(false);
 
   /**
-   * Send, for real.
+   * Copying. Only copying.
    *
-   * Demo mode is a scripted story and `approve` is its narrator - fine there.
-   * A live business is not sending anything from inside Enquiry yet, and
-   * pretending otherwise was the single most dishonest thing in the product:
-   * the button said "Sent." while nothing left the building and the record
-   * vanished on reload. So the honest version - put the prepared text on the
-   * clipboard, let the owner send it from their own mailbox or phone, and
-   * record the send as a real outbound message with a real timestamp.
+   * It writes nothing, records nothing, and reports honestly whether the
+   * clipboard actually took the text. The previous version copied inside the
+   * send handler, swallowed any failure, and recorded an outbound message
+   * either way - so a denied clipboard still told the business it had replied.
    */
-  const commitSend = async (clientRequestId?: string, edited?: boolean) => {
-    if (demoMode) {
-      approve(enquiry.id);
-      toastUndo("Sent.");
-      return;
+  const copyDraft = async (): Promise<SendPreviewCopyState> => {
+    try {
+      if (!navigator.clipboard?.writeText) return "failed";
+      await navigator.clipboard.writeText(draftBody);
+      return "copied";
+    } catch {
+      return "failed";
     }
+  };
+
+  /**
+   * Open the approval preview, having first asked the server to freeze exactly
+   * what is about to be reviewed. The server can refuse - a closed enquiry, a
+   * service nobody confirmed, a message naming an amount the decision does not -
+   * and refusing here, before anything is copied or claimed, is the point.
+   */
+  const openReview = async () => {
     if (!draftBody.trim()) {
       toast.error("There is no prepared reply to send.");
       return;
     }
+    if (demoMode) {
+      // The demo has no server-side enquiry to freeze. It still goes through
+      // this same preview, and its confirmation is labelled as a simulation.
+      setReviewBlocked(null);
+      setReviewStale(null);
+      setReviewedSendId(null);
+      setSendConfirm(true);
+      return;
+    }
     setSending(true);
     try {
-      // Nice-to-have, not load-bearing: an insecure context or a denied
-      // permission must not stop the send being recorded.
-      try {
-        await navigator.clipboard?.writeText(draftBody);
-      } catch {
-        /* clipboard unavailable - the text is still on screen to copy */
+      const res = await firstBeta.prepareReview(enquiry.id, draftBody, reply);
+      if (!res.ok) {
+        setReviewBlocked(res.message);
+        setReviewedSendId(null);
+      } else {
+        setReviewBlocked(null);
+        setReviewedSendId(res.reviewedSendId);
       }
-      await firstBeta.recordSent(enquiry.id, draftBody, reply, {
-        clientRequestId: clientRequestId ?? crypto.randomUUID(),
-        edited,
-      });
-      toast.success("Copied. Send it from your own inbox - Enquiry has recorded it.");
+      setReviewStale(null);
+      setSendConfirm(true);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not prepare that for review.");
+    } finally {
+      setSending(false);
+    }
+  };
+
+  /**
+   * The owner attesting that they sent it themselves, from their own inbox.
+   *
+   * This is the only thing in the product that creates an outbound record. Not
+   * copying, not opening this dialog, not closing it. Enquiry did not deliver
+   * the message and does not claim to have.
+   */
+  const confirmExternalSend = async (staleAttestation = false) => {
+    if (demoMode) {
+      approve(enquiry.id);
+      toastUndo("Recorded as sent (demo). Nothing left this browser.");
+      return;
+    }
+    if (!reviewedSendId) {
+      toast.error("Review the message again before recording it as sent.");
+      return;
+    }
+    setSending(true);
+    try {
+      const res = await firstBeta.recordSent(enquiry.id, reviewedSendId, { staleAttestation });
+      if (!res.ok) {
+        if (res.reason === "stale") setReviewStale(res.message);
+        else setReviewBlocked(res.message);
+        return;
+      }
+      setSendConfirm(false);
+      toast.success(
+        res.duplicate
+          ? "Already recorded - this send is on file once."
+          : res.stale
+            ? "Recorded as you sent it. The newer decision is untouched."
+            : "Recorded as sent by you.",
+      );
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Could not record that send.");
     } finally {
@@ -604,18 +664,15 @@ export function Intelligence({
                 onClick={() => {
                   // Every action reaching this button is sendable
                   // (isSendableAction gates the branch above), so this is
-                  // always a customer-facing send - preview first, never a
-                  // bare commitSend(). The check stays explicit rather than
-                  // unconditional so the intent (and the invariant it
-                  // depends on) is provable and testable on its own, not
-                  // just true by accident of this component's structure.
-                  if (isCustomerFacingSend(rec.action)) {
-                    setSendConfirm(true);
-                    return;
-                  }
-                  void commitSend().then(() => {
-                    if (!compact) onDone?.();
-                  });
+                  // always a customer-facing send - preview first, and there
+                  // is no longer any other path: nothing records a send
+                  // except the owner's attestation inside that preview. The
+                  // check stays explicit rather than unconditional so the
+                  // intent (and the invariant it depends on) is provable and
+                  // testable on its own, not just true by accident of this
+                  // component's structure.
+                  if (!isCustomerFacingSend(rec.action)) return;
+                  void openReview();
                 }}
               >
                 {sending ? "Recording…" : rec.label}
@@ -652,11 +709,11 @@ export function Intelligence({
                 {commercial.kind === "not_applicable"
                   ? " the decision."
                   : " the price or feasibility."}
-                {demoMode ? null : " This copies the text - it does not send from here."}
+                {" Enquiry does not send from here - you send it, then record it."}
               </p>
-            ) : sendable && compact && !demoMode ? (
+            ) : sendable && compact ? (
               <p className="text-xs text-stone">
-                This copies the text - it does not send from here.
+                Enquiry does not send from here - you send it, then record it.
               </p>
             ) : null}
             {sendable || enquiry.state.lifecycle === "OPEN" ? (
@@ -819,9 +876,17 @@ export function Intelligence({
         preview={preview}
         pending={sending}
         compact={compact}
-        onConfirm={(clientRequestId) => {
-          void commitSend(clientRequestId, preview.edited ?? false).then(() => {
-            setSendConfirm(false);
+        demoMode={demoMode}
+        blockedReason={reviewBlocked}
+        staleMessage={reviewStale}
+        onCopy={copyDraft}
+        onConfirm={() => {
+          void confirmExternalSend(false).then(() => {
+            if (!compact) onDone?.();
+          });
+        }}
+        onConfirmStale={() => {
+          void confirmExternalSend(true).then(() => {
             if (!compact) onDone?.();
           });
         }}

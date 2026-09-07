@@ -3,6 +3,7 @@ import type { ConfidenceBand, FactStatus } from "../../domain/types.ts";
 import { activeRules, decideEnquiry } from "../../domain/decide.ts";
 import { describeRule } from "../../domain/business-rule.ts";
 import { snapshotFromDecision, stateFromDecision } from "../../domain/decision-snapshot.ts";
+import { applyDecision, isClosed, lockEnquiry } from "./decision-apply.ts";
 import type { EnquiryInterpreter, InterpretFailureReason } from "../interpret/types.ts";
 
 /**
@@ -73,13 +74,15 @@ export async function insertManualEnquiry(
     insert into enquiry (
       business_id, customer_name, customer_email, customer_phone, source,
       service_label, lifecycle, decision_state, commercial_state,
-      responsibility, intake_note, decision_snapshot, received_at, updated_at
+      responsibility, intake_note, decision_snapshot, decision_revision,
+      received_at, updated_at
     ) values (
       ${input.businessId}, ${input.customerName}, ${input.customerEmail},
       ${input.customerPhone || null}, ${"manual"}, ${input.serviceLabel},
       ${"OPEN"}, ${state.decisionState}, ${state.commercialState},
       ${state.responsibility},
-      ${input.intakeNote || null}, ${JSON.stringify(snapshot)}::jsonb, now(), now()
+      ${input.intakeNote || null}, ${JSON.stringify(snapshot)}::jsonb, ${1},
+      now(), now()
     )
     returning id
   `;
@@ -331,33 +334,32 @@ export async function interpretAndApply(
 
   // Re-decide from what's actually true after the guarded writes above - never
   // from `enq`, which can be up to 8 seconds stale by the time we get here.
-  const [freshEnq] = await sql<{ service_label: string; customer_name: string }>`
-    select service_label, customer_name from enquiry where id = ${input.enquiryId}
-  `;
-  const factRows = await sql<{ field: string; value: string; status: string }>`
-    select field, value, status from enquiry_fact
-    where enquiry_id = ${input.enquiryId} and superseded = false
-  `;
-  const effectiveServiceLabel = freshEnq?.service_label ?? enq.service_label;
-  const decision = decideEnquiry(
-    { knowledge },
-    { serviceLabel: effectiveServiceLabel, facts: factRows as never },
-  );
-  const snapshot = snapshotFromDecision(decision, {
-    customerName: freshEnq?.customer_name ?? enq.customer_name,
-    ownerFirstName: biz?.owner_first_name ?? undefined,
-    serviceLabel: effectiveServiceLabel,
+  //
+  // Through the SAME lock and revision path every other writer uses
+  // (`applyDecision`), so an owner's confirm landing in this window and this
+  // model result cannot interleave into a snapshot belonging to neither. If the
+  // owner closed the enquiry while the interpreter was in flight, the late
+  // result is dropped rather than silently reopening or re-quoting it.
+  const locked = await lockEnquiry(sql, input.enquiryId);
+  if (!locked) return { ok: false, reason: "enquiry_missing" };
+  if (isClosed(locked.lifecycle)) {
+    await sql`
+      insert into audit_event (business_id, actor, summary, detail, object_type, object_id)
+      values (
+        ${input.businessId}, ${"system"},
+        ${"Read the message after the enquiry was closed - the closed enquiry was left alone"},
+        ${`Model: ${model}`},
+        ${"enquiry"}, ${input.enquiryId}
+      )
+    `;
+    return { ok: true, model, factsWritten, serviceLabelSet };
+  }
+  await applyDecision(sql, {
+    enquiryId: input.enquiryId,
+    businessId: input.businessId,
+    serviceLabel: locked.serviceLabel,
+    customerName: locked.customerName,
   });
-  const state = stateFromDecision(decision);
-  await sql`
-    update enquiry
-    set decision_snapshot = ${JSON.stringify(snapshot)}::jsonb,
-        decision_state = ${state.decisionState},
-        commercial_state = ${state.commercialState},
-        responsibility = ${state.responsibility},
-        updated_at = now()
-    where id = ${input.enquiryId}
-  `;
 
   await sql`
     insert into audit_event (business_id, actor, summary, detail, object_type, object_id)

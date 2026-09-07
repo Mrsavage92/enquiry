@@ -30,11 +30,15 @@ test("Cmd/Ctrl+Enter is ignored outside demo mode, regardless of dialog state", 
   assert.equal(resolveSendKey(enterCombo(), { inDialog: true }, false), "ignore");
 });
 
-test("Cmd/Ctrl+Enter submits in demo mode, outside a dialog", () => {
-  assert.equal(resolveSendKey(enterCombo({ metaKey: true }), { inDialog: false }, true), "submit");
+test("Cmd/Ctrl+Enter never records a send, in demo mode or any other", () => {
+  // It used to submit in demo. Recording a send with no approval preview, no
+  // copy and no owner attestation is the behaviour CC1-04 exists to remove,
+  // and a demonstration is precisely where a prospect learns what the product
+  // claims about sending.
+  assert.equal(resolveSendKey(enterCombo({ metaKey: true }), { inDialog: false }, true), "ignore");
   assert.equal(
     resolveSendKey(enterCombo({ ctrlKey: true, metaKey: false }), { inDialog: false }, true),
-    "submit",
+    "ignore",
   );
 });
 
