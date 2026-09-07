@@ -339,23 +339,25 @@ export function Queue({ activeId, phone = false }: { activeId?: string; phone?: 
                   )}
                   aria-current={active ? "page" : undefined}
                 >
-                  <span
-                    aria-hidden
-                    className={cn(
-                      "absolute inset-y-2 left-0 w-0.5 rounded-full",
-                      e.state.decision === "EVALUATING"
-                        ? "bg-ink arrive-pulse"
-                        : active
-                          ? "bg-ink"
-                          : section === "needs_you"
-                            ? "bg-warn"
-                            : section === "at_risk"
-                              ? "bg-danger"
-                              : section === "waiting"
-                                ? "bg-line-strong"
-                                : "bg-transparent",
-                    )}
-                  />
+                  {phone ? null : (
+                    <span
+                      aria-hidden
+                      className={cn(
+                        "absolute inset-y-2 left-0 w-0.5 rounded-full",
+                        e.state.decision === "EVALUATING"
+                          ? "bg-ink arrive-pulse"
+                          : active
+                            ? "bg-ink"
+                            : section === "needs_you"
+                              ? "bg-warn"
+                              : section === "at_risk"
+                                ? "bg-danger"
+                                : section === "waiting"
+                                  ? "bg-line-strong"
+                                  : "bg-transparent",
+                      )}
+                    />
+                  )}
                   {phone ? (
                     <>
                       <div className="flex items-baseline justify-between gap-3">
@@ -377,6 +379,23 @@ export function Queue({ activeId, phone = false }: { activeId?: string; phone?: 
                           {queueTime(e)}
                         </span>
                       </p>
+                      {/*
+                        The state carrier for this row. The left-edge rail used
+                        to be it, but the rail is coloured by `section`
+                        (queueSection), and a phone tab already filters to one
+                        section - every row in "You" is needs_you, every row in
+                        "Waiting" is waiting - so within any given tab the rail
+                        was always one repeated colour (measured: 9/9 identical
+                        bg-warn on "You"). It carried no per-row information and
+                        was aria-hidden, so the accessible name never had a
+                        state either. This Badge is the same component and the
+                        same statusTone/derivedLabel pair the desktop row uses,
+                        placed on its own line so it cannot push the name or
+                        the value mark into a wrap.
+                      */}
+                      <div className="mt-1.5">
+                        <Badge tone={statusTone(e)}>{derivedLabel(e.state, e)}</Badge>
+                      </div>
                       {blocking ? (
                         <p className="mt-1 text-2xs text-warn">
                           {queueSituationLabel(situation.kind)}
