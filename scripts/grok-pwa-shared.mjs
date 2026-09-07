@@ -490,6 +490,26 @@ export function normalizeHeadContext(ctx = {}) {
   };
 }
 
+/**
+ * True when the document already carries its own resolved share card - an
+ * `og:image` whose `content` is already an absolute URL. Only a route that
+ * built its own card (see src/lib/site/head.ts) ever emits that; the
+ * platform's own default output for every other app has no `og:image` at
+ * all until this function adds one, so this is a safe, narrow signal that
+ * costs nothing for any app that has not opted in.
+ *
+ * Without this, `stripShareMetaTags` below removes a route's own
+ * `og:description`/`twitter:title`/`twitter:description`/`twitter:image`/
+ * `og:url`/`og:type` unconditionally and `grokOgHeadTags` never adds most of
+ * them back (it has no per-route description and no host to build an
+ * `og:image` from outside a published/preview deployment) - so a route that
+ * did the work of resolving absolute URLs itself would otherwise lose it on
+ * every request the platform head-injector touches, dev included.
+ */
+function hasOwnShareCard(html) {
+  return /\bproperty=["']og:image["'][^>]*\bcontent=["']https?:\/\//i.test(html);
+}
+
 export function injectGrokPwaHead(html, ctx = {}) {
   if (typeof html !== "string") return html;
   const { site, projectId, creator, creatorId, host, cwd, siteIsExplicit, consultFs } =
@@ -498,7 +518,8 @@ export function injectGrokPwaHead(html, ctx = {}) {
   const appName = resolveOgTitle(site, ctx.appName ?? DEFAULT_APP_NAME, host, documentTitle, {
     siteIsExplicit,
   });
-  let next = stripShareMetaTags(html);
+  const ownShareCard = hasOwnShareCard(html);
+  let next = ownShareCard ? html : stripShareMetaTags(html);
 
   const missing = grokPwaHeadTags(appName)
     .filter(([key]) => {
@@ -508,10 +529,12 @@ export function injectGrokPwaHead(html, ctx = {}) {
     })
     .map(([, tag]) => tag);
 
-  next = insertAfterHeadOpen(
-    next,
-    grokOgHeadTags({ host, appName, site, documentTitle, cwd, consultFs }).join(""),
-  );
+  if (!ownShareCard) {
+    next = insertAfterHeadOpen(
+      next,
+      grokOgHeadTags({ host, appName, site, documentTitle, cwd, consultFs }).join(""),
+    );
+  }
 
   if (!next.includes("/grok-app-builder/extensions.js")) {
     missing.push(...grokExtensionsHeadTags(projectId));
