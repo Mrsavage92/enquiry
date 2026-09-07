@@ -9,6 +9,7 @@ import {
   commercialValue,
   filteredEnquiries,
   formatAud,
+  queueFilterHasMatch,
   queueSection,
   queueSummary,
   queueHeadline,
@@ -144,6 +145,20 @@ export function Queue({ activeId, phone = false }: { activeId?: string; phone?: 
     lastArrivalId,
     demoMode,
   ]);
+  // `visible` can be non-empty purely because `filteredEnquiries` pins the
+  // open enquiry in regardless of filter match (so navigating away from it
+  // never silently vanishes the row) - not because the filter has anything
+  // real in it. Rendering the per-filter empty copy off `visible.length`
+  // alone let that pin hide "Nobody is waiting" behind the one enquiry the
+  // operator happened to have open. `lastArrivalId` is excluded from this
+  // check on purpose: a fresh arrival injected into a non-matching filter is
+  // a real, intentional row (the "Just arrived" strip explains why it is
+  // there), not the same silent pin.
+  const queueIsEmpty =
+    visible.length === 0 ||
+    (!q &&
+      !queueFilterHasMatch(enquiries, businessFilter, listFilter) &&
+      !(lastArrivalId && visible.some((v) => v.id === lastArrivalId)));
   const summary = queueSummary(scoped);
   const counts = {
     needs_you: summary.needsYou,
@@ -270,7 +285,7 @@ export function Queue({ activeId, phone = false }: { activeId?: string; phone?: 
         </div>
       )}
       <ul className="min-h-0 flex-1 space-y-0.5 overflow-y-auto px-2 pb-6 pt-1 stagger-in">
-        {visible.length === 0 ? (
+        {queueIsEmpty ? (
           <li className="px-3 py-12 text-center">
             <p className="text-sm font-medium text-ink">
               {q

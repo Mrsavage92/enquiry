@@ -98,16 +98,23 @@ export function queueSection(enquiry: Enquiry): "needs_you" | "waiting" | "at_ri
 }
 
 /**
+ * "closed" is deliberately a raw lifecycle check, not `queueSection` - a
+ * closed enquiry (declined, lost, booked, cancelled) has left every
+ * attention-based section by definition, so this is the one filter that
+ * reads `state.lifecycle` directly rather than routing through it.
+ */
+function matchesQueueFilter(enquiry: Enquiry, queueFilter: string): boolean {
+  if (queueFilter === "all") return true;
+  if (queueFilter === "closed") return enquiry.state.lifecycle !== "OPEN";
+  return queueSection(enquiry) === queueFilter;
+}
+
+/**
  * The queue's own filter logic, kept here (not in `queue.tsx`) so it is a
  * pure function reachable from a plain unit test - `queue.tsx` is a React
  * component file (JSX), and the test runner's type-stripping mode cannot
  * parse JSX, so nothing in this codebase's test suite has ever imported a
  * `.tsx` file directly.
- *
- * "closed" is deliberately a raw lifecycle check, not `queueSection` - a
- * closed enquiry (declined, lost, booked, cancelled) has left every
- * attention-based section by definition, so this is the one filter that
- * reads `state.lifecycle` directly rather than routing through it.
  */
 export function filteredEnquiries(
   enquiries: Enquiry[],
@@ -118,10 +125,35 @@ export function filteredEnquiries(
   return enquiries.filter((e) => {
     if (businessFilter !== "all" && e.businessId !== businessFilter) return false;
     if (activeId && e.id === activeId) return true;
-    if (queueFilter === "all") return true;
-    if (queueFilter === "closed") return e.state.lifecycle !== "OPEN";
-    return queueSection(e) === queueFilter;
+    return matchesQueueFilter(e, queueFilter);
   });
+}
+
+/**
+ * Whether any enquiry genuinely belongs in this filter - the same test
+ * `filteredEnquiries` applies, minus its `activeId` pin.
+ *
+ * `filteredEnquiries` always keeps the open enquiry in its result so a queue
+ * list never silently drops the card someone is looking at (tested above:
+ * "the closed filter still surfaces the active enquiry even when it is
+ * open" - `activeId` always wins). That pin is right for navigation - the
+ * open enquiry has to stay reachable - but it means `filteredEnquiries`'s
+ * result can be non-empty purely because of the pin, with nothing in it that
+ * actually matches the filter. A caller that renders a per-filter empty
+ * state (the queue's "Nobody is waiting") needs to ask this question
+ * instead of checking the pinned list's length, or the pinned row silently
+ * suppresses the empty state it should be showing.
+ */
+export function queueFilterHasMatch(
+  enquiries: Enquiry[],
+  businessFilter: string,
+  queueFilter: string,
+): boolean {
+  return enquiries.some(
+    (e) =>
+      (businessFilter === "all" || e.businessId === businessFilter) &&
+      matchesQueueFilter(e, queueFilter),
+  );
 }
 
 export function nextNeedsYou(
