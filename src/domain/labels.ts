@@ -4,6 +4,7 @@ import type {
   EvaluatorType,
   Enquiry,
   EnquiryFact,
+  IntegrationHealth,
 } from "./types";
 
 /**
@@ -41,6 +42,26 @@ export function factStatusTone(status: EnquiryFact["status"]): "neutral" | "ok" 
       return "info";
     default:
       return "neutral";
+  }
+}
+
+/**
+ * The one place an integration's connection status becomes reader-facing
+ * text - `not_connected` was rendering raw on /trust (launch-audit run 29,
+ * P0-6/P1-5, 2026-09-04). Shared between `TrustOverview` and `TrustAccess`
+ * so the same status never reads two different ways on the same screen.
+ */
+export function integrationStatusLabel(status: IntegrationHealth["status"]): string {
+  switch (status) {
+    case "connected":
+      return "Connected";
+    case "disconnected":
+      return "Disconnected";
+    case "error":
+      return "Needs attention";
+    case "not_connected":
+    default:
+      return "Not connected";
   }
 }
 
