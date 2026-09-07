@@ -1004,6 +1004,22 @@ html.embed .site-nav {
     overflow-y: auto;
     overscroll-behavior-y: auto;
   }
+  /*
+    overflow-x only, not overflow-y - re-adding overflow-y here would
+    reopen the sticky bug the rule above just fixed (see that comment).
+    body needs its own overflow-x: clip because it was independently
+    containing a pre-existing ~12px header overflow at exactly 768px
+    (site-shell.tsx's md:flex nav links and sm:inline-flex "Open the app"
+    button both first appear in the same row at that breakpoint and are
+    together slightly wider than the viewport there). Dropping body from
+    the rule above silently uncapped that instead of fixing it. clip on
+    overflow-x alone does not make an element a CSS scroll container (only
+    a non-visible/non-clip overflow-y value does), so this cannot reopen
+    the sticky bug.
+  */
+  html:not(:has(.app-root)) body {
+    overflow-x: clip;
+  }
   header.site-nav {
     position: relative;
     top: auto;
