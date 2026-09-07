@@ -3,6 +3,7 @@ import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { factStatusLabel, factStatusTone, formatAud } from "@/domain/labels";
+import { serviceAuthority } from "@/domain/service-authority";
 import { useFirstBetaActions } from "@/lib/workspace/live-mutations";
 import type { Enquiry } from "@/domain/types";
 
@@ -20,19 +21,29 @@ import type { Enquiry } from "@/domain/types";
  */
 export function ServiceReadAs({ enquiry }: { enquiry: Enquiry }) {
   const actions = useFirstBetaActions();
-  const fact = enquiry.facts.find(
-    (f) =>
-      !f.superseded && f.field.trim().toLowerCase() === "service" && f.provenance?.kind === "model",
-  );
-  const [value, setValue] = useState(fact?.value ?? "");
+  const authority = serviceAuthority(enquiry);
+  const fact = authority.state === "proposed" ? authority.fact : undefined;
+  // The value to confirm: what the model read, or the label the enquiry already
+  // carries with nothing behind it.
+  const current =
+    authority.state === "proposed"
+      ? authority.fact.value
+      : authority.state === "unattributed"
+        ? authority.label
+        : "";
+  const [value, setValue] = useState(current);
   const [saving, setSaving] = useState(false);
 
+  // Re-sync when the thing being confirmed changes - a new model read, or the
+  // owner correcting it - not on every keystroke, which would fight their typing.
   useEffect(() => {
-    setValue(fact?.value ?? "");
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fact?.id]);
+    setValue(current);
+  }, [fact?.id, current]);
 
-  if (!fact) return null;
+  // Only when there is something to confirm. A confirmed service needs no
+  // prompt, and an enquiry with no service named at all needs a service, not a
+  // confirmation.
+  if (authority.state !== "proposed" && authority.state !== "unattributed") return null;
 
   const provisional = enquiry.decision?.provisionalPrice;
 
@@ -52,10 +63,25 @@ export function ServiceReadAs({ enquiry }: { enquiry: Enquiry }) {
   return (
     <section className="border-b border-line px-5 py-5">
       <div className="flex flex-wrap items-center gap-2">
-        <Badge tone={factStatusTone(fact.status)}>{factStatusLabel(fact.status)}</Badge>
-        <p className="text-sm text-ink-2">
-          Enquiry read this as {fact.displayValue || fact.value}.
-        </p>
+        {fact ? (
+          <>
+            <Badge tone={factStatusTone(fact.status)}>{factStatusLabel(fact.status)}</Badge>
+            <p className="text-sm text-ink-2">
+              Enquiry read this as {fact.displayValue || fact.value}.
+            </p>
+          </>
+        ) : (
+          <>
+            {/* A label with no record of who decided it - an enquiry from
+                before Enquiry recorded that, or one brought in from elsewhere.
+                Saying so plainly is better than implying a confirmation that
+                never happened. */}
+            <Badge tone="warn">Not confirmed</Badge>
+            <p className="text-sm text-ink-2">
+              This is down as {current}, but nothing records you confirming it.
+            </p>
+          </>
+        )}
       </div>
       {provisional ? (
         // Shown so confirming is an informed decision, and labelled so it can
@@ -86,10 +112,10 @@ export function ServiceReadAs({ enquiry }: { enquiry: Enquiry }) {
           className="min-h-11 max-w-full"
           disabled={saving}
           onClick={() => void submit()}
-          title={saving ? "Working it out…" : `Confirm service: ${value.trim() || fact.value}`}
+          title={saving ? "Working it out…" : `Confirm service: ${value.trim() || current}`}
         >
           <span className="min-w-0 truncate">
-            {saving ? "Working it out…" : `Confirm service: ${value.trim() || fact.value}`}
+            {saving ? "Working it out…" : `Confirm service: ${value.trim() || current}`}
           </span>
         </Button>
       </div>

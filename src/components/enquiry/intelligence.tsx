@@ -41,6 +41,7 @@ import {
 } from "@/domain/voice-detect";
 import { CaseFile } from "./case-file";
 import { isCustomerFacingSend, resolvedHold } from "@/domain/commercial";
+import { needsServiceConfirmation } from "@/domain/service-authority";
 import { previewFor } from "@/domain/send-preview";
 import { toastUndo } from "@/lib/toast-undo";
 import { toast } from "sonner";
@@ -122,6 +123,17 @@ export function Intelligence({
     return () => window.clearTimeout(t);
   }, [enquiry.id, draftBody, considerVoice]);
   const blocked = outboundBlocked(business, offline, enquiry);
+  /**
+   * A commercial send whose service premise nobody has confirmed. The server
+   * refuses these (`prepareReviewedSendInTransaction`), so the desk must not
+   * offer them as ready: a legacy enquiry carrying a bare service label used to
+   * show an enabled "Send the quote", refuse on click, and leave the owner with
+   * no way to resolve it. The confirm control above is that way; this stops the
+   * button pretending the decision is already made.
+   */
+  const serviceUnconfirmed = !demoMode && needsServiceConfirmation(enquiry);
+  const commercialAction = rec.action === "SEND_QUOTE" || rec.action === "SEND_ESTIMATE";
+  const awaitingService = serviceUnconfirmed && commercialAction;
   const sendable = isSendableAction(rec.action);
   const reply = replyChannel(enquiry);
   const firstBeta = useFirstBetaActions();
@@ -659,7 +671,11 @@ export function Intelligence({
               <Button
                 className={cn("w-full", compact ? "min-h-14 text-base" : "min-h-11")}
                 disabled={
-                  sending || !rec.primaryEnabled || Boolean(rec.blockedReason) || Boolean(blocked)
+                  sending ||
+                  !rec.primaryEnabled ||
+                  awaitingService ||
+                  Boolean(rec.blockedReason) ||
+                  Boolean(blocked)
                 }
                 onClick={() => {
                   // Every action reaching this button is sendable
@@ -675,7 +691,7 @@ export function Intelligence({
                   void openReview();
                 }}
               >
-                {sending ? "Recording…" : rec.label}
+                {sending ? "Recording…" : awaitingService ? "Confirm the service first" : rec.label}
               </Button>
             ) : situation ? (
               <p className="text-sm text-ink-2">Settle the detail above first.</p>
@@ -684,7 +700,12 @@ export function Intelligence({
                 {rec.label}
               </Button>
             )}
-            {blocked ? (
+            {awaitingService ? (
+              <p className="text-sm text-warn">
+                Confirm what this enquiry is for before quoting it. Enquiry will not send a price
+                for a service nobody has agreed to.
+              </p>
+            ) : blocked ? (
               <div className="space-y-2">
                 <p className="text-sm text-warn">{blocked}</p>
                 {integ && integ.status !== "connected" && business ? (
