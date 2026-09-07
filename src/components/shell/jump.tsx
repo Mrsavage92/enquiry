@@ -36,39 +36,46 @@ export function Jump({
     <DialogRoot open={open} onOpenChange={onOpenChange}>
       <DialogContent title="Jump" className="overflow-hidden sm:max-w-lg">
         <Command label="Jump" className="jump" loop>
-          <Command.Input placeholder="Find an enquiry, workspace or page" autoFocus className="field h-11" />
+          <Command.Input
+            placeholder="Find an enquiry, workspace or page"
+            autoFocus
+            className="field h-11"
+          />
           <Command.List>
             <Command.Empty>Nothing matches.</Command.Empty>
             <Command.Group heading="Enquiries">
               {enquiries.map((e) => {
-                  const business = resolveBusiness(businesses, e.businessId, { demoMode, fixtures: BUSINESS_BY_ID });
-                  return (
-                    <Command.Item
-                      key={e.id}
-                      value={`${e.customerName} ${e.serviceLabel} ${business?.name ?? ""} ${e.fixtureId} ${e.customerHandle ?? ""} ${e.customerPhone ?? ""} ${e.source} ${channelLabel(e.source)}`}
-                      keywords={[
-                        e.customerName,
-                        e.serviceLabel,
-                        business?.name ?? "",
-                        e.fixtureId,
-                        e.customerHandle ?? "",
-                        e.customerPhone ?? "",
-                        e.source,
-                        channelLabel(e.source),
-                      ]}
-                      onSelect={() =>
-                        go(() => {
-                          void navigate({ to: "/enquiries/$enquiryId", params: { enquiryId: e.id } });
-                        })
-                      }
-                    >
-                      <span className="min-w-0 flex-1 truncate">{e.customerName}</span>
-                      <span className="truncate text-xs text-stone">
-                        {e.serviceLabel} · {derivedLabel(e.state, e)}
-                      </span>
-                    </Command.Item>
-                  );
-                })}
+                const business = resolveBusiness(businesses, e.businessId, {
+                  demoMode,
+                  fixtures: BUSINESS_BY_ID,
+                });
+                return (
+                  <Command.Item
+                    key={e.id}
+                    value={`${e.customerName} ${e.serviceLabel} ${business?.name ?? ""} ${e.fixtureId} ${e.customerHandle ?? ""} ${e.customerPhone ?? ""} ${e.source} ${channelLabel(e.source)}`}
+                    keywords={[
+                      e.customerName,
+                      e.serviceLabel,
+                      business?.name ?? "",
+                      e.fixtureId,
+                      e.customerHandle ?? "",
+                      e.customerPhone ?? "",
+                      e.source,
+                      channelLabel(e.source),
+                    ]}
+                    onSelect={() =>
+                      go(() => {
+                        void navigate({ to: "/enquiries/$enquiryId", params: { enquiryId: e.id } });
+                      })
+                    }
+                  >
+                    <span className="min-w-0 flex-1 truncate">{e.customerName}</span>
+                    <span className="truncate text-xs text-stone">
+                      {e.serviceLabel} · {derivedLabel(e.state, e)}
+                    </span>
+                  </Command.Item>
+                );
+              })}
             </Command.Group>
             <Command.Group heading="Bookings">
               {bookings
@@ -77,7 +84,13 @@ export function Jump({
                   <Command.Item
                     key={b.id}
                     value={`${b.customerName} ${b.serviceLabel} booking booked ${b.location ?? ""}`}
-                    keywords={[b.customerName, b.serviceLabel, b.location ?? "", "booking", "booked"]}
+                    keywords={[
+                      b.customerName,
+                      b.serviceLabel,
+                      b.location ?? "",
+                      "booking",
+                      "booked",
+                    ]}
                     onSelect={() =>
                       go(() => {
                         void navigate({
@@ -95,13 +108,22 @@ export function Jump({
                 ))}
             </Command.Group>
             <Command.Group heading="Pages">
-              <Command.Item value="enquiries inbox" onSelect={() => go(() => void navigate({ to: "/enquiries" }))}>
+              <Command.Item
+                value="enquiries inbox"
+                onSelect={() => go(() => void navigate({ to: "/enquiries" }))}
+              >
                 Enquiries
               </Command.Item>
-              <Command.Item value="bookings" onSelect={() => go(() => void navigate({ to: "/bookings" }))}>
+              <Command.Item
+                value="bookings"
+                onSelect={() => go(() => void navigate({ to: "/bookings" }))}
+              >
                 Bookings
               </Command.Item>
-              <Command.Item value="insights" onSelect={() => go(() => void navigate({ to: "/insights" }))}>
+              <Command.Item
+                value="insights"
+                onSelect={() => go(() => void navigate({ to: "/insights" }))}
+              >
                 Insights
               </Command.Item>
               <Command.Item
@@ -149,10 +171,16 @@ export function Jump({
               >
                 Tell Enquiry something changed
               </Command.Item>
-              <Command.Item value="trust centre" onSelect={() => go(() => void navigate({ to: "/trust" }))}>
+              <Command.Item
+                value="trust centre"
+                onSelect={() => go(() => void navigate({ to: "/trust" }))}
+              >
                 Trust Centre
               </Command.Item>
-              <Command.Item value="settings pause mailbox instagram text form how work arrives" onSelect={() => go(() => void navigate({ to: "/settings" }))}>
+              <Command.Item
+                value="settings pause mailbox instagram text form how work arrives"
+                onSelect={() => go(() => void navigate({ to: "/settings" }))}
+              >
                 Settings
               </Command.Item>
               <Command.Item
@@ -214,13 +242,7 @@ export function Jump({
   );
 }
 
-export function JumpTrigger({
-  inverse,
-  onOpen,
-}: {
-  inverse?: boolean;
-  onOpen: () => void;
-}) {
+export function JumpTrigger({ inverse, onOpen }: { inverse?: boolean; onOpen: () => void }) {
   const [hint, setHint] = useState("Ctrl K");
   useEffect(() => {
     if (/Mac|iPhone|iPad/.test(navigator.platform)) setHint("⌘K");
@@ -241,7 +263,7 @@ export function JumpTrigger({
       <kbd
         className={cn(
           "rounded px-1.5 py-0.5 font-mono text-2xs",
-          inverse ? "bg-sidebar-fg/10 text-sidebar-muted" : "bg-paper-2 text-stone",
+          inverse ? "bg-sidebar-fg/10 text-sidebar-muted" : "bg-paper-2 text-stone-on-paper-2",
         )}
       >
         {hint}

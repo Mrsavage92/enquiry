@@ -20,8 +20,31 @@
     grey character.
   */
   --color-stone: #716b61;
+  /*
+    Not a change to --color-stone (4.57:1 on paper, 4.94:1 on raised - both
+    already pass). --color-stone measures 4.00:1 on --color-paper-2, below
+    the 4.5:1 minimum for body-size text, wherever muted text sits on that
+    surface (src/components/shell/jump.tsx:244, the "Jump" shortcut-hint
+    chip on bg-paper-2). #686259 measures 4.57:1 on paper-2 - the smallest
+    step that clears AA there without touching the passing --color-stone
+    value used everywhere else.
+  */
+  --color-stone-on-paper-2: #686259;
   --color-line: #e6ddd2;
   --color-line-strong: #cfc4b4;
+  /*
+    --color-line (1.26:1 on raised) and --color-line-strong (1.61:1 on
+    raised, 1.49:1 on paper) both sit below the 3:1 WCAG 1.4.11 minimum for
+    a necessary UI-component boundary. Both stay unchanged for their
+    existing decorative uses (dividers, the "·" separators, the roadmap
+    marker) - a divider is never the sole way to perceive a boundary, so it
+    was never asked to hit 3:1. This token is for the one place that IS a
+    necessary boundary: the resting/hover border of every input, select and
+    textarea (the `.field` rules below). #8e867a measures 3.11:1 on paper
+    and 3.36:1 on raised - the smallest step that clears 3:1 on both.
+  */
+  --color-line-control: #8e867a;
+  --color-line-control-hover: color-mix(in oklab, var(--color-line-control) 78%, black);
   --color-sidebar: #141210;
   --color-sidebar-fg: #f3eee6;
   --color-sidebar-muted: #a3988a;
@@ -69,6 +92,48 @@
   --animate-menu-in: menu-in 0.25s var(--ease-smooth-out) both;
   --animate-sheet-in: sheet-in 0.32s var(--ease-smooth-out) both;
   --animate-sheet-out: sheet-out 0.2s var(--ease-out) both;
+}
+
+/*
+  Palette B trial - a reversible, flagged layer over the locked warm
+  paper/ink identity (doc 44, 2026-09-04: "a hierarchy/density pass inside
+  the existing warm paper/ink identity - explicitly NOT a... new palette").
+  Never the shipped default; takes effect only when `data-palette="b"` is
+  present on <html>, set by src/lib/palette-flag.ts behind `?palette=b`
+  (persisted to localStorage) and cleared by `?palette=a`. Values are the
+  "B - refined warm, recommended" candidate transcribed verbatim from
+  docs/design/2026-09-07_PALETTE_STUDY.html (`data-palette=refined`) and
+  docs/design/2026-09-07_VISUAL_DIRECTION_REVIEW.md:135-153.
+
+  Only the tokens the study itself defines a value for are overridden here.
+  The two new Part-1 tokens above (--color-stone-on-paper-2,
+  --color-line-control) are not part of the study - it never named them -
+  so they deliberately inherit their Part-1 hex values under this block
+  rather than getting invented B-specific numbers. Measured result of that
+  inheritance (both improve further under B, neither regresses): see
+  research/agent-runs/2026-09-07/44-visual-slice-tokens-and-palette-b.md.
+*/
+html[data-palette="b"] {
+  --color-paper: #f5f6f3;
+  --color-raised: #ffffff;
+  --color-paper-2: #eff2ef;
+  --color-ink: #18221f;
+  --color-ink-2: #4e5c56;
+  --color-stone: #5e6a63;
+  --color-line: #d8deda;
+  --color-line-strong: #7a8780;
+  --color-sidebar: #18231e;
+  --color-sidebar-fg: #f7faf8;
+  --color-sidebar-muted: #b7c2bb;
+  --color-mark: #245947;
+  --color-mark-hover: #1b4939;
+  --color-mark-fg: #ffffff;
+  --color-warn: #835500;
+  --color-warn-bg: #fff3db;
+  --color-ok: #236447;
+  --color-ok-bg: #eaf4ed;
+  --color-danger: #af302a;
+  --color-danger-bg: #fff0ed;
 }
 
 @layer base {
@@ -299,7 +364,7 @@
   }
   .field {
     border-radius: var(--radius-md);
-    border: 1px solid var(--color-line);
+    border: 1px solid var(--color-line-control);
     background: var(--color-raised);
     width: 100%;
     color: var(--color-ink);
@@ -330,7 +395,7 @@
     padding-right: 2rem;
   }
   .field:hover {
-    border-color: var(--color-line-strong);
+    border-color: var(--color-line-control-hover);
   }
   .field:focus {
     outline: 2px solid var(--color-mark);
