@@ -22,12 +22,12 @@ export const Route = createFileRoute("/roadmap")({
 function RoadmapPage() {
   return (
     <SiteShell notebook>
-      <article className="mx-auto max-w-3xl px-5 pb-12 pt-10 sm:pb-16 sm:pt-20">
+      <article className="mx-auto max-w-5xl px-5 pb-12 pt-10 sm:pb-16 sm:pt-20">
         <HeroIn>
           <p className="eyebrow">Roadmap · Built in public</p>
         </HeroIn>
         <HeroIn delay={80}>
-          <h1 className="text-halo mt-4 max-w-xl font-serif text-[2.75rem] font-semibold leading-[1.08] tracking-tight sm:max-w-2xl sm:text-5xl md:text-6xl">
+          <h1 className="site-display-proof text-halo mt-4 max-w-2xl">
             We’re building Enquiry
             <span className="block">in the open.</span>
           </h1>

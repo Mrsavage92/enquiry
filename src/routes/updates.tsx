@@ -44,14 +44,16 @@ const POSTS = [
 function Updates() {
   return (
     <SiteShell>
-      <article className="mx-auto max-w-3xl px-5 pb-16 pt-10 sm:pb-20 sm:pt-20">
-        <p className="eyebrow">In public</p>
-        <h1 className="mt-3 text-4xl font-semibold tracking-tight sm:text-5xl">Updates</h1>
-        <p className="mt-4 max-w-xl text-lg leading-relaxed text-ink-2">
-          Meaningful notes from building Enquiry in public. Not a changelog - only progress that
-          changes what the product is, or how we think about it.
-        </p>
-        <ul className="mt-12">
+      <article className="mx-auto max-w-5xl px-5 pb-16 pt-10 sm:pb-20 sm:pt-20">
+        <div className="max-w-3xl">
+          <p className="eyebrow">In public</p>
+          <h1 className="site-display-proof mt-3">Updates</h1>
+          <p className="mt-4 max-w-xl text-lg leading-relaxed text-ink-2">
+            Meaningful notes from building Enquiry in public. Not a changelog - only progress that
+            changes what the product is, or how we think about it.
+          </p>
+        </div>
+        <ul className="mt-12 max-w-3xl">
           {POSTS.map((p) => (
             <li key={p.title} className="border-t border-line py-8 last:border-b">
               <p className="text-xs uppercase tracking-wider text-stone">{p.date}</p>
@@ -60,7 +62,7 @@ function Updates() {
             </li>
           ))}
         </ul>
-        <p className="mt-10 text-sm text-ink-2">
+        <p className="mt-10 max-w-3xl text-sm text-ink-2">
           What’s in motion is on the{" "}
           <Link to="/roadmap" className="font-medium underline-offset-4 hover:underline">
             roadmap

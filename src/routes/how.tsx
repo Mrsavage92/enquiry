@@ -22,16 +22,16 @@ export const Route = createFileRoute("/how")({
 function How() {
   return (
     <SiteShell>
-      <article className="mx-auto max-w-3xl px-5 py-10 sm:py-20">
-        <p className="eyebrow">How it works</p>
-        <h1 className="mt-3 text-4xl font-semibold tracking-tight sm:text-5xl">
-          Work arrives. The next action is ready.
-        </h1>
-        <p className="mt-4 text-lg leading-relaxed text-ink-2">
-          Enquiry reconstructs the request, applies how this business works, and works out what can
-          safely be decided now. You approve. You should mainly make judgement calls - not CRM data
-          entry.
-        </p>
+      <article className="mx-auto max-w-5xl px-5 py-10 sm:py-20">
+        <div className="max-w-3xl">
+          <p className="eyebrow">How it works</p>
+          <h1 className="site-display-proof mt-3">Work arrives. The next action is ready.</h1>
+          <p className="mt-4 text-lg leading-relaxed text-ink-2">
+            Enquiry reconstructs the request, applies how this business works, and works out what
+            can safely be decided now. You approve. You should mainly make judgement calls - not CRM
+            data entry.
+          </p>
+        </div>
       </article>
 
       <section className="border-t border-line bg-raised">
