@@ -1,4 +1,4 @@
-=== npm run preview (built .vercel/output via Nitro, port 8081) ===
+=== npm run preview (built .vercel/output via Nitro, port 8081) - rebased head ===
 --- GET / ---
 HTTP/1.1 200 
 Vary: Origin
@@ -7,7 +7,7 @@ permissions-policy: camera=(), microphone=(), geolocation=()
 referrer-policy: strict-origin-when-cross-origin
 x-content-type-options: nosniff
 x-frame-options: DENY
-Date: Mon, 07 Sep 2026 00:10:42 GMT
+Date: Mon, 07 Sep 2026 02:16:01 GMT
 Connection: keep-alive
 Keep-Alive: timeout=5
 
@@ -19,15 +19,15 @@ permissions-policy: camera=(), microphone=(), geolocation=()
 referrer-policy: strict-origin-when-cross-origin
 x-content-type-options: nosniff
 x-frame-options: DENY
-Date: Mon, 07 Sep 2026 00:10:42 GMT
+Date: Mon, 07 Sep 2026 02:16:01 GMT
 Connection: keep-alive
 Keep-Alive: timeout=5
 
---- GET /nope (404, static-simulator gap noted in report) ---
+--- GET /nope (404 - local Nitro preview simulator does not attach route-rule headers to this case; see note below) ---
 HTTP/1.1 404 
 Vary: Origin
 content-type: text/html; charset=utf-8
-Date: Mon, 07 Sep 2026 00:10:42 GMT
+Date: Mon, 07 Sep 2026 02:16:01 GMT
 Connection: keep-alive
 Keep-Alive: timeout=5
 
@@ -36,7 +36,14 @@ Keep-Alive: timeout=5
 HTTP/1.1 200 
 Vary: Origin
 content-type: text/html; charset=utf-8
-Date: Mon, 07 Sep 2026 00:10:42 GMT
+Date: Mon, 07 Sep 2026 02:16:01 GMT
 Connection: keep-alive
 Keep-Alive: timeout=5
 
+
+NOTE: .vercel/output/config.json (saved alongside this file) is the actual Vercel Build
+Output artifact - it applies the header rule to src pattern /(.*) BEFORE both the
+'handle: filesystem' static-file step and the SSR function dest, so on real Vercel this
+should attach to every response including 404s and static assets. The local npm run
+preview simulator above only reproduces it for SSR document routes - a known gap between
+the local simulator and the deployed edge router, not evidence the real deploy will skip it.

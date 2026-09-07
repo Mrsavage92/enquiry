@@ -1,4 +1,4 @@
-=== canonical link tags, all 7 public routes, npm run dev (port 5177) ===
+=== canonical link tags, all 7 public routes, npm run dev (port 5177) - rebased head ===
 --- GET / ---
 <link rel="canonical" href="https://enquiry-ashy.vercel.app/"/>
 --- GET /how ---

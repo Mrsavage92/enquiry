@@ -1,17 +1,17 @@
-=== dev server (npm run dev, port 5177) GET /nope ===
+=== dev server (npm run dev, port 5177) GET /nope - rebased head ===
 HTTP/1.1 404 
 Vary: Origin
 content-type: text/html; charset=utf-8
-Date: Mon, 07 Sep 2026 00:20:35 GMT
+Date: Mon, 07 Sep 2026 02:16:19 GMT
 Connection: keep-alive
 Keep-Alive: timeout=5
 
 
-=== built output (npm run preview, port 8081) GET /nope ===
+=== built output (npm run preview, port 8081) GET /nope - rebased head, from npm run build ===
 HTTP/1.1 404 
 Vary: Origin
 content-type: text/html; charset=utf-8
-Date: Mon, 07 Sep 2026 00:20:41 GMT
+Date: Mon, 07 Sep 2026 02:16:25 GMT
 Connection: keep-alive
 Keep-Alive: timeout=5
 
