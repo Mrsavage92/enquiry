@@ -88,9 +88,28 @@ export function snapshotFromDecision(
     // The computed price, before anything is sent - the only place a live,
     // never-sent enquiry's figure lives, since `quote_version` (and so
     // `quotes` above) is only written once a send actually happens.
-    price: decision.price.kind === "EXACT"
-      ? { kind: "EXACT", amountMinor: decision.price.amountMinor, currency: decision.price.currency }
+    price:
+      decision.price.kind === "EXACT"
+        ? {
+            kind: "EXACT",
+            amountMinor: decision.price.amountMinor,
+            currency: decision.price.currency,
+          }
+        : undefined,
+    // Shown to the owner as a provisional figure, never as a decided one. The
+    // send path reads `price`, which stays undefined until the service premise
+    // is confirmed, so a provisional amount cannot become a sent quote.
+    provisionalPrice: decision.provisional
+      ? {
+          amountMinor: decision.provisional.amountMinor,
+          currency: decision.provisional.currency,
+          premise: "service_unconfirmed",
+          service: decision.provisional.service,
+        }
       : undefined,
+    // The choices an ambiguous request leaves open, so the desk asks which one
+    // rather than presenting whichever rule happened to be listed first.
+    conflicts: decision.serviceChoices ?? base.conflicts,
   };
 }
 

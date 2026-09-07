@@ -32,32 +32,39 @@ export const saveBusinessRule = createServerFn({ method: "POST" })
     return { businessId, rule: parsed.rule };
   })
   .handler(async ({ context, data }) => {
-    const { getSql } = await import("@/lib/db");
+    const { withTransaction } = await import("@/lib/db");
     const { requireBusinessAccess, recordAudit } = await import("@/lib/repo/tenancy.server");
     const { describeRule } = await import("@/domain/business-rule");
+    const { saveBusinessRuleInTransaction } = await import("@/lib/repo/business-rule-core");
     const businessId = await requireBusinessAccess(context.userId, data.businessId);
-    const sql = await getSql();
     const readable = describeRule(data.rule);
     // State is Active because a human confirmed it in the UI; nothing reaches
-    // this function without that confirmation.
-    const rows = await sql<{ id: string }>`
-      insert into knowledge_item
-        (business_id, section, title, body, class, state, source, version, rule_payload)
-      values (
-        ${businessId}, ${"pricing"}, ${data.rule.service}, ${readable},
-        ${"authoritative"}, ${"Active"},
-        ${JSON.stringify({ kind: "user", label: "Confirmed by the owner" })}::jsonb,
-        ${"1"}, ${JSON.stringify(data.rule)}::jsonb
-      )
-      returning id
-    `;
-    await recordAudit(businessId, {
-      actor: context.userId,
-      summary: `Pricing rule confirmed: ${readable}`,
-      objectType: "brain",
-      objectId: rows[0]?.id,
-    });
-    return { ok: true as const, id: rows[0]?.id ?? "" };
+    // this function without that confirmation. Saving it retires any earlier
+    // Active price for the same service in the SAME transaction - two live
+    // prices for one service is not a state the pricing compiler will resolve,
+    // and leaving it to be discovered at quote time is how an old price gets
+    // sent after the owner has already corrected it.
+    const result = await withTransaction((sql) =>
+      saveBusinessRuleInTransaction(sql, { businessId, rule: data.rule, readable }),
+    );
+    if (result.outcome !== "duplicate") {
+      await recordAudit(businessId, {
+        actor: context.userId,
+        summary: `Pricing rule confirmed: ${readable}`,
+        detail:
+          result.supersededLabels.length > 0
+            ? `Replaces: ${result.supersededLabels.join("; ")}`
+            : undefined,
+        objectType: "brain",
+        objectId: result.id,
+      });
+    }
+    return {
+      ok: true as const,
+      id: result.id,
+      outcome: result.outcome,
+      superseded: result.supersededLabels,
+    };
   });
 
 /**
@@ -372,7 +379,7 @@ export const answerEnquiryFact = createServerFn({ method: "POST" })
   .handler(async ({ context, data }) => {
     const { getSql, withTransaction } = await import("@/lib/db");
     const { requireEnquiryAccess, recordAudit } = await import("@/lib/repo/tenancy.server");
-    const { decideEnquiry } = await import("@/domain/decide");
+    const { decideEnquiry, validateFactAnswer } = await import("@/domain/decide");
     const { snapshotFromDecision, stateFromDecision } = await import("@/domain/decision-snapshot");
     const { enquiryId, businessId } = await requireEnquiryAccess(context.userId, data.enquiryId);
     const sql = await getSql();
@@ -382,6 +389,23 @@ export const answerEnquiryFact = createServerFn({ method: "POST" })
       customer_name: string;
     }>`select service_label, customer_name from enquiry where id = ${enquiryId}`;
     if (!enq) throw new Error("That enquiry no longer exists.");
+
+    // Refuse to record a confirmation of something that cannot mean what it
+    // claims to. "5-6" is a range the owner has in mind, not a quantity, and
+    // storing it `confirmed` asserts they settled a number they did not settle.
+    // Checked here, at the write, as well as in the compiler that reads it - a
+    // UI-side input restriction is not an invariant.
+    const knowledgeForCheck = await sql<{ state: string; rule_payload: unknown }>`
+      select state, rule_payload from knowledge_item
+      where business_id = ${businessId} and rule_payload is not null
+    `;
+    const answerProblem = validateFactAnswer(
+      { knowledge: knowledgeForCheck.map((k) => ({ state: k.state, rulePayload: k.rule_payload })) },
+      enq.service_label ?? "",
+      data.field,
+      data.value,
+    );
+    if (answerProblem) throw new Error(answerProblem);
 
     await withTransaction(async (tx) => {
       // One live answer per field: an earlier one is superseded, not deleted,

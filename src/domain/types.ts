@@ -439,6 +439,20 @@ export type DecisionSnapshot = {
   serviceComposition: string[];
   changeDiff?: ChangeDiff[];
   price?: DecisionPrice;
+  /**
+   * An amount Enquiry calculated whose premise the owner has not confirmed.
+   *
+   * Deliberately NOT `price`: every writer that turns a decision into money -
+   * `recordSentReplyInTransaction` above all - reads `price`, so a figure that
+   * is not yet an authorised commercial decision has to live somewhere those
+   * writers cannot mistake for one. The desk renders it as provisional.
+   */
+  provisionalPrice?: {
+    amountMinor: number;
+    currency: "AUD";
+    premise: "service_unconfirmed";
+    service: string;
+  };
 };
 
 export type WhyItem = {
