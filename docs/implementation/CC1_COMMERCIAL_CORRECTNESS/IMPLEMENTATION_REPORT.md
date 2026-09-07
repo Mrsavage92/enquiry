@@ -462,11 +462,54 @@ case, and the repository is green: 666/666 tests, typecheck, lint, `check:auth`,
 both builds, and the benchmark.
 
 **This slice is ready for a second independent review. It is not signed off, not
-released, and not deployed.** Three gates remain explicitly open: real-provider
-interpretation (B1), the live signed-in browser journey (B2, which this
-environment could not exercise because the auth bypass prevents workspace
-hydration), and multi-connection concurrency (B3).
+released, and not deployed.** Three gates were named open at revision 2: real-provider
+interpretation (B1), the live signed-in browser journey (B2), and multi-connection
+concurrency (B3). B2 has since been exercised under real auth - see "Browser journey
+(real auth, local PGLite)" below, added after this report's original revision 2. It
+closes B2 as "exercised, mostly passing, with one significant live-only defect found
+and one acceptance step (P03) blocked by that defect's precondition." B1 and B3 remain
+open exactly as described above.
 `docs/BETA_READINESS_GATE.md` and `docs/PUBLIC_TRAFFIC_GATE.md` remain
 unresolved and untouched. The roadmap was not advanced and
 `docs/CURRENT_PHASE.md` was not edited - the next R2 decision belongs to the
 reviewer.
+
+## Browser journey (real auth, local PGLite)
+
+Executed 2026-09-07, against this same commit (`58b5679b2b58b8190a445c931ab2456715c1535a`),
+in a fresh worktree with real Supabase Auth (`VITE_AUTH_ENABLED` not set) and no
+`DATABASE_URL` (in-memory PGLite, resets on dev-server restart). This is the exact gate
+named in the independent review's re-review section: "exercise B2 before signing, not
+after." Full step-by-step evidence, the exact commands/requests used, and one
+significant finding are in
+`evidence/implementation/58b5679b2b58b8190a445c931ab2456715c1535a/browser-journey/JOURNEY-LOG.md`.
+Summary:
+
+- **12 of 13 journey steps PASS live**, including the exact defect class B-1 was
+  about: Q01 (a `5-6` range answer is refused, not silently priced), Q05 (an ordinary
+  4-person quote reads exactly $580), C01-C06 (copy-is-not-send, clipboard denial,
+  confirm, retry/idempotency, follow-up as a distinct message, desktop and phone),
+  P01 (a $500-vs-$580 body/amount mismatch is hard-blocked, not warning-only), P02
+  (a tone-only edit is not blocked), and T05/B-2 (a stale confirm against a declined
+  enquiry is refused/redirected to a truthful attestation, never revives the
+  enquiry).
+- **One step, P03 (stale preview via a concurrent quantity change), could not be
+  genuinely exercised** - not because the stale-preview guard is broken, but because
+  a different, newly-discovered live defect makes the precondition unreachable
+  through the UI (see below).
+- **New finding, not previously known:** the "Correct guests" / "Correct service"
+  pencil-edit control on an already-confirmed fact (`intelligence.tsx` ~line 1190,
+  `correctFact` from the `usePrototype` Zustand store) writes only to client-side
+  demo/prototype state, never to the server. It shows a full success toast, an
+  updated fact panel, and a synthetic audit-trail line, none of which survive a page
+  reload - and even before reload, the recommendation/draft did not recompute against
+  the new value. Every other fact-answering path this journey touched
+  (`answer-blocker.tsx`, real `answerEnquiryFact`) persisted correctly. This is
+  exactly the class of gap B2 exists to catch: invisible to the repository suite
+  (which calls `answerEnquiryFact` directly, not through this specific UI control) and
+  invisible to demo-mode screenshots (where client-only state is the correct,
+  intended behaviour). Directly touches CC1-03/A02 ("recompute correctly; survives
+  reload").
+
+Not signed off by this work - browser observation only, per the package's own
+evidence-levels rule.
