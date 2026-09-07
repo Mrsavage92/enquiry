@@ -225,10 +225,20 @@ export async function prepareReviewedSendInTransaction(
   const hash = bodyHash(body);
   const recipient = resolveRecipient(input.channel, enq);
 
-  // One row per (enquiry, decision revision, exact text). `on conflict` is what
-  // makes preparing the same review twice - a refresh, a reopened dialog, a
-  // retry - resolve to the SAME artefact rather than a second one.
-  const [row] = await sql<{ id: string; consumed_at: string | null }>`
+  // One row per (enquiry, exact text). `on conflict` is what makes preparing
+  // the same review twice - a refresh, a reopened dialog, a retry after a lost
+  // response - resolve to the SAME artefact rather than a second one, and
+  // `do update` rather than `do nothing` so the id comes back either way.
+  //
+  // The existing row keeps its original decision_revision. That matters: an
+  // artefact prepared before the facts moved stays pinned to the decision it
+  // actually described, so confirming it is correctly seen as stale rather
+  // than quietly re-pointed at a newer amount.
+  const [row] = await sql<{
+    id: string;
+    consumed_at: string | null;
+    decision_revision: string | number;
+  }>`
     insert into reviewed_send
       (enquiry_id, business_id, reviewed_by, decision_revision, action, channel,
        recipient, body, body_hash, price_kind, amount_minor, range_min_minor,
@@ -245,16 +255,18 @@ export async function prepareReviewedSendInTransaction(
       ${enq.evaluators ? JSON.stringify(enq.evaluators) : null}::jsonb,
       ${enq.engine_version ?? "0"}
     )
-    on conflict (enquiry_id, decision_revision, body_hash)
+    on conflict (enquiry_id, body_hash)
       do update set reviewed_by = excluded.reviewed_by
-    returning id, consumed_at
+    returning id, consumed_at, decision_revision
   `;
   if (!row) throw new Error("Could not prepare that send for review.");
 
   return {
     ok: true,
     reviewedSendId: row.id,
-    decisionRevision: locked.decisionRevision,
+    // The row's own revision, not the enquiry's current one - an artefact that
+    // already existed keeps the decision it was prepared against.
+    decisionRevision: Number(row.decision_revision),
     recipient,
     channel: input.channel,
     action,

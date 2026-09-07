@@ -70,13 +70,21 @@ create table if not exists reviewed_send (
   stale_attested boolean not null default false
 );
 
--- The idempotency key. One reviewed artefact per (enquiry, decision revision,
--- exact text): preparing the same review twice returns the same row, so a
--- refresh, a reopened dialog or a retry after a lost response all confirm the
--- SAME send rather than creating a second one. Two genuinely different
--- follow-ups differ in their body and get their own rows.
+-- The idempotency key: one reviewed artefact per (enquiry, exact text).
+--
+-- Deliberately NOT keyed on decision_revision as well. Recording a send bumps
+-- the revision, so a key including it would let the recovery case - owner
+-- confirms, the response is lost, they refresh and confirm again - create a
+-- second artefact at the new revision and record the same message twice, which
+-- is the exact failure this is here to prevent. Keyed on the text alone, that
+-- retry resolves to the artefact that was already consumed and is reported as
+-- the duplicate it is.
+--
+-- Two genuinely different follow-ups differ in their text and get their own
+-- rows. An owner who wants to send the identical text a second time changes
+-- something about it, which is a low price for never recording a send twice.
 create unique index if not exists reviewed_send_identity_idx
-  on reviewed_send (enquiry_id, decision_revision, body_hash);
+  on reviewed_send (enquiry_id, body_hash);
 
 create index if not exists reviewed_send_enquiry_idx on reviewed_send (enquiry_id, created_at);
 
