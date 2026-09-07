@@ -178,7 +178,13 @@ function Home() {
       </section>
 
       <section className="border-t border-line">
-        <div className="mx-auto max-w-5xl px-5 py-12 sm:py-20">
+        {/*
+          lg:grid puts the trade list beside the heading instead of stacked
+          below it - the previous stacked layout left the right third of the
+          1440 container empty (agent-runs/2026-09-04/17 E7). Below lg it
+          stays a single column, unchanged from before.
+        */}
+        <div className="mx-auto max-w-5xl px-5 py-12 sm:py-20 lg:grid lg:grid-cols-[minmax(0,1fr)_16rem] lg:items-start lg:gap-16">
           <Reveal>
             <p className="eyebrow">Who it’s for</p>
             <h2 className="site-display mt-3 max-w-2xl">If customers ask before they book.</h2>
@@ -188,7 +194,7 @@ function Home() {
               not wait.
             </p>
           </Reveal>
-          <ul className="mt-10 max-w-xl">
+          <ul className="mt-10 max-w-xl lg:mt-0 lg:max-w-none">
             {["Makeup", "Photography", "Painting", "Consulting"].map((t, i) => (
               <Reveal key={t} delay={i * 50}>
                 <li className="border-t border-line py-4 text-sm last:border-b">{t}</li>
@@ -286,7 +292,13 @@ function Home() {
         </div>
       </section>
 
-      <section className="mx-auto max-w-5xl px-5 py-12 sm:py-20">
+      {/*
+        lg:grid puts the three steps beside the heading instead of stacked
+        below it, for the same reason as the "Who it's for" section above -
+        it also breaks up the vertical eyebrow+display+lede rhythm repeated
+        through the rest of the page (agent-runs/2026-09-04/17 E7/E10).
+      */}
+      <section className="mx-auto max-w-5xl px-5 py-12 sm:py-20 lg:grid lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start lg:gap-16">
         <Reveal>
           <p className="eyebrow">Early access</p>
           <h2 className="site-display mt-3 max-w-2xl">We’re starting small.</h2>
@@ -295,7 +307,7 @@ function Home() {
             trustworthy before opening it more widely.
           </p>
         </Reveal>
-        <ol className="mt-8 max-w-xl">
+        <ol className="mt-8 max-w-xl lg:mt-0 lg:max-w-none">
           {[
             {
               t: "Join with an email",
