@@ -480,22 +480,36 @@
   text-wrap: balance;
 }
 
+/*
+  Capped at 33.6px/1440 (was 40.8px). .site-hero is the one deliberate large
+  moment on the page and stays untouched; every other display heading sits in
+  a 25.6-33.6px band so the eyebrow-to-heading range for the rest of the page
+  reads at roughly 2.3-3.1x rather than the previous 3.7x, closer to the
+  2.75x restraint measured on Basecamp (agent-runs/2026-09-03/02) and the
+  app's own ~2.9x eyebrow-to-heading range.
+*/
 .site-display {
   font-family: var(--font-serif);
   font-weight: 600;
   letter-spacing: -0.03em;
-  line-height: 1.14;
+  line-height: 1.16;
   text-wrap: balance;
-  font-size: clamp(1.7rem, 3.2vw, 2.55rem);
+  font-size: clamp(1.6rem, 2.6vw, 2.1rem);
 }
 
+/*
+  Capped at 44px/1440 (was 54.4px) for the same reason as .site-display above.
+  Kept a step larger than .site-display because this class also renders as
+  the h1 on /demo (cross-channel-decision-demo.tsx, headingLevel="h1"), where
+  it is the only heading on the page.
+*/
 .site-display-proof {
   font-family: var(--font-serif);
   font-weight: 600;
   letter-spacing: -0.032em;
-  line-height: 1.12;
+  line-height: 1.14;
   text-wrap: balance;
-  font-size: clamp(2rem, 4.5vw, 3.4rem);
+  font-size: clamp(1.9rem, 3.4vw, 2.75rem);
 }
 
 .site-lede {
