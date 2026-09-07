@@ -42,6 +42,7 @@ import {
 import { CaseFile } from "./case-file";
 import { isCustomerFacingSend, resolvedHold } from "@/domain/commercial";
 import { needsServiceConfirmation } from "@/domain/service-authority";
+import { correctionRoute } from "@/domain/fact-correction";
 import { previewFor } from "@/domain/send-preview";
 import { toastUndo } from "@/lib/toast-undo";
 import { toast } from "sonner";
@@ -1188,10 +1189,54 @@ function CorrectDialog({
   sheet?: boolean;
 }) {
   const correctFact = usePrototype((s) => s.correctFact);
+  const demoMode = usePrototype((s) => s.demoMode);
+  const actions = useFirstBetaActions();
   const [value, setValue] = useState("");
+  const [saving, setSaving] = useState(false);
   useEffect(() => {
     setValue(fact?.displayValue ?? "");
   }, [fact]);
+
+  /**
+   * Apply a correction where it actually belongs.
+   *
+   * This used to call the client store in every mode: a success toast, a local
+   * audit line, no network request, nothing persisted, no recomputed price, and
+   * the whole thing gone on reload. A live correction now goes through the same
+   * server path as any other confirmation - tenancy re-derived, the fact
+   * superseded and re-inserted inside one transaction, the decision recomputed,
+   * the revision bumped, an audit row written - and the store is refreshed FROM
+   * that response rather than optimistically ahead of it, so what the desk shows
+   * is what the database holds.
+   */
+  const apply = async (next: string, display: string) => {
+    if (!fact) return;
+    const route = correctionRoute(fact.field, demoMode);
+    if (route.kind === "demo") {
+      correctFact(enquiry.id, fact.id, next, display);
+      onClose();
+      return;
+    }
+    setSaving(true);
+    try {
+      const res =
+        route.kind === "service"
+          ? await actions.setService(enquiry.id, next.trim())
+          : await actions.answerFact(enquiry.id, route.field, next.trim());
+      onClose();
+      toast.success(
+        res.action === "SEND_QUOTE" ? "Corrected. The price is updated." : res.explanation,
+      );
+    } catch (err) {
+      // The server refuses a value it cannot price from - a range, alternatives,
+      // a negative - exactly as it does for a first answer. Say so and leave the
+      // dialog open so the owner can fix it, rather than closing on a failure.
+      toast.error(err instanceof Error ? err.message : "Could not save that correction.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
   if (!fact) return null;
   const alts = fact.alternatives ?? [];
   const Panel = sheet ? SheetContent : DialogContent;
@@ -1206,10 +1251,8 @@ function CorrectDialog({
                 key={a}
                 variant="secondary"
                 className="min-h-11 w-full justify-start"
-                onClick={() => {
-                  correctFact(enquiry.id, fact.id, a, alternativeLabel(a));
-                  onClose();
-                }}
+                disabled={saving}
+                onClick={() => void apply(a, alternativeLabel(a))}
               >
                 {alternativeLabel(a)}
               </Button>
@@ -1220,8 +1263,7 @@ function CorrectDialog({
             className="space-y-3"
             onSubmit={(e) => {
               e.preventDefault();
-              correctFact(enquiry.id, fact.id, value, value);
-              onClose();
+              void apply(value, value);
             }}
           >
             <label className="block text-sm">
@@ -1237,8 +1279,8 @@ function CorrectDialog({
                 ? "This looks customer-specific. It will stay on this enquiry."
                 : "If this is how the business works, Enquiry will ask whether to learn it."}
             </p>
-            <Button type="submit" className="min-h-11 w-full">
-              Update fact
+            <Button type="submit" className="min-h-11 w-full" disabled={saving}>
+              {saving ? "Saving…" : "Update fact"}
             </Button>
           </form>
         )}

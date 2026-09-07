@@ -8,6 +8,7 @@ import { insertManualEnquiry } from "./manual-enquiry-core.ts";
 import { prepareReviewedSendInTransaction } from "./reviewed-send-core.ts";
 import { confirmReviewedSendInTransaction } from "./sent-reply-core.ts";
 import { applyDecision, lockEnquiry } from "./decision-apply.ts";
+import { validateFactAnswer } from "../../domain/decide.ts";
 
 /**
  * The end-to-end shape the CC1 suite was missing.
@@ -298,4 +299,130 @@ test("P02: a tone-only edit around the composed figures still sends", async () =
     }),
   );
   assert.equal(prepared.ok, true, JSON.stringify(prepared));
+});
+
+// ---------------------------------------------------------------------------
+// CC1-03 / A02 - correcting an already-confirmed fact
+// ---------------------------------------------------------------------------
+
+/** Correct a fact exactly as `answerEnquiryFact` does: supersede, insert, re-decide. */
+async function correctFact(
+  pg: PGlite,
+  ids: { businessId: string; enquiryId: string },
+  field: string,
+  value: string,
+) {
+  const knowledge = await pg.query<{ state: string; rule_payload: unknown }>(
+    "select state, rule_payload from knowledge_item where business_id = $1 and rule_payload is not null",
+    [ids.businessId],
+  );
+  const enq = await pg.query<{ service_label: string }>(
+    "select service_label from enquiry where id = $1",
+    [ids.enquiryId],
+  );
+  const problem = validateFactAnswer(
+    { knowledge: knowledge.rows.map((k) => ({ state: k.state, rulePayload: k.rule_payload })) },
+    enq.rows[0]!.service_label ?? "",
+    field,
+    value,
+  );
+  if (problem) throw new Error(problem);
+  return confirmFact(pg, ids, field, value);
+}
+
+async function priceAndRevision(pg: PGlite, enquiryId: string) {
+  const rows = await pg.query<{
+    decision_revision: number;
+    decision_snapshot: { price?: { amountMinor: number }; draft: { body: string } };
+  }>("select decision_revision, decision_snapshot from enquiry where id = $1", [enquiryId]);
+  const row = rows.rows[0]!;
+  return {
+    revision: Number(row.decision_revision),
+    amountMinor: row.decision_snapshot.price?.amountMinor ?? null,
+    draft: row.decision_snapshot.draft.body,
+  };
+}
+
+test("A02: correcting an already-confirmed quantity re-prices and survives a re-read", async () => {
+  const pg = await freshDb();
+  const ids = await seed(pg, PER_PERSON, "Group makeup");
+  await confirmFact(pg, ids, "guests", "4");
+  const before = await priceAndRevision(pg, ids.enquiryId);
+  assert.equal(before.amountMinor, 58_000);
+
+  // The owner realises it is six, not four, and corrects it.
+  await correctFact(pg, ids, "guests", "6");
+
+  // Re-read from the database, not from anything held in memory - the whole
+  // point of A02 is that the correction is still there after a reload.
+  const after = await priceAndRevision(pg, ids.enquiryId);
+  assert.equal(after.amountMinor, 87_000, "6 people at $145 each");
+  assert.equal(after.revision, before.revision + 1, "a correction is a new decision");
+  assert.match(after.draft, /\$870/, "the prepared reply is recomposed, not left stale");
+
+  // Exactly one live answer for the field, with the earlier one kept as history.
+  const live = await pg.query<{ value: string; status: string; asserted_by: string }>(
+    "select value, status, asserted_by from enquiry_fact where enquiry_id = $1 and field = 'guests' and superseded = false",
+    [ids.enquiryId],
+  );
+  assert.equal(live.rows.length, 1);
+  assert.equal(live.rows[0]!.value, "6");
+  assert.equal(live.rows[0]!.asserted_by, "user");
+  const all = await pg.query<{ n: number }>(
+    "select count(*)::int as n from enquiry_fact where enquiry_id = $1 and field = 'guests'",
+    [ids.enquiryId],
+  );
+  assert.equal(all.rows[0]!.n, 2, "the earlier answer is superseded, not deleted");
+});
+
+test("A02/Q01: a correction to an unusable value is refused, exactly like a first answer", async () => {
+  const pg = await freshDb();
+  const ids = await seed(pg, PER_PERSON, "Group makeup");
+  await confirmFact(pg, ids, "guests", "4");
+
+  await assert.rejects(correctFact(pg, ids, "guests", "5-6"), /range/i);
+
+  // And the original answer is untouched - a refused correction changes nothing.
+  const after = await priceAndRevision(pg, ids.enquiryId);
+  assert.equal(after.amountMinor, 58_000);
+});
+
+test("P03: a correction moves the revision, so a preview taken before it goes stale", async () => {
+  // This is the concurrency the stale-preview case needs and the client-side
+  // control could never produce: the price genuinely changes underneath an
+  // approval that was frozen against the old one.
+  const pg = await freshDb();
+  const ids = await seed(pg, PER_PERSON, "Group makeup");
+  await confirmFact(pg, ids, "guests", "4");
+  const draft = await preparedDraft(pg, ids.enquiryId);
+
+  const prepared = await inTransaction(pg, (sql) =>
+    prepareReviewedSendInTransaction(sql, {
+      enquiryId: ids.enquiryId,
+      businessId: ids.businessId,
+      userId: "user-1",
+      body: draft,
+      channel: "manual",
+    }),
+  );
+  assert.equal(prepared.ok, true);
+  if (!prepared.ok) return;
+
+  await correctFact(pg, ids, "guests", "6");
+
+  const res = await inTransaction(pg, (sql) =>
+    confirmReviewedSendInTransaction(sql, {
+      reviewedSendId: prepared.reviewedSendId,
+      enquiryId: ids.enquiryId,
+      businessId: ids.businessId,
+      userId: "user-1",
+    }),
+  );
+  assert.equal(res.ok, false, "an approval frozen against $580 cannot be sent once it is $870");
+  if (res.ok) return;
+  assert.equal(res.reason, "stale");
+  const msgs = await pg.query("select 1 from message where enquiry_id = $1 and direction = 'outbound'", [
+    ids.enquiryId,
+  ]);
+  assert.equal(msgs.rows.length, 0);
 });
