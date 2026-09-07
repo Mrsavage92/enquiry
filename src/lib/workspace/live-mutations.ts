@@ -205,8 +205,12 @@ export function useFirstBetaActions() {
     /** Save a confirmed pricing rule, then reload so it can price immediately. */
     saveRule: async (businessId: string, rule: unknown) => {
       const { saveBusinessRule } = await import("@/lib/server/enquiry-actions");
-      await saveBusinessRule({ data: { businessId, rule } });
+      // The result says whether an earlier Active price for this service was
+      // retired, or whether this was an identical duplicate that changed
+      // nothing, so the screen can say which rather than always "Saved".
+      const res = await saveBusinessRule({ data: { businessId, rule } });
       await refresh();
+      return res;
     },
     /** Add an enquiry the owner typed in. Returns its id so the UI can open it. */
     addEnquiry: async (input: {
