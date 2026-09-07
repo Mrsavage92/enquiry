@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { factStatusLabel, factStatusTone } from "@/domain/labels";
+import { factStatusLabel, factStatusTone, formatAud } from "@/domain/labels";
 import { useFirstBetaActions } from "@/lib/workspace/live-mutations";
 import type { Enquiry } from "@/domain/types";
 
@@ -34,6 +34,8 @@ export function ServiceReadAs({ enquiry }: { enquiry: Enquiry }) {
 
   if (!fact) return null;
 
+  const provisional = enquiry.decision?.provisionalPrice;
+
   const submit = async () => {
     if (!value.trim()) return toast.error("Enter what they're asking for.");
     setSaving(true);
@@ -55,6 +57,19 @@ export function ServiceReadAs({ enquiry }: { enquiry: Enquiry }) {
           Enquiry read this as {fact.displayValue || fact.value}.
         </p>
       </div>
+      {provisional ? (
+        // Shown so confirming is an informed decision, and labelled so it can
+        // never read as a decided quote. The figure lives in
+        // `provisionalPrice`, which no send path reads - until the owner
+        // confirms below, there is no authorised amount at all.
+        <p className="mt-2 text-sm text-ink-2">
+          If that is right, this prices at{" "}
+          <span className="font-semibold tabular-nums">
+            {formatAud(provisional.amountMinor / 100)}
+          </span>
+          . Not quoted yet - confirm the service first.
+        </p>
+      ) : null}
       <div className="mt-3 flex flex-wrap items-end gap-2">
         <label className="min-w-40 flex-1 text-sm">
           <span className="mb-1.5 block text-stone">What are they asking for?</span>

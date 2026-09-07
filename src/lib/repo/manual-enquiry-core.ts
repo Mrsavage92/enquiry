@@ -44,9 +44,23 @@ export async function insertManualEnquiry(
   const [owner] = await sql<{ owner_first_name: string | null }>`
     select owner_first_name from business where id = ${input.businessId}
   `;
+  // An owner who typed the service into the intake form has confirmed it - that
+  // IS the deliberate authoritative act, and it is recorded as one below. The
+  // decision is computed from the same fact the row will carry, so the stored
+  // snapshot and the stored facts cannot disagree from the first moment.
+  const ownerConfirmedService = input.serviceLabel.trim();
+  const seedFacts = ownerConfirmedService
+    ? [
+        {
+          field: "service",
+          value: ownerConfirmedService,
+          status: "confirmed" as const,
+        },
+      ]
+    : [];
   const decision = decideEnquiry(
     { knowledge: knowledge.map((k) => ({ state: k.state, rulePayload: k.rule_payload })) },
-    { serviceLabel: input.serviceLabel, facts: [] },
+    { serviceLabel: input.serviceLabel, facts: seedFacts as never },
   );
   const snapshot = snapshotFromDecision(decision, {
     customerName: input.customerName,
@@ -84,6 +98,26 @@ export async function insertManualEnquiry(
   `;
   const messageId = msgRows[0]?.id;
   if (!messageId) throw new Error("Could not record the inbound message.");
+
+  // The service the owner typed, recorded as an owner-asserted confirmed fact
+  // rather than left as a bare `service_label` string. A nonblank label alone
+  // proves nothing about who decided it - the model can write that column too
+  // (see `interpretAndApply`, which writes `check_this`) - so the authority has
+  // to be persisted separately from the value, in the same transaction that
+  // creates the enquiry.
+  if (ownerConfirmedService) {
+    await sql`
+      insert into enquiry_fact
+        (enquiry_id, field, label, value, display_value, status, confidence,
+         asserted_by, provenance, customer_specific)
+      values (
+        ${enquiryId}, ${"service"}, ${"service"}, ${ownerConfirmedService},
+        ${ownerConfirmedService}, ${"confirmed"}, ${"High"}, ${"user"},
+        ${JSON.stringify({ kind: "user", label: "Entered by the owner" })}::jsonb,
+        ${true}
+      )
+    `;
+  }
 
   return { enquiryId, messageId };
 }

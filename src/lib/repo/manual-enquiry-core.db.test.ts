@@ -159,9 +159,14 @@ test("a medium-confidence fact lands as inferred, with model provenance, never c
     confidence: string;
     asserted_by: string;
     provenance: { kind: string; messageId: string; span: string; model: string };
-  }>("select status, confidence, asserted_by, provenance from enquiry_fact where enquiry_id = $1", [
-    enquiryId,
-  ]);
+    // Scoped to the field under test: the enquiry also carries the owner's own
+    // confirmed `service` fact, written by `insertManualEnquiry` because the
+    // operator typed the service into the intake form. That is a separate
+    // invariant (CC1-03) with its own tests below.
+  }>(
+    "select status, confidence, asserted_by, provenance from enquiry_fact where enquiry_id = $1 and field = 'guests'",
+    [enquiryId],
+  );
   assert.equal(facts.rows.length, 1);
   assert.equal(facts.rows[0]!.status, "inferred");
   assert.equal(facts.rows[0]!.confidence, "Medium");
@@ -200,7 +205,7 @@ test("a low-confidence fact lands as check_this, not inferred", async () => {
   });
 
   const facts = await pg.query<{ status: string }>(
-    "select status from enquiry_fact where enquiry_id = $1",
+    "select status from enquiry_fact where enquiry_id = $1 and field = 'guests'",
     [enquiryId],
   );
   assert.equal(facts.rows[0]!.status, "check_this");
@@ -640,12 +645,21 @@ test("an injection-shaped message never yields a confirmed fact, a price, or sta
   assert.equal(outcome.factsWritten, 2);
 
   const facts = await pg.query<{ status: string; field: string }>(
-    "select status, field from enquiry_fact where enquiry_id = $1",
+    "select status, field from enquiry_fact where enquiry_id = $1 and asserted_by = 'system'",
     [enquiryId],
   );
   assert.equal(facts.rows.length, 2);
   for (const row of facts.rows) {
     assert.notEqual(row.status, "confirmed", `${row.field} must never land as confirmed`);
+  }
+  // And the only confirmed fact on the enquiry is the one the OWNER asserted -
+  // the injected content produced no confirmed row of any kind.
+  const confirmedRows = await pg.query<{ field: string; asserted_by: string }>(
+    "select field, asserted_by from enquiry_fact where enquiry_id = $1 and status = 'confirmed'",
+    [enquiryId],
+  );
+  for (const row of confirmedRows.rows) {
+    assert.equal(row.asserted_by, "user", `${row.field} was confirmed by something other than the owner`);
   }
 
   // The deterministic engine never asked for "approved" or "price" - it
@@ -749,9 +763,10 @@ test("a fact confirmed before interpretAndApply runs survives untouched - no inf
     status: string;
     asserted_by: string;
     superseded: boolean;
-  }>("select id, value, status, asserted_by, superseded from enquiry_fact where enquiry_id = $1", [
-    enquiryId,
-  ]);
+  }>(
+    "select id, value, status, asserted_by, superseded from enquiry_fact where enquiry_id = $1 and field = 'guests'",
+    [enquiryId],
+  );
   // The confirmed row is untouched - same id, still live - and the model's "6"
   // never landed as any row, live or superseded.
   const live = liveFacts.rows.filter((r) => !r.superseded);
