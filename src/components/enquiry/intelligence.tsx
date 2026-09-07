@@ -172,10 +172,16 @@ export function Intelligence({
     <div
       className={cn(
         "flex flex-col bg-raised xl:border-l xl:border-line",
-        compact ? "min-h-0 flex-1 overflow-hidden" : "h-full min-h-0 overflow-y-auto",
+        compact ? "min-h-0 flex-1 overflow-hidden" : "h-full min-h-0 overflow-hidden",
       )}
     >
-      <div className={cn(compact ? "flex min-h-0 flex-1 flex-col overflow-hidden" : undefined)}>
+      <div
+        className={cn(
+          compact
+            ? "flex min-h-0 flex-1 flex-col overflow-hidden"
+            : "min-h-0 flex-1 overflow-y-auto pb-4",
+        )}
+      >
         {!compact ? (
           // Sticky within this panel's own overflow-y-auto container (the
           // outer div above), not the window - the business line and the
