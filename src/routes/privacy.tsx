@@ -1,17 +1,15 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { socialHead } from "@/lib/site/head";
 import { SiteShell } from "@/components/site/site-shell";
 
 export const Route = createFileRoute("/privacy")({
   component: Privacy,
-  head: () => ({
-    meta: [
-      { title: "Privacy · Enquiry" },
-      {
-        name: "description",
-        content: "How Enquiry handles early-access emails and the in-browser demo.",
-      },
-    ],
-  }),
+  head: () =>
+    socialHead({
+      path: "/privacy",
+      title: "Privacy · Enquiry",
+      description: "How Enquiry handles early-access emails and the in-browser demo.",
+    }),
 });
 
 function Privacy() {
@@ -46,8 +44,8 @@ function Privacy() {
           </p>
           <h2 className="text-lg font-semibold tracking-tight text-ink">Keeping the waitlist</h2>
           <p>
-            Waitlist records live in our database so a refresh does not lose your place. Roadmap
-            “I need this” is tied to a browser session, not a public leaderboard.
+            Waitlist records live in our database so a refresh does not lose your place. Roadmap “I
+            need this” is tied to a browser session, not a public leaderboard.
           </p>
           <h2 className="text-lg font-semibold tracking-tight text-ink">Your choices</h2>
           <p>

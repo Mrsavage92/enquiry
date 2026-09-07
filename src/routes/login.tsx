@@ -1,4 +1,5 @@
 import { Link, createFileRoute } from "@tanstack/react-router";
+import { socialHead } from "@/lib/site/head";
 import { DEFAULT_RETURN_PATH, safeReturnPath } from "@/lib/auth/return-path";
 import { AuthRequestForm } from "@/components/auth/auth-request-form";
 
@@ -15,7 +16,12 @@ export const Route = createFileRoute("/login")({
     if (typeof search.redirect !== "string" || !search.redirect) return {};
     return { redirect: safeReturnPath(search.redirect) };
   },
-  head: () => ({ meta: [{ title: "Sign in - Enquiry" }] }),
+  head: () =>
+    socialHead({
+      path: "/login",
+      title: "Sign in - Enquiry",
+      description: "Enquiry sends a link. There is no password.",
+    }),
   component: LoginPage,
 });
 

@@ -1,17 +1,15 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { socialHead } from "@/lib/site/head";
 import { SiteShell } from "@/components/site/site-shell";
 
 export const Route = createFileRoute("/terms")({
   component: Terms,
-  head: () => ({
-    meta: [
-      { title: "Terms · Enquiry" },
-      {
-        name: "description",
-        content: "Terms for the Enquiry website, waitlist, and in-browser prototype.",
-      },
-    ],
-  }),
+  head: () =>
+    socialHead({
+      path: "/terms",
+      title: "Terms · Enquiry",
+      description: "Terms for the Enquiry website, waitlist, and in-browser prototype.",
+    }),
 });
 
 function Terms() {
@@ -28,15 +26,15 @@ function Terms() {
           </p>
           <h2 className="text-lg font-semibold tracking-tight text-ink">The waitlist</h2>
           <p>
-            Joining early access is a request, not a purchase and not a guarantee of a place.
-            We invite businesses in small groups as the product is ready. Enquiry is intended to
-            become a paid product; pricing is not promised in advance.
+            Joining early access is a request, not a purchase and not a guarantee of a place. We
+            invite businesses in small groups as the product is ready. Enquiry is intended to become
+            a paid product; pricing is not promised in advance.
           </p>
           <h2 className="text-lg font-semibold tracking-tight text-ink">The prototype</h2>
           <p>
-            “Open the app” is a working demonstration with sample jobs. It does not send real
-            email, texts, or Instagram messages. Do not use it as the system of record for a live
-            customer. Anything you type there can be reset.
+            “Open the app” is a working demonstration with sample jobs. It does not send real email,
+            texts, or Instagram messages. Do not use it as the system of record for a live customer.
+            Anything you type there can be reset.
           </p>
           <h2 className="text-lg font-semibold tracking-tight text-ink">The product will change</h2>
           <p>
@@ -45,14 +43,14 @@ function Terms() {
           </p>
           <h2 className="text-lg font-semibold tracking-tight text-ink">Acceptable use</h2>
           <p>
-            Don’t abuse the waitlist, scrape the site, or treat sample customers as real people
-            to contact. The names in the prototype are fixtures.
+            Don’t abuse the waitlist, scrape the site, or treat sample customers as real people to
+            contact. The names in the prototype are fixtures.
           </p>
           <h2 className="text-lg font-semibold tracking-tight text-ink">Liability</h2>
           <p>
-            The site and prototype are provided as-is while we build. To the extent Australian
-            law allows, we are not liable for decisions you make from the demonstration. Nothing
-            here limits rights you cannot waive.
+            The site and prototype are provided as-is while we build. To the extent Australian law
+            allows, we are not liable for decisions you make from the demonstration. Nothing here
+            limits rights you cannot waive.
           </p>
           <p>
             <Link to="/privacy" className="font-medium text-ink underline-offset-4 hover:underline">

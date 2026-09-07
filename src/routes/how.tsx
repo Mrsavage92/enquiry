@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { socialHead } from "@/lib/site/head";
 import { SiteShell } from "@/components/site/site-shell";
 import { ProofCase } from "@/components/site/proof-case";
 import { CrossChannelDecisionDemo } from "@/components/site/cross-channel-decision-demo";
@@ -9,16 +10,13 @@ import { SIGNATURE_DEMO } from "@/lib/site/signature-demo";
 
 export const Route = createFileRoute("/how")({
   component: How,
-  head: () => ({
-    meta: [
-      { title: "How it works · Enquiry" },
-      {
-        name: "description",
-        content:
-          "Work arrives from any channel. Enquiry reconstructs the request, applies how your business works, and prepares the next action.",
-      },
-    ],
-  }),
+  head: () =>
+    socialHead({
+      path: "/how",
+      title: "How it works · Enquiry",
+      description:
+        "Work arrives from any channel. Enquiry reconstructs the request, applies how your business works, and prepares the next action.",
+    }),
 });
 
 function How() {

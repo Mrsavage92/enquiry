@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { socialHead } from "@/lib/site/head";
 import { SiteShell } from "@/components/site/site-shell";
 import { WaitlistForm } from "@/components/site/waitlist-form";
 import { LivePhone } from "@/components/site/live-phone";
@@ -11,17 +12,13 @@ import { useNarrow } from "@/lib/use-narrow";
 
 export const Route = createFileRoute("/")({
   component: Home,
-  head: () => ({
-    meta: [
-      { title: "Enquiry - stop managing enquiries" },
-      {
-        name: "description",
-        content:
-          "However the enquiry arrives, Enquiry puts the request together, understands what matters for this business, and prepares the next action.",
-      },
-      { property: "og:image", content: "/product/phone-job.png" },
-    ],
-  }),
+  head: () =>
+    socialHead({
+      path: "/",
+      title: "Enquiry - stop managing enquiries",
+      description:
+        "However the enquiry arrives, Enquiry puts the request together, understands what matters for this business, and prepares the next action.",
+    }),
 });
 
 function Home() {

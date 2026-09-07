@@ -1,18 +1,16 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { socialHead } from "@/lib/site/head";
 import { SiteShell } from "@/components/site/site-shell";
 import { WaitlistForm } from "@/components/site/waitlist-form";
 
 export const Route = createFileRoute("/updates")({
   component: Updates,
-  head: () => ({
-    meta: [
-      { title: "Updates · Enquiry" },
-      {
-        name: "description",
-        content: "Meaningful notes from building Enquiry in public. Not a changelog.",
-      },
-    ],
-  }),
+  head: () =>
+    socialHead({
+      path: "/updates",
+      title: "Updates · Enquiry",
+      description: "Meaningful notes from building Enquiry in public. Not a changelog.",
+    }),
 });
 
 const POSTS = [
