@@ -5,16 +5,23 @@ Independent review, not the implementer, decides whether CC1 passes.
 
 ## Revision and status
 
-- Implementation branch / PR: `cc1/commercial-correctness` (draft PR against `main`).
+- Implementation branch / PR: `cc1/commercial-correctness`, draft PR #11 against `main`.
 - Actual pre-change baseline SHA: `41d9d3371a5fa9a2a29552faea2506f65080dd4d` (`origin/main`).
-- Tested application SHA: `2849113ee94434ed3327c863d819bc93899ab0ac`, clean tree.
+- Tested application SHA: `c305c5afd0b79b4d441137656e70d361307b7f38`, clean tree.
+- **Revision 2**, after the independent review of PR #11
+  (`research/agent-runs/2026-09-04/35-review-pr11-cc1.md`) returned BLOCKING.
+  All four blocking findings are fixed, one commit each, each reproduced with a
+  failing test first. Six review suggestions were taken. Blocker 2 below is
+  reclassified: the review's companion RCA showed my original diagnosis was
+  wrong.
 - Final report SHA: the commit adding this file (docs only; no source change after the tested SHA).
 - Environment: Windows 11, Node v22.16.0, isolated git worktree, in-memory PGLite
   (no `DATABASE_URL` was set at any point, so no external database was reached).
   Browser checks used Chrome via chrome-devtools against a local dev server on
   port 5178. No credentials were added to the repository.
-- Overall status: **implemented, partially verified, with two named blockers**
-  (real-provider interpretation; the full live signed-in browser journey).
+- Overall status: **implemented, partially verified, with three named gates
+  open** (real-provider interpretation; the live signed-in browser journey,
+  which was not exercised here; multi-connection concurrency).
 - Independent sign-off: pending.
 
 ## Reproducing the defects first
@@ -22,15 +29,55 @@ Independent review, not the implementer, decides whether CC1 passes.
 Every defect family was reproduced on the actual pre-change baseline before any
 fix, not assumed from the review:
 
-| Check                                      | Result at `41d9d33`           | Evidence                                                                |
-| ------------------------------------------ | ----------------------------- | ----------------------------------------------------------------------- |
+| Check                                      | Result at `41d9d33`           | Evidence                                                |
+| ------------------------------------------ | ----------------------------- | ------------------------------------------------------- |
 | `npm test -- --test-concurrency=1`         | 590 pass / 0 fail, exit 0     | `evidence/implementation/<sha>/commands/base-test.txt`  |
-| `npm run typecheck`                        | exit 0                        | recorded during baseline capture                                        |
-| `npm run lint`                             | exit 0 (0 errors, 0 warnings) | recorded during baseline capture                                        |
+| `npm run typecheck`                        | exit 0                        | recorded during baseline capture                        |
+| `npm run lint`                             | exit 0 (0 errors, 0 warnings) | recorded during baseline capture                        |
 | CC1 probe (`probes/price-safety.probe.ts`) | **6 tests, 0 pass, 6 fail**   | `evidence/implementation/<sha>/commands/base-probe.txt` |
 
 All three defect families reproduced: quantity meaning, service/rule ordering,
 and unconfirmed-service pricing. The same probe passes 6/6 at the tested SHA.
+
+## Response to the independent review of PR #11
+
+The review returned BLOCKING with four findings, two proven by executing branch
+code against a real database. All four are fixed. Each was reproduced with a
+failing test before the fix, and each has its own commit.
+
+| Finding                           | What was wrong                                                                                                                                                                                                                                                                                                                                                           | Commit    | Reproduction                                                                                                                                                                                                             |
+| --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **B-1** (Q05, Q06, C03, P01, P02) | `amountAgrees` compared every `$` figure in the reviewed body against the single structured total. `composeReply` writes "That comes to $580. 4 people at $145 each.", so the unit rate read as a disagreement and **every per-unit quote was refused as `amount_mismatch`** - the rule kind this slice was specified around. Minimum-billed quotes failed the same way. | `6fcc498` | `composed-draft-send.db.test.ts`, which never writes a body: it drives an enquiry from `insertManualEnquiry` through the decision and sends whatever the product composed. Three of its six cases failed before the fix. |
+| **B-2** (T05, P05)                | The closed-enquiry guard was `isClosed(...) && !input.staleAttestation` - a **client boolean switched off a server lifecycle check** - and decline did not bump `decision_revision`, so a pre-decline artefact was not stale and took the branch that advances the enquiry. A DECLINED enquiry acquired WAITING_ON_CLIENT / QUOTED / CUSTOMER and a live `sent` quote.   | `cdba7c2` | Three cases in `reviewed-send.db.test.ts`; two failed before the fix.                                                                                                                                                    |
+| **B-3** (T02, T05, CC1-06)        | `interpretAndApply` took `for update` and called `applyDecision`, but the live caller passed the **pooled** `Sql`, where each statement is its own implicit transaction. The lock was released at statement end and the critical section did not exist on the deployed path.                                                                                             | `ade329a` | A new `decision-apply.db.test.ts` case injects a failure between the fact writes and the snapshot write and asserts nothing survives.                                                                                    |
+| **B-4** (A03)                     | The server correctly refused a quote without a confirmed service fact, but the only control that could create one rendered **exclusively for a model-provenance fact**. A pre-CC1 enquiry showed a ready quote, an enabled button, a server refusal and no way to resolve it.                                                                                            | `82f9b7a` | `service-authority.test.ts` (6 cases) plus the disabled primary action.                                                                                                                                                  |
+
+Suggestions taken, all in `c305c5a`: **S-5** (lock order inverted between
+prepare and confirm - both now lock the enquiry first, closing an ABBA deadlock
+on real Postgres), **S-6** (the two SAVEPOINT quote-version retry tests carried
+over from the deleted suite), **S-2** (prepare returns the artefact's own frozen
+amount rather than the live snapshot's), **S-8** and **S-9** (comments and a
+test name describing code that no longer exists), **S-10** (`4 plus`, `5 max`,
+`3 minimum`, `at least 4`, `roughly 4` now unresolved rather than silently read
+as the bare number).
+
+Suggestions **not** taken, deliberately: **S-1** (byte-identical follow-ups
+cannot both be recorded) is the trade-off that makes the recovery guarantee
+work and is listed as a residual risk for the product owner to ratify; **S-3**
+(the attestation button is auto-focused) is a real point but changing which
+control receives focus is a UX decision rather than a correctness one; **S-4**
+(a unique partial index on Active rules per service) is a schema change beyond
+what the four findings need, and the downstream behaviour is already fail-safe;
+**S-7** (an `edited` boolean on the artefact) adds a derived field where the
+exact reviewed text is already recoverable through `message.reviewed_send_id`.
+Each is left for the reviewer to direct.
+
+### One correction to revision 1 of this report
+
+Revision 1 claimed "All three writers now use it inside one transaction". Two of
+three did; the interpreter did not. That is B-3, and the claim was false when
+written. It is now true, and enforced by the type system rather than by comment:
+`runInTransaction` is a required field, so no call site can omit it.
 
 ## Decisions and changes
 
@@ -186,42 +233,42 @@ than reopening or re-quoting it.
 
 ## Findings and acceptance
 
-| Work item  | Review ID          | Implementation paths                                                                                                                                                                                                                                                   | Tests / acceptance IDs                                                                      | Observed result                                                                                                                                                                                                                                                                           | Evidence path                                         | Remaining limitation                                                                                    |
-| ---------- | ------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
-| CC1-01     | P1-01              | `domain/quantity.ts`, `domain/price-compiler.ts`, `domain/decide.ts` (`validateFactAnswer`), `lib/server/enquiry-actions.ts`                                                                                                                                           | Q01-Q07, `domain/price-safety.test.ts` (23)                                                 | Implemented and verified. The three review probes that produced AUD 5,600 / 4,500 / 500 now return `UNRESOLVED_QUANTITY`. Q05-Q07 confirm ordinary counts, minimums and fractional units still price.                                                                                     | `commands/npm-test.txt`                               | Range-aware pricing across a whole range not implemented (not required by CC1).                         |
-| CC1-02     | P1-02              | `domain/price-compiler.ts` (`matchRule`), `domain/business-rule.ts` (`ruleFingerprint`), `lib/repo/business-rule-core.ts`, `lib/server/enquiry-actions.ts`                                                                                                             | S01-S04 in `price-safety.test.ts`; S03/S05 in `lib/repo/business-rule.db.test.ts` (5)       | Implemented and verified. Order-independence asserted by comparing both orderings; supersession proven against the database with history retained.                                                                                                                                        | `commands/npm-test.txt`                               | Concurrent competing saves rely on `for update`, unproven on multi-connection Postgres.                 |
-| CC1-03     | P1-03              | `domain/price-compiler.ts` (`PROVISIONAL`), `domain/decide.ts`, `domain/decision-snapshot.ts`, `domain/types.ts`, `lib/repo/manual-enquiry-core.ts`, `lib/repo/reviewed-send-core.ts`, `components/enquiry/service-read-as.tsx`                                        | A01-A04, `lib/repo/service-authority.db.test.ts` (5) plus A01/A02 in `price-safety.test.ts` | Implemented and verified at domain and repository level. A03's legacy case is enforced at the server approval boundary and proven in `reviewed-send.db.test.ts`.                                                                                                                          | `commands/npm-test.txt`                               | Not exercised through the live browser.                                                                 |
-| CC1-04     | P1-04              | `migrations/0007`, `lib/repo/reviewed-send-core.ts`, `lib/repo/sent-reply-core.ts`, `lib/server/enquiry-actions.ts`, `lib/workspace/live-mutations.ts`, `components/enquiry/send-preview.tsx`, `intelligence.tsx`, `waiting-desk.tsx`, `domain/live-demo-isolation.ts` | C01-C06, `lib/repo/reviewed-send.db.test.ts` (34)                                           | Implemented and verified at repository level; partially verified in the browser. Copy/confirm separation and truthful copy feedback observed on desktop 1440 and phone 390.                                                                                                               | `commands/npm-test.txt`, `browser/desktop-1440-send-preview.png`, `browser/phone-390-send-preview.png`              | Browser observation used the demo path for the shared component; the live signed-in journey is blocked. |
-| CC1-05     | P1-05              | as CC1-04, plus `amountAgrees` and the stale-attestation path                                                                                                                                                                                                          | P01-P05 in `reviewed-send.db.test.ts`                                                       | Implemented and verified at repository level. An amount mismatch is refused with nothing written; a stale review is refused; a historical attestation records without advancing the newer decision.                                                                                       | `commands/npm-test.txt`                               | Not exercised through the live browser.                                                                 |
-| CC1-06     | P2-01              | `lib/repo/decision-apply.ts`, `manual-enquiry-core.ts`, `enquiry-actions.ts`, `migrations/0007`                                                                                                                                                                        | T01-T05, `lib/repo/decision-apply.db.test.ts` (6) and `reviewed-send.db.test.ts`            | Implemented and verified against PGLite. Injected failures roll back; retries work; late results neither overwrite an owner nor reopen a closed enquiry.                                                                                                                                  | `commands/npm-test.txt`                               | True multi-connection concurrency not proven - `for update` is a no-op on single-connection PGLite.     |
-| Boundaries | Preserved controls | unchanged auth/tenancy; ownership checks in `reviewed-send-core.ts` / `sent-reply-core.ts`                                                                                                                                                                             | I01-I03                                                                                     | Partially verified. I01 proven at repository level (cross-enquiry and cross-tenant confirmations refused, no writes). I02 observed live: a freshly created workspace showed zero enquiries and no fixture leakage. I03 covered by existing r2e null/failure/injection cases, all passing. | `commands/npm-test.txt`, `commands/benchmark-r2e.txt` | I01 not exercised at the HTTP endpoint layer with two real signed-in tenants.                           |
+| Work item  | Review ID          | Implementation paths                                                                                                                                                                                                                                                   | Tests / acceptance IDs                                                                                                          | Observed result                                                                                                                                                                                                                                                                                                                          | Evidence path                                                                                          | Remaining limitation                                                                                           |
+| ---------- | ------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------- |
+| CC1-01     | P1-01              | `domain/quantity.ts`, `domain/price-compiler.ts`, `domain/decide.ts` (`validateFactAnswer`), `lib/server/enquiry-actions.ts`                                                                                                                                           | Q01-Q07, `domain/price-safety.test.ts` (23)                                                                                     | Implemented and verified. The three review probes that produced AUD 5,600 / 4,500 / 500 now return `UNRESOLVED_QUANTITY`. Q05-Q07 confirm ordinary counts, minimums and fractional units still price.                                                                                                                                    | `commands/npm-test.txt`                                                                                | Range-aware pricing across a whole range not implemented (not required by CC1).                                |
+| CC1-02     | P1-02              | `domain/price-compiler.ts` (`matchRule`), `domain/business-rule.ts` (`ruleFingerprint`), `lib/repo/business-rule-core.ts`, `lib/server/enquiry-actions.ts`                                                                                                             | S01-S04 in `price-safety.test.ts`; S03/S05 in `lib/repo/business-rule.db.test.ts` (5)                                           | Implemented and verified. Order-independence asserted by comparing both orderings; supersession proven against the database with history retained.                                                                                                                                                                                       | `commands/npm-test.txt`                                                                                | Concurrent competing saves rely on `for update`, unproven on multi-connection Postgres.                        |
+| CC1-03     | P1-03              | as revision 1, plus `domain/service-authority.ts` and `components/enquiry/intelligence.tsx`                                                                                                                                                                            | A01-A04, `lib/repo/service-authority.db.test.ts` (5), `domain/service-authority.test.ts` (6), A01/A02 in `price-safety.test.ts` | Implemented and verified at domain and repository level. **A03 now has the confirmation path it lacked (B-4)**: the control renders for any unconfirmed service, and the primary action is disabled rather than offering a send the server refuses.                                                                                      | `commands/npm-test.txt`                                                                                | Not exercised through the live browser.                                                                        |
+| CC1-04     | P1-04              | `migrations/0007`, `lib/repo/reviewed-send-core.ts`, `lib/repo/sent-reply-core.ts`, `lib/server/enquiry-actions.ts`, `lib/workspace/live-mutations.ts`, `components/enquiry/send-preview.tsx`, `intelligence.tsx`, `waiting-desk.tsx`, `domain/live-demo-isolation.ts` | C01-C06, `lib/repo/reviewed-send.db.test.ts` (39)                                                                               | Implemented and verified at repository level; the component was observed rendering on desktop 1440 and phone 390. **C03 is now genuinely reachable for a per-unit quote (B-1)**.                                                                                                                                                         | `commands/npm-test.txt`, `browser/desktop-1440-send-preview.png`, `browser/phone-390-send-preview.png` | Browser observation used the demo path, which never calls the server; the live journey was not exercised (B2). |
+| CC1-05     | P1-05              | as CC1-04, plus `impliedAmountsMinor`, `amountAgrees` and the stale-attestation path                                                                                                                                                                                   | P01-P05 in `reviewed-send.db.test.ts` and `composed-draft-send.db.test.ts`                                                      | Implemented and verified at repository level. **The consistency rule now accepts what the structured price implies (B-1)** - the total and the unit rate that multiplies out to it - while still refusing an edited total, and refusing a body that drops the total in favour of the rate.                                               | `commands/npm-test.txt`                                                                                | Not exercised through the live browser.                                                                        |
+| CC1-06     | P2-01              | as revision 1, plus `lib/repo/pglite-tx.ts` and a required `runInTransaction`                                                                                                                                                                                          | T01-T05, `lib/repo/decision-apply.db.test.ts` (7) and `reviewed-send.db.test.ts`                                                | Implemented and verified against PGLite. **All three writers genuinely run in one transaction now (B-3)**, enforced by the type system rather than by comment. Injected failures roll back, including in the interpreter's write-back; the SAVEPOINT retry branches are tested again (S-6); both send functions lock in one order (S-5). | `commands/npm-test.txt`                                                                                | True multi-connection concurrency still not proven - `for update` is a no-op on single-connection PGLite.      |
+| Boundaries | Preserved controls | unchanged auth/tenancy; ownership checks in `reviewed-send-core.ts` / `sent-reply-core.ts`                                                                                                                                                                             | I01-I03                                                                                                                         | Partially verified. I01 proven at repository level, and **P05's crafted-flag bypass is closed (B-2)**: no client value can now switch off a server lifecycle guard. I02 observed live. I03 covered by existing r2e null/failure/injection cases, all passing.                                                                            | `commands/npm-test.txt`, `commands/benchmark-r2e.txt`                                                  | I01 not exercised at the HTTP endpoint layer with two real signed-in tenants.                                  |
 
 ## Command ledger
 
-All commands run at `2849113ee94434ed3327c863d819bc93899ab0ac`, clean tree, no
+All commands run at `c305c5afd0b79b4d441137656e70d361307b7f38`, clean tree, no
 `DATABASE_URL` set.
 
-| Exact command                                                                                                                                                 | Exit code | Result                                               | Evidence path                                                  | Baseline comparison                                                                                               |
-| ------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------- | ---------------------------------------------------- | -------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
-| `node --experimental-strip-types --import ./scripts/test-resolve-hook.mjs --test docs/implementation/CC1_COMMERCIAL_CORRECTNESS/probes/price-safety.probe.ts` | 0         | 6 tests, 6 pass, 0 fail                              | `commands/npm-test.txt` (integrated as `price-safety.test.ts`) | 0 pass / 6 fail at `41d9d33` (`commands/base-probe.txt`)                                          |
-| `npm test -- --test-concurrency=1`                                                                                                                            | 0         | 59 files, **641 tests, 641 pass, 0 fail**            | `commands/npm-test.txt`                                        | 590/590 at `41d9d33`; +51 net. No failures either side.                                                           |
-| `npm run typecheck`                                                                                                                                           | 0         | clean                                                | `commands/typecheck.txt`                                       | clean at baseline                                                                                                 |
-| `npm run lint`                                                                                                                                                | 0         | 0 errors, 0 warnings                                 | `commands/lint.txt`                                            | clean at baseline                                                                                                 |
-| `npm run check:auth -- --dev-url http://127.0.0.1:5178`                                                                                                       | 0         | "dev and build agree: sign-in on"                    | `commands/check-auth.txt`                                      | At baseline this returned exit 2 (indeterminate) only because no dev server was running; with a server it agrees. |
-| `npm run benchmark:r2e`                                                                                                                                       | 0         | null 16/16, fake 16/16, **real 1 pass / 15 skipped** | `commands/benchmark-r2e.txt`                                   | Same shape as the checked-in historical report.                                                                   |
-| `npm run build` (no `DATABASE_URL`)                                                                                                                           | 0         | built; `db:migrate` skipped, "DATABASE_URL not set"  | `commands/npm-build.txt`                                       | not run at baseline                                                                                               |
-| `npm run build:dev`                                                                                                                                           | 0         | built                                                | `commands/npm-build-dev.txt`                                   | not run at baseline                                                                                               |
-| Browser journey (Chrome, dev server 5178, `VITE_AUTH_ENABLED=false`)                                                                                          | n/a       | **partial** - see blockers                           | `browser/desktop-1440-send-preview.png`, `browser/phone-390-send-preview.png`                                                | fixture-load behaviour reproduced identically at `41d9d33` on port 5179                                           |
+| Exact command                                           | Exit code | Result                                               | Baseline comparison                                        |
+| ------------------------------------------------------- | --------- | ---------------------------------------------------- | ---------------------------------------------------------- |
+| `npm test -- --test-concurrency=1`                      | 0         | 61 files, **666 tests, 666 pass, 0 fail**            | 590/590 at `41d9d33`; +76 net. No failures either side.    |
+| `npm run typecheck`                                     | 0         | clean                                                | clean at baseline                                          |
+| `npm run lint`                                          | 0         | 0 errors, 0 warnings                                 | clean at baseline                                          |
+| `npm run check:auth -- --dev-url http://127.0.0.1:5178` | 0         | "dev and build agree: sign-in on"                    | n/a                                                        |
+| `npm run benchmark:r2e`                                 | 0         | null 16/16, fake 16/16, **real 1 pass / 15 skipped** | same shape as the checked-in historical report             |
+| `npm run build` (no `DATABASE_URL`)                     | 0         | built; `db:migrate` skipped, "DATABASE_URL not set"  | not run at baseline                                        |
+| `npm run build:dev`                                     | 0         | built                                                | not run at baseline                                        |
+| CC1 probe (`probes/price-safety.probe.ts`)              | 0         | 6 pass / 0 fail                                      | **0 pass / 6 fail** at `41d9d33`                           |
+| Browser journey                                         | n/a       | **not exercised** - see B2                           | fixture-load behaviour reproduced identically at `41d9d33` |
 
-`npm run build` was safe by construction: `scripts/migrate.mjs` exits early
-when `DATABASE_URL` is unset, and the log records it doing so. No database
-outside the in-process PGLite instance was contacted at any point in this work.
+Test count by revision: 590 at the baseline, 641 at revision 1, **666 now** -
+plus 12 for B-1, 3 for B-2, 1 for B-3, 6 for B-4 and 3 for the suggestions.
 
-**Note on one aborted run.** An earlier attempt at the final `npm test` exited
-1 with no summary while two Vite dev servers and Chrome were running; a second
-Vite server had already crashed with a V8 heap failure. After stopping both
-servers the identical command returned 641/641 pass, exit 0. This was host
-memory exhaustion, not a test failure - no assertion failed in either run.
+`npm test`, `npm run typecheck`, `npm run lint` and `npm run build:dev` were run
+before each of the five commits in this revision, not only at the end.
+
+`npm run build` is safe by construction: `scripts/migrate.mjs` exits early when
+`DATABASE_URL` is unset, and the log records it doing so. No database outside
+the in-process PGLite instance was contacted at any point in this work.
 
 ## Blockers
 
@@ -238,50 +285,64 @@ That is not real-provider evidence and is not claimed as any. No credentials
 were added to the repository. Acceptance rows depending on real-model quality
 remain unverified.
 
-### B2 - The full live signed-in browser journey could not be completed
+### B2 - The live signed-in browser journey was NOT EXERCISED in this environment
 
-**What was verified in a browser** (Chrome, dev server on 5178,
-`VITE_AUTH_ENABLED=false`, the documented local-only override; the middleware
-still resolves a real user id and `requireEnquiryAccess` / `requireBusinessAccess`
-still run):
+**Corrected in revision 2. Revision 1 got this wrong and the correction matters
+more than the original claim.**
 
-- The rebuilt approval preview renders with **Copy the message** and **I've
-  sent this externally** as separate controls, at 1440x900 and at 390x844.
+Revision 1 reported "after onboarding the client store holds zero businesses,
+a reload reverts to fixtures" and classified it as a pre-existing live-path
+product defect, citing that none of `provision-core.ts`, `workspace.server.ts`,
+`prototype-store.ts` or `onboarding.tsx` appears in this branch's diff.
+
+That reasoning was sound as far as it went and the conclusion was still wrong,
+because it named four files and the mechanism is in a fifth.
+`src/components/shell/workspace-boundary.tsx:111` returns `children` directly
+when `authEnabled` is false:
+
+```
+// Auth disabled: local prototype mode. Nothing to load, nothing to isolate.
+if (!authEnabled) return <>{children}</>;
+```
+
+`LiveWorkspaceGate` is the only caller of `fetchWorkspace()` and
+`hydrateFromServer()`, so under the `VITE_AUTH_ENABLED=false` bypass I chose for
+the browser check, the hydration step never mounts at all - on first load or on
+reload. Provisioning worked correctly and wrote a real `business` and
+`business_member` row; the read that would have picked them up was simply never
+issued. The same guard is independently re-implemented as
+`route-authority.ts:60` (`phase: "prototype-bypass"`), so it is deliberate, not
+an accident.
+
+The controlled comparison exists: the 2026-09-03 real-Supabase-auth browser
+verification exercised this exact path end to end - onboarding, pricing rule,
+pasted enquiry, send, reload - and it worked. Same code, `authEnabled` flipped,
+opposite result.
+
+**Correct classification: no product defect established. The live signed-in
+browser journey was not exercised here, because the auth bypass I used to reach
+the app prevents the hydration the journey depends on.** Full analysis:
+`research/agent-runs/2026-09-04/37-rca-cc1-blocker2-empty-store.md`.
+
+This gate stays open, and B-1 is the reason it matters rather than a formality:
+a per-unit quote was unsendable on the live path and neither the suite nor the
+demo-path screenshots could see it. The independent reviewer made the same
+point. Exercising the real signed-in journey under real auth should be
+sequenced before CC1 sign-off.
+
+**What was verified in a browser** (Chrome, dev server 5178, auth bypass):
+
+- The rebuilt approval preview renders with **Copy the message** and **I've sent
+  this externally** as separate controls, at 1440x900 and at 390x844.
 - Clicking copy reports "Copied to your clipboard. **Nothing has been sent or
   recorded yet.**" and records nothing.
-- The copies-not-sends disclosure now appears in demo mode ("Enquiry does not
-  send from here - you send it, then record it").
-- I02: creating a fresh live workspace through `/onboarding` produced a queue
-  with zero enquiries and no fixture business, enquiry or arrival leakage.
+- The copies-not-sends disclosure now appears in demo mode.
+- Creating a fresh live workspace through `/onboarding` produced a queue with
+  zero enquiries and no fixture leakage.
 - No console errors or warnings on any page visited.
 
-**What blocked the rest.** After onboarding, the client store held
-`demoMode: false` but **zero businesses**, so the live intake control
-(`AddEnquiry`, which requires a resolved `activeBusiness`) never rendered, and
-a page reload put the app back on the fixture workspace. The live signed-in
-loop - paste an enquiry, confirm a blocking fact, review, copy, reload, confirm
-the external send, reload again - therefore could not be driven end to end.
-
-**This is pre-existing and unrelated to CC1**, established two ways rather than
-assumed:
-
-1. **Observed at baseline.** A second dev server at `41d9d33` on port 5179,
-   with cleared storage, loaded the same fixture workspace (19 fixture
-   enquiries) on a fresh page load. Identical signature.
-2. **No changed file participates.** The provisioning and hydration path -
-   `lib/repo/provision-core.ts`, `provision.server.ts`,
-   `lib/repo/workspace.server.ts`, `lib/server/workspace.ts`,
-   `store/prototype-store.ts`, `routes/onboarding.tsx` - contains **none** of
-   the files in this branch's diff.
-
-Per `AGENTS.project.md` section 12, this is recorded rather than fixed: it sits
-outside CC1's six authorised items and is not an immediate security or
-data-loss incident on the exercised path. It does, however, conflict with
-`AGENTS.project.md` section 13 ("Refreshing the browser must not revert a real
-business to session-storage or fixture state") and should be placed into a
-phase by product management. Acceptance rows C01-C06, P01-P05 and A01-A04 are
-therefore **verified at the repository/database level and blocked at the
-browser level**.
+Both screenshots are the demo path, which returns before `prepareReview` is
+called. They prove the component renders and nothing about the server contract.
 
 ### B3 - True multi-connection concurrency is not proven
 
@@ -348,50 +409,64 @@ Evidence levels are kept separate and are not blended:
 
 ### Residual risks
 
-1. **B1, B2, B3 above.** Each is an open gate, not a passed one.
+1. **B1, B2, B3 above.** Each is an open gate, not a passed one. B2 in
+   particular should be sequenced before sign-off: B-1 was a defect that only
+   the live journey could catch, and neither the suite nor the demo screenshots
+   saw it.
 2. **Fabricated demo reply and auto-booking - not implemented, as ruled.** The
    demo store fabricates an inbound customer reply roughly 7.2 s after a send
    and marks the job Booked (`src/store/prototype-store.ts:648-653`), and this
-   also fires inside the production homepage embed. The delivery owner ruled
-   this outside CC1. It is recorded here for separate authorisation. Note it
-   interacts with this slice: the demo can still reach a "Booked" state that no
-   owner attested.
+   also fires inside the production homepage embed. Ruled outside CC1. Recorded
+   here for separate authorisation. It interacts with this slice: the demo can
+   still reach a "Booked" state no owner attested.
 3. **Stale pricing empty state.** `src/components/business/pricing-rules.tsx:91`
    renders "Enquiry cannot price anything yet" whenever `activeRules(business)`
    is empty. Confirmed in the browser against the fixture business Glow & Co,
-   which displays Active pricing knowledge items on the same screen while the
-   panel claims nothing can be priced. Root cause is fixture knowledge items
-   carrying no `rulePayload`, so `activeRules` returns none; the live hydration
-   path does map `rulePayload` (`lib/repo/rows.ts:265`). Not a commercial
-   correctness defect and not fixed. The adjacent save feedback on that screen
-   **was** corrected, because CC1-02 changed what a save means.
+   which displays Active pricing knowledge items on the same screen. Root cause
+   is fixture knowledge items carrying no `rulePayload`; the live hydration path
+   does map it (`lib/repo/rows.ts:265`). Not a commercial correctness defect and
+   not fixed. The adjacent save feedback on that screen was corrected, because
+   CC1-02 changed what a save means.
 4. **`decideEnquiry` remains narrower than the product contract** (review
    P2-02). Unchanged by CC1 and still true.
-5. **Byte-identical repeat sends.** The content-derived idempotency key means
-   an owner cannot record two byte-identical messages at the same enquiry as
-   two sends. This is deliberate (see CC1-04 above) but is a behaviour a
-   reviewer should agree with rather than discover.
-6. **`amountAgrees` recognises `$`-prefixed amounts only.** A reviewed body
-   writing "580 dollars" would not be compared against the structured amount.
-   It reuses the repository's existing `dollarAmounts` helper rather than
-   introducing a second money parser; widening it is a product decision.
+5. **Byte-identical repeat sends (review S-1).** The content-derived idempotency
+   key means an owner cannot record two byte-identical messages on one enquiry
+   as two sends. This is the trade-off that makes the recovery guarantee work,
+   and it is deliberate - but it is a behaviour the product owner should ratify
+   rather than discover. The reviewer suggested a `prepared_day` component or an
+   explicit "record this as a new send" affordance; neither was taken, because
+   both are product decisions.
+6. **`amountAgrees` recognises `$`-prefixed amounts only.** A body writing "580
+   dollars" is not compared against the structured amount. It reuses the
+   repository's existing `dollarAmounts` helper rather than introducing a second
+   money parser. Comma-grouped numbers ("5,000") are rejected by the quantity
+   grammar as malformed, which fails safe; both are deliberate rulings rather
+   than oversights.
 7. **Zero quantity is refused.** If a business genuinely quotes a zero-unit
-   line, this now blocks rather than pricing it at nil. Deliberate, and stated
-   here so it can be overruled knowingly.
+   line, this blocks rather than pricing it at nil. Deliberate, stated here so
+   it can be overruled knowingly.
+8. **Review suggestions S-3, S-4, S-7 not taken.** The attestation button is
+   still auto-focused on dialog open (S-3); there is no unique partial index
+   forcing one Active rule per service (S-4, downstream is already fail-safe);
+   the audit line no longer carries a derived `edited` boolean (S-7, the exact
+   reviewed text is recoverable through `message.reviewed_send_id`). Each is a
+   judgement call left for the reviewer to direct rather than made unilaterally.
 
 ## Reviewer handoff
 
-Branch `cc1/commercial-correctness`, five commits on top of
-`41d9d3371a5fa9a2a29552faea2506f65080dd4d`. Every CC1 item is implemented, each
-defect family was reproduced on the real baseline before being fixed, the
-regressions live in the default discovered suite (`npm test` finds them without
-extra arguments), and the repository is green: 641/641 tests, typecheck, lint,
-`check:auth`, both builds, and the benchmark.
+Branch `cc1/commercial-correctness`, eleven commits on top of
+`41d9d3371a5fa9a2a29552faea2506f65080dd4d` - six from revision 1 and five
+answering the independent review. Every CC1 item is implemented, all four
+blocking review findings are fixed with a failing test reproduced first in each
+case, and the repository is green: 666/666 tests, typecheck, lint, `check:auth`,
+both builds, and the benchmark.
 
-**This slice is ready for independent review. It is not signed off, not
-released, and not deployed.** Three gates are explicitly open: real-provider
-interpretation (B1), the full live signed-in browser journey (B2), and
-multi-connection concurrency (B3). `docs/BETA_READINESS_GATE.md` and
-`docs/PUBLIC_TRAFFIC_GATE.md` remain unresolved and untouched. The roadmap was
-not advanced and `docs/CURRENT_PHASE.md` was not edited - the next R2 decision
-belongs to the reviewer.
+**This slice is ready for a second independent review. It is not signed off, not
+released, and not deployed.** Three gates remain explicitly open: real-provider
+interpretation (B1), the live signed-in browser journey (B2, which this
+environment could not exercise because the auth bypass prevents workspace
+hydration), and multi-connection concurrency (B3).
+`docs/BETA_READINESS_GATE.md` and `docs/PUBLIC_TRAFFIC_GATE.md` remain
+unresolved and untouched. The roadmap was not advanced and
+`docs/CURRENT_PHASE.md` was not edited - the next R2 decision belongs to the
+reviewer.
