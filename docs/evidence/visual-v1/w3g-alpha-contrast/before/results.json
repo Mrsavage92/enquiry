@@ -1,0 +1,113 @@
+[
+  {
+    "name": "onboarding-continue-disabled",
+    "rect": {
+      "x": 559.71875,
+      "y": 840,
+      "width": 416.28125,
+      "height": 48
+    },
+    "clip": {
+      "x": 568,
+      "y": 848,
+      "width": 400,
+      "height": 32
+    },
+    "fg": [
+      244,
+      240,
+      233
+    ],
+    "bg": [
+      164,
+      172,
+      163
+    ],
+    "bgCount": 12456,
+    "fgCount": 25,
+    "total": 12800,
+    "clusterCount": 108,
+    "ratio": 2.0522326069679786,
+    "pngPath": "docs\\evidence\\visual-v1\\w3g-alpha-contrast\\before\\onboarding-continue-disabled.png",
+    "wcag": "normal (14px)",
+    "url": "/signup",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    }
+  },
+  {
+    "name": "f12-handle-yourself-disabled-phone",
+    "rect": {
+      "x": 20,
+      "y": 760,
+      "width": 350,
+      "height": 44
+    },
+    "clip": {
+      "x": 28,
+      "y": 768,
+      "width": 334,
+      "height": 28
+    },
+    "fg": [
+      248,
+      244,
+      238
+    ],
+    "bg": [
+      168,
+      177,
+      168
+    ],
+    "bgCount": 8554,
+    "fgCount": 65,
+    "total": 9352,
+    "clusterCount": 219,
+    "ratio": 2.0134115970672593,
+    "pngPath": "docs\\evidence\\visual-v1\\w3g-alpha-contrast\\before\\f12-handle-yourself-disabled-phone.png",
+    "wcag": "normal (14px)",
+    "url": "/enquiries/f12",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    }
+  },
+  {
+    "name": "f03-timestamp-desktop",
+    "rect": {
+      "x": 605.875,
+      "y": 129.296875,
+      "width": 47.875,
+      "height": 14
+    },
+    "clip": {
+      "x": 606,
+      "y": 129,
+      "width": 48,
+      "height": 14
+    },
+    "fg": [
+      141,
+      135,
+      126
+    ],
+    "bg": [
+      243,
+      238,
+      230
+    ],
+    "bgCount": 442,
+    "fgCount": 8,
+    "total": 672,
+    "clusterCount": 110,
+    "ratio": 3.0822407093482287,
+    "pngPath": "docs\\evidence\\visual-v1\\w3g-alpha-contrast\\before\\f03-timestamp-desktop.png",
+    "wcag": "normal (11px)",
+    "url": "/enquiries/f03",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    }
+  }
+]

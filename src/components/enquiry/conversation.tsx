@@ -104,7 +104,7 @@ function MessageBlock({
           <div className={cn("max-w-[90%]", outbound && "text-right")}>
             <p className="text-2xs font-medium text-stone">
               {outbound ? "Sent" : "Received"}
-              <span className="tabular-nums text-stone/80"> · {formatTime(m.at)}</span>
+              <span className="tabular-nums text-stone"> · {formatTime(m.at)}</span>
             </p>
             <div className={cn("msg mt-1 text-left", outbound ? "msg-out ml-auto" : "msg-in")}>
               <p className={cn("whitespace-pre-wrap", !short && "letter-body font-serif")}>
