@@ -3,7 +3,7 @@ import { CountUp, Reveal } from "@/components/site/motion";
 
 const LETTER = `Hi Priya,
 
-I can come to 12 Merthyr Rd on Saturday 19 September.
+I can come to your New Farm address on Saturday 19 September.
 
 Makeup for four of you is $625 including travel. I'll plan to start around 10:45am so everyone is ready by 2pm.
 
@@ -25,16 +25,16 @@ export function ProofCase() {
     <div className="grid gap-4 lg:grid-cols-2">
       <Reveal>
         <article className="rounded-xl bg-raised p-5 shadow-border sm:p-6">
-          <p className="eyebrow">The message</p>
+          <p className="eyebrow">Sample message</p>
           <p className="mt-3 font-serif text-lg leading-relaxed">
             Hi, four of us need makeup on 19 Sep in New Farm, ready by 2. Can you do it and how much?
           </p>
-          <p className="mt-4 text-sm text-stone">Priya Shah · Glow & Co · Email</p>
+          <p className="mt-4 text-sm text-stone">Priya Shah · Sample enquiry · Email</p>
         </article>
       </Reveal>
       <Reveal delay={80}>
         <article className="rounded-xl bg-raised p-5 shadow-border sm:p-6">
-          <p className="eyebrow">Already decided</p>
+          <p className="eyebrow">Sample decision</p>
           <dl className="mt-4 space-y-3 text-sm">
             {FACTS.map((f, i) => (
               <div
