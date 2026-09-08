@@ -254,7 +254,7 @@ export function BrainScreen() {
             }))}
           />
         </div>
-        <ScrollFade edges={tabFade} background="paper-2" />
+        <ScrollFade edges={tabFade} />
       </div>
 
       {tabValue !== "voice" && tabValue !== "learning" && !phone ? (

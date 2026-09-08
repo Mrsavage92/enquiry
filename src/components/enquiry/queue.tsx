@@ -287,7 +287,7 @@ export function Queue({ activeId, phone = false }: { activeId?: string; phone?: 
               }))}
             />
           </div>
-          <ScrollFade edges={filterFade} background="paper-2" />
+          <ScrollFade edges={filterFade} />
         </div>
       )}
       <ul className="min-h-0 flex-1 space-y-0.5 overflow-y-auto px-2 pb-6 pt-1 stagger-in">
