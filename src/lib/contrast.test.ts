@@ -52,6 +52,12 @@ const stoneOnPaper2 = "#686259";
 const lineControl = "#8e867a";
 const warn = "#8f5a00";
 const warnOnPaper2 = "#8a5700";
+const warnBg = "#f7edd4";
+const okBg = "#e6f0ea";
+const dangerBg = "#f8ece8";
+
+// Final-polish fix (2026-09-08): the secondary button variant's boundary.
+const ink2 = "#4f4a42";
 
 test("baseline: --color-stone still passes on paper and raised, unchanged", () => {
   assert.ok(contrastRatio(stone, paper) >= AA_NORMAL_TEXT);
@@ -75,6 +81,23 @@ test("baseline: --color-line-strong is the documented pre-fix control-outline fa
 test("Part 1 fix: --color-line-control clears 3:1 on both paper and raised", () => {
   assert.ok(contrastRatio(lineControl, paper) >= AA_NON_TEXT);
   assert.ok(contrastRatio(lineControl, raised) >= AA_NON_TEXT);
+});
+
+test("--color-line-control does NOT clear 3:1 on --color-paper-2 - why the secondary button border uses --color-ink-2 instead", () => {
+  // The voice-notice callout (intelligence.tsx) renders a variant="secondary"
+  // button on a bg-paper-2 surface, so a single border token for that variant
+  // has to clear 3:1 there too, not just on paper/raised.
+  const ratio = contrastRatio(lineControl, paper2);
+  assert.ok(ratio < AA_NON_TEXT, `expected the known failure, got ${ratio}`);
+});
+
+test("Final-polish fix: --color-ink-2 (secondary button border) clears 3:1 on every background the variant actually sits on", () => {
+  assert.ok(contrastRatio(ink2, raised) >= AA_NON_TEXT);
+  assert.ok(contrastRatio(ink2, paper) >= AA_NON_TEXT);
+  assert.ok(contrastRatio(ink2, paper2) >= AA_NON_TEXT);
+  assert.ok(contrastRatio(ink2, warnBg) >= AA_NON_TEXT);
+  assert.ok(contrastRatio(ink2, okBg) >= AA_NON_TEXT);
+  assert.ok(contrastRatio(ink2, dangerBg) >= AA_NON_TEXT);
 });
 
 test("baseline: --color-warn passes on paper and raised, unchanged", () => {
@@ -184,4 +207,14 @@ test("Part 1 fixes inherited under Palette B still clear their gates (no regress
   assert.ok(contrastRatio(lineControl, bPaper) >= AA_NON_TEXT);
   assert.ok(contrastRatio(lineControl, bRaised) >= AA_NON_TEXT);
   assert.ok(contrastRatio(warnOnPaper2, bPaper2) >= AA_NORMAL_TEXT);
+});
+
+test("Final-polish fix: --color-ink-2 (secondary button border) clears 3:1 under Palette B too", () => {
+  // bInk2 is already asserted at >=4.5:1 on bPaper2 above (Palette B: the
+  // -on-paper-2 text tokens test) - by WCAG's own monotonicity, a colour
+  // that clears the higher text-level bar against a background necessarily
+  // clears the lower 3:1 UI-component bar against the same background, so
+  // this only needs to check the two backgrounds not already covered there.
+  assert.ok(contrastRatio(bInk2, bPaper) >= AA_NON_TEXT);
+  assert.ok(contrastRatio(bInk2, bRaised) >= AA_NON_TEXT);
 });
