@@ -23,39 +23,23 @@ const TEMPLATE_ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 
 test("injects before </head>", () => {
   const out = injectGrokPwaHead("<html><head><title>x</title></head><body></body></html>");
-  assert.match(out, /rel="manifest"/);
-  assert.match(out, /apple-touch-icon/);
-  assert.match(out, /grok-app-builder\/extensions\.js/);
-  assert.ok(out.indexOf("manifest") < out.indexOf("</head>"));
+  assert.match(out, /apple-mobile-web-app-title/);
+  assert.match(out, /theme-color/);
+  assert.ok(out.indexOf("apple-mobile-web-app-title") < out.indexOf("</head>"));
 });
 
-test("injects the extensions script without a project id", () => {
-  const out = injectGrokPwaHead("<html><head></head></html>", {
-    appName: "Demo",
-    projectId: "",
-  });
-  assert.match(out, /src="https:\/\/grok\.com\/grok-app-builder\/extensions\.js" defer/);
+test("never injects the extensions tracker script or its attribution metas", () => {
+  const out = injectGrokPwaHead("<html><head></head></html>", { appName: "Demo" });
+  assert.doesNotMatch(out, /grok-app-builder\/extensions\.js/);
   assert.doesNotMatch(out, /grok-project-id/);
   assert.doesNotMatch(out, /data-project-id/);
   assert.doesNotMatch(out, /property="grok:app_id"/);
 });
 
-test("injects project id on the script and meta when provided", () => {
-  const out = injectGrokPwaHead("<html><head></head></html>", {
-    appName: "Demo",
-    projectId: "proj-123",
-  });
-  assert.match(out, /name="grok-project-id" content="proj-123"/);
-  assert.match(out, /data-project-id="proj-123"/);
-  assert.match(out, /property="grok:app_id" content="proj-123"/);
-});
-
-test("does not duplicate grok:app_id", () => {
-  const ctx = { appName: "Demo", projectId: "proj-123" };
-  const once = injectGrokPwaHead("<html><head></head></html>", ctx);
-  const twice = injectGrokPwaHead(once, ctx);
-  assert.equal(once, twice);
-  assert.equal(twice.split('property="grok:app_id"').length - 1, 1);
+test("does not inject a manifest or apple-touch-icon link - the caller owns those", () => {
+  const out = injectGrokPwaHead("<html><head></head></html>", { appName: "Demo" });
+  assert.doesNotMatch(out, /rel="manifest"/);
+  assert.doesNotMatch(out, /rel="apple-touch-icon"/);
 });
 
 test("omits x:creator tags without both creator values", () => {
@@ -63,7 +47,6 @@ test("omits x:creator tags without both creator values", () => {
   assert.deepEqual(grokXCreatorHeadTags("@alice", ""), []);
   const out = injectGrokPwaHead("<html><head></head></html>", {
     appName: "Demo",
-    projectId: "",
     creator: "@alice",
     creatorId: "",
   });
@@ -73,7 +56,6 @@ test("omits x:creator tags without both creator values", () => {
 test("injects x:creator tags when both creator values are set", () => {
   const out = injectGrokPwaHead("<html><head></head></html>", {
     appName: "Demo",
-    projectId: "",
     creator: "@alice",
     creatorId: "42",
   });
@@ -83,18 +65,12 @@ test("injects x:creator tags when both creator values are set", () => {
 
 test("escapes x:creator values", () => {
   const tags = grokXCreatorHeadTags('"><script>', '1" onclick="alert(1)');
-  assert.equal(
-    tags[0],
-    '<meta property="x:creator" content="&quot;&gt;&lt;script&gt;">',
-  );
-  assert.equal(
-    tags[1],
-    '<meta property="x:creator:id" content="1&quot; onclick=&quot;alert(1)">',
-  );
+  assert.equal(tags[0], '<meta property="x:creator" content="&quot;&gt;&lt;script&gt;">');
+  assert.equal(tags[1], '<meta property="x:creator:id" content="1&quot; onclick=&quot;alert(1)">');
 });
 
 test("does not duplicate x:creator tags", () => {
-  const ctx = { appName: "Demo", projectId: "", creator: "@alice", creatorId: "42" };
+  const ctx = { appName: "Demo", creator: "@alice", creatorId: "42" };
   const once = injectGrokPwaHead("<html><head></head></html>", ctx);
   const twice = injectGrokPwaHead(once, ctx);
   assert.equal(once, twice);
@@ -208,7 +184,7 @@ test("snapshotOgIdentity stamps banner from public/x-banner.jpg", () => {
 });
 
 test("emits x:game:image for a public host when site.banner is set", () => {
-  const html = "<html><head><meta property=\"x:game:image\" content=\"old\"></head></html>";
+  const html = '<html><head><meta property="x:game:image" content="old"></head></html>';
   const out = injectGrokPwaHead(html, {
     host: "wild-race.grok.me",
     site: { title: "Wild Race", type: "x:game", card: "custom", banner: "/x-banner.jpg" },
@@ -251,7 +227,10 @@ test("published grok.me slug is still a title fallback", () => {
 });
 
 test("rejects Vercel system hosts as og:image origins", () => {
-  assert.equal(publicAppHost("01a020b6-803a-71a2-bb47-e2bec57eb9a2-662k8x1l1-xai-org.vercel.app"), "");
+  assert.equal(
+    publicAppHost("01a020b6-803a-71a2-bb47-e2bec57eb9a2-662k8x1l1-xai-org.vercel.app"),
+    "",
+  );
   assert.equal(publicAppHost("demo.vercel.app:443"), "");
   assert.equal(publicAppHost("vercel.app"), "");
   assert.equal(publicAppHost("wild-race.grok.me"), "wild-race.grok.me");
@@ -347,9 +326,7 @@ test("placeholder og:image appends site.color when it is 6-digit hex", () => {
 });
 
 test("document title entities are not double-escaped on og:title", () => {
-  const out = injectGrokPwaHead(
-    "<html><head><title>Cats &amp; Dogs</title></head></html>",
-  );
+  const out = injectGrokPwaHead("<html><head><title>Cats &amp; Dogs</title></head></html>");
   assert.match(out, /property="og:title" content="Cats &amp; Dogs"/);
   assert.doesNotMatch(out, /Cats &amp;amp; Dogs/);
 });
@@ -380,14 +357,6 @@ test("streaming injector matches </HEAD> case-insensitively", () => {
   assert.match(out, /<body>hello<\/body>/);
 });
 
-test("does not duplicate the extensions script", () => {
-  const ctx = { appName: "Demo", projectId: "proj-123" };
-  const once = injectGrokPwaHead("<html><head></head></html>", ctx);
-  const twice = injectGrokPwaHead(once, ctx);
-  assert.equal(once, twice);
-  assert.equal(twice.split("extensions.js").length - 1, 1);
-});
-
 test("is idempotent", () => {
   const once = injectGrokPwaHead("<html><head></head></html>");
   const twice = injectGrokPwaHead(once);
@@ -406,8 +375,8 @@ test("streaming injector handles </head> split across chunks", () => {
     ...injector.push("ad><body>hello</body></html>"),
   ];
   const out = Buffer.concat(chunks).toString("utf8");
-  assert.match(out, /rel="manifest"/);
-  assert.ok(out.indexOf("manifest") < out.indexOf("</head>"));
+  assert.match(out, /apple-mobile-web-app-title/);
+  assert.ok(out.indexOf("apple-mobile-web-app-title") < out.indexOf("</head>"));
   assert.match(out, /<body>hello<\/body>/);
   assert.deepEqual(injector.flush(), []);
 });
@@ -423,7 +392,7 @@ test("streaming injector falls back when no </head> is seen", () => {
   const injector = createHeadInjector();
   assert.deepEqual(injector.push("<html><head>"), []);
   const out = Buffer.concat(injector.flush()).toString("utf8");
-  assert.match(out, /rel="manifest"/);
+  assert.match(out, /apple-mobile-web-app-title/);
 });
 
 test("detects install query", () => {
@@ -503,4 +472,3 @@ test("vite plugin bakes og identity as a virtual module", () => {
   assert.match(plugin, /virtual:grok-og-identity/);
   assert.match(plugin, /snapshotOgIdentity/);
 });
-
