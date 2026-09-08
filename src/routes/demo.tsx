@@ -36,7 +36,7 @@ function Demo() {
             <Link to="/early-access">Join early access</Link>
           </Button>
           <Button asChild variant="secondary" className="min-h-12">
-            <Link to="/enquiries">Open the app</Link>
+            <Link to="/login">Already invited? Sign in</Link>
           </Button>
         </div>
       </section>
