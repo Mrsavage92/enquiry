@@ -658,9 +658,9 @@ export function Intelligence({
                 {commercial.kind === "not_applicable"
                   ? " the decision."
                   : " the price or feasibility."}
-                {demoMode ? null : " This copies the text - it does not send from here."}
+                {" This copies the text - it does not send from here."}
               </p>
-            ) : sendable && compact && !demoMode ? (
+            ) : sendable && compact ? (
               <p className="text-xs text-stone">
                 This copies the text - it does not send from here.
               </p>
@@ -850,7 +850,7 @@ export function Intelligence({
               // operator found it so they can retry.
               if (!ok) return;
               setDeclineOpen(false);
-              if (demoMode) toastUndo("Decline sent.");
+              if (demoMode) toastUndo("Declined - nothing sent to the customer.");
               else toast.success("Declined.");
               onDone?.();
             });
