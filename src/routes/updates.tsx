@@ -67,9 +67,9 @@ function Updates() {
           <Link to="/roadmap" className="font-medium underline-offset-4 hover:underline">
             roadmap
           </Link>
-          . The live product is in the{" "}
-          <Link to="/enquiries" className="font-medium underline-offset-4 hover:underline">
-            app
+          . Want to see the product?{" "}
+          <Link to="/demo" className="font-medium underline-offset-4 hover:underline">
+            Try the demo
           </Link>
           .
         </p>
