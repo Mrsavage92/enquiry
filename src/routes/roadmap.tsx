@@ -15,7 +15,7 @@ export const Route = createFileRoute("/roadmap")({
       {
         name: "description",
         content:
-          "See what we’re building now, what comes next, and the long-term direction for Enquiry - the intelligence layer for service-business enquiries.",
+          "See what we’re building now, what comes next, and the long-term direction for Enquiry - the decision layer for service-business enquiries.",
       },
     ],
   }),
