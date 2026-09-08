@@ -54,10 +54,10 @@ function Home() {
           <p className="mt-4 flex flex-wrap items-center gap-x-2 gap-y-1 px-1 text-sm text-stone">
             Built for service businesses.
             <Link
-              to="/enquiries"
+              to="/demo"
               className="inline-flex min-h-11 items-center font-medium text-ink underline-offset-4 hover:underline"
             >
-              Open the app
+              See demo
             </Link>
           </p>
         </HeroIn>
@@ -121,19 +121,18 @@ function Home() {
               The enquiry you just watched. Now you drive it.
             </h2>
             <p className="mt-3 max-w-xl text-sm leading-relaxed text-ink-2">
-              That was a recording. This is the live app - open the thread, read the case file, and
-              send the quote yourself.
+              That was a recording. This is the interactive product demo - open the thread, read the
+              case file, and work the prepared reply yourself.
             </p>
           </Reveal>
           {mounted ? (
             <Reveal delay={80} className="mt-8 sm:mt-10">
-              <LivePhone caption="Live and interactive. Work the reply, then send it." />
+              <LivePhone caption="Interactive demo. Work the reply and review the next action." />
             </Reveal>
           ) : (
             <div className="mt-8 sm:hidden">
               <Link
-                to="/enquiries/$enquiryId"
-                params={{ enquiryId: "f01" }}
+                to="/demo"
                 className="flex min-h-16 items-center justify-between gap-4 rounded-xl bg-raised px-4 py-4 shadow-border"
               >
                 <div className="min-w-0">
@@ -144,9 +143,9 @@ function Home() {
                     Priya Shah · Group mobile makeup
                   </p>
                 </div>
-                <span className="shrink-0 text-sm font-medium text-mark">Open</span>
+                <span className="shrink-0 text-sm font-medium text-mark">Open demo</span>
               </Link>
-              <p className="mt-3 text-sm text-stone">The live app. Next action already prepared.</p>
+              <p className="mt-3 text-sm text-stone">Interactive demo. Next action already prepared.</p>
             </div>
           )}
         </div>
@@ -249,7 +248,7 @@ function Home() {
             <Reveal>
               <p className="eyebrow">At the desk</p>
               <p className="mt-3 max-w-xl text-sm leading-relaxed text-ink-2">
-                Same job. Full case file. The website is here if you sit down.
+                Same sample job. Full case file. The website is here if you sit down.
               </p>
             </Reveal>
             <Reveal>
@@ -258,7 +257,7 @@ function Home() {
                   className="block aspect-video w-full object-cover"
                   src="/product/send.mp4?v=18"
                   poster="/product/poster-desk.jpg"
-                  label="The same send on a laptop - full case file, drafted reply, sent."
+                  label="The same sample case on a laptop - full case file and drafted reply ready for review."
                 />
               </BrowserFrame>
             </Reveal>
@@ -294,6 +293,9 @@ function Home() {
             Access opens gradually so we can work closely with the first businesses and make Enquiry
             trustworthy before opening it more widely.
           </p>
+          <p className="mt-3 max-w-xl text-sm font-medium text-ink">
+            Join before public release and get 30% off your first 12 months if you become a paying customer.
+          </p>
         </Reveal>
         <ol className="mt-8 max-w-xl">
           {[
@@ -306,8 +308,8 @@ function Home() {
               b: "As the product is ready - not as a countdown or a queue position.",
             },
             {
-              t: "You open the app",
-              b: "Review the next action, then send. Enquiry is intended to become a paid product. We’ll share pricing before any paid access begins.",
+              t: "You decide whether to continue",
+              b: "Review the next action yourself. We’ll share full pricing before any paid access begins, and founding users keep the 30% first-year discount.",
             },
           ].map((s, i) => (
             <Reveal key={s.t} delay={i * 60}>
@@ -359,7 +361,7 @@ function Home() {
               The enquiries aren’t going to decide themselves.
             </h2>
             <p className="mt-3 max-w-xl text-sm leading-relaxed text-ink-2">
-              Join early access. Open the app to see the product case file. We’re building for
+              Join early access. See the demo to open the product case file. We’re building for
               service businesses - makeup, photography, painting, consulting - because someone
               interested still has to become booked, or lost, without you reconstructing every job
               by hand.
