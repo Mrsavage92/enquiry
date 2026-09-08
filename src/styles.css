@@ -169,6 +169,36 @@ html[data-palette="b"] {
     color: var(--color-ink);
     background: var(--color-paper);
   }
+  /*
+    Unconditional, not just under 860px. The app shell's own main region
+    (#main, overflow-y-auto) is meant to be the only scroller on every app
+    route, but html's base rule above sets overflow-y: auto unconditionally
+    for the marketing pages' own document scroll. The root cause of the
+    actual leak this guards against is fixed at .app-root below (position:
+    relative, so an absolutely-positioned descendant with no positioned
+    ancestor of its own stops taking its containing block from the
+    viewport) - that alone brings documentElement.scrollHeight back to
+    clientHeight. This rule is the second, independent layer: even with
+    the leak fixed, html and body should never be scroll candidates on an
+    app route, since #main already is one, and a future absolutely- or
+    fixed-positioned element added without a positioned ancestor would
+    reopen the same class of bug this guards against. Before either fix,
+    /enquiries and /enquiries/:id measured documentElement.scrollHeight
+    2364 against clientHeight 900, and End/PageDown/Space/scrollIntoView
+    could move the whole app shell up to 1464px off-screen, leaving a
+    blank paper viewport. This rule (and its body pairing below, both
+    already proven correct under 860px) removes html and body from scroll
+    candidacy entirely whenever .app-root is present, so the window cannot
+    scroll on any app route regardless of viewport width.
+  */
+  html:has(.app-root) {
+    height: 100%;
+    overflow: hidden;
+  }
+  html:has(.app-root) body {
+    height: 100%;
+    overflow: hidden;
+  }
   h1,
   h2,
   h3 {
@@ -433,6 +463,26 @@ html[data-palette="b"] {
     padding-bottom: var(--app-safe-bottom);
   }
   .app-root {
+    /*
+      The root cause of the documentElement.scrollHeight inflation this
+      fixes: an absolutely-positioned descendant with no positioned ancestor
+      (e.g. the sr-only "Draft message" label inside the enquiry detail's
+      reply textarea, src/components/enquiry/intelligence.tsx) takes its
+      containing block from the initial containing block (the viewport),
+      not from whichever overflow: hidden/auto box happens to clip it
+      visually. That box's own border-box then counts toward
+      documentElement's scrollable-overflow region even though every
+      DOM-ancestor overflow already contains it for painting purposes -
+      the two mechanisms are computed independently. Measured: with
+      .app-root position: static, /enquiries and /enquiries/:id reported
+      documentElement.scrollHeight 2364 against clientHeight 900; adding
+      position: relative here (making .app-root itself the containing
+      block for every such descendant app-wide, instead of patching each
+      one individually) brought it to 900 = 900 with no visual change,
+      since .app-root's own box model does not otherwise depend on its
+      position value. Overridden to fixed under 860px below, unaffected.
+    */
+    position: relative;
     overscroll-behavior: none;
   }
   .app-header {
@@ -1046,14 +1096,12 @@ html.embed .site-nav {
   .site-field-grain {
     display: none;
   }
-  html:has(.app-root) {
-    height: 100%;
-    overflow: hidden;
-  }
-  html:has(.app-root) body {
-    height: 100%;
-    overflow: hidden;
-  }
+  /*
+    html:has(.app-root) and its body pairing used to live only here, so the
+    window-scroll containment they provide only applied under 860px - see
+    the unconditional copy in the base html/body rules above for why that
+    left /enquiries and /enquiries/:id scrollable above 860px.
+  */
   .app-root {
     position: fixed;
     inset: 0;
