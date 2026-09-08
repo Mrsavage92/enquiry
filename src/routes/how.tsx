@@ -15,7 +15,7 @@ export const Route = createFileRoute("/how")({
       {
         name: "description",
         content:
-          "Work arrives from any channel. Enquiry reconstructs the request, applies how your business works, and prepares the next action.",
+          "Bring an enquiry into Enquiry, reconstruct the request, apply how your business works, and prepare the next action.",
       },
     ],
   }),
@@ -60,8 +60,8 @@ function How() {
         <ol>
           {[
             {
-              t: "Work arrives",
-              b: "A form, a text, an Instagram message, a Facebook DM, or an email. Those are ways an enquiry can arrive. Enquiry reconstructs the request from what came in.",
+              t: "Bring the enquiry in",
+              b: "It might have started in a form, text, Instagram, Facebook, or email. Early access starts by bringing the enquiry into Enquiry yourself. Connected channels will roll out progressively.",
             },
             {
               t: "Enquiry reconstructs the request",
@@ -81,7 +81,7 @@ function How() {
             },
             {
               t: "The enquiry stays current",
-              b: "If they write again, or go quiet, the case file stays up to date until the work is booked or lost. Follow-up returns only when something needs you.",
+              b: "Add new customer information as the conversation changes. The case file stays current until the work is booked or lost. Connected-channel updates will roll out progressively.",
             },
           ].map((s, i) => (
             <Reveal key={s.t}>
