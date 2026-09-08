@@ -2,10 +2,11 @@ import type { ScrollFadeEdges } from "@/lib/use-scroll-fade";
 import { cn } from "@/lib/utils";
 
 /**
- * Left/right edge-fade overlays for a horizontally scrollable strip (e.g. a
- * `Segmented` filter/tab row). Render inside the same `relative` wrapper as
- * the scrollable element `edges` was measured from (`useScrollFade`), sized
- * to that wrapper's visible width.
+ * Edge-fade overlays for a scrollable strip or panel - left/right for a
+ * horizontal strip (e.g. a `Segmented` filter/tab row), top/bottom for a
+ * vertical one (e.g. the enquiry decision column). Render inside the same
+ * `relative` wrapper as the scrollable element `edges` was measured from
+ * (`useScrollFade`), sized to that wrapper's visible width or height.
  *
  * The anchor colour is ink at a low, fixed alpha (`ink/10`) - the same
  * translucent-scrim idiom as the dialog overlay (`bg-ink/40`), just far
@@ -13,8 +14,8 @@ import { cn } from "@/lib/utils";
  * fading to transparent. That distinction matters: a `from-[opaque colour]
  * to-transparent` gradient's *alpha* still sweeps the full 0-100% range
  * across its width even when the opaque colour itself is only lightly
- * tinted, so as a chip scrolls under it, some scroll position lands a
- * glyph under a near-opaque intermediate point where chip and overlay
+ * tinted, so as content scrolls under it, some scroll position lands a
+ * glyph under a near-opaque intermediate point where content and overlay
  * converge toward the same colour - an earlier version of this fix
  * (color-mix(ink 14%, paper-2), an opaque anchor whose alpha still ran
  * 0-100% across the band) measured 6.54:1 / 6.65:1 at rest but as low as
@@ -33,17 +34,38 @@ import { cn } from "@/lib/utils";
  * own) but read identically with the fade removed - pre-existing, not
  * caused by this component. See
  * docs/evidence/visual-v1/w3b-strip-affordance/ for the sweep data.
+ *
+ * The vertical variant (the enquiry decision panel scroller) is verified the
+ * same way - full scrollTop sweep, fade present vs removed - in
+ * docs/evidence/visual-v1/final-polish/.
  */
 export function ScrollFade({
   edges,
   orientation = "horizontal",
 }: {
   edges: ScrollFadeEdges;
-  /** Only "horizontal" is implemented; named explicitly for the vertical
-   * strips this may grow into rather than baked in as an assumption. */
-  orientation?: "horizontal";
+  orientation?: "horizontal" | "vertical";
 }) {
-  if (orientation !== "horizontal") return null;
+  if (orientation === "vertical") {
+    return (
+      <>
+        <div
+          aria-hidden
+          className={cn(
+            "pointer-events-none absolute inset-x-0 top-0 h-8 bg-gradient-to-b from-ink/10 to-transparent transition-opacity duration-150",
+            edges.start ? "opacity-100" : "opacity-0",
+          )}
+        />
+        <div
+          aria-hidden
+          className={cn(
+            "pointer-events-none absolute inset-x-0 bottom-0 h-8 bg-gradient-to-t from-ink/10 to-transparent transition-opacity duration-150",
+            edges.end ? "opacity-100" : "opacity-0",
+          )}
+        />
+      </>
+    );
+  }
   return (
     <>
       <div

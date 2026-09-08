@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { computeFadeEdges } from "./use-scroll-fade.ts";
+import { computeFadeEdges, computeVerticalFadeEdges } from "./use-scroll-fade.ts";
 
 test("a strip narrower than its content shows only the end fade at rest", () => {
   // The queue filter strip at 1440px: clientWidth 295, scrollWidth 467.
@@ -37,4 +37,52 @@ test("a 1px rounding wobble at either boundary does not count as scrolled", () =
 test("widening the container past the content clears both fades", () => {
   const edges = computeFadeEdges({ scrollWidth: 467, clientWidth: 467, scrollLeft: 0 });
   assert.deepEqual(edges, { start: false, end: false });
+});
+
+// Vertical - the enquiry decision panel scroller (final-polish fix,
+// 2026-09-08 cold rating P0 item 1: scrollHeight 2716 vs clientHeight 755
+// on f01, TOTAL/$625 sliced through their own glyphs with no affordance).
+// Same overflow math as the horizontal strip, just on the other axis.
+
+test("a panel taller than its viewport shows only the end fade at rest", () => {
+  const edges = computeVerticalFadeEdges({ scrollHeight: 2716, clientHeight: 755, scrollTop: 0 });
+  assert.deepEqual(edges, { start: false, end: true });
+});
+
+test("a panel that fits its content shows neither fade", () => {
+  const edges = computeVerticalFadeEdges({ scrollHeight: 700, clientHeight: 755, scrollTop: 0 });
+  assert.deepEqual(edges, { start: false, end: false });
+});
+
+test("scrolled to the true bottom shows only the start fade - the mask must disappear there", () => {
+  const edges = computeVerticalFadeEdges({
+    scrollHeight: 2716,
+    clientHeight: 755,
+    scrollTop: 1961,
+  });
+  assert.deepEqual(edges, { start: true, end: false });
+});
+
+test("scrolled partway shows both fades", () => {
+  const edges = computeVerticalFadeEdges({
+    scrollHeight: 2716,
+    clientHeight: 755,
+    scrollTop: 900,
+  });
+  assert.deepEqual(edges, { start: true, end: true });
+});
+
+test("a 1px rounding wobble at either boundary does not count as scrolled", () => {
+  const atTop = computeVerticalFadeEdges({
+    scrollHeight: 2716,
+    clientHeight: 755,
+    scrollTop: 0.4,
+  });
+  assert.equal(atTop.start, false);
+  const atBottom = computeVerticalFadeEdges({
+    scrollHeight: 2716,
+    clientHeight: 755,
+    scrollTop: 1960.7,
+  });
+  assert.equal(atBottom.end, false);
 });
