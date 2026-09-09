@@ -35,51 +35,86 @@ function Home() {
         edge, which is where "Built for service businesses / See demo" now
         sits. The waitlist form is the one addition - the reference's hero has
         no form, and Enquiry's primary action is an email capture.
+
+        The product film is the hero visual, not a below-fold section. On
+        production these two films sat 2,189px and 5,711px down, far enough
+        that the owner read them as missing. Spacing above the frame is tuned
+        so more than half the video element is inside a 1440x900 and a 390x844
+        viewport on load, which is what SiteVideo's IntersectionObserver needs
+        (intersectionRatio >= 0.5) to start playback without a scroll. Measured
+        with .style-mirror/tools/geom.mjs - do not loosen it without
+        re-measuring.
       */}
-      <section className="mk-container pt-[120px] pb-14 sm:pt-[152px]">
-        <p className="mk-label">The app</p>
-        <h1 className="mk-h1 mt-6 max-w-[18ch]">Stop managing enquiries.</h1>
-        <div className="mt-8 flex flex-col gap-4 sm:flex-row sm:items-baseline sm:justify-between sm:gap-10">
-          <p className="mk-lede max-w-xl">
-            However the enquiry arrives, Enquiry puts the request together, understands what matters
-            for this business, works out what can safely be decided now, and prepares the next
-            action.
-          </p>
-          <p className="mk-mini flex shrink-0 flex-wrap items-center gap-x-2">
-            Built for service businesses.
-            <Link to="/demo" className="mk-nav-link px-0 text-[var(--mk-fg)]">
-              See demo
-            </Link>
-          </p>
+      <section className="pb-[var(--mk-section-y)] pt-[64px] sm:pt-[96px]">
+        <div className="mk-container">
+          <p className="mk-label">The app</p>
+          <h1 className="mk-h1 mt-5 max-w-[18ch]">Stop managing enquiries.</h1>
+          <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-baseline sm:justify-between sm:gap-10">
+            <p className="mk-lede max-w-xl">
+              However the enquiry arrives, Enquiry puts the request together, understands what
+              matters for this business, works out what can safely be decided now, and prepares the
+              next action.
+            </p>
+            <p className="mk-mini flex shrink-0 flex-wrap items-center gap-x-2">
+              Built for service businesses.
+              <Link to="/demo" className="mk-nav-link px-0 text-[var(--mk-fg)]">
+                See demo
+              </Link>
+            </p>
+          </div>
+          <div className="mt-6 max-w-xl">
+            <WaitlistForm compact ctaVariant="primary-strong" />
+          </div>
         </div>
-        <div className="mt-8 max-w-xl">
-          <WaitlistForm compact ctaVariant="primary-strong" />
+
+        {/*
+          Landscape desk film above 640, portrait phone film below it - the two
+          existing assets, unchanged, each at the aspect it was shot in. The
+          plate sits in .mk-page rather than .mk-container because the
+          reference runs its product capture wider than the text column.
+
+          The portrait cap lives on a wrapper, not on MediaFrame: .mk-media
+          sets its own max-width in the unlayered marketing layer, which beats
+          a Tailwind max-w-* on the same element. It is sized so the 9:16 film
+          clears the 0.5 intersection ratio in a 390x844 viewport.
+        */}
+        <div className="mk-page mt-6 sm:mt-8">
+          {desk ? (
+            <MediaFrame>
+              <SiteVideo
+                className="block aspect-video w-full object-cover"
+                src="/product/send.mp4?v=18"
+                poster="/product/poster-desk.jpg"
+                label="The same sample case on a laptop - full case file and drafted reply ready for review."
+              />
+            </MediaFrame>
+          ) : (
+            <div className="mx-auto w-full max-w-[17.5rem]">
+              <MediaFrame>
+                <SiteVideo
+                  className="block aspect-[9/16] w-full object-cover"
+                  src="/product/send-phone.mp4?v=16"
+                  poster="/product/poster-phone.jpg"
+                  label="Enquiry on a phone. A new enquiry is already understood, and the reply is ready to send."
+                />
+              </MediaFrame>
+            </div>
+          )}
+        </div>
+
+        {/* The desk film's own context line, which used to sit with it below the fold. */}
+        <div className="mk-container mt-6">
+          <p className="mk-label">At the desk</p>
+          <p className="mk-mini mt-2 max-w-xl">
+            Same sample job. Full case file. The website is here if you sit down.
+          </p>
         </div>
       </section>
 
       {/*
-        The product visual. The reference runs its app capture full width
-        directly under the hero, on a plate wider than the text column. The
-        widget's own header copy stays outside the plate - the reference never
-        puts prose inside its media frame - and the interactive surface keeps
-        the app's own light palette via .mk-app-surface, because unlike the
-        reference our product is light.
+        The phone film is the second-section media on desktop. Below 640 it is
+        already the hero, so the section keeps its copy and drops the repeat.
       */}
-      <section className="pb-[var(--mk-section-y)]">
-        <div className="mk-container">
-          <p className="mk-label">{SIGNATURE_DEMO.business}</p>
-          <h2 className="mk-h2 mt-4 max-w-[22ch]">{SIGNATURE_DEMO.headline}</h2>
-          <p className="mk-lede mt-5 max-w-xl">{SIGNATURE_DEMO.supporting}</p>
-        </div>
-        <div className="mk-page mt-12">
-          <MediaFrame>
-            <div className="mk-app-surface p-5 sm:p-8">
-              <CrossChannelDecisionDemo compact />
-            </div>
-          </MediaFrame>
-        </div>
-      </section>
-
       <section className="mk-section">
         <div className="mk-container">
           <div className="mk-section-head">
@@ -89,14 +124,16 @@ function Home() {
             </h2>
           </div>
           <div className="grid items-center gap-12 lg:grid-cols-[minmax(0,24rem)_1fr] lg:gap-20">
-            <MediaFrame className="pointer-events-none mx-auto w-full max-w-[20rem] lg:mx-0 lg:max-w-none">
-              <SiteVideo
-                className="block aspect-[9/16] w-full object-cover"
-                src="/product/send-phone.mp4?v=16"
-                poster="/product/poster-phone.jpg"
-                label="Enquiry on a phone. A new enquiry is already understood, and the reply is ready to send."
-              />
-            </MediaFrame>
+            {desk ? (
+              <MediaFrame className="pointer-events-none mx-auto w-full max-w-[20rem] lg:mx-0 lg:max-w-none">
+                <SiteVideo
+                  className="block aspect-[9/16] w-full object-cover"
+                  src="/product/send-phone.mp4?v=16"
+                  poster="/product/poster-phone.jpg"
+                  label="Enquiry on a phone. A new enquiry is already understood, and the reply is ready to send."
+                />
+              </MediaFrame>
+            ) : null}
             <ul className="mk-rows">
               {[
                 "It reads what the customer actually wrote.",
@@ -109,6 +146,29 @@ function Home() {
               ))}
             </ul>
           </div>
+        </div>
+      </section>
+
+      {/*
+        The interactive decision widget. Its own header copy stays outside the
+        plate - the reference never puts prose inside its media frame - and the
+        interactive surface keeps the app's own light palette, because unlike
+        the reference our product is light.
+      */}
+      <section className="mk-section">
+        <div className="mk-container">
+          <div className="mk-section-head">
+            <p className="mk-label">{SIGNATURE_DEMO.business}</p>
+            <h2 className="mk-h2 mt-4 max-w-[22ch]">{SIGNATURE_DEMO.headline}</h2>
+            <p className="mk-lede mt-5 max-w-xl">{SIGNATURE_DEMO.supporting}</p>
+          </div>
+        </div>
+        <div className="mk-page">
+          <MediaFrame>
+            <div className="mk-app-surface p-5 sm:p-8">
+              <CrossChannelDecisionDemo compact />
+            </div>
+          </MediaFrame>
         </div>
       </section>
 
@@ -222,35 +282,6 @@ function Home() {
           </ul>
         </div>
       </section>
-
-      {desk ? (
-        <section className="mk-section">
-          <div className="mk-container">
-            <div className="mk-section-head">
-              <p className="mk-label">At the desk</p>
-              <p className="mk-lede mt-4 max-w-xl">
-                Same sample job. Full case file. The website is here if you sit down.
-              </p>
-            </div>
-          </div>
-          {/*
-            Wider than the text column on purpose, which is also what the
-            reference does with its product capture: a 1320px plate against a
-            1280px column at 1440. This capture is the full operator desk and
-            needs the width to stay readable.
-          */}
-          <div className="mk-page">
-            <MediaFrame url="enquiry.app/enquiries">
-              <SiteVideo
-                className="block aspect-video w-full object-cover"
-                src="/product/send.mp4?v=18"
-                poster="/product/poster-desk.jpg"
-                label="The same sample case on a laptop - full case file and drafted reply ready for review."
-              />
-            </MediaFrame>
-          </div>
-        </section>
-      ) : null}
 
       <section className="mk-section">
         <div className="mk-container">

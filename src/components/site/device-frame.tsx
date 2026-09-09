@@ -17,24 +17,14 @@ import { cn } from "@/lib/utils";
  * and a landscape one exactly the same way - the aspect ratio of the child is
  * what makes it read as a phone or a desk, not a drawn device.
  *
- * `url` renders the reference's own titlebar-free label row. It is optional:
- * the reference shows a plain capture unless the surface needs naming.
+ * There is deliberately no titlebar, address row or traffic-light chrome. The
+ * reference frames its capture and nothing else, and the copy beside each film
+ * already names the surface it is showing.
  */
-export function MediaFrame({
-  children,
-  className,
-  url,
-}: {
-  children: ReactNode;
-  className?: string;
-  url?: string;
-}) {
+export function MediaFrame({ children, className }: { children: ReactNode; className?: string }) {
   return (
     <div className={cn("mk-media", className)}>
       <div className="mk-media-panel">
-        {url ? (
-          <p className="mk-mini px-4 py-2.5 text-[var(--mk-fg-3)]">{url}</p>
-        ) : null}
         <div className="mk-media-inner">{children}</div>
       </div>
     </div>
