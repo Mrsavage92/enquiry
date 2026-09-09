@@ -142,3 +142,28 @@ export function describeRule(rule: BusinessRule): string {
     : "";
   return `${rule.service}: $${rule.amount} per ${rule.unit}${min}`;
 }
+
+/**
+ * A stable identity for a rule's commercial content.
+ *
+ * Two rules with the same fingerprint say exactly the same thing about money,
+ * so saving one twice is not a disagreement and must not become a conflict.
+ * Two rules for the same service with different fingerprints DO disagree, and
+ * that is a conflict the owner has to settle rather than one array order gets
+ * to settle for them.
+ */
+export function ruleFingerprint(rule: BusinessRule): string {
+  const norm = (s: string) => s.trim().toLowerCase();
+  if (rule.kind === "fixed_price") {
+    return `fixed_price|${norm(rule.service)}|${rule.amount}|${rule.currency}`;
+  }
+  return [
+    "per_unit",
+    norm(rule.service),
+    rule.amount,
+    rule.currency,
+    norm(rule.unit),
+    norm(rule.quantityField),
+    rule.minimumQuantity ?? "",
+  ].join("|");
+}

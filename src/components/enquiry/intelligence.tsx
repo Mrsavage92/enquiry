@@ -41,11 +41,13 @@ import {
 } from "@/domain/voice-detect";
 import { CaseFile } from "./case-file";
 import { isCustomerFacingSend, resolvedHold } from "@/domain/commercial";
+import { needsServiceConfirmation } from "@/domain/service-authority";
+import { correctionRoute } from "@/domain/fact-correction";
 import { previewFor } from "@/domain/send-preview";
 import { toastUndo } from "@/lib/toast-undo";
 import { toast } from "sonner";
 import { HearLetter } from "./hear-letter";
-import { SendPreview } from "./send-preview";
+import { SendPreview, type SendPreviewCopyState } from "./send-preview";
 import { DeclineConfirm } from "./decline-confirm";
 
 export function Intelligence({
@@ -62,6 +64,11 @@ export function Intelligence({
   const [correcting, setCorrecting] = useState<EnquiryFact | null>(null);
   const [draftOpen, setDraftOpen] = useState(!compact);
   const [sendConfirm, setSendConfirm] = useState(false);
+  // The server-frozen artefact this preview is about, and why the server would
+  // not let it proceed. Both cleared every time the preview is opened afresh.
+  const [reviewedSendId, setReviewedSendId] = useState<string | null>(null);
+  const [reviewBlocked, setReviewBlocked] = useState<string | null>(null);
+  const [reviewStale, setReviewStale] = useState<string | null>(null);
   const [noteOpen, setNoteOpen] = useState(false);
   const [declineOpen, setDeclineOpen] = useState(false);
   const [declining, setDeclining] = useState(false);
@@ -117,46 +124,112 @@ export function Intelligence({
     return () => window.clearTimeout(t);
   }, [enquiry.id, draftBody, considerVoice]);
   const blocked = outboundBlocked(business, offline, enquiry);
+  /**
+   * A commercial send whose service premise nobody has confirmed. The server
+   * refuses these (`prepareReviewedSendInTransaction`), so the desk must not
+   * offer them as ready: a legacy enquiry carrying a bare service label used to
+   * show an enabled "Send the quote", refuse on click, and leave the owner with
+   * no way to resolve it. The confirm control above is that way; this stops the
+   * button pretending the decision is already made.
+   */
+  const serviceUnconfirmed = !demoMode && needsServiceConfirmation(enquiry);
+  const commercialAction = rec.action === "SEND_QUOTE" || rec.action === "SEND_ESTIMATE";
+  const awaitingService = serviceUnconfirmed && commercialAction;
   const sendable = isSendableAction(rec.action);
   const reply = replyChannel(enquiry);
   const firstBeta = useFirstBetaActions();
   const [sending, setSending] = useState(false);
 
   /**
-   * Send, for real.
+   * Copying. Only copying.
    *
-   * Demo mode is a scripted story and `approve` is its narrator - fine there.
-   * A live business is not sending anything from inside Enquiry yet, and
-   * pretending otherwise was the single most dishonest thing in the product:
-   * the button said "Sent." while nothing left the building and the record
-   * vanished on reload. So the honest version - put the prepared text on the
-   * clipboard, let the owner send it from their own mailbox or phone, and
-   * record the send as a real outbound message with a real timestamp.
+   * It writes nothing, records nothing, and reports honestly whether the
+   * clipboard actually took the text. The previous version copied inside the
+   * send handler, swallowed any failure, and recorded an outbound message
+   * either way - so a denied clipboard still told the business it had replied.
    */
-  const commitSend = async (clientRequestId?: string, edited?: boolean) => {
-    if (demoMode) {
-      approve(enquiry.id);
-      toastUndo("Sent.");
-      return;
+  const copyDraft = async (): Promise<SendPreviewCopyState> => {
+    try {
+      if (!navigator.clipboard?.writeText) return "failed";
+      await navigator.clipboard.writeText(draftBody);
+      return "copied";
+    } catch {
+      return "failed";
     }
+  };
+
+  /**
+   * Open the approval preview, having first asked the server to freeze exactly
+   * what is about to be reviewed. The server can refuse - a closed enquiry, a
+   * service nobody confirmed, a message naming an amount the decision does not -
+   * and refusing here, before anything is copied or claimed, is the point.
+   */
+  const openReview = async () => {
     if (!draftBody.trim()) {
       toast.error("There is no prepared reply to send.");
       return;
     }
+    if (demoMode) {
+      // The demo has no server-side enquiry to freeze. It still goes through
+      // this same preview, and its confirmation is labelled as a simulation.
+      setReviewBlocked(null);
+      setReviewStale(null);
+      setReviewedSendId(null);
+      setSendConfirm(true);
+      return;
+    }
     setSending(true);
     try {
-      // Nice-to-have, not load-bearing: an insecure context or a denied
-      // permission must not stop the send being recorded.
-      try {
-        await navigator.clipboard?.writeText(draftBody);
-      } catch {
-        /* clipboard unavailable - the text is still on screen to copy */
+      const res = await firstBeta.prepareReview(enquiry.id, draftBody, reply);
+      if (!res.ok) {
+        setReviewBlocked(res.message);
+        setReviewedSendId(null);
+      } else {
+        setReviewBlocked(null);
+        setReviewedSendId(res.reviewedSendId);
       }
-      await firstBeta.recordSent(enquiry.id, draftBody, reply, {
-        clientRequestId: clientRequestId ?? crypto.randomUUID(),
-        edited,
-      });
-      toast.success("Copied. Send it from your own inbox - Enquiry has recorded it.");
+      setReviewStale(null);
+      setSendConfirm(true);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not prepare that for review.");
+    } finally {
+      setSending(false);
+    }
+  };
+
+  /**
+   * The owner attesting that they sent it themselves, from their own inbox.
+   *
+   * This is the only thing in the product that creates an outbound record. Not
+   * copying, not opening this dialog, not closing it. Enquiry did not deliver
+   * the message and does not claim to have.
+   */
+  const confirmExternalSend = async (staleAttestation = false) => {
+    if (demoMode) {
+      approve(enquiry.id);
+      toastUndo("Recorded as sent (demo). Nothing left this browser.");
+      return;
+    }
+    if (!reviewedSendId) {
+      toast.error("Review the message again before recording it as sent.");
+      return;
+    }
+    setSending(true);
+    try {
+      const res = await firstBeta.recordSent(enquiry.id, reviewedSendId, { staleAttestation });
+      if (!res.ok) {
+        if (res.reason === "stale") setReviewStale(res.message);
+        else setReviewBlocked(res.message);
+        return;
+      }
+      setSendConfirm(false);
+      toast.success(
+        res.duplicate
+          ? "Already recorded - this send is on file once."
+          : res.stale
+            ? "Recorded as you sent it. The newer decision is untouched."
+            : "Recorded as sent by you.",
+      );
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Could not record that send.");
     } finally {
@@ -599,26 +672,27 @@ export function Intelligence({
               <Button
                 className={cn("w-full", compact ? "min-h-14 text-base" : "min-h-11")}
                 disabled={
-                  sending || !rec.primaryEnabled || Boolean(rec.blockedReason) || Boolean(blocked)
+                  sending ||
+                  !rec.primaryEnabled ||
+                  awaitingService ||
+                  Boolean(rec.blockedReason) ||
+                  Boolean(blocked)
                 }
                 onClick={() => {
                   // Every action reaching this button is sendable
                   // (isSendableAction gates the branch above), so this is
-                  // always a customer-facing send - preview first, never a
-                  // bare commitSend(). The check stays explicit rather than
-                  // unconditional so the intent (and the invariant it
-                  // depends on) is provable and testable on its own, not
-                  // just true by accident of this component's structure.
-                  if (isCustomerFacingSend(rec.action)) {
-                    setSendConfirm(true);
-                    return;
-                  }
-                  void commitSend().then(() => {
-                    if (!compact) onDone?.();
-                  });
+                  // always a customer-facing send - preview first, and there
+                  // is no longer any other path: nothing records a send
+                  // except the owner's attestation inside that preview. The
+                  // check stays explicit rather than unconditional so the
+                  // intent (and the invariant it depends on) is provable and
+                  // testable on its own, not just true by accident of this
+                  // component's structure.
+                  if (!isCustomerFacingSend(rec.action)) return;
+                  void openReview();
                 }}
               >
-                {sending ? "Recording…" : rec.label}
+                {sending ? "Recording…" : awaitingService ? "Confirm the service first" : rec.label}
               </Button>
             ) : situation ? (
               <p className="text-sm text-ink-2">Settle the detail above first.</p>
@@ -627,7 +701,12 @@ export function Intelligence({
                 {rec.label}
               </Button>
             )}
-            {blocked ? (
+            {awaitingService ? (
+              <p className="text-sm text-warn">
+                Confirm what this enquiry is for before quoting it. Enquiry will not send a price
+                for a service nobody has agreed to.
+              </p>
+            ) : blocked ? (
               <div className="space-y-2">
                 <p className="text-sm text-warn">{blocked}</p>
                 {integ && integ.status !== "connected" && business ? (
@@ -652,11 +731,11 @@ export function Intelligence({
                 {commercial.kind === "not_applicable"
                   ? " the decision."
                   : " the price or feasibility."}
-                {demoMode ? null : " This copies the text - it does not send from here."}
+                {" Enquiry does not send from here - you send it, then record it."}
               </p>
-            ) : sendable && compact && !demoMode ? (
+            ) : sendable && compact ? (
               <p className="text-xs text-stone">
-                This copies the text - it does not send from here.
+                Enquiry does not send from here - you send it, then record it.
               </p>
             ) : null}
             {sendable || enquiry.state.lifecycle === "OPEN" ? (
@@ -819,9 +898,17 @@ export function Intelligence({
         preview={preview}
         pending={sending}
         compact={compact}
-        onConfirm={(clientRequestId) => {
-          void commitSend(clientRequestId, preview.edited ?? false).then(() => {
-            setSendConfirm(false);
+        demoMode={demoMode}
+        blockedReason={reviewBlocked}
+        staleMessage={reviewStale}
+        onCopy={copyDraft}
+        onConfirm={() => {
+          void confirmExternalSend(false).then(() => {
+            if (!compact) onDone?.();
+          });
+        }}
+        onConfirmStale={() => {
+          void confirmExternalSend(true).then(() => {
             if (!compact) onDone?.();
           });
         }}
@@ -1102,10 +1189,54 @@ function CorrectDialog({
   sheet?: boolean;
 }) {
   const correctFact = usePrototype((s) => s.correctFact);
+  const demoMode = usePrototype((s) => s.demoMode);
+  const actions = useFirstBetaActions();
   const [value, setValue] = useState("");
+  const [saving, setSaving] = useState(false);
   useEffect(() => {
     setValue(fact?.displayValue ?? "");
   }, [fact]);
+
+  /**
+   * Apply a correction where it actually belongs.
+   *
+   * This used to call the client store in every mode: a success toast, a local
+   * audit line, no network request, nothing persisted, no recomputed price, and
+   * the whole thing gone on reload. A live correction now goes through the same
+   * server path as any other confirmation - tenancy re-derived, the fact
+   * superseded and re-inserted inside one transaction, the decision recomputed,
+   * the revision bumped, an audit row written - and the store is refreshed FROM
+   * that response rather than optimistically ahead of it, so what the desk shows
+   * is what the database holds.
+   */
+  const apply = async (next: string, display: string) => {
+    if (!fact) return;
+    const route = correctionRoute(fact.field, demoMode);
+    if (route.kind === "demo") {
+      correctFact(enquiry.id, fact.id, next, display);
+      onClose();
+      return;
+    }
+    setSaving(true);
+    try {
+      const res =
+        route.kind === "service"
+          ? await actions.setService(enquiry.id, next.trim())
+          : await actions.answerFact(enquiry.id, route.field, next.trim());
+      onClose();
+      toast.success(
+        res.action === "SEND_QUOTE" ? "Corrected. The price is updated." : res.explanation,
+      );
+    } catch (err) {
+      // The server refuses a value it cannot price from - a range, alternatives,
+      // a negative - exactly as it does for a first answer. Say so and leave the
+      // dialog open so the owner can fix it, rather than closing on a failure.
+      toast.error(err instanceof Error ? err.message : "Could not save that correction.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
   if (!fact) return null;
   const alts = fact.alternatives ?? [];
   const Panel = sheet ? SheetContent : DialogContent;
@@ -1120,10 +1251,8 @@ function CorrectDialog({
                 key={a}
                 variant="secondary"
                 className="min-h-11 w-full justify-start"
-                onClick={() => {
-                  correctFact(enquiry.id, fact.id, a, alternativeLabel(a));
-                  onClose();
-                }}
+                disabled={saving}
+                onClick={() => void apply(a, alternativeLabel(a))}
               >
                 {alternativeLabel(a)}
               </Button>
@@ -1134,8 +1263,7 @@ function CorrectDialog({
             className="space-y-3"
             onSubmit={(e) => {
               e.preventDefault();
-              correctFact(enquiry.id, fact.id, value, value);
-              onClose();
+              void apply(value, value);
             }}
           >
             <label className="block text-sm">
@@ -1151,8 +1279,8 @@ function CorrectDialog({
                 ? "This looks customer-specific. It will stay on this enquiry."
                 : "If this is how the business works, Enquiry will ask whether to learn it."}
             </p>
-            <Button type="submit" className="min-h-11 w-full">
-              Update fact
+            <Button type="submit" className="min-h-11 w-full" disabled={saving}>
+              {saving ? "Saving…" : "Update fact"}
             </Button>
           </form>
         )}

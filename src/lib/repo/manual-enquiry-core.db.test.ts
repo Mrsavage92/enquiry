@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { txRunner } from "./pglite-tx.ts";
 import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import test from "node:test";
@@ -148,6 +149,7 @@ test("a medium-confidence fact lands as inferred, with model provenance, never c
     messageId,
     rawMessage: "Need makeup for 4 people",
     interpreter: fixedInterpreter(result),
+    runInTransaction: txRunner(pg),
   });
   assert.equal(outcome.ok, true);
   if (!outcome.ok) return;
@@ -159,9 +161,14 @@ test("a medium-confidence fact lands as inferred, with model provenance, never c
     confidence: string;
     asserted_by: string;
     provenance: { kind: string; messageId: string; span: string; model: string };
-  }>("select status, confidence, asserted_by, provenance from enquiry_fact where enquiry_id = $1", [
-    enquiryId,
-  ]);
+    // Scoped to the field under test: the enquiry also carries the owner's own
+    // confirmed `service` fact, written by `insertManualEnquiry` because the
+    // operator typed the service into the intake form. That is a separate
+    // invariant (CC1-03) with its own tests below.
+  }>(
+    "select status, confidence, asserted_by, provenance from enquiry_fact where enquiry_id = $1 and field = 'guests'",
+    [enquiryId],
+  );
   assert.equal(facts.rows.length, 1);
   assert.equal(facts.rows[0]!.status, "inferred");
   assert.equal(facts.rows[0]!.confidence, "Medium");
@@ -197,10 +204,11 @@ test("a low-confidence fact lands as check_this, not inferred", async () => {
     messageId,
     rawMessage: "maybe 4ish?",
     interpreter: fixedInterpreter(result),
+    runInTransaction: txRunner(pg),
   });
 
   const facts = await pg.query<{ status: string }>(
-    "select status from enquiry_fact where enquiry_id = $1",
+    "select status from enquiry_fact where enquiry_id = $1 and field = 'guests'",
     [enquiryId],
   );
   assert.equal(facts.rows[0]!.status, "check_this");
@@ -234,6 +242,7 @@ test("a service candidate matching an Active rule sets service_label and writes 
     messageId,
     rawMessage: "Hi! Need makeup for a group",
     interpreter: fixedInterpreter(result),
+    runInTransaction: txRunner(pg),
   });
 
   const enq = await pg.query<{ service_label: string }>(
@@ -280,6 +289,7 @@ test("a service candidate matching no Active rule never touches service_label", 
     messageId,
     rawMessage: "Do you do wedding photography?",
     interpreter: fixedInterpreter(result),
+    runInTransaction: txRunner(pg),
   });
 
   const enq = await pg.query<{ service_label: string }>(
@@ -325,6 +335,7 @@ test("a service candidate is ignored when the operator already typed a service",
     messageId,
     rawMessage: "Need makeup for 4 people",
     interpreter: fixedInterpreter(result),
+    runInTransaction: txRunner(pg),
   });
 
   const enq = await pg.query<{ service_label: string }>(
@@ -358,6 +369,7 @@ test("a failed interpretation writes the honest 'could not read' audit line and 
     messageId,
     rawMessage: "whatever",
     interpreter: failingInterpreter("no_provider"),
+    runInTransaction: txRunner(pg),
   });
   assert.deepEqual(outcome, { ok: false, reason: "no_provider" });
 
@@ -397,6 +409,7 @@ test("every classified interpreter failure reason writes the same honest audit l
       messageId,
       rawMessage: "whatever",
       interpreter: failingInterpreter(reason),
+      runInTransaction: txRunner(pg),
     });
     assert.deepEqual(outcome, { ok: false, reason });
 
@@ -445,6 +458,7 @@ test("a successful read records the audit line naming the model and the fact cou
     messageId,
     rawMessage: "Need makeup for 4 people",
     interpreter: fixedInterpreter(result, "claude-haiku-4-5"),
+    runInTransaction: txRunner(pg),
   });
 
   const audit = await pg.query<{ summary: string; detail: string }>(
@@ -552,6 +566,7 @@ test("an inferred quantity never prices the enquiry - decision stays BLOCKED unt
     messageId,
     rawMessage: "Need makeup for 4 people",
     interpreter: fixedInterpreter(result),
+    runInTransaction: txRunner(pg),
   });
 
   // The inferred fact now sits in the array. The decision must still be
@@ -634,18 +649,28 @@ test("an injection-shaped message never yields a confirmed fact, a price, or sta
     messageId,
     rawMessage: injected,
     interpreter: fixedInterpreter(result),
+    runInTransaction: txRunner(pg),
   });
   assert.equal(outcome.ok, true);
   if (!outcome.ok) return;
   assert.equal(outcome.factsWritten, 2);
 
   const facts = await pg.query<{ status: string; field: string }>(
-    "select status, field from enquiry_fact where enquiry_id = $1",
+    "select status, field from enquiry_fact where enquiry_id = $1 and asserted_by = 'system'",
     [enquiryId],
   );
   assert.equal(facts.rows.length, 2);
   for (const row of facts.rows) {
     assert.notEqual(row.status, "confirmed", `${row.field} must never land as confirmed`);
+  }
+  // And the only confirmed fact on the enquiry is the one the OWNER asserted -
+  // the injected content produced no confirmed row of any kind.
+  const confirmedRows = await pg.query<{ field: string; asserted_by: string }>(
+    "select field, asserted_by from enquiry_fact where enquiry_id = $1 and status = 'confirmed'",
+    [enquiryId],
+  );
+  for (const row of confirmedRows.rows) {
+    assert.equal(row.asserted_by, "user", `${row.field} was confirmed by something other than the owner`);
   }
 
   // The deterministic engine never asked for "approved" or "price" - it
@@ -734,6 +759,7 @@ test("a fact confirmed before interpretAndApply runs survives untouched - no inf
     messageId,
     rawMessage: "Need makeup for 4 people",
     interpreter: fixedInterpreter(result),
+    runInTransaction: txRunner(pg),
   });
   assert.equal(outcome.ok, true);
   if (!outcome.ok) return;
@@ -749,9 +775,10 @@ test("a fact confirmed before interpretAndApply runs survives untouched - no inf
     status: string;
     asserted_by: string;
     superseded: boolean;
-  }>("select id, value, status, asserted_by, superseded from enquiry_fact where enquiry_id = $1", [
-    enquiryId,
-  ]);
+  }>(
+    "select id, value, status, asserted_by, superseded from enquiry_fact where enquiry_id = $1 and field = 'guests'",
+    [enquiryId],
+  );
   // The confirmed row is untouched - same id, still live - and the model's "6"
   // never landed as any row, live or superseded.
   const live = liveFacts.rows.filter((r) => !r.superseded);
@@ -849,6 +876,7 @@ test("a service set via setEnquiryService before interpretAndApply runs is never
     messageId,
     rawMessage: "Hi, need help for the big day",
     interpreter: fixedInterpreter(result),
+    runInTransaction: txRunner(pg),
   });
   assert.equal(outcome.ok, true);
   if (!outcome.ok) return;

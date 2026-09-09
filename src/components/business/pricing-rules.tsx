@@ -48,7 +48,7 @@ export function PricingRules({ business }: { business: Business }) {
     }
     setSaving(true);
     try {
-      await actions.saveRule(business.id, {
+      const res = await actions.saveRule(business.id, {
         kind,
         service: service.trim(),
         amount: parsedAmount,
@@ -61,7 +61,18 @@ export function PricingRules({ business }: { business: Business }) {
             }
           : {}),
       });
-      toast.success("Saved. Enquiry can price this now.");
+      // Saving a price can now retire an earlier Active one for the same
+      // service (CC1-02), and saving an identical price changes nothing at all.
+      // Telling the owner "Saved" for a no-op, or not telling them a previous
+      // price has just stopped applying, is exactly the kind of quiet
+      // commercial change this slice exists to remove.
+      if (res?.outcome === "duplicate") {
+        toast("That price is already saved - nothing changed.");
+      } else if (res?.superseded?.length) {
+        toast.success(`Saved. This replaces ${res.superseded.join("; ")}.`);
+      } else {
+        toast.success("Saved. Enquiry can price this now.");
+      }
       reset();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Could not save that rule.");

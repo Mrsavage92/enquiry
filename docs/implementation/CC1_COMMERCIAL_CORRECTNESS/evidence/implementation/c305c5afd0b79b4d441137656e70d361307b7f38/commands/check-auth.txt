@@ -1,0 +1,6 @@
+
+> check:auth
+> node scripts/check-auth-invariant.mjs --dev-url http://127.0.0.1:5178
+
+[auth-invariant] dev and build agree: sign-in on
+exit=0

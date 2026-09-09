@@ -3,6 +3,7 @@ import type { ConfidenceBand, FactStatus } from "../../domain/types.ts";
 import { activeRules, decideEnquiry } from "../../domain/decide.ts";
 import { describeRule } from "../../domain/business-rule.ts";
 import { snapshotFromDecision, stateFromDecision } from "../../domain/decision-snapshot.ts";
+import { applyDecision, isClosed, lockEnquiry } from "./decision-apply.ts";
 import type { EnquiryInterpreter, InterpretFailureReason } from "../interpret/types.ts";
 
 /**
@@ -44,9 +45,23 @@ export async function insertManualEnquiry(
   const [owner] = await sql<{ owner_first_name: string | null }>`
     select owner_first_name from business where id = ${input.businessId}
   `;
+  // An owner who typed the service into the intake form has confirmed it - that
+  // IS the deliberate authoritative act, and it is recorded as one below. The
+  // decision is computed from the same fact the row will carry, so the stored
+  // snapshot and the stored facts cannot disagree from the first moment.
+  const ownerConfirmedService = input.serviceLabel.trim();
+  const seedFacts = ownerConfirmedService
+    ? [
+        {
+          field: "service",
+          value: ownerConfirmedService,
+          status: "confirmed" as const,
+        },
+      ]
+    : [];
   const decision = decideEnquiry(
     { knowledge: knowledge.map((k) => ({ state: k.state, rulePayload: k.rule_payload })) },
-    { serviceLabel: input.serviceLabel, facts: [] },
+    { serviceLabel: input.serviceLabel, facts: seedFacts as never },
   );
   const snapshot = snapshotFromDecision(decision, {
     customerName: input.customerName,
@@ -59,13 +74,15 @@ export async function insertManualEnquiry(
     insert into enquiry (
       business_id, customer_name, customer_email, customer_phone, source,
       service_label, lifecycle, decision_state, commercial_state,
-      responsibility, intake_note, decision_snapshot, received_at, updated_at
+      responsibility, intake_note, decision_snapshot, decision_revision,
+      received_at, updated_at
     ) values (
       ${input.businessId}, ${input.customerName}, ${input.customerEmail},
       ${input.customerPhone || null}, ${"manual"}, ${input.serviceLabel},
       ${"OPEN"}, ${state.decisionState}, ${state.commercialState},
       ${state.responsibility},
-      ${input.intakeNote || null}, ${JSON.stringify(snapshot)}::jsonb, now(), now()
+      ${input.intakeNote || null}, ${JSON.stringify(snapshot)}::jsonb, ${1},
+      now(), now()
     )
     returning id
   `;
@@ -85,6 +102,26 @@ export async function insertManualEnquiry(
   const messageId = msgRows[0]?.id;
   if (!messageId) throw new Error("Could not record the inbound message.");
 
+  // The service the owner typed, recorded as an owner-asserted confirmed fact
+  // rather than left as a bare `service_label` string. A nonblank label alone
+  // proves nothing about who decided it - the model can write that column too
+  // (see `interpretAndApply`, which writes `check_this`) - so the authority has
+  // to be persisted separately from the value, in the same transaction that
+  // creates the enquiry.
+  if (ownerConfirmedService) {
+    await sql`
+      insert into enquiry_fact
+        (enquiry_id, field, label, value, display_value, status, confidence,
+         asserted_by, provenance, customer_specific)
+      values (
+        ${enquiryId}, ${"service"}, ${"service"}, ${ownerConfirmedService},
+        ${ownerConfirmedService}, ${"confirmed"}, ${"High"}, ${"user"},
+        ${JSON.stringify({ kind: "user", label: "Entered by the owner" })}::jsonb,
+        ${true}
+      )
+    `;
+  }
+
   return { enquiryId, messageId };
 }
 
@@ -94,6 +131,19 @@ export type InterpretAndApplyInput = {
   messageId: string;
   rawMessage: string;
   interpreter: EnquiryInterpreter;
+  /**
+   * Runs the post-provider write-back in ONE transaction.
+   *
+   * Required, not optional, and not defaulted to "just use the caller's `sql`".
+   * The interpreter's writes used to run on a pooled connection, where every
+   * statement is its own implicit transaction and consecutive statements can
+   * land on different connections - so the `select ... for update` taken by
+   * `lockEnquiry` acquired and released within its own statement and the
+   * critical section did not exist at all on the deployed path. A guard that
+   * silently degrades to no guard is worse than none, so there is no way to
+   * call this without supplying one.
+   */
+  runInTransaction: <T>(fn: (sql: Sql) => Promise<T>) => Promise<T>;
 };
 
 export type InterpretAndApplyResult =
@@ -229,111 +279,122 @@ export async function interpretAndApply(
   }
 
   const { result, model } = outcome;
-  let factsWritten = 0;
-  let serviceLabelSet: string | null = null;
 
-  for (const fact of result.facts) {
-    const status: FactStatus = fact.confidence === "low" ? "check_this" : "inferred";
-    const written = await supersedeAndInsertFact(
-      sql,
-      input.enquiryId,
-      fact.field,
-      fact.value,
-      fact.displayValue || fact.value,
-      status,
-      toDbConfidence(fact.confidence),
-      {
-        kind: "model",
-        label: "Read from the customer's message",
-        messageId: input.messageId,
-        span: fact.span,
-        model,
-      },
-    );
-    if (written) factsWritten += 1;
-  }
+  // Everything from here is a WRITE, and all of it belongs in one transaction.
+  //
+  // The provider call above deliberately sits outside it - a slow or failing
+  // model must never hold a database transaction open - but the moment it
+  // returns, the enquiry is locked, the current state is re-read under that
+  // lock, the proposals are applied, the decision is derived and the audit line
+  // is written, all atomically. An owner's confirm landing in the seconds the
+  // interpreter was in flight either commits before this section starts, in
+  // which case the guarded writes below see it, or waits behind the lock.
+  return input.runInTransaction(async (tx) => {
+    let factsWritten = 0;
+    let serviceLabelSet: string | null = null;
 
-  // Only apply a proposed service when the field matches an Active rule for
-  // this business AND is still blank - never a guess the pricing compiler
-  // could act on without the owner having seen it. "Still blank" is re-checked
-  // INSIDE this update, not from `enq.service_label` read up to 8 seconds ago:
-  // the operator may have set it via `setEnquiryService` while the interpreter
-  // call was in flight, and a pre-read check would silently overwrite that.
-  if (result.serviceCandidate) {
-    const candidate = result.serviceCandidate;
-    const match = rules.find((r) => norm(r.service) === norm(candidate.label));
-    if (match) {
-      const updated = await sql<{ id: string }>`
-        update enquiry set service_label = ${match.service}, updated_at = now()
-        where id = ${input.enquiryId}
-          and (service_label is null or btrim(service_label) = '')
-        returning id
+    // Lock first, then read, then write. Taking the lock before the fact writes
+    // is what makes the whole read-decide-write one critical section rather
+    // than a sequence of individually-safe statements.
+    const locked = await lockEnquiry(tx, input.enquiryId);
+    if (!locked) return { ok: false, reason: "enquiry_missing" } as InterpretAndApplyResult;
+    if (isClosed(locked.lifecycle)) {
+      await tx`
+        insert into audit_event (business_id, actor, summary, detail, object_type, object_id)
+        values (
+          ${input.businessId}, ${"system"},
+          ${"Read the message after the enquiry was closed - the closed enquiry was left alone"},
+          ${`Model: ${model}`},
+          ${"enquiry"}, ${input.enquiryId}
+        )
       `;
-      if (updated.length > 0) {
-        serviceLabelSet = match.service;
-        const written = await supersedeAndInsertFact(
-          sql,
-          input.enquiryId,
-          "service",
-          match.service,
-          match.service,
-          // Always check_this, regardless of the candidate's own confidence -
-          // getting the service wrong cascades into which quantity field is
-          // even asked for, so this one always gets a second look.
-          "check_this",
-          toDbConfidence(candidate.confidence),
-          {
-            kind: "model",
-            label: "Read from the customer's message",
-            messageId: input.messageId,
-            span: candidate.span,
-            model,
-          },
-        );
-        if (written) factsWritten += 1;
+      return { ok: true, model, factsWritten, serviceLabelSet } as InterpretAndApplyResult;
+    }
+
+    for (const fact of result.facts) {
+      const status: FactStatus = fact.confidence === "low" ? "check_this" : "inferred";
+      const written = await supersedeAndInsertFact(
+        tx,
+        input.enquiryId,
+        fact.field,
+        fact.value,
+        fact.displayValue || fact.value,
+        status,
+        toDbConfidence(fact.confidence),
+        {
+          kind: "model",
+          label: "Read from the customer's message",
+          messageId: input.messageId,
+          span: fact.span,
+          model,
+        },
+      );
+      if (written) factsWritten += 1;
+    }
+
+    // Only apply a proposed service when the field matches an Active rule for
+    // this business AND is still blank - never a guess the pricing compiler
+    // could act on without the owner having seen it. "Still blank" is re-checked
+    // INSIDE this update, not from `enq.service_label` read up to 8 seconds ago:
+    // the operator may have set it via `setEnquiryService` while the interpreter
+    // call was in flight, and a pre-read check would silently overwrite that.
+    if (result.serviceCandidate) {
+      const candidate = result.serviceCandidate;
+      const match = rules.find((r) => norm(r.service) === norm(candidate.label));
+      if (match) {
+        const updated = await tx<{ id: string }>`
+          update enquiry set service_label = ${match.service}, updated_at = now()
+          where id = ${input.enquiryId}
+            and (service_label is null or btrim(service_label) = '')
+          returning id
+        `;
+        if (updated.length > 0) {
+          serviceLabelSet = match.service;
+          const written = await supersedeAndInsertFact(
+            tx,
+            input.enquiryId,
+            "service",
+            match.service,
+            match.service,
+            // Always check_this, regardless of the candidate's own confidence -
+            // getting the service wrong cascades into which quantity field is
+            // even asked for, so this one always gets a second look.
+            "check_this",
+            toDbConfidence(candidate.confidence),
+            {
+              kind: "model",
+              label: "Read from the customer's message",
+              messageId: input.messageId,
+              span: candidate.span,
+              model,
+            },
+          );
+          if (written) factsWritten += 1;
+        }
       }
     }
-  }
 
-  // Re-decide from what's actually true after the guarded writes above - never
-  // from `enq`, which can be up to 8 seconds stale by the time we get here.
-  const [freshEnq] = await sql<{ service_label: string; customer_name: string }>`
-    select service_label, customer_name from enquiry where id = ${input.enquiryId}
-  `;
-  const factRows = await sql<{ field: string; value: string; status: string }>`
-    select field, value, status from enquiry_fact
-    where enquiry_id = ${input.enquiryId} and superseded = false
-  `;
-  const effectiveServiceLabel = freshEnq?.service_label ?? enq.service_label;
-  const decision = decideEnquiry(
-    { knowledge },
-    { serviceLabel: effectiveServiceLabel, facts: factRows as never },
-  );
-  const snapshot = snapshotFromDecision(decision, {
-    customerName: freshEnq?.customer_name ?? enq.customer_name,
-    ownerFirstName: biz?.owner_first_name ?? undefined,
-    serviceLabel: effectiveServiceLabel,
+    // Re-decide from what's actually true after the guarded writes above -
+    // never from `enq`, which can be up to 8 seconds stale by the time we get
+    // here. Re-read the service label under the lock too, for the same reason.
+    const current = await lockEnquiry(tx, input.enquiryId);
+    await applyDecision(tx, {
+      enquiryId: input.enquiryId,
+      businessId: input.businessId,
+      serviceLabel: current?.serviceLabel ?? locked.serviceLabel,
+      customerName: current?.customerName ?? locked.customerName,
+    });
+
+    await tx`
+      insert into audit_event (business_id, actor, summary, detail, object_type, object_id)
+      values (
+        ${input.businessId}, ${"system"},
+        ${`Enquiry read the message: ${factsWritten} fact${factsWritten === 1 ? "" : "s"} suggested`},
+        ${`Model: ${model}`},
+        ${"enquiry"}, ${input.enquiryId}
+      )
+    `;
+
+    return { ok: true, model, factsWritten, serviceLabelSet } as InterpretAndApplyResult;
   });
-  const state = stateFromDecision(decision);
-  await sql`
-    update enquiry
-    set decision_snapshot = ${JSON.stringify(snapshot)}::jsonb,
-        decision_state = ${state.decisionState},
-        commercial_state = ${state.commercialState},
-        responsibility = ${state.responsibility},
-        updated_at = now()
-    where id = ${input.enquiryId}
-  `;
-
-  await sql`
-    insert into audit_event (business_id, actor, summary, detail, object_type, object_id)
-    values (
-      ${input.businessId}, ${"system"},
-      ${`Enquiry read the message: ${factsWritten} fact${factsWritten === 1 ? "" : "s"} suggested`},
-      ${`Model: ${model}`},
-      ${"enquiry"}, ${input.enquiryId}
-    )
-  `;
-
-  return { ok: true, model, factsWritten, serviceLabelSet };
 }

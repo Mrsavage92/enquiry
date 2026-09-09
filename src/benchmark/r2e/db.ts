@@ -1,4 +1,5 @@
 import { readFileSync, readdirSync } from "node:fs";
+import { txRunner } from "../../lib/repo/pglite-tx.ts";
 import { join } from "node:path";
 import { PGlite } from "@electric-sql/pglite";
 import type { Sql } from "../../lib/db.ts";
@@ -318,6 +319,7 @@ export async function runCase(kase: BenchmarkCase, mode: RunMode): Promise<CaseR
     messageId,
     rawMessage: kase.rawMessage,
     interpreter: captured.interpreter,
+    runInTransaction: txRunner(pg),
   });
   const interpretOutcome = captured.get();
   if (!interpretOutcome)

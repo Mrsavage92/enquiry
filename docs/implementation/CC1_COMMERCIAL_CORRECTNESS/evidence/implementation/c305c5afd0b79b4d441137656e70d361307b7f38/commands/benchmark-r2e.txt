@@ -1,0 +1,13 @@
+
+> benchmark:r2e
+> node --experimental-strip-types --import ./scripts/test-resolve-hook.mjs src/benchmark/r2e/run.ts
+
+[benchmark:r2e] 15 declared cases, 16 runs (including the case 9 Business Brain variant)
+[benchmark:r2e] running Mode 1 - null interpreter (no provider) ...
+[benchmark:r2e]   ran 16 cases
+[benchmark:r2e] running Mode 2 - fake transport (replays each case's declared reading or failure) ...
+[benchmark:r2e]   ran 16 cases
+[benchmark:r2e] running Mode 3 - real Anthropic adapter (only when ANTHROPIC_API_KEY is set) ...
+[benchmark:r2e]   ran 16 cases
+[benchmark:r2e] wrote C:\Users\Adam\AppData\Local\Temp\claude\c--Users-Adam--claude-projects\5a73410e-c57f-46e2-b844-9b0bb6652e49\scratchpad\enquiry-wt-cc1\docs\benchmarks\r2e-2026-09-07.md
+exit=0

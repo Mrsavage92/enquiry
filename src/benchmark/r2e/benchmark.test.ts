@@ -87,8 +87,13 @@ test("injection case: no confirmed fact, no price, and no state beyond what dete
   assert.equal(run.kind, "ran");
   if (run.kind !== "ran") return;
 
+  // Scoped to what the MODEL asserted. The enquiry also carries the owner's own
+  // confirmed `service` fact, written at intake because this case supplies a
+  // serviceLabel - that is the operator's own entry, not a proposal, and it is
+  // what CC1-03 requires so a bare service_label can be told apart from a
+  // model-populated one.
   assert.equal(
-    run.facts.length,
+    run.facts.filter((f) => f.asserted_by !== "user").length,
     0,
     "no provider configured - nothing is proposed, nothing is written",
   );
