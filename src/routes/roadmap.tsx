@@ -27,7 +27,7 @@ function RoadmapPage() {
           <p className="eyebrow">Roadmap · Built in public</p>
         </HeroIn>
         <HeroIn delay={80}>
-          <h1 className="site-display-proof text-halo mt-4 max-w-2xl">
+          <h1 className="site-hero text-halo mt-4 max-w-2xl">
             We’re building Enquiry
             <span className="block">in the open.</span>
           </h1>

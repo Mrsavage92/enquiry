@@ -332,7 +332,7 @@ function StageBlock({
               className={cn(
                 "text-halo mt-3 font-serif font-semibold tracking-tight",
                 endgame
-                  ? "max-w-xl text-5xl sm:text-6xl md:text-7xl"
+                  ? "max-w-xl text-4xl sm:text-6xl md:text-[4.45rem]"
                   : "text-4xl sm:text-5xl md:text-[3.25rem]",
               )}
             >
