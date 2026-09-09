@@ -44,41 +44,78 @@ const POSTS = [
 function Updates() {
   return (
     <SiteShell>
-      <article className="mx-auto max-w-5xl px-5 pb-16 pt-10 sm:pb-20 sm:pt-20">
-        <div className="max-w-3xl">
-          <p className="eyebrow">In public</p>
-          <h1 className="site-display-proof mt-3">Updates</h1>
-          <p className="mt-4 max-w-xl text-lg leading-relaxed text-ink-2">
-            Meaningful notes from building Enquiry in public. Not a changelog - only progress that
-            changes what the product is, or how we think about it.
-          </p>
-        </div>
-        <ul className="mt-12 max-w-3xl">
-          {POSTS.map((p) => (
-            <li key={p.title} className="border-t border-line py-8 last:border-b">
-              <p className="text-xs uppercase tracking-wider text-stone">{p.date}</p>
-              <h2 className="mt-2 text-xl font-semibold tracking-tight">{p.title}</h2>
-              <p className="mt-2 text-sm leading-relaxed text-ink-2">{p.body}</p>
-            </li>
-          ))}
-        </ul>
-        <p className="mt-10 max-w-3xl text-sm text-ink-2">
+      {/*
+        Page-header pattern, distinct from home's hero tier. Re-extracted live
+        from https://linear.app/changelog (.style-mirror/tools/_scratch not
+        kept - see section-log.md "updates" for the numbers): the "Now" h1
+        computes to 48px/510/-1.056px/lh 48px at BOTH 1440 and 390 (unchanged,
+        unlike the home hero's h1 which shrinks to 38px), optical margin -2px
+        at 1440 / -1px at 390, top padding 77px under the nav at both widths.
+        tokens.lock.json already carried this as typography.scale_*.h1_page;
+        this route is the first to consume it, so there is no shared class for
+        it yet - built with the same values as arbitrary utilities rather than
+        reusing .mk-h1 (64px hero tier, wrong here) or .mk-h2 (shrinks to 24px
+        at 640, wrong here - this title must stay 48px at every width, exactly
+        as the reference's "Now" does).
+
+        The reference page has no eyebrow above "Now" - ours keeps "In public"
+        because that copy already existed and is not this pass's to remove.
+      */}
+      <section className="mk-container pt-[77px] pb-16">
+        <p className="mk-label">In public</p>
+        <h1 className="mt-5 max-w-[20ch] -ml-[2px] text-[48px] font-[510] leading-[48px] tracking-[-1.056px] text-ink max-[640px]:-ml-[1px]">
+          Updates
+        </h1>
+        <p className="mk-lede mt-6 max-w-xl">
+          Meaningful notes from building Enquiry in public. Not a changelog - only progress that
+          changes what the product is, or how we think about it.
+        </p>
+      </section>
+
+      {/*
+        The changelog-entry pattern from .style-mirror/system.md §4, one
+        .mk-entry per post - the same vocabulary home's roadmap preview uses.
+        Every entry keeps its own date (reference-consistent: the rule is a
+        sibling of the aside inside .mk-entry, so consecutive entries' rules
+        read as one continuous line even without merging same-date entries).
+        The newest entry gets the marker dot and the 32px featured title tier,
+        both measured off the reference's own newest changelog post.
+      */}
+      <div className="mk-container">
+        <div className="mk-divider mb-16" />
+        {POSTS.map((post, i) => (
+          <div key={post.title} className="mk-entry">
+            <span className="mk-entry-rule" aria-hidden />
+            {i === 0 ? <span className="mk-entry-marker" aria-hidden /> : null}
+            <div className="mk-entry-aside">
+              <p className="mk-entry-date">{post.date}</p>
+            </div>
+            <div className="mk-entry-body">
+              <h2 className="mk-entry-title" data-featured={i === 0 ? "true" : undefined}>
+                {post.title}
+              </h2>
+              <p className="mk-prose mt-5">{post.body}</p>
+            </div>
+          </div>
+        ))}
+        <p className="mk-small max-w-2xl">
           What’s in motion is on the{" "}
-          <Link to="/roadmap" className="font-medium underline-offset-4 hover:underline">
+          <Link to="/roadmap" className="mk-inline-link">
             roadmap
           </Link>
           . Want to see the product?{" "}
-          <Link to="/demo" className="font-medium underline-offset-4 hover:underline">
+          <Link to="/demo" className="mk-inline-link">
             Try the demo
           </Link>
           .
         </p>
-      </article>
-      <section className="border-t border-line">
-        <div className="mx-auto max-w-xl px-5 py-16">
-          <h2 className="text-2xl font-semibold tracking-tight">Join early access</h2>
-          <p className="mt-2 text-sm text-ink-2">Email first. A few optional questions after.</p>
-          <div className="mt-6">
+      </div>
+
+      <section className="mk-prefooter">
+        <div className="mk-container">
+          <h2 className="mk-h2 max-w-[20ch]">Join early access</h2>
+          <p className="mk-lede mt-5 max-w-xl">Email first. A few optional questions after.</p>
+          <div className="mt-10 max-w-xl">
             <WaitlistForm />
           </div>
         </div>
