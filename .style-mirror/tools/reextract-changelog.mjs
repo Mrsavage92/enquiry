@@ -115,7 +115,6 @@ async function probe(vp) {
     // article/entry, plus any sticky/fixed element that is not the site nav.
     const nav = [];
     document.querySelectorAll("a,button").forEach((e) => {
-      const s = getComputedStyle(e);
       const r = e.getBoundingClientRect();
       if (r.width < 4 || r.height < 4) return;
       const inHeader = e.closest("header");
@@ -182,7 +181,6 @@ async function probe(vp) {
     out.dates = dates.slice(0, 10);
     if (dates.length) {
       // the wrapper the date sits in, and its siblings (the rail lives there)
-      const first = document.querySelectorAll("p,span,div,time,h3");
       out.date_wrappers = dates.slice(0, 3).map((d) => {
         const el = [...document.querySelectorAll("p,span,div,time,h3")].find(
           (e) => (e.textContent || "").trim() === d.text && e.children.length === 0,

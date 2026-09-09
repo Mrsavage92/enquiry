@@ -143,7 +143,6 @@ async function probe(vp) {
     ]);
 
     // --- the entry title anchor + its trailing arrow -----------------------
-    const h2a = document.querySelectorAll("h2 a, h2")[0];
     res.h2_first = pick(document.querySelector("h2"), [
       "fontSize",
       "fontWeight",
