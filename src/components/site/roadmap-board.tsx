@@ -332,7 +332,7 @@ function StageBlock({
               className={cn(
                 "text-halo mt-3 font-serif font-semibold tracking-tight",
                 endgame
-                  ? "max-w-xl text-5xl sm:text-6xl md:text-7xl"
+                  ? "max-w-xl text-4xl sm:text-6xl md:text-[4.45rem]"
                   : "text-4xl sm:text-5xl md:text-[3.25rem]",
               )}
             >
@@ -538,7 +538,7 @@ export function RoadmapBoard() {
 
   return (
     <div>
-      <section className="mx-auto max-w-3xl px-5 pb-10">
+      <section className="mx-auto max-w-5xl px-5 pb-10">
         <p className="eyebrow">Statuses</p>
         <ul className="mt-4 flex flex-wrap gap-x-5 gap-y-3">
           {ROADMAP_LEGEND.map((s) => (
@@ -570,20 +570,13 @@ export function RoadmapBoard() {
                 onClick={() => jump(s.id)}
                 aria-current={isActive ? "true" : undefined}
                 className={cn(
-                  "min-h-12 shrink-0 px-2.5 py-1.5 text-sm transition-colors duration-150",
-                  isActive ? "font-medium text-ink" : "text-stone",
+                  "min-h-12 shrink-0 border-b-2 px-2.5 py-1.5 text-sm transition-colors duration-150",
+                  isActive ? "border-ink font-medium text-ink" : "border-transparent text-stone",
                 )}
               >
                 <span>
                   <span className="mr-1.5 font-mono text-2xs tabular-nums">{s.number}</span>
-                  <span
-                    className={cn(
-                      "border-b-2 py-1",
-                      isActive ? "border-ink" : "border-transparent",
-                    )}
-                  >
-                    {s.short}
-                  </span>
+                  <span className="py-1">{s.short}</span>
                 </span>
                 <span
                   className={cn(

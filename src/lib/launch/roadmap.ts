@@ -1,12 +1,6 @@
 export type RoadmapStatus = "working" | "building" | "next" | "later";
 
-export type RoadmapVisual =
-  | "understand"
-  | "brain"
-  | "continuity"
-  | "moving"
-  | "trust"
-  | "endgame";
+export type RoadmapVisual = "understand" | "brain" | "continuity" | "moving" | "trust" | "endgame";
 
 export type RoadmapOutcome = {
   id: string;
@@ -31,7 +25,9 @@ export type RoadmapStage = {
   feedbackEnabled?: boolean;
 };
 
-export const ROADMAP_WRITTEN = "26 August 2026";
+// Hand-maintained - update this whenever the roadmap content below changes
+// (src/lib/launch/roadmap.ts).
+export const ROADMAP_WRITTEN = "9 September 2026";
 export const ROADMAP_PHASE = "Prototype / validation";
 export const ROADMAP_ACCESS = "Early access waitlist open";
 
@@ -216,7 +212,8 @@ export const STAGES: RoadmapStage[] = [
       },
     ],
     promise: "Enquiry does more only when the business is comfortable letting it do more.",
-    caveat: "Autonomous quoting, declines and booking are not a near-term fact. They have to be earned, then allowed.",
+    caveat:
+      "Autonomous quoting, declines and booking are not a near-term fact. They have to be earned, then allowed.",
     visual: "trust",
     feedbackEnabled: true,
   },
@@ -239,7 +236,8 @@ export const STAGES: RoadmapStage[] = [
         ],
       },
     ],
-    promise: "Enquiry becomes the intelligence layer between “someone is interested” and “the work is booked”.",
+    promise:
+      "Enquiry becomes the intelligence layer between “someone is interested” and “the work is booked”.",
     visual: "endgame",
   },
 ];
