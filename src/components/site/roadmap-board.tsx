@@ -538,7 +538,7 @@ export function RoadmapBoard() {
 
   return (
     <div>
-      <section className="mx-auto max-w-3xl px-5 pb-10">
+      <section className="mx-auto max-w-5xl px-5 pb-10">
         <p className="eyebrow">Statuses</p>
         <ul className="mt-4 flex flex-wrap gap-x-5 gap-y-3">
           {ROADMAP_LEGEND.map((s) => (
