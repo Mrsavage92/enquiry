@@ -1344,6 +1344,22 @@ html[data-site="marketing"] {
   --color-sidebar: var(--mk-plate);
   --color-sidebar-fg: var(--mk-fg);
   --color-sidebar-muted: var(--mk-fg-3);
+  /*
+    Status colours are the reference's own dark-surface set (--color-green,
+    --color-yellow, --color-red from its root custom properties). The app's
+    light-palette values are tuned against #f3eee6 and measure as low as
+    2.97:1 on this background - found on /how by the rendered-pixel sweep.
+    DERIVATION: the reference has no status *pill* backgrounds, so the tints
+    are mixed from its own status hue into its own --color-bg-level-1, the
+    same shape as its --color-accent-tint.
+  */
+  --color-ok: #27a644;
+  --color-ok-bg: color-mix(in oklab, #27a644 14%, var(--mk-bg-1));
+  --color-warn: #f0bf00;
+  --color-warn-on-paper-2: #f0bf00;
+  --color-warn-bg: color-mix(in oklab, #f0bf00 12%, var(--mk-bg-1));
+  --color-danger: #eb5757;
+  --color-danger-bg: color-mix(in oklab, #eb5757 14%, var(--mk-bg-1));
   --font-sans: var(--mk-font);
   /* The reference uses no serif on either surface - see spec.md. */
   --font-serif: var(--mk-font);
@@ -1566,9 +1582,6 @@ html[data-site="marketing"] .eyebrow-decision::before {
   content: none;
 }
 
-html[data-site="marketing"] a {
-  color: inherit;
-}
 html[data-site="marketing"] .mk-inline-link {
   color: var(--mk-link);
   text-decoration: none;

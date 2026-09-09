@@ -45,98 +45,104 @@ export function CrossChannelDecisionDemo({
         <header className="max-w-3xl">
           <p className="eyebrow">{SIGNATURE_DEMO.business}</p>
           <span className="page-rule" aria-hidden />
-          <Heading className="site-display-proof mt-5">
-            {SIGNATURE_DEMO.headline}
-          </Heading>
-          <p className="site-lede mt-5">
-            {SIGNATURE_DEMO.supporting}
-          </p>
+          <Heading className="site-display-proof mt-5">{SIGNATURE_DEMO.headline}</Heading>
+          <p className="site-lede mt-5">{SIGNATURE_DEMO.supporting}</p>
         </header>
       )}
 
-      <div
-        className={cn("scene-toggle", compact ? "" : "mt-10")}
-        role="group"
-        aria-label="Maya’s enquiry"
-      >
-        <button type="button" aria-pressed={scene === "form"} onClick={goForm}>
-          01 · Website form
-        </button>
-        <button type="button" aria-pressed={scene === "text"} onClick={goText}>
-          Then Maya texts…
-        </button>
-      </div>
-
-      <div className="mt-6 grid items-start gap-5 lg:grid-cols-12 lg:gap-8">
-        <div className="flex flex-col gap-3 lg:col-span-5">
-          <MessageCard
-            channel={SIGNATURE_DEMO.form.channel}
-            at={SIGNATURE_DEMO.form.at}
-            body={SIGNATURE_DEMO.form.message}
-            meta={`${SIGNATURE_DEMO.customer} · ${SIGNATURE_DEMO.phone}`}
-            dense={later}
-          />
-          {later ? (
-            <>
-              <LinkLine label={state.link?.label ?? ""} reason={state.link?.reason ?? ""} />
-              <div className="demo-arrive">
-                <MessageCard
-                  channel={SIGNATURE_DEMO.text.channel}
-                  at={SIGNATURE_DEMO.text.at}
-                  body={SIGNATURE_DEMO.text.message}
-                  meta={`${SIGNATURE_DEMO.customer} · ${SIGNATURE_DEMO.phone}`}
-                  incoming
-                />
-              </div>
-            </>
-          ) : null}
+      {/*
+        Everything below the header is the real app's surface, drawn with the
+        app's own light tokens. The marketing layer remaps those tokens at the
+        document root, so without `mk-app-surface` re-asserting them here this
+        block renders as an inverted, unverified dark version of the product on
+        every marketing route that uses it. Owning it in the component rather
+        than at each call site means no route can forget it.
+      */}
+      <div className={cn("mk-app-surface", compact ? "" : "mt-10 rounded-xl p-5 sm:p-8")}>
+        <div
+          className={cn("scene-toggle", compact ? "" : "")}
+          role="group"
+          aria-label="Maya’s enquiry"
+        >
+          <button type="button" aria-pressed={scene === "form"} onClick={goForm}>
+            01 · Website form
+          </button>
+          <button type="button" aria-pressed={scene === "text"} onClick={goText}>
+            Then Maya texts…
+          </button>
         </div>
 
-        <article
-          className="proof-doc p-5 sm:p-6 lg:col-span-7"
-          aria-labelledby={liveId}
-        >
-          <p className="eyebrow">{later ? "Decision updated" : "Already decided"}</p>
-          <p id={liveId} className="mt-3 font-serif text-xl leading-snug tracking-tight sm:text-2xl">
-            {state.want}
-          </p>
-
-          <div className="mt-6 border-t border-line pt-5" aria-live="polite">
-            <p className="text-xs uppercase tracking-wider text-stone">Next</p>
-            <p
-              key={state.nextAction}
-              className={cn("proof-next mt-2", later && "demo-arrive")}
-            >
-              {state.nextAction}
-            </p>
-            <p className="mt-3 max-w-lg text-sm leading-relaxed text-ink-2">{state.nextReason}</p>
+        <div className="mt-6 grid items-start gap-5 lg:grid-cols-12 lg:gap-8">
+          <div className="flex flex-col gap-3 lg:col-span-5">
+            <MessageCard
+              channel={SIGNATURE_DEMO.form.channel}
+              at={SIGNATURE_DEMO.form.at}
+              body={SIGNATURE_DEMO.form.message}
+              meta={`${SIGNATURE_DEMO.customer} · ${SIGNATURE_DEMO.phone}`}
+              dense={later}
+            />
+            {later ? (
+              <>
+                <LinkLine label={state.link?.label ?? ""} reason={state.link?.reason ?? ""} />
+                <div className="demo-arrive">
+                  <MessageCard
+                    channel={SIGNATURE_DEMO.text.channel}
+                    at={SIGNATURE_DEMO.text.at}
+                    body={SIGNATURE_DEMO.text.message}
+                    meta={`${SIGNATURE_DEMO.customer} · ${SIGNATURE_DEMO.phone}`}
+                    incoming
+                  />
+                </div>
+              </>
+            ) : null}
           </div>
 
-          <dl className="mt-6 space-y-0">
-            {state.facts.map((fact) => (
-              <FactRow key={fact.id} fact={fact} later={later} />
-            ))}
-          </dl>
+          <article className="proof-doc p-5 sm:p-6 lg:col-span-7" aria-labelledby={liveId}>
+            <p className="eyebrow">{later ? "Decision updated" : "Already decided"}</p>
+            <p
+              id={liveId}
+              className="mt-3 font-serif text-xl leading-snug tracking-tight sm:text-2xl"
+            >
+              {state.want}
+            </p>
 
-          <ul className="mt-5 space-y-1.5">
-            {state.checks.map((check) => (
-              <CheckRow
-                key={check.id}
-                check={check}
-                later={later}
-                whyOpen={whyOpen}
-                whyId={whyId}
-                onToggleWhy={() => setWhyOpen((v) => !v)}
-              />
-            ))}
-          </ul>
+            <div className="mt-6 border-t border-line pt-5" aria-live="polite">
+              <p className="text-xs uppercase tracking-wider text-stone">Next</p>
+              <p key={state.nextAction} className={cn("proof-next mt-2", later && "demo-arrive")}>
+                {state.nextAction}
+              </p>
+              <p className="mt-3 max-w-lg text-sm leading-relaxed text-ink-2">{state.nextReason}</p>
+            </div>
 
-          <p className="mt-5 text-xs leading-relaxed text-stone">{state.commercialNote}</p>
-        </article>
+            <dl className="mt-6 space-y-0">
+              {state.facts.map((fact) => (
+                <FactRow key={fact.id} fact={fact} later={later} />
+              ))}
+            </dl>
+
+            <ul className="mt-5 space-y-1.5">
+              {state.checks.map((check) => (
+                <CheckRow
+                  key={check.id}
+                  check={check}
+                  later={later}
+                  whyOpen={whyOpen}
+                  whyId={whyId}
+                  onToggleWhy={() => setWhyOpen((v) => !v)}
+                />
+              ))}
+            </ul>
+
+            <p className="mt-5 text-xs leading-relaxed text-stone">{state.commercialNote}</p>
+          </article>
+        </div>
       </div>
 
+      {/* Marketing prose - stays on the marketing surface, outside the app one. */}
       {compact ? null : (
-        <p className="mt-10 max-w-xl text-base leading-relaxed text-ink-2">{SIGNATURE_DEMO.takeaway}</p>
+        <p className="mt-10 max-w-xl text-base leading-relaxed text-ink-2">
+          {SIGNATURE_DEMO.takeaway}
+        </p>
       )}
     </div>
   );
@@ -230,7 +236,8 @@ function CheckRow({
 }) {
   const changed = later && check.changed;
   const tone = check.tone === "ok" ? "ok" : check.tone === "warn" ? "warn" : "neutral";
-  const badge = changed && check.tone === "warn" ? "Condition" : check.tone === "ok" ? "Clear" : "Noted";
+  const badge =
+    changed && check.tone === "warn" ? "Condition" : check.tone === "ok" ? "Clear" : "Noted";
 
   if (!changed) {
     return (
