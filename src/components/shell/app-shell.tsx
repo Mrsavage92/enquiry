@@ -7,6 +7,7 @@ import { useNarrow } from "@/lib/use-narrow";
 import { usePrototype } from "@/store/prototype-store";
 import { queueSection } from "@/domain/labels";
 import { AccountMenu } from "./account-menu";
+import { SampleWorkspaceBanner } from "./sample-workspace-banner";
 import { SystemBanners } from "./system-banners";
 import { Jump, JumpTrigger } from "./jump";
 import { KeysHelp } from "./keys";
@@ -231,6 +232,7 @@ export function AppShell() {
       >
         Skip to content
       </a>
+      <SampleWorkspaceBanner />
       <SystemBanners />
       <Jump open={jump} onOpenChange={setJump} />
       <KeysHelp open={keys} onOpenChange={setKeys} />

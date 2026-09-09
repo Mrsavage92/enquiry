@@ -90,12 +90,16 @@ export function SiteShell({ children, notebook }: { children: ReactNode; noteboo
           </nav>
           </div>
           <div className="flex items-center gap-2">
-            <Button
-              size="sm"
-              className="min-h-11"
-              variant={pathname === "/" ? "secondary" : "primary"}
-              asChild
-            >
+            {/*
+              Always "secondary" (bg-raised), not the page's own primary
+              action - "primary-strong" is reserved for the landing hero and
+              onboarding submit (button.tsx), and persistent chrome should
+              stay a step under whatever real primary action is on the page
+              (hero form, "Send quote", etc.) so it never competes with it.
+              Previously this swapped to "primary" (bg-mark) on every route
+              except "/", making the nav CTA louder than the page's own CTA.
+            */}
+            <Button size="sm" className="min-h-11" variant="secondary" asChild>
               <Link
                 to="/early-access"
                 onClick={() => {

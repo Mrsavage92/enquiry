@@ -1,0 +1,627 @@
+{
+  "brain-1440": {
+    "clientWidth": 736,
+    "scrollWidth": 831,
+    "scrollLeft": 0,
+    "overflowing": true,
+    "fadeCount": 2,
+    "fades": [
+      {
+        "class": "pointer-events-none absolute inset-y-0 left-0 w-8 bg-gradient-to-r to-transparent transition-opacity duration-150 from-[color-mix(in_oklab,var(--color-ink)_14%,var(--color-paper-2))] opacity-0",
+        "opacity": "0",
+        "background": "linear-gradient(to right, oklab(0.809127 0.00336492 0.0166248) 0%, rgba(0, 0, 0, 0) 100%)",
+        "rect": {
+          "x": 472,
+          "y": 605.75,
+          "width": 32,
+          "height": 52,
+          "top": 605.75,
+          "right": 504,
+          "bottom": 657.75,
+          "left": 472
+        }
+      },
+      {
+        "class": "pointer-events-none absolute inset-y-0 right-0 w-8 bg-gradient-to-l to-transparent transition-opacity duration-150 from-[color-mix(in_oklab,var(--color-ink)_14%,var(--color-paper-2))] opacity-100",
+        "opacity": "1",
+        "background": "linear-gradient(to left, oklab(0.809127 0.00336492 0.0166248) 0%, rgba(0, 0, 0, 0) 100%)",
+        "rect": {
+          "x": 1176,
+          "y": 605.75,
+          "width": 32,
+          "height": 52,
+          "top": 605.75,
+          "right": 1208,
+          "bottom": 657.75,
+          "left": 1176
+        }
+      }
+    ],
+    "tabs": [
+      {
+        "label": "Overview2",
+        "rect": {
+          "x": 476,
+          "y": 609.75,
+          "width": 98.4375,
+          "height": 44,
+          "top": 609.75,
+          "right": 574.4375,
+          "bottom": 653.75,
+          "left": 476
+        }
+      },
+      {
+        "label": "Services",
+        "rect": {
+          "x": 576.4375,
+          "y": 609.75,
+          "width": 78.265625,
+          "height": 44,
+          "top": 609.75,
+          "right": 654.703125,
+          "bottom": 653.75,
+          "left": 576.4375
+        }
+      },
+      {
+        "label": "Pricing",
+        "rect": {
+          "x": 656.703125,
+          "y": 609.75,
+          "width": 68.203125,
+          "height": 44,
+          "top": 609.75,
+          "right": 724.90625,
+          "bottom": 653.75,
+          "left": 656.703125
+        }
+      },
+      {
+        "label": "What I need to know",
+        "rect": {
+          "x": 726.90625,
+          "y": 609.75,
+          "width": 156.484375,
+          "height": 44,
+          "top": 609.75,
+          "right": 883.390625,
+          "bottom": 653.75,
+          "left": 726.90625
+        }
+      },
+      {
+        "label": "How you work",
+        "rect": {
+          "x": 885.390625,
+          "y": 609.75,
+          "width": 114.65625,
+          "height": 44,
+          "top": 609.75,
+          "right": 1000.046875,
+          "bottom": 653.75,
+          "left": 885.390625
+        }
+      },
+      {
+        "label": "Capacity",
+        "rect": {
+          "x": 1002.046875,
+          "y": 609.75,
+          "width": 79.6875,
+          "height": 44,
+          "top": 609.75,
+          "right": 1081.734375,
+          "bottom": 653.75,
+          "left": 1002.046875
+        }
+      },
+      {
+        "label": "Policies",
+        "rect": {
+          "x": 1083.734375,
+          "y": 609.75,
+          "width": 73.59375,
+          "height": 44,
+          "top": 609.75,
+          "right": 1157.328125,
+          "bottom": 653.75,
+          "left": 1083.734375
+        }
+      },
+      {
+        "label": "Learning",
+        "rect": {
+          "x": 1159.328125,
+          "y": 609.75,
+          "width": 79.34375,
+          "height": 44,
+          "top": 609.75,
+          "right": 1238.671875,
+          "bottom": 653.75,
+          "left": 1159.328125
+        }
+      },
+      {
+        "label": "Voice",
+        "rect": {
+          "x": 1240.671875,
+          "y": 609.75,
+          "width": 58.734375,
+          "height": 44,
+          "top": 609.75,
+          "right": 1299.40625,
+          "bottom": 653.75,
+          "left": 1240.671875
+        }
+      }
+    ],
+    "hiddenTabs": [
+      "Learning",
+      "Voice"
+    ]
+  },
+  "queue-1440": {
+    "clientWidth": 271,
+    "scrollWidth": 443,
+    "overflowing": true,
+    "scrollbarWidth": "auto",
+    "overflowX": "auto",
+    "tabs": [
+      {
+        "label": "Needs you19",
+        "rect": {
+          "x": 256,
+          "y": 231.796875,
+          "width": 113.953125,
+          "height": 44,
+          "top": 231.796875,
+          "right": 369.953125,
+          "bottom": 275.796875,
+          "left": 256
+        }
+      },
+      {
+        "label": "Waiting0",
+        "rect": {
+          "x": 371.953125,
+          "y": 231.796875,
+          "width": 86.984375,
+          "height": 44,
+          "top": 231.796875,
+          "right": 458.9375,
+          "bottom": 275.796875,
+          "left": 371.953125
+        }
+      },
+      {
+        "label": "At risk1",
+        "rect": {
+          "x": 460.9375,
+          "y": 231.796875,
+          "width": 79.578125,
+          "height": 44,
+          "top": 231.796875,
+          "right": 540.515625,
+          "bottom": 275.796875,
+          "left": 460.9375
+        }
+      },
+      {
+        "label": "Closed0",
+        "rect": {
+          "x": 542.515625,
+          "y": 231.796875,
+          "width": 82.125,
+          "height": 44,
+          "top": 231.796875,
+          "right": 624.640625,
+          "bottom": 275.796875,
+          "left": 542.515625
+        }
+      },
+      {
+        "label": "All20",
+        "rect": {
+          "x": 626.640625,
+          "y": 231.796875,
+          "width": 63.953125,
+          "height": 44,
+          "top": 231.796875,
+          "right": 690.59375,
+          "bottom": 275.796875,
+          "left": 626.640625
+        }
+      }
+    ],
+    "hiddenTabs": [
+      "At risk1",
+      "Closed0",
+      "All20"
+    ]
+  },
+  "brain-1920": {
+    "clientWidth": 736,
+    "scrollWidth": 831,
+    "scrollLeft": 0,
+    "overflowing": true,
+    "fadeCount": 2,
+    "fades": [
+      {
+        "class": "pointer-events-none absolute inset-y-0 left-0 w-8 bg-gradient-to-r to-transparent transition-opacity duration-150 from-[color-mix(in_oklab,var(--color-ink)_14%,var(--color-paper-2))] opacity-0",
+        "opacity": "0",
+        "background": "linear-gradient(to right, oklab(0.809127 0.00336492 0.0166248) 0%, rgba(0, 0, 0, 0) 100%)",
+        "rect": {
+          "x": 712,
+          "y": 605.75,
+          "width": 32,
+          "height": 52,
+          "top": 605.75,
+          "right": 744,
+          "bottom": 657.75,
+          "left": 712
+        }
+      },
+      {
+        "class": "pointer-events-none absolute inset-y-0 right-0 w-8 bg-gradient-to-l to-transparent transition-opacity duration-150 from-[color-mix(in_oklab,var(--color-ink)_14%,var(--color-paper-2))] opacity-100",
+        "opacity": "1",
+        "background": "linear-gradient(to left, oklab(0.809127 0.00336492 0.0166248) 0%, rgba(0, 0, 0, 0) 100%)",
+        "rect": {
+          "x": 1416,
+          "y": 605.75,
+          "width": 32,
+          "height": 52,
+          "top": 605.75,
+          "right": 1448,
+          "bottom": 657.75,
+          "left": 1416
+        }
+      }
+    ],
+    "tabs": [
+      {
+        "label": "Overview2",
+        "rect": {
+          "x": 716,
+          "y": 609.75,
+          "width": 98.4375,
+          "height": 44,
+          "top": 609.75,
+          "right": 814.4375,
+          "bottom": 653.75,
+          "left": 716
+        }
+      },
+      {
+        "label": "Services",
+        "rect": {
+          "x": 816.4375,
+          "y": 609.75,
+          "width": 78.265625,
+          "height": 44,
+          "top": 609.75,
+          "right": 894.703125,
+          "bottom": 653.75,
+          "left": 816.4375
+        }
+      },
+      {
+        "label": "Pricing",
+        "rect": {
+          "x": 896.703125,
+          "y": 609.75,
+          "width": 68.203125,
+          "height": 44,
+          "top": 609.75,
+          "right": 964.90625,
+          "bottom": 653.75,
+          "left": 896.703125
+        }
+      },
+      {
+        "label": "What I need to know",
+        "rect": {
+          "x": 966.90625,
+          "y": 609.75,
+          "width": 156.484375,
+          "height": 44,
+          "top": 609.75,
+          "right": 1123.390625,
+          "bottom": 653.75,
+          "left": 966.90625
+        }
+      },
+      {
+        "label": "How you work",
+        "rect": {
+          "x": 1125.390625,
+          "y": 609.75,
+          "width": 114.65625,
+          "height": 44,
+          "top": 609.75,
+          "right": 1240.046875,
+          "bottom": 653.75,
+          "left": 1125.390625
+        }
+      },
+      {
+        "label": "Capacity",
+        "rect": {
+          "x": 1242.046875,
+          "y": 609.75,
+          "width": 79.6875,
+          "height": 44,
+          "top": 609.75,
+          "right": 1321.734375,
+          "bottom": 653.75,
+          "left": 1242.046875
+        }
+      },
+      {
+        "label": "Policies",
+        "rect": {
+          "x": 1323.734375,
+          "y": 609.75,
+          "width": 73.59375,
+          "height": 44,
+          "top": 609.75,
+          "right": 1397.328125,
+          "bottom": 653.75,
+          "left": 1323.734375
+        }
+      },
+      {
+        "label": "Learning",
+        "rect": {
+          "x": 1399.328125,
+          "y": 609.75,
+          "width": 79.34375,
+          "height": 44,
+          "top": 609.75,
+          "right": 1478.671875,
+          "bottom": 653.75,
+          "left": 1399.328125
+        }
+      },
+      {
+        "label": "Voice",
+        "rect": {
+          "x": 1480.671875,
+          "y": 609.75,
+          "width": 58.734375,
+          "height": 44,
+          "top": 609.75,
+          "right": 1539.40625,
+          "bottom": 653.75,
+          "left": 1480.671875
+        }
+      }
+    ],
+    "hiddenTabs": [
+      "Learning",
+      "Voice"
+    ]
+  },
+  "queue-1920": {
+    "clientWidth": 271,
+    "scrollWidth": 443,
+    "overflowing": true,
+    "scrollbarWidth": "auto",
+    "overflowX": "auto",
+    "tabs": [
+      {
+        "label": "Needs you19",
+        "rect": {
+          "x": 256,
+          "y": 231.796875,
+          "width": 113.953125,
+          "height": 44,
+          "top": 231.796875,
+          "right": 369.953125,
+          "bottom": 275.796875,
+          "left": 256
+        }
+      },
+      {
+        "label": "Waiting0",
+        "rect": {
+          "x": 371.953125,
+          "y": 231.796875,
+          "width": 86.984375,
+          "height": 44,
+          "top": 231.796875,
+          "right": 458.9375,
+          "bottom": 275.796875,
+          "left": 371.953125
+        }
+      },
+      {
+        "label": "At risk1",
+        "rect": {
+          "x": 460.9375,
+          "y": 231.796875,
+          "width": 79.578125,
+          "height": 44,
+          "top": 231.796875,
+          "right": 540.515625,
+          "bottom": 275.796875,
+          "left": 460.9375
+        }
+      },
+      {
+        "label": "Closed0",
+        "rect": {
+          "x": 542.515625,
+          "y": 231.796875,
+          "width": 82.125,
+          "height": 44,
+          "top": 231.796875,
+          "right": 624.640625,
+          "bottom": 275.796875,
+          "left": 542.515625
+        }
+      },
+      {
+        "label": "All20",
+        "rect": {
+          "x": 626.640625,
+          "y": 231.796875,
+          "width": 63.953125,
+          "height": 44,
+          "top": 231.796875,
+          "right": 690.59375,
+          "bottom": 275.796875,
+          "left": 626.640625
+        }
+      }
+    ],
+    "hiddenTabs": [
+      "At risk1",
+      "Closed0",
+      "All20"
+    ]
+  },
+  "brain-390": {
+    "clientWidth": 358,
+    "scrollWidth": 358,
+    "scrollLeft": 0,
+    "overflowing": false,
+    "fadeCount": 2,
+    "fades": [
+      {
+        "class": "pointer-events-none absolute inset-y-0 left-0 w-8 bg-gradient-to-r to-transparent transition-opacity duration-150 from-[color-mix(in_oklab,var(--color-ink)_14%,var(--color-paper-2))] opacity-0",
+        "opacity": "0",
+        "background": "linear-gradient(to right, oklab(0.809127 0.00336492 0.0166248) 0%, rgba(0, 0, 0, 0) 100%)",
+        "rect": {
+          "x": 16,
+          "y": 551.171875,
+          "width": 32,
+          "height": 52,
+          "top": 551.171875,
+          "right": 48,
+          "bottom": 603.171875,
+          "left": 16
+        }
+      },
+      {
+        "class": "pointer-events-none absolute inset-y-0 right-0 w-8 bg-gradient-to-l to-transparent transition-opacity duration-150 from-[color-mix(in_oklab,var(--color-ink)_14%,var(--color-paper-2))] opacity-0",
+        "opacity": "0",
+        "background": "linear-gradient(to left, oklab(0.809127 0.00336492 0.0166248) 0%, rgba(0, 0, 0, 0) 100%)",
+        "rect": {
+          "x": 342,
+          "y": 551.171875,
+          "width": 32,
+          "height": 52,
+          "top": 551.171875,
+          "right": 374,
+          "bottom": 603.171875,
+          "left": 342
+        }
+      }
+    ],
+    "tabs": [
+      {
+        "label": "Brain2",
+        "rect": {
+          "x": 20,
+          "y": 555.171875,
+          "width": 72.40625,
+          "height": 44,
+          "top": 555.171875,
+          "right": 92.40625,
+          "bottom": 599.171875,
+          "left": 20
+        }
+      },
+      {
+        "label": "Learning",
+        "rect": {
+          "x": 94.40625,
+          "y": 555.171875,
+          "width": 79.34375,
+          "height": 44,
+          "top": 555.171875,
+          "right": 173.75,
+          "bottom": 599.171875,
+          "left": 94.40625
+        }
+      },
+      {
+        "label": "Voice",
+        "rect": {
+          "x": 175.75,
+          "y": 555.171875,
+          "width": 58.734375,
+          "height": 44,
+          "top": 555.171875,
+          "right": 234.484375,
+          "bottom": 599.171875,
+          "left": 175.75
+        }
+      }
+    ],
+    "hiddenTabs": []
+  },
+  "queue-390": {
+    "clientWidth": 365,
+    "scrollWidth": 365,
+    "overflowing": false,
+    "scrollbarWidth": "auto",
+    "overflowX": "auto",
+    "tabs": [
+      {
+        "label": "You19",
+        "rect": {
+          "x": 16,
+          "y": 81,
+          "width": 87.75,
+          "height": 44,
+          "top": 81,
+          "right": 103.75,
+          "bottom": 125,
+          "left": 16
+        }
+      },
+      {
+        "label": "Waiting0",
+        "rect": {
+          "x": 105.75,
+          "y": 81,
+          "width": 87.75,
+          "height": 44,
+          "top": 81,
+          "right": 193.5,
+          "bottom": 125,
+          "left": 105.75
+        }
+      },
+      {
+        "label": "Risk1",
+        "rect": {
+          "x": 195.5,
+          "y": 81,
+          "width": 87.75,
+          "height": 44,
+          "top": 81,
+          "right": 283.25,
+          "bottom": 125,
+          "left": 195.5
+        }
+      },
+      {
+        "label": "Done0",
+        "rect": {
+          "x": 285.25,
+          "y": 81,
+          "width": 87.75,
+          "height": 44,
+          "top": 81,
+          "right": 373,
+          "bottom": 125,
+          "left": 285.25
+        }
+      }
+    ],
+    "hiddenTabs": []
+  }
+}

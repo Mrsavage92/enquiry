@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Segmented } from "@/components/ui/segmented";
+import { ScrollFade } from "@/components/ui/scroll-fade";
 import { BUSINESSES } from "@/fixtures";
 import { usePrototype } from "@/store/prototype-store";
 import { WorkspaceSettingUp } from "@/components/shell/workspace-setting-up";
@@ -14,6 +15,7 @@ import type { KnowledgeItem } from "@/domain/types";
 import { cn } from "@/lib/utils";
 import { applyVoiceToDraft } from "@/domain/voice-apply";
 import { useNarrow } from "@/lib/use-narrow";
+import { useScrollFade } from "@/lib/use-scroll-fade";
 
 const SECTIONS = [
   { id: "all", label: "Overview" },
@@ -92,38 +94,13 @@ export function BrainScreen() {
   const phone = useNarrow(860) !== false;
   const tabs = phone ? PHONE_SECTIONS : SECTIONS;
   const tabValue = tabs.some((s) => s.id === tab) ? tab : "all";
-  const tabScrollRef = useRef<HTMLDivElement>(null);
-  const [tabFade, setTabFade] = useState({ left: false, right: false });
+  const { scrollRef: tabScrollRef, edges: tabFade } = useScrollFade<HTMLDivElement>([tabs]);
 
   useEffect(() => {
     if (!focusComposer) return;
     tellRef.current?.focus();
     setFocusComposer(false);
   }, [focusComposer, setFocusComposer]);
-
-  // 9 tabs overflow the tab list even at a full 1440px desktop width, but the
-  // scrollbar is hidden (see the container below) so nothing hinted more tabs
-  // sat off-screen - "Learning" just rendered clipped mid-label. This mirrors
-  // scrollWidth/clientWidth into fade-edge state so the edges hint at it.
-  useEffect(() => {
-    const el = tabScrollRef.current;
-    if (!el) return;
-    const measure = () => {
-      const overflowing = el.scrollWidth > el.clientWidth + 1;
-      setTabFade({
-        left: overflowing && el.scrollLeft > 1,
-        right: overflowing && el.scrollLeft < el.scrollWidth - el.clientWidth - 1,
-      });
-    };
-    measure();
-    el.addEventListener("scroll", measure, { passive: true });
-    const ro = new ResizeObserver(measure);
-    ro.observe(el);
-    return () => {
-      el.removeEventListener("scroll", measure);
-      ro.disconnect();
-    };
-  }, [tabs]);
 
   const visible = useMemo(() => {
     const base =
@@ -277,20 +254,7 @@ export function BrainScreen() {
             }))}
           />
         </div>
-        <div
-          aria-hidden
-          className={cn(
-            "pointer-events-none absolute inset-y-0 left-0 w-8 bg-gradient-to-r from-paper-2 to-transparent transition-opacity duration-150",
-            tabFade.left ? "opacity-100" : "opacity-0",
-          )}
-        />
-        <div
-          aria-hidden
-          className={cn(
-            "pointer-events-none absolute inset-y-0 right-0 w-8 bg-gradient-to-l from-paper-2 to-transparent transition-opacity duration-150",
-            tabFade.right ? "opacity-100" : "opacity-0",
-          )}
-        />
+        <ScrollFade edges={tabFade} />
       </div>
 
       {tabValue !== "voice" && tabValue !== "learning" && !phone ? (

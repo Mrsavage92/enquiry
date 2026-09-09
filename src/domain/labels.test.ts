@@ -9,6 +9,7 @@ import {
   integrationStatusLabel,
   nextNeedsYou,
   pricingApplicability,
+  queueFilterHasMatch,
   queueHeadline,
   queueSection,
   queueSummary,
@@ -188,6 +189,43 @@ test("the closed filter still surfaces the active enquiry even when it is open",
     [open.id],
     "activeId always wins, regardless of the filter",
   );
+});
+
+test("queueFilterHasMatch ignores the activeId pin - it answers whether the filter genuinely has a match", () => {
+  const open = byId("f01");
+  assert.equal(open.state.lifecycle, "OPEN");
+  assert.notEqual(
+    queueSection(open),
+    "waiting",
+    "fixture check: f01 must not itself be a waiting-section enquiry for this test to be meaningful",
+  );
+
+  // filteredEnquiries still pins the open enquiry into a filter it does not
+  // match - that contract is asserted above and must not change.
+  const pinned = filteredEnquiries([open], "all", "waiting", open.id);
+  assert.deepEqual(
+    pinned.map((e) => e.id),
+    [open.id],
+  );
+
+  // But the filter has no genuine match, so a caller deciding whether to
+  // render the "Nobody is waiting" empty state must see false here, not be
+  // misled by the pinned list's non-zero length.
+  assert.equal(
+    queueFilterHasMatch([open], "all", "waiting"),
+    false,
+    "the pin must not make an unmatched filter look like it has a match",
+  );
+});
+
+test("queueFilterHasMatch is true once a real match exists, independent of any pinned enquiry", () => {
+  const open = byId("f01");
+  const waiting = structuredClone(open);
+  waiting.id = "waiting-fixture";
+  waiting.state = { ...waiting.state, decision: "WAITING_ON_CLIENT", responsibility: "CUSTOMER" };
+  assert.equal(queueSection(waiting), "waiting");
+
+  assert.equal(queueFilterHasMatch([open, waiting], "all", "waiting"), true);
 });
 
 test("a live enquiry with a structural quote but no evaluators still reads as an exact commercial value (queue row parity)", () => {

@@ -195,7 +195,7 @@ export function PhoneDesk({ enquiry }: { enquiry: Enquiry }) {
               // operator found it so they can retry.
               if (!ok) return;
               setDeclineOpen(false);
-              if (demoMode) toastUndo("Decline sent.");
+              if (demoMode) toastUndo("Declined - nothing sent to the customer.");
               else toast.success("Declined.");
               advance();
             });

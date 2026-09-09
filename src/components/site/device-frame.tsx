@@ -26,9 +26,7 @@ export function PhoneFrame({ children, className }: { children: ReactNode; class
         className,
       )}
     >
-      <div className="overflow-hidden rounded-[1.95rem] bg-black">
-        {children}
-      </div>
+      <div className="overflow-hidden rounded-[1.95rem] bg-black">{children}</div>
     </div>
   );
 }
@@ -62,7 +60,7 @@ export function BrowserFrame({
         <span className="h-2.5 w-2.5 rounded-full bg-white/20" />
         <span className="h-2.5 w-2.5 rounded-full bg-white/20" />
         <span className="h-2.5 w-2.5 rounded-full bg-white/20" />
-        <span className="ml-2 truncate rounded bg-white/[0.07] px-2.5 py-1 text-[0.7rem] text-paper/55">
+        <span className="ml-2 truncate rounded bg-white/[0.07] px-2.5 py-1 text-[0.7rem] text-paper">
           {url}
         </span>
       </div>

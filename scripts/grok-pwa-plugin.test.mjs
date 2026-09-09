@@ -83,14 +83,8 @@ test("injects x:creator tags when both creator values are set", () => {
 
 test("escapes x:creator values", () => {
   const tags = grokXCreatorHeadTags('"><script>', '1" onclick="alert(1)');
-  assert.equal(
-    tags[0],
-    '<meta property="x:creator" content="&quot;&gt;&lt;script&gt;">',
-  );
-  assert.equal(
-    tags[1],
-    '<meta property="x:creator:id" content="1&quot; onclick=&quot;alert(1)">',
-  );
+  assert.equal(tags[0], '<meta property="x:creator" content="&quot;&gt;&lt;script&gt;">');
+  assert.equal(tags[1], '<meta property="x:creator:id" content="1&quot; onclick=&quot;alert(1)">');
 });
 
 test("does not duplicate x:creator tags", () => {
@@ -121,6 +115,58 @@ test("does not duplicate twitter:card or og:title", () => {
   assert.equal(once, twice);
   assert.equal(twice.split('name="twitter:card"').length - 1, 1);
   assert.equal(twice.split('property="og:title"').length - 1, 1);
+});
+
+test("a route that already resolved its own og:image keeps its full share card untouched", () => {
+  const html =
+    "<html><head><title>How it works · Enquiry</title>" +
+    '<meta name="description" content="Route description">' +
+    '<meta property="og:type" content="website">' +
+    '<meta property="og:url" content="https://enquiry-ashy.vercel.app/how">' +
+    '<meta property="og:title" content="How it works · Enquiry">' +
+    '<meta property="og:description" content="Route description">' +
+    '<meta property="og:image" content="https://enquiry-ashy.vercel.app/og.jpg">' +
+    '<meta property="og:image:width" content="1200">' +
+    '<meta property="og:image:height" content="630">' +
+    '<meta name="twitter:card" content="summary_large_image">' +
+    '<meta name="twitter:title" content="How it works · Enquiry">' +
+    '<meta name="twitter:description" content="Route description">' +
+    '<meta name="twitter:image" content="https://enquiry-ashy.vercel.app/og.jpg">' +
+    "</head></html>";
+  const out = injectGrokPwaHead(html, { appName: "Enquiry" });
+  // Every route-supplied share tag survives verbatim - none of them get
+  // stripped-and-replaced with the platform default (generic description,
+  // no og:image in dev, no twitter:title/description/image at all).
+  assert.match(out, /property="og:url" content="https:\/\/enquiry-ashy\.vercel\.app\/how"/);
+  assert.match(out, /property="og:description" content="Route description"/);
+  assert.match(out, /property="og:image" content="https:\/\/enquiry-ashy\.vercel\.app\/og\.jpg"/);
+  assert.match(out, /name="twitter:title" content="How it works · Enquiry"/);
+  assert.match(out, /name="twitter:description" content="Route description"/);
+  assert.match(out, /name="twitter:image" content="https:\/\/enquiry-ashy\.vercel\.app\/og\.jpg"/);
+  // Still exactly one of each - the guard skips re-injection entirely, it
+  // does not leave the strip out and inject the platform's set on top.
+  assert.equal((out.match(/property="og:image" content=/g) ?? []).length, 1);
+  assert.equal((out.match(/name="twitter:card"/g) ?? []).length, 1);
+  assert.equal((out.match(/property="og:url"/g) ?? []).length, 1);
+  // Unrelated PWA chrome (manifest, extensions script) still gets injected -
+  // the guard only skips the share-card block, nothing else.
+  assert.match(out, /rel="manifest"/);
+  assert.match(out, /grok-app-builder\/extensions\.js/);
+});
+
+test("a route without its own og:image still gets the platform default (guard does not fire)", () => {
+  const html = "<html><head><title>Hello World</title></head></html>";
+  const out = injectGrokPwaHead(html, { appName: "Wild Race" });
+  assert.match(out, /property="og:title" content="Hello World"/);
+  assert.doesNotMatch(out, /property="og:image"/);
+});
+
+test("a relative og:image does not count as an own share card", () => {
+  const html =
+    '<html><head><title>Enquiry</title><meta property="og:image" content="/product/phone-job.png"></head></html>';
+  const out = injectGrokPwaHead(html, { appName: "Enquiry" });
+  // Relative path is stripped like any other platform-managed tag, not kept.
+  assert.doesNotMatch(out, /content="\/product\/phone-job\.png"/);
 });
 
 test("a baked site.image is treated as a custom card", () => {
@@ -208,7 +254,7 @@ test("snapshotOgIdentity stamps banner from public/x-banner.jpg", () => {
 });
 
 test("emits x:game:image for a public host when site.banner is set", () => {
-  const html = "<html><head><meta property=\"x:game:image\" content=\"old\"></head></html>";
+  const html = '<html><head><meta property="x:game:image" content="old"></head></html>';
   const out = injectGrokPwaHead(html, {
     host: "wild-race.grok.me",
     site: { title: "Wild Race", type: "x:game", card: "custom", banner: "/x-banner.jpg" },
@@ -251,7 +297,10 @@ test("published grok.me slug is still a title fallback", () => {
 });
 
 test("rejects Vercel system hosts as og:image origins", () => {
-  assert.equal(publicAppHost("01a020b6-803a-71a2-bb47-e2bec57eb9a2-662k8x1l1-xai-org.vercel.app"), "");
+  assert.equal(
+    publicAppHost("01a020b6-803a-71a2-bb47-e2bec57eb9a2-662k8x1l1-xai-org.vercel.app"),
+    "",
+  );
   assert.equal(publicAppHost("demo.vercel.app:443"), "");
   assert.equal(publicAppHost("vercel.app"), "");
   assert.equal(publicAppHost("wild-race.grok.me"), "wild-race.grok.me");
@@ -347,9 +396,7 @@ test("placeholder og:image appends site.color when it is 6-digit hex", () => {
 });
 
 test("document title entities are not double-escaped on og:title", () => {
-  const out = injectGrokPwaHead(
-    "<html><head><title>Cats &amp; Dogs</title></head></html>",
-  );
+  const out = injectGrokPwaHead("<html><head><title>Cats &amp; Dogs</title></head></html>");
   assert.match(out, /property="og:title" content="Cats &amp; Dogs"/);
   assert.doesNotMatch(out, /Cats &amp;amp; Dogs/);
 });
@@ -503,4 +550,3 @@ test("vite plugin bakes og identity as a virtual module", () => {
   assert.match(plugin, /virtual:grok-og-identity/);
   assert.match(plugin, /snapshotOgIdentity/);
 });
-

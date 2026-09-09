@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { socialHead } from "@/lib/site/head";
 import { SiteShell } from "@/components/site/site-shell";
 import { ProofCase } from "@/components/site/proof-case";
 import { CrossChannelDecisionDemo } from "@/components/site/cross-channel-decision-demo";
@@ -9,31 +10,28 @@ import { SIGNATURE_DEMO } from "@/lib/site/signature-demo";
 
 export const Route = createFileRoute("/how")({
   component: How,
-  head: () => ({
-    meta: [
-      { title: "How it works · Enquiry" },
-      {
-        name: "description",
-        content:
-          "Work arrives from any channel. Enquiry reconstructs the request, applies how your business works, and prepares the next action.",
-      },
-    ],
-  }),
+  head: () =>
+    socialHead({
+      path: "/how",
+      title: "How it works · Enquiry",
+      description:
+        "Work arrives from any channel. Enquiry reconstructs the request, applies how your business works, and prepares the next action.",
+    }),
 });
 
 function How() {
   return (
     <SiteShell>
-      <article className="mx-auto max-w-3xl px-5 py-10 sm:py-20">
-        <p className="eyebrow">How it works</p>
-        <h1 className="mt-3 text-4xl font-semibold tracking-tight sm:text-5xl">
-          Work arrives. The next action is ready.
-        </h1>
-        <p className="mt-4 text-lg leading-relaxed text-ink-2">
-          Enquiry reconstructs the request, applies how this business works, and works out what can
-          safely be decided now. You approve. You should mainly make judgement calls - not CRM data
-          entry.
-        </p>
+      <article className="mx-auto max-w-5xl px-5 py-10 sm:py-20">
+        <div className="max-w-3xl">
+          <p className="eyebrow">How it works</p>
+          <h1 className="site-display-proof mt-3">Work arrives. The next action is ready.</h1>
+          <p className="mt-4 text-lg leading-relaxed text-ink-2">
+            Enquiry reconstructs the request, applies how this business works, and works out what
+            can safely be decided now. You approve. You should mainly make judgement calls - not CRM
+            data entry.
+          </p>
+        </div>
       </article>
 
       <section className="border-t border-line bg-raised">
@@ -100,12 +98,13 @@ function How() {
       <section className="border-t border-line bg-paper-2">
         <div className="mx-auto max-w-5xl px-5 py-10 sm:py-16">
           <Reveal>
-            <p className="eyebrow">When the price can be decided</p>
+            <p className="eyebrow text-stone-on-paper-2">When the price can be decided</p>
             <h2 className="mt-3 max-w-2xl text-2xl font-semibold tracking-tight sm:text-3xl">
               A different job. Exact quote, ready to send.
             </h2>
             <p className="mt-3 max-w-xl text-sm leading-relaxed text-ink-2">
-              Some enquiries resolve to a number. That is still Enquiry - it is not the whole product.
+              Some enquiries resolve to a number. That is still Enquiry - it is not the whole
+              product.
             </p>
           </Reveal>
           <div className="mt-8">

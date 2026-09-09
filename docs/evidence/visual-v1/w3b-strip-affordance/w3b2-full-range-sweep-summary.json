@@ -1,0 +1,178 @@
+{
+  "1440": {
+    "queue": {
+      "samples": 87,
+      "belowWithFadeCount": 8,
+      "preExistingBelowCount": 8,
+      "fadeCausedBelowCount": 0,
+      "fadeCausedExamples": [],
+      "worstFadeDelta": {
+        "delta": 0,
+        "scrollLeft": 10,
+        "box": {
+          "x": 503,
+          "y": 229.796875,
+          "width": 20,
+          "height": 48
+        },
+        "withFade": {
+          "minPx": [
+            79,
+            74,
+            66
+          ],
+          "maxPx": [
+            231,
+            223,
+            211
+          ],
+          "contrast": 6.648229668429232
+        },
+        "withoutFade": {
+          "minPx": [
+            79,
+            74,
+            66
+          ],
+          "maxPx": [
+            231,
+            223,
+            211
+          ],
+          "contrast": 6.648229668429232
+        }
+      }
+    },
+    "brain": {
+      "samples": 32,
+      "belowWithFadeCount": 0,
+      "preExistingBelowCount": 0,
+      "fadeCausedBelowCount": 0,
+      "fadeCausedExamples": [],
+      "worstFadeDelta": {
+        "delta": -0.21265707144408008,
+        "scrollLeft": 45,
+        "box": {
+          "x": 1176,
+          "y": 607.75,
+          "width": 32,
+          "height": 48
+        },
+        "withFade": {
+          "minPx": [
+            77,
+            72,
+            64
+          ],
+          "maxPx": [
+            231,
+            223,
+            211
+          ],
+          "contrast": 6.860886739873312
+        },
+        "withoutFade": {
+          "minPx": [
+            79,
+            74,
+            66
+          ],
+          "maxPx": [
+            231,
+            223,
+            211
+          ],
+          "contrast": 6.648229668429232
+        }
+      }
+    }
+  },
+  "1920": {
+    "queue": {
+      "samples": 87,
+      "belowWithFadeCount": 8,
+      "preExistingBelowCount": 8,
+      "fadeCausedBelowCount": 0,
+      "fadeCausedExamples": [],
+      "worstFadeDelta": {
+        "delta": 0,
+        "scrollLeft": 10,
+        "box": {
+          "x": 503,
+          "y": 229.796875,
+          "width": 20,
+          "height": 48
+        },
+        "withFade": {
+          "minPx": [
+            79,
+            74,
+            66
+          ],
+          "maxPx": [
+            231,
+            223,
+            211
+          ],
+          "contrast": 6.648229668429232
+        },
+        "withoutFade": {
+          "minPx": [
+            79,
+            74,
+            66
+          ],
+          "maxPx": [
+            231,
+            223,
+            211
+          ],
+          "contrast": 6.648229668429232
+        }
+      }
+    },
+    "brain": {
+      "samples": 32,
+      "belowWithFadeCount": 0,
+      "preExistingBelowCount": 0,
+      "fadeCausedBelowCount": 0,
+      "fadeCausedExamples": [],
+      "worstFadeDelta": {
+        "delta": -0.21265707144408008,
+        "scrollLeft": 45,
+        "box": {
+          "x": 1416,
+          "y": 607.75,
+          "width": 32,
+          "height": 48
+        },
+        "withFade": {
+          "minPx": [
+            77,
+            72,
+            64
+          ],
+          "maxPx": [
+            231,
+            223,
+            211
+          ],
+          "contrast": 6.860886739873312
+        },
+        "withoutFade": {
+          "minPx": [
+            79,
+            74,
+            66
+          ],
+          "maxPx": [
+            231,
+            223,
+            211
+          ],
+          "contrast": 6.648229668429232
+        }
+      }
+    }
+  }
+}
