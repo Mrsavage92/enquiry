@@ -276,6 +276,13 @@ Below 640 they sit side by side so the rail stays one line, as the reference's i
 DERIVATION: the marker dot. The reference caps its **newest** group with a 6px `#fc7840` dot. The
 roadmap has no newest; it caps the stage marked `current`, which is the same "you are here" role.
 
+DERIVATION: the "Where we are" line. A copy diff of every JSX text node against
+`origin/visual/mirror-linear` found one string the rebuild had dropped - the eyebrow the old board
+put above the current stage. It sits above the status in the rail, at the reference's 12px
+monospace label tier, because it labels the same thing the marker dot marks. The rail row wraps
+below 640 so the extra line does not break the rail's single-line shape; re-measured, rail-to-title
+is still 28px.
+
 Verified: 12 columns, column-gap 32; aside x=80 w=296 with 24px padding-left, `sticky` / `top: 96px`
 at 1440 and `relative` / `top: 20px` at 390; rule 1px `#23252a` at x=89 with `bottom: -9px`, hidden
 at 390; marker 6px `#fc7840`; rail label 14/400/-0.182/lh 21 `#f7f8f8`; body x=408 w=624 with
