@@ -1,10 +1,30 @@
 #!/usr/bin/env node
 /**
- * Deploy-time database migrator (node-postgres, `pg`).
+ * Out-of-band database migrator (node-postgres, `pg`). NOT run by `npm run
+ * build` and NOT run on Vercel deploys - the deploy role cannot run DDL, so a
+ * build-time migration attempt can only ever fail there. See the "Applying
+ * migrations in production" note in docs/phases/LIVE_LOOP_IMPLEMENTATION_RECORD.md.
  *
- * Runs during `npm run build` — on every Vercel deploy — applying pending files
- * in ../migrations to DATABASE_URL. Each file is applied in one transaction and
- * recorded in a `_migrations` table, so it runs once and is safe to re-run.
+ * Run this by hand with `npm run db:migrate`, using a DATABASE_URL for the
+ * table-owner role (`postgres`), or apply the SQL file directly in the
+ * Supabase SQL editor. Either way, do it before the deploy that depends on it.
+ *
+ * Production connects over DATABASE_URL as `enquiry_app`, which has
+ * BYPASSRLS and DML grants (select/insert/update/delete) but owns no table -
+ * every table is owned by `postgres`. DDL as `enquiry_app` fails with
+ * Postgres error 42501 (insufficient_privilege). So any migration that
+ * creates a table must be followed, in the same production apply, by:
+ *
+ *   grant select, insert, update, delete on <table> to enquiry_app;
+ *   alter table <table> enable row level security;
+ *
+ * RLS-with-no-policies is the standing pattern here (see 0005_rls_lockdown.sql
+ * for why) - it denies anon/authenticated outright while enquiry_app's
+ * BYPASSRLS grant keeps the app itself unaffected.
+ *
+ * Applies pending files in ../migrations to DATABASE_URL. Each file is
+ * applied in one transaction and recorded in a `_migrations` table, so it
+ * runs once and is safe to re-run.
  *
  * The read is non-recursive, so the opt-in auth schema under migrations/auth/
  * is not applied to an app that never asked for sign-in.
@@ -20,9 +40,7 @@ import { pendingMigrations } from "./migration-plan.mjs";
 
 const databaseUrl = process.env.DATABASE_URL;
 if (!databaseUrl) {
-  console.log(
-    "[migrate] DATABASE_URL not set — skipping (the PGLite fallback migrates itself).",
-  );
+  console.log("[migrate] DATABASE_URL not set — skipping (the PGLite fallback migrates itself).");
   process.exit(0);
 }
 
@@ -48,9 +66,7 @@ async function main() {
     await client.query(
       "CREATE TABLE IF NOT EXISTS _migrations (name TEXT PRIMARY KEY, applied_at TIMESTAMPTZ NOT NULL DEFAULT now())",
     );
-    const applied = (await client.query("SELECT name FROM _migrations")).rows.map(
-      (r) => r.name,
-    );
+    const applied = (await client.query("SELECT name FROM _migrations")).rows.map((r) => r.name);
 
     let count = 0;
     for (const { name } of pendingMigrations(entries, applied)) {
@@ -63,6 +79,13 @@ async function main() {
         await client.query("COMMIT");
       } catch (err) {
         console.error(`[migrate] error applying ${name}`);
+        if (err?.code === "42501") {
+          console.error(
+            "[migrate] insufficient_privilege (42501): DATABASE_URL is not the table-owner role. " +
+              "enquiry_app cannot run DDL - apply this migration by hand as the owner role, then " +
+              "grant the table to enquiry_app and enable RLS. See the file header for the exact steps.",
+          );
+        }
         try {
           await client.query("ROLLBACK");
         } catch {
@@ -73,7 +96,9 @@ async function main() {
       console.log(`[migrate] applied ${name}`);
       count += 1;
     }
-    console.log(count ? `[migrate] done — ${count} migration(s) applied.` : "[migrate] up to date.");
+    console.log(
+      count ? `[migrate] done — ${count} migration(s) applied.` : "[migrate] up to date.",
+    );
   } finally {
     client.release();
     await pool.end();
