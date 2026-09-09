@@ -39,7 +39,16 @@ export function RoadmapEraNav({
         aria-label="Roadmap stages"
         className="flex flex-col gap-3 lg:h-10 lg:flex-row lg:items-center lg:justify-between lg:gap-8"
       >
-        <div className="-mx-1 flex gap-4 overflow-x-auto px-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        {/*
+          The reference's tab row is 573px wide at both viewports, so below 640
+          it overflows and scrolls - and it breaks out of the content inset to
+          do it (.tabs measures x=0 w=390 at 390 while its row sits at x=24), so
+          the tabs clip at the viewport edge rather than 24px early. Reproduced
+          with a negative margin and matching padding at the same 640 boundary
+          .mk-entry uses. Without it the last two tabs were clipped out of the
+          page entirely with no scroll affordance.
+        */}
+        <div className="-mx-1 flex gap-4 overflow-x-auto px-1 max-[640px]:-mx-6 max-[640px]:px-6 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {STAGES.map((stage) => (
             <button
               key={stage.id}

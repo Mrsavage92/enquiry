@@ -453,16 +453,9 @@ const shots = await page.evaluate(() => {
   push("cta", document.querySelector(".mk-prefooter"));
   return out;
 });
-await page.evaluate(async () => {
-  const H = document.body.scrollHeight;
-  for (let y = 0; y < H; y += 700) {
-    window.scrollTo(0, y);
-    await new Promise((r) => setTimeout(r, 30));
-  }
-  window.scrollTo(0, 0);
-  await new Promise((r) => setTimeout(r, 300));
-});
-await page.screenshot({ path: path.join(OUT, `page-${VP}.png`), fullPage: true });
+/* The page render is produced by shoot.mjs; keeping it out of this run
+   avoids a second fullPage rasterisation of an 8000px page in the same
+   process, which tripped a CDP assertion and then a V8 OOM. */
 fs.writeFileSync(path.join(OUT, `boxes-${VP}.json`), JSON.stringify(shots, null, 2));
 
 await browser.close();

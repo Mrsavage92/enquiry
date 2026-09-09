@@ -60,10 +60,22 @@ export function RoadmapEntry({
       */}
       <span className="mk-entry-rule" style={{ bottom: "-9px" }} aria-hidden />
       {marker ? <span className="mk-entry-marker" aria-hidden /> : null}
-      <div className="mk-entry-aside relative top-5 self-start sm:sticky sm:top-24">
+      {/*
+        Stacked, the reference's rail is a single line: status and number sit
+        side by side below 640 rather than one under the other, and the 32px
+        row-gap the grid supplies above 640 is added back as padding, because
+        .mk-entry is display:block there and a block has no row gap. Measured
+        against the reference: its rail renders at entry-top+20, its title box
+        28px below the rail's rendered bottom.
+
+        The breakpoints are written as 640/641 rather than Tailwind's `sm`
+        because .mk-entry collapses at `max-width: 640px`, and `sm:` starts at
+        640 - one viewport width where the two would disagree.
+      */}
+      <div className="mk-entry-aside relative top-5 flex items-baseline gap-3 self-start max-[640px]:pb-8 min-[641px]:sticky min-[641px]:top-24 min-[641px]:block">
         {label ? <p className="mk-entry-date">{label}</p> : null}
         {meta ? (
-          <p className="mk-mini mt-1 font-mono tabular-nums" aria-hidden>
+          <p className="mk-mini font-mono tabular-nums min-[641px]:mt-1" aria-hidden>
             {meta}
           </p>
         ) : null}
@@ -138,5 +150,5 @@ export function EntryList({ items }: { items: string[] }) {
   #101112 panel.
 */
 export function EntryFigure({ children }: { children: ReactNode }) {
-  return <figure className="my-8 sm:my-12">{children}</figure>;
+  return <figure className="my-8 min-[641px]:my-12">{children}</figure>;
 }

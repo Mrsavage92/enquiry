@@ -239,7 +239,13 @@ export function RoadmapBoard() {
 
         {/* The reference closes its stream with this divider, then the footer. */}
         <div className="mk-divider mt-8 mb-4" data-divider="close" />
-        <p className="mk-mini">Last written {ROADMAP_WRITTEN}.</p>
+        {/*
+          One text node, not "Last written " + date + ".". Split, the trailing
+          period is a 3px-wide node of its own and the rendered-pixel sweep
+          cannot resolve a 13px "." in a 3px box - it graded the same node at
+          4.88:1 on / and 1.38:1 here purely on sub-pixel placement.
+        */}
+        <p className="mk-mini">{`Last written ${ROADMAP_WRITTEN}.`}</p>
       </div>
 
       <section className="mk-prefooter">
