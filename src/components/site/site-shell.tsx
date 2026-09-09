@@ -68,26 +68,26 @@ export function SiteShell({ children, notebook }: { children: ReactNode; noteboo
             an accidental-looking hole before the buttons.
           */}
           <div className="flex items-center gap-6">
-          <Link to="/" aria-label="Enquiry home" className="inline-flex min-h-11 items-center">
-            <Wordmark size="sm" />
-          </Link>
-          <nav className="hidden items-center gap-1 md:flex" aria-label="Site">
-            {NAV.map((item) => {
-              const active = item.to === "/" ? pathname === "/" : pathname.startsWith(item.to);
-              return (
-                <Link
-                  key={item.to}
-                  to={item.to}
-                  className={cn(
-                    "rounded-md px-3 py-2 text-sm min-h-11 inline-flex items-center",
-                    active ? "text-ink font-medium" : "text-ink-2 hover:text-ink",
-                  )}
-                >
-                  {item.label}
-                </Link>
-              );
-            })}
-          </nav>
+            <Link to="/" aria-label="Enquiry home" className="inline-flex min-h-11 items-center">
+              <Wordmark size="sm" />
+            </Link>
+            <nav className="hidden items-center gap-1 md:flex" aria-label="Site">
+              {NAV.map((item) => {
+                const active = item.to === "/" ? pathname === "/" : pathname.startsWith(item.to);
+                return (
+                  <Link
+                    key={item.to}
+                    to={item.to}
+                    className={cn(
+                      "rounded-md px-3 py-2 text-sm min-h-11 inline-flex items-center",
+                      active ? "text-ink font-medium" : "text-ink-2 hover:text-ink",
+                    )}
+                  >
+                    {item.label}
+                  </Link>
+                );
+              })}
+            </nav>
           </div>
           <div className="flex items-center gap-2">
             {/*
@@ -125,7 +125,7 @@ export function SiteShell({ children, notebook }: { children: ReactNode; noteboo
             </Button>
             <span className="hidden sm:inline-flex">
               <Button size="sm" variant="secondary" className="min-h-11" asChild>
-                <Link to="/enquiries">Open the app</Link>
+                <Link to="/demo">See demo</Link>
               </Button>
             </span>
             <button
@@ -152,11 +152,18 @@ export function SiteShell({ children, notebook }: { children: ReactNode; noteboo
               </Link>
             ))}
             <Link
-              to="/enquiries"
+              to="/demo"
               onClick={() => setOpen(false)}
               className="flex min-h-12 items-center text-sm font-medium"
             >
-              Open the app
+              See demo
+            </Link>
+            <Link
+              to="/login"
+              onClick={() => setOpen(false)}
+              className="flex min-h-12 items-center text-sm"
+            >
+              Sign in
             </Link>
           </nav>
         ) : null}
@@ -184,8 +191,11 @@ export function SiteShell({ children, notebook }: { children: ReactNode; noteboo
             <Link to="/early-access" className="min-h-11 inline-flex items-center text-ink-2 hover:text-ink">
               Early access
             </Link>
-            <Link to="/enquiries" className="min-h-11 inline-flex items-center text-ink-2 hover:text-ink">
-              Open the app
+            <Link to="/demo" className="min-h-11 inline-flex items-center text-ink-2 hover:text-ink">
+              Demo
+            </Link>
+            <Link to="/login" className="min-h-11 inline-flex items-center text-ink-2 hover:text-ink">
+              Sign in
             </Link>
             <Link to="/privacy" className="min-h-11 inline-flex items-center text-ink-2 hover:text-ink">
               Privacy

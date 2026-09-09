@@ -10,7 +10,7 @@ export const Route = createFileRoute("/early-access")({
       path: "/early-access",
       title: "Early access · Enquiry",
       description:
-        "Join Enquiry early access. We’re opening gradually so we can work closely with the first service businesses.",
+        "Join Enquiry early access. We’re opening gradually with a founding-user offer for the first service businesses.",
     }),
 });
 
@@ -20,12 +20,16 @@ const PROMISES = [
     b: "We invite businesses in small groups as the product is ready for them.",
   },
   {
+    t: "30% off your first 12 months",
+    b: "Join before public release and, if you become a paying customer, your first 12 months are 30% off the standard price.",
+  },
+  {
     t: "A direct line into what we learn",
     b: "Early businesses can tell us where Enquiry helps, where it gets in the way, and what still needs work.",
   },
   {
-    t: "Clear communication before anything becomes paid",
-    b: "Enquiry is intended to be a paid product. Pricing will be shared before any paid access begins.",
+    t: "No surprise charge",
+    b: "Enquiry is intended to be a paid product. We’ll share the full pricing before any paid access begins, and you decide whether to continue.",
   },
 ];
 
@@ -41,6 +45,10 @@ function EarlyAccess() {
           <p className="mt-4 text-lg leading-relaxed text-ink-2">
             We’re opening Enquiry gradually so we can work closely with the first service businesses
             and improve the product before wider release.
+          </p>
+          <p className="mt-4 text-sm font-medium leading-relaxed text-ink">
+            Join before public release and get 30% off your first 12 months if you become a paying
+            customer.
           </p>
           <div className="mt-10">
             <WaitlistForm />

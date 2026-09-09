@@ -37,9 +37,9 @@ function LoginPage() {
       cta="Email me a link"
       footer={
         <>
-          New to Enquiry?{" "}
-          <Link to="/signup" className="underline underline-offset-4 hover:text-ink">
-            Set up your workspace
+          Not invited yet?{" "}
+          <Link to="/early-access" className="underline underline-offset-4 hover:text-ink">
+            Join early access
           </Link>
         </>
       }

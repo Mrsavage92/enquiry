@@ -82,6 +82,26 @@ export default defineConfig(({ command, isPreview }) => ({
             // manifest + head-tag middleware). Nitro v3 defaults serverDir to
             // false, so removing this silently unwires /?install=1 on deploys.
             serverDir: "./server",
+            // Baseline security headers on every response. This only takes
+            // effect on `vite build`/`vite preview` - the plain `vite dev`
+            // branch above never loads the nitro plugin at all, so these are
+            // NOT observable via `npm run dev`; verify against `npm run
+            // build`'s generated .vercel/output/config.json instead (or
+            // `npm run preview`, which sets isPreview and does load nitro).
+            // No CSP here on purpose: fonts.googleapis.com, inline styles
+            // from the framework, and the Supabase auth flow all need a
+            // carefully-scoped policy, and a wrong one on launch night is a
+            // worse outcome than no policy tonight - tracked as a follow-up.
+            routeRules: {
+              "**": {
+                headers: {
+                  "X-Content-Type-Options": "nosniff",
+                  "Referrer-Policy": "strict-origin-when-cross-origin",
+                  "X-Frame-Options": "DENY",
+                  "Permissions-Policy": "camera=(), microphone=(), geolocation=()",
+                },
+              },
+            },
           }),
         ]
       : []),

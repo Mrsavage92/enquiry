@@ -178,7 +178,7 @@ export function WaitlistForm({
             </Button>
           )}
           <Button variant="secondary" asChild className="min-h-12">
-            <Link to="/enquiries">Open the app</Link>
+            <Link to="/demo">See demo</Link>
           </Button>
         </div>
       </div>

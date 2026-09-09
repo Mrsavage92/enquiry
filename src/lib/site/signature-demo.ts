@@ -39,10 +39,10 @@ export const RIDGE_CREW_WINDOW_RULE = {
 } as const;
 
 export const SIGNATURE_DEMO = {
-  business: "Ridge & Co Painting",
+  business: "Sample business · Ridge & Co Painting",
   owner: "Tom Ridge",
   customer: "Maya Chen",
-  phone: "0431 559 208",
+  phone: "0491 570 006",
   headline: "One enquiry. Even when the conversation moves.",
   supporting:
     "A form becomes a text. The scope changes. Enquiry keeps the request, the business checks and the next action current.",
