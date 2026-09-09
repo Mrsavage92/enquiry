@@ -570,20 +570,13 @@ export function RoadmapBoard() {
                 onClick={() => jump(s.id)}
                 aria-current={isActive ? "true" : undefined}
                 className={cn(
-                  "min-h-12 shrink-0 px-2.5 py-1.5 text-sm transition-colors duration-150",
-                  isActive ? "font-medium text-ink" : "text-stone",
+                  "min-h-12 shrink-0 border-b-2 px-2.5 py-1.5 text-sm transition-colors duration-150",
+                  isActive ? "border-ink font-medium text-ink" : "border-transparent text-stone",
                 )}
               >
                 <span>
                   <span className="mr-1.5 font-mono text-2xs tabular-nums">{s.number}</span>
-                  <span
-                    className={cn(
-                      "border-b-2 py-1",
-                      isActive ? "border-ink" : "border-transparent",
-                    )}
-                  >
-                    {s.short}
-                  </span>
+                  <span className="py-1">{s.short}</span>
                 </span>
                 <span
                   className={cn(
