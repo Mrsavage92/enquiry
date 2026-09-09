@@ -6,13 +6,14 @@ import {
   factStatusLabel,
   factStatusTone,
   filteredEnquiries,
+  integrationStatusLabel,
   nextNeedsYou,
   pricingApplicability,
   queueHeadline,
   queueSection,
   queueSummary,
 } from "./labels.ts";
-import type { EnquiryFact } from "./types.ts";
+import type { EnquiryFact, IntegrationHealth } from "./types.ts";
 
 function byId(id: string) {
   return ENQUIRIES.find((e) => e.id === id)!;
@@ -63,6 +64,31 @@ test("factStatusTone never returns the 'ok' (confirmed) tone for an unconfirmed 
     );
   }
   assert.equal(factStatusTone("confirmed"), "ok");
+});
+
+const ALL_INTEGRATION_STATUSES: IntegrationHealth["status"][] = [
+  "connected",
+  "disconnected",
+  "error",
+  "not_connected",
+];
+
+test("every integration status has a human label - the raw snake_case value never reaches the screen", () => {
+  // Reproduces launch-audit run 29, P0-6/P1-5 (2026-09-04): /trust rendered
+  // `not_connected` verbatim, twice, because only "connected" was mapped.
+  for (const status of ALL_INTEGRATION_STATUSES) {
+    const label = integrationStatusLabel(status);
+    assert.ok(label.trim().length > 0, `${status} must never render as empty text`);
+    assert.doesNotMatch(label, /_/, `${status} must read as a human label, not raw snake_case`);
+  }
+});
+
+test("not_connected reads as Not connected", () => {
+  assert.equal(integrationStatusLabel("not_connected"), "Not connected");
+});
+
+test("connected and not_connected never share a label", () => {
+  assert.notEqual(integrationStatusLabel("connected"), integrationStatusLabel("not_connected"));
 });
 
 test("Priya is an exact quote", () => {
