@@ -159,7 +159,9 @@ function EndgameVisual() {
             <span className="w-8 shrink-0 font-mono text-xs tabular-nums text-stone">
               {String(i + 1).padStart(2, "0")}
             </span>
-            <span className="font-serif text-xl font-medium tracking-tight sm:text-2xl">{step}</span>
+            <span className="mk-small" style={{ color: "var(--mk-fg)" }}>
+                {step}
+              </span>
           </li>
         ))}
       </ol>

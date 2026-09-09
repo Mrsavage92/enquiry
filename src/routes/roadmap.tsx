@@ -2,11 +2,9 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { socialHead } from "@/lib/site/head";
 import { SiteShell } from "@/components/site/site-shell";
 import { RoadmapBoard } from "@/components/site/roadmap-board";
-import { Button } from "@/components/ui/button";
-import { ROADMAP_ACCESS, ROADMAP_PHASE, ROADMAP_WRITTEN } from "@/lib/launch/roadmap";
+import { ROADMAP_LEGEND } from "@/lib/launch/roadmap";
 import { trackLaunchEvent } from "@/lib/launch/api";
 import { currentTouch, launchSessionId } from "@/lib/launch/session";
-import { HeroIn } from "@/components/site/motion";
 
 export const Route = createFileRoute("/roadmap")({
   component: RoadmapPage,
@@ -19,84 +17,101 @@ export const Route = createFileRoute("/roadmap")({
     }),
 });
 
+/*
+  The page header, measured from https://linear.app/changelog on 2026-09-09.
+
+  The reference puts its h1 at y=150 under a 73px header - 77px of padding - at
+  48px/510/-1.056px/lh 48px, and holds that 48px at 390 too (only the optical
+  margin steps from -2px to -1px). The shared .mk-h1 is the reference HOME h1
+  tier (64px, 38px at 390), so the page tier is set inline here from the
+  re-extraction. A shared .mk-h1-page would be the right home for it; that is
+  filed as a request rather than edited into styles.css this pass.
+*/
+const PAGE_H1 = {
+  fontSize: "48px",
+  lineHeight: "48px",
+  letterSpacing: "-1.056px",
+  fontWeight: 510,
+} as const;
+
+const LEDE = { maxWidth: "36rem" } as const;
+
 function RoadmapPage() {
   return (
-    <SiteShell notebook>
-      <article className="mx-auto max-w-5xl px-5 pb-12 pt-10 sm:pb-16 sm:pt-20">
+    <SiteShell>
+      <section className="mk-container pt-[77px]">
+        <p className="mk-label">Roadmap · Built in public</p>
+        <h1 className="mk-h1 mt-5 max-w-[22ch]" style={PAGE_H1}>
+          We’re building Enquiry in the open.
+        </h1>
         {/*
-          Opaque paper backing behind the hero copy only - the .notebook ruled
-          lines that give /roadmap its identity tile across the whole page
-          (site-shell.tsx), including straight through this text. .text-halo's
-          blur softens the lines near glyph edges but does not fully hide them.
-          bg-paper is the same token as body's own background (styles.css),
-          so this reads as a clean sheet sitting on the ruled page rather than
-          a visible box. No horizontal padding, so the h1's left edge stays at
-          228px (matching the rest of the page, fixed in 75f7502).
+          .mk-lede sets `max-width: none` in the unlayered marketing layer, so a
+          Tailwind max-w-* on the same element loses to it. The cap goes inline.
+          20px between the two paragraphs is the reference's paragraph rhythm.
         */}
-        <div className="bg-paper py-4 sm:py-6">
-          <HeroIn>
-            <p className="eyebrow">Roadmap · Built in public</p>
-          </HeroIn>
-          <HeroIn delay={80}>
-            <h1 className="site-hero text-halo mt-4 max-w-2xl">
-              We’re building Enquiry
-              <span className="block">in the open.</span>
-            </h1>
-          </HeroIn>
-          <HeroIn delay={160}>
-            <p className="text-halo mt-6 max-w-lg text-lg leading-relaxed text-ink-2 sm:text-xl">
-              Some of this works today. Some of it is being built. Some of it still needs to earn
-              its place.
-            </p>
-          </HeroIn>
-          <HeroIn delay={220}>
-            <p className="mt-4 max-w-lg text-base leading-relaxed text-ink-2">
-              Rather than pretend otherwise, this is where Enquiry is going - and what has to be
-              true for us to get there.
-            </p>
-          </HeroIn>
-          <HeroIn delay={280}>
-            <p className="mt-6 text-xs uppercase tracking-wider text-stone">
-              Last updated {ROADMAP_WRITTEN}
-              <span className="mx-2 text-line-strong">·</span>
-              {ROADMAP_PHASE}
-              <span className="mx-2 text-line-strong">·</span>
-              {ROADMAP_ACCESS}
-            </p>
-          </HeroIn>
+        <p className="mk-lede mt-6" style={LEDE}>
+          Some of this works today. Some of it is being built. Some of it still needs to earn its
+          place.
+        </p>
+        <p className="mk-lede mt-5" style={LEDE}>
+          Rather than pretend otherwise, this is where Enquiry is going - and what has to be true
+          for us to get there.
+        </p>
+
+        <div className="mt-8 flex flex-wrap items-center gap-3">
+          <Link
+            to="/early-access"
+            className="mk-btn mk-btn-primary"
+            onClick={() => {
+              const touch = currentTouch();
+              void trackLaunchEvent({
+                data: {
+                  sessionId: launchSessionId(),
+                  event_name: "roadmap_waitlist_click",
+                  landing_path: "/roadmap",
+                  utm_source: touch.utm_source,
+                  utm_medium: touch.utm_medium,
+                  utm_campaign: touch.utm_campaign,
+                  utm_content: touch.utm_content,
+                  referrer: touch.referrer,
+                  feature_id: "hero",
+                },
+              }).catch(() => undefined);
+            }}
+          >
+            Join early access
+          </Link>
+          <a href="#stage-understand" className="mk-btn mk-btn-secondary">
+            See where we are now
+          </a>
         </div>
-        <HeroIn delay={340}>
-          <div className="mt-8 flex flex-col items-start gap-3 sm:flex-row sm:flex-wrap">
-            <Button asChild className="min-h-12 shrink-0 sm:min-h-10">
-              <Link
-                to="/early-access"
-                onClick={() => {
-                  const touch = currentTouch();
-                  void trackLaunchEvent({
-                    data: {
-                      sessionId: launchSessionId(),
-                      event_name: "roadmap_waitlist_click",
-                      landing_path: "/roadmap",
-                      utm_source: touch.utm_source,
-                      utm_medium: touch.utm_medium,
-                      utm_campaign: touch.utm_campaign,
-                      utm_content: touch.utm_content,
-                      referrer: touch.referrer,
-                      feature_id: "hero",
-                    },
-                  }).catch(() => undefined);
-                }}
-              >
-                Join early access
-              </Link>
-            </Button>
-            <Button variant="secondary" asChild className="min-h-12 shrink-0 sm:min-h-10">
-              <a href="#stage-understand">See where we are now</a>
-            </Button>
-          </div>
-        </HeroIn>
-      </article>
-      <RoadmapBoard />
+
+        {/*
+          The statuses the rail labels use, so the vocabulary is defined before
+          the stream that speaks it. The mark is the reference's 12px monospace
+          label tier; the label is its 14px rail tier; the hint its 13px tier.
+        */}
+        <div className="mt-10">
+          <p className="mk-label">Statuses</p>
+          <ul className="mt-4 grid gap-x-8 gap-y-4 sm:grid-cols-2 lg:grid-cols-4">
+            {ROADMAP_LEGEND.map((status) => (
+              <li key={status.id} className="max-w-[16rem]">
+                <p className="mk-small" style={{ color: "var(--mk-fg)" }}>
+                  <span aria-hidden className="mr-2 font-mono text-xs">
+                    {status.mark}
+                  </span>
+                  {status.label}
+                </p>
+                <p className="mk-mini mt-1">{status.hint}</p>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </section>
+
+      <div className="mt-10">
+        <RoadmapBoard />
+      </div>
     </SiteShell>
   );
 }
