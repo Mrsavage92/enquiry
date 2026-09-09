@@ -1,12 +1,12 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { socialHead } from "@/lib/site/head";
 import { SiteShell } from "@/components/site/site-shell";
-import { ProofCase } from "@/components/site/proof-case";
+import { MediaFrame } from "@/components/site/device-frame";
 import { CrossChannelDecisionDemo } from "@/components/site/cross-channel-decision-demo";
 import { WaitlistForm } from "@/components/site/waitlist-form";
-import { Button } from "@/components/ui/button";
-import { Reveal } from "@/components/site/motion";
 import { SIGNATURE_DEMO } from "@/lib/site/signature-demo";
+import { HowSteps } from "@/components/site/how-steps";
+import { HowProofCase } from "@/components/site/how-proof-case";
 
 export const Route = createFileRoute("/how")({
   component: How,
@@ -22,113 +22,81 @@ export const Route = createFileRoute("/how")({
 function How() {
   return (
     <SiteShell>
-      <article className="mx-auto max-w-5xl px-5 py-10 sm:py-20">
-        <div className="max-w-3xl">
-          <p className="eyebrow">How it works</p>
-          <h1 className="site-display-proof mt-3">Work arrives. The next action is ready.</h1>
-          <p className="mt-4 text-lg leading-relaxed text-ink-2">
+      {/*
+        Page header, not the home hero: the reference's own page-title tier
+        (tokens.lock.json typography.scale_390.h1_page) stays 48px/510/
+        -1.056px/lh 48px at BOTH 1440 and 390 - it does not step down the way
+        `.mk-h1`/`.mk-h2` do, so it is built here rather than borrowing either
+        class. `--mk-h1-optical` is reused rather than duplicated: it already
+        switches -2px -> -1px at the same 640 breakpoint the reference's own
+        page-title optical pull does.
+      */}
+      <section className="pb-[var(--mk-section-y)] pt-[64px] sm:pt-[96px]">
+        <div className="mk-container">
+          <p className="mk-label">How it works</p>
+          <h1 className="ml-[var(--mk-h1-optical)] mt-5 max-w-[22ch] text-[48px] leading-[48px] font-[var(--mk-weight-medium)] tracking-[-1.056px] text-[var(--mk-fg)]">
+            Work arrives. The next action is ready.
+          </h1>
+          <p className="mk-lede mt-6 max-w-2xl">
             Enquiry reconstructs the request, applies how this business works, and works out what
             can safely be decided now. You approve. You should mainly make judgement calls - not CRM
             data entry.
           </p>
         </div>
-      </article>
+      </section>
 
-      <section className="border-t border-line bg-raised">
-        <div className="mx-auto max-w-5xl px-5 py-10 sm:py-16">
-          <Reveal>
-            <p className="eyebrow">{SIGNATURE_DEMO.business}</p>
-            <h2 className="mt-3 max-w-2xl text-2xl font-semibold tracking-tight sm:text-3xl">
-              {SIGNATURE_DEMO.headline}
-            </h2>
-            <p className="mt-3 max-w-2xl text-sm leading-relaxed text-ink-2 sm:text-base">
-              {SIGNATURE_DEMO.supporting}
-            </p>
-          </Reveal>
-          <div className="mt-8">
-            <CrossChannelDecisionDemo compact />
+      {/*
+        Feature section 1: the live decision demo is this route's first piece
+        of product media, in the reference's section-head + full-width
+        MediaFrame shape (system.md §5, same as the interactive block on /).
+        CrossChannelDecisionDemo owns `.mk-app-surface` internally when
+        compact - the outer one here matches index.tsx's own usage.
+      */}
+      <section className="mk-section">
+        <div className="mk-container">
+          <div className="mk-section-head">
+            <p className="mk-label">{SIGNATURE_DEMO.business}</p>
+            <h2 className="mk-h2 mt-4 max-w-2xl">{SIGNATURE_DEMO.headline}</h2>
+            <p className="mk-lede mt-5 max-w-xl">{SIGNATURE_DEMO.supporting}</p>
           </div>
-          <p className="mt-8 max-w-xl text-sm leading-relaxed text-ink-2">
-            {SIGNATURE_DEMO.takeaway}
-          </p>
+        </div>
+        <div className="mk-page">
+          <MediaFrame>
+            <div className="mk-app-surface p-5 sm:p-8">
+              <CrossChannelDecisionDemo compact />
+            </div>
+          </MediaFrame>
+        </div>
+        <div className="mk-container mt-8">
+          <p className="mk-small max-w-xl">{SIGNATURE_DEMO.takeaway}</p>
         </div>
       </section>
 
-      <section className="mx-auto max-w-3xl px-5 py-10 sm:py-16">
-        <ol>
-          {[
-            {
-              t: "Bring the enquiry in",
-              b: "It might have started in a form, text, Instagram, Facebook, or email. Early access starts by bringing the enquiry into Enquiry yourself. Connected channels will roll out progressively.",
-            },
-            {
-              t: "Enquiry reconstructs the request",
-              b: "What they want. What’s known. What’s missing, ambiguous, or conflicting. Enquiry does not guess to fill the gaps.",
-            },
-            {
-              t: "Business Brain supplies the truth",
-              b: "Services, rules, voice, and prices where they apply. Customer-specific facts stay on that enquiry. A correction can teach the business, or stay on this job.",
-            },
-            {
-              t: "What can be decided now",
-              b: "Enquiry runs only the checks that matter for this request. What can be decided. What’s blocking the next decision. Why. Unknown is a valid answer.",
-            },
-            {
-              t: "You review, then you send",
-              b: "The next action is prepared - the reply, the hold, the question that unblocks the rest. Nothing goes out unless that kind of action is allowed. Early access is review-first.",
-            },
-            {
-              t: "The enquiry stays current",
-              b: "Add new customer information as the conversation changes. The case file stays current until the work is booked or lost. Connected-channel updates will roll out progressively.",
-            },
-          ].map((s, i) => (
-            <Reveal key={s.t}>
-              <li className="border-t border-line py-8 last:border-b">
-                <p className="font-mono text-xs tabular-nums text-stone">
-                  {String(i + 1).padStart(2, "0")}
-                </p>
-                <h2 className="mt-2 text-2xl font-semibold tracking-tight">{s.t}</h2>
-                <p className="mt-2 text-sm leading-relaxed text-ink-2">{s.b}</p>
-              </li>
-            </Reveal>
-          ))}
-        </ol>
-      </section>
+      {/* Feature section 2: the six steps - no per-step media, so the system's card/list pattern. */}
+      <HowSteps />
 
-      <section className="border-t border-line bg-paper-2">
-        <div className="mx-auto max-w-5xl px-5 py-10 sm:py-16">
-          <Reveal>
-            <p className="eyebrow text-stone-on-paper-2">When the price can be decided</p>
-            <h2 className="mt-3 max-w-2xl text-2xl font-semibold tracking-tight sm:text-3xl">
-              A different job. Exact quote, ready to send.
-            </h2>
-            <p className="mt-3 max-w-xl text-sm leading-relaxed text-ink-2">
-              Some enquiries resolve to a number. That is still Enquiry - it is not the whole
-              product.
-            </p>
-          </Reveal>
-          <div className="mt-8">
-            <ProofCase />
+      {/* Feature section 3: the pricing case, in its own component for the same reason. */}
+      <HowProofCase />
+
+      {/* Closing CTA block, the system's shape (system.md §5 / index.tsx prefooter). */}
+      <section className="mk-section">
+        <div className="mk-container">
+          <div className="flex flex-col gap-3 sm:flex-row">
+            <Link to="/early-access" className="mk-btn mk-btn-primary">
+              Join early access
+            </Link>
+            <Link to="/demo" className="mk-btn mk-btn-secondary">
+              See demo
+            </Link>
           </div>
         </div>
       </section>
-
-      <section className="mx-auto max-w-3xl px-5 py-10 sm:py-16">
-        <div className="flex flex-col gap-3 sm:flex-row">
-          <Button asChild className="min-h-12">
-            <Link to="/early-access">Join early access</Link>
-          </Button>
-          <Button asChild variant="secondary" className="min-h-12">
-            <Link to="/demo">See demo</Link>
-          </Button>
-        </div>
-      </section>
-      <section className="border-t border-line">
-        <div className="mx-auto max-w-xl px-5 py-16">
-          <h2 className="text-2xl font-semibold tracking-tight">Join early access</h2>
-          <p className="mt-2 text-sm text-ink-2">Email first. A few optional questions after.</p>
-          <div className="mt-6">
-            <WaitlistForm />
+      <section className="mk-prefooter">
+        <div className="mk-container">
+          <h2 className="mk-h2 max-w-[20ch]">Join early access</h2>
+          <p className="mk-lede mt-5 max-w-xl">Email first. A few optional questions after.</p>
+          <div className="mt-10 max-w-xl">
+            <WaitlistForm compact ctaLabel="Request early access" />
           </div>
         </div>
       </section>
