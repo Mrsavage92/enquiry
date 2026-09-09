@@ -34,6 +34,19 @@ export const Route = createRootRoute({
         rel: "stylesheet",
         href: "https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Serif:wght@500;600&display=swap",
       },
+      /*
+        Marketing routes only (the `html[data-site="marketing"]` layer at the
+        end of styles.css). The mirrored reference computes to "Inter
+        Variable" - its self-hosted name for Inter v4 variable. Google Fonts
+        serves the identical variable typeface as family "Inter" with the wght
+        and opsz axes, so the reference's 400 / 510 / 590 weights are all
+        reachable. A remote `@import` in styles.css is stripped by the
+        Tailwind/Vite pipeline, so it is loaded here instead.
+      */
+      {
+        rel: "stylesheet",
+        href: "https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..700&display=swap",
+      },
     ],
   }),
   component: () => (

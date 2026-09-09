@@ -1231,3 +1231,768 @@ html.embed .site-nav {
     overflow: visible !important;
   }
 }
+/* ==========================================================================
+   MARKETING MIRROR LAYER - linear.app
+   ==========================================================================
+
+   Scoped entirely to `html[data-site="marketing"]`, set by SiteShell on mount
+   and removed on unmount. The signed-in app never sees any of it: the @theme
+   block at the top of this file is untouched, and every rule below is behind
+   that attribute selector.
+
+   Every value comes from tokens.lock.json, extracted from https://linear.app
+   and https://linear.app/changelog on 2026-09-09. The responsive ladder was
+   measured by sweeping the reference across 15 viewport widths
+   (.style-mirror/sweep.json), which is where the 640 / 1024 / 1280 breakpoints
+   and their per-step type sizes come from. Nothing here is an approximation
+   except the five items recorded in .style-mirror/diff.md -> Derivations.
+
+   Rules are deliberately unlayered so they win over Tailwind's `utilities`
+   layer without !important, matching the existing convention in this file
+   (.site-hero and below).
+   ========================================================================== */
+
+html[data-site="marketing"] {
+  /* --- reference palette ------------------------------------------------ */
+  --mk-bg: #08090a;
+  --mk-bg-1: #0f1011;
+  --mk-bg-2: #141516;
+  --mk-plate: #090a0b;
+  --mk-panel: #101112;
+  --mk-border: #23252a;
+  --mk-border-translucent: rgba(255, 255, 255, 0.08);
+  --mk-border-faint: rgba(255, 255, 255, 0.05);
+  --mk-hairline: #18191a;
+  --mk-fg: #f7f8f8;
+  --mk-fg-2: #d0d6e0;
+  --mk-fg-3: #8a8f98;
+  --mk-fg-4: #62666d;
+  --mk-invert-bg: #e5e5e6;
+  --mk-invert-bg-hover: #ffffff;
+  --mk-invert-fg: #08090a;
+  --mk-translucent: rgba(255, 255, 255, 0.05);
+  --mk-translucent-strong: rgba(255, 255, 255, 0.1);
+  --mk-accent: #5e6ad2;
+  --mk-link: #828fff;
+  --mk-marker: #fc7840;
+  --mk-focus: #5e69d1;
+  --mk-nav-bg: linear-gradient(rgba(11, 11, 11, 0.8) 0%, rgba(11, 11, 11, 0.762) 100%);
+
+  /* --- type ------------------------------------------------------------- */
+  --mk-font:
+    "Inter", "SF Pro Display", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen,
+    Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif;
+  --mk-font-mono: ui-monospace, "SF Mono", Menlo, monospace;
+  --mk-weight-normal: 400;
+  --mk-weight-medium: 510;
+  --mk-weight-semibold: 590;
+
+  /* --- geometry (>1280px; stepped down in the media queries below) ------- */
+  --mk-outer: 46px;
+  --mk-inset: 32px;
+  --mk-max: calc(1344px + var(--mk-outer) * 2);
+  --mk-nav-h: 72px;
+  --mk-section-y: 128px;
+  --mk-section-head-gap: 96px;
+  --mk-h1-size: 64px;
+  --mk-h1-tracking: -1.408px;
+  --mk-h1-leading: 64px;
+  --mk-h1-optical: -2px;
+  --mk-h2-size: 48px;
+  --mk-h2-tracking: -1.056px;
+  --mk-h2-leading: 48px;
+
+  --mk-r-sm: 4px;
+  --mk-r: 6px;
+  --mk-r-md: 8px;
+  --mk-r-lg: 12px;
+  --mk-r-pill: 9999px;
+  --mk-ease: cubic-bezier(0.25, 0.46, 0.45, 0.94);
+
+  /*
+    Remap of the app-named tokens the marketing tree already consumes through
+    Tailwind utilities (bg-paper, text-ink, border-line, bg-raised, text-stone,
+    text-ink-2, bg-mark, shadow-border, font-serif, ...). Without this, only
+    the components rewritten in this pass would follow the mirror and the four
+    remaining routes would render half-light. Tailwind v4 emits
+    `var(--color-paper)` for these utilities, so the remap reaches them all.
+  */
+  --color-paper: var(--mk-bg);
+  --color-paper-2: var(--mk-bg-2);
+  --color-raised: var(--mk-bg-1);
+  --color-notebook: var(--mk-bg);
+  --color-ink: var(--mk-fg);
+  --color-ink-2: var(--mk-fg-2);
+  --color-stone: var(--mk-fg-3);
+  --color-stone-on-paper-2: var(--mk-fg-3);
+  --color-line: var(--mk-border);
+  --color-line-strong: var(--mk-border);
+  --color-line-control: var(--mk-border);
+  --color-line-control-hover: var(--mk-fg-3);
+  --color-mark: var(--mk-invert-bg);
+  --color-mark-hover: var(--mk-invert-bg-hover);
+  --color-mark-strong: var(--mk-invert-bg);
+  --color-mark-fg: var(--mk-invert-fg);
+  --color-sidebar: var(--mk-plate);
+  --color-sidebar-fg: var(--mk-fg);
+  --color-sidebar-muted: var(--mk-fg-3);
+  --font-sans: var(--mk-font);
+  /* The reference uses no serif on either surface - see spec.md. */
+  --font-serif: var(--mk-font);
+  --font-mono: var(--mk-font-mono);
+  --shadow-border: 0 0 0 1px var(--mk-border-translucent);
+  --shadow-border-hover: 0 0 0 1px var(--mk-translucent-strong);
+  --shadow-float: 0px 7px 32px rgba(0, 0, 0, 0.35);
+  --shadow-plate: 0px 4px 24px rgba(0, 0, 0, 0.2);
+
+  background: var(--mk-bg);
+  color: var(--mk-fg);
+  color-scheme: dark;
+}
+
+@media (max-width: 1280px) {
+  html[data-site="marketing"] {
+    --mk-outer: 10px;
+    --mk-inset: 32px;
+  }
+}
+@media (max-width: 1024px) {
+  html[data-site="marketing"] {
+    --mk-outer: 28px;
+    --mk-inset: 8px;
+    --mk-section-head-gap: 64px;
+    --mk-h1-size: 56px;
+    --mk-h1-tracking: -1.232px;
+    --mk-h1-leading: 61.6px;
+    --mk-h2-size: 40px;
+    --mk-h2-tracking: -0.88px;
+    --mk-h2-leading: 44px;
+  }
+}
+@media (max-width: 768px) {
+  html[data-site="marketing"] {
+    --mk-section-y: 48px;
+  }
+}
+@media (max-width: 640px) {
+  html[data-site="marketing"] {
+    --mk-outer: 16px;
+    --mk-inset: 8px;
+    --mk-nav-h: 64px;
+    --mk-section-y: 0px;
+    --mk-section-head-gap: 48px;
+    --mk-h1-size: 38px;
+    --mk-h1-tracking: -0.836px;
+    --mk-h1-leading: 41.8px;
+    --mk-h1-optical: -1px;
+    --mk-h2-size: 24px;
+    --mk-h2-tracking: -0.288px;
+    --mk-h2-leading: 31.92px;
+  }
+}
+
+html[data-site="marketing"] body {
+  background: var(--mk-bg);
+  color: var(--mk-fg);
+  font-family: var(--mk-font);
+  font-feature-settings: "cv01", "ss03";
+  font-variation-settings: "opsz" auto;
+}
+
+/* --- things the reference does not have ---------------------------------
+   The ruled-paper field, the notebook rules, the paper text halo and the
+   scroll-triggered reveals are all absent from both reference surfaces
+   (tokens.lock.json -> forbidden_additions). Neutralised here rather than
+   deleted from the shared components, so the four routes another agent
+   builds cannot reintroduce them by accident - and so no `.reveal` can leave
+   content permanently invisible on a marketing route.                      */
+html[data-site="marketing"] .site-field,
+html[data-site="marketing"] .site-field-rules,
+html[data-site="marketing"] .site-field-wash {
+  display: none;
+}
+html[data-site="marketing"] .notebook {
+  background-color: var(--mk-bg);
+  background-image: none;
+}
+html[data-site="marketing"] .text-halo,
+html[data-site="marketing"] .notebook .text-halo {
+  text-shadow: none;
+}
+html[data-site="marketing"] .reveal,
+html[data-site="marketing"] .hero-in {
+  opacity: 1;
+  transform: none;
+  transition: none;
+  animation: none;
+}
+html[data-site="marketing"] .page-rule {
+  display: none;
+}
+
+/* --- container ----------------------------------------------------------
+   Two nested layers, exactly as the reference builds it: a wrapper capped at
+   1344px + 2 * outer padding, then a section inset. At 1440 that resolves to
+   a 1280px column with its left edge at x=80.                              */
+.mk-page {
+  max-width: var(--mk-max);
+  margin-inline: auto;
+  padding-inline: var(--mk-outer);
+}
+.mk-container {
+  max-width: var(--mk-max);
+  margin-inline: auto;
+  padding-inline: calc(var(--mk-outer) + var(--mk-inset));
+}
+
+.mk-section {
+  padding-block: var(--mk-section-y);
+}
+.mk-section-head {
+  padding-bottom: var(--mk-section-head-gap);
+}
+@media (max-width: 640px) {
+  .mk-section-head {
+    padding-top: 40px;
+  }
+}
+.mk-prefooter {
+  margin-block: 224px;
+}
+@media (max-width: 640px) {
+  .mk-prefooter {
+    margin-block: 96px;
+  }
+}
+
+/* --- type --------------------------------------------------------------- */
+html[data-site="marketing"] .mk-h1,
+html[data-site="marketing"] .site-hero {
+  font-family: var(--mk-font);
+  font-size: var(--mk-h1-size);
+  font-weight: var(--mk-weight-medium);
+  letter-spacing: var(--mk-h1-tracking);
+  line-height: var(--mk-h1-leading);
+  color: var(--mk-fg);
+  margin-left: var(--mk-h1-optical);
+  text-wrap: balance;
+}
+html[data-site="marketing"] .mk-h2,
+html[data-site="marketing"] .site-display,
+html[data-site="marketing"] .site-display-proof {
+  font-family: var(--mk-font);
+  font-size: var(--mk-h2-size);
+  font-weight: var(--mk-weight-medium);
+  letter-spacing: var(--mk-h2-tracking);
+  line-height: var(--mk-h2-leading);
+  color: var(--mk-fg);
+  margin-left: var(--mk-h1-optical);
+  text-wrap: balance;
+}
+/* Entry / card heading - the reference's 590 tier. */
+html[data-site="marketing"] .mk-h3,
+html[data-site="marketing"] .site-caption {
+  font-family: var(--mk-font);
+  font-size: 20px;
+  font-weight: var(--mk-weight-semibold);
+  letter-spacing: -0.24px;
+  line-height: 26.6px;
+  color: var(--mk-fg-2);
+}
+html[data-site="marketing"] .mk-lede,
+html[data-site="marketing"] .site-lede {
+  font-family: var(--mk-font);
+  font-size: 15px;
+  font-weight: var(--mk-weight-normal);
+  letter-spacing: -0.165px;
+  line-height: 24px;
+  color: var(--mk-fg-3);
+  max-width: none;
+}
+/* Long-form body copy - the changelog entry tier. */
+html[data-site="marketing"] .mk-prose {
+  font-size: 17px;
+  font-weight: var(--mk-weight-normal);
+  line-height: 27.2px;
+  color: var(--mk-fg-2);
+}
+@media (max-width: 640px) {
+  html[data-site="marketing"] .mk-prose {
+    font-size: 15px;
+    letter-spacing: -0.165px;
+    line-height: 24px;
+  }
+}
+html[data-site="marketing"] .mk-small {
+  font-size: 14px;
+  letter-spacing: -0.182px;
+  line-height: 21px;
+  color: var(--mk-fg-2);
+}
+html[data-site="marketing"] .mk-mini {
+  font-size: 13px;
+  letter-spacing: -0.13px;
+  line-height: 19.5px;
+  color: var(--mk-fg-3);
+}
+/*
+  DERIVATION. The reference has no uppercase tracked eyebrow. Metrics are its
+  nearest equivalent - the 12px sentence-case monospace label above the logo
+  wall - and the colour is stepped from --color-text-quaternary (#62666d,
+  which measures 3.63:1 on #08090a) to --color-text-tertiary (#8a8f98) so a
+  12px label clears 4.5:1. Recorded in diff.md -> Derivations.
+*/
+html[data-site="marketing"] .mk-label,
+html[data-site="marketing"] .eyebrow,
+html[data-site="marketing"] .eyebrow-decision {
+  font-family: var(--mk-font-mono);
+  font-size: 12px;
+  font-weight: var(--mk-weight-normal);
+  letter-spacing: normal;
+  line-height: 16.8px;
+  text-transform: none;
+  color: var(--mk-fg-3);
+}
+html[data-site="marketing"] .eyebrow::before,
+html[data-site="marketing"] .eyebrow-decision::before {
+  content: none;
+}
+
+html[data-site="marketing"] a {
+  color: inherit;
+}
+html[data-site="marketing"] .mk-inline-link {
+  color: var(--mk-link);
+  text-decoration: none;
+  transition: color 0.1s var(--mk-ease);
+}
+html[data-site="marketing"] .mk-inline-link:hover {
+  color: var(--mk-invert-bg-hover);
+}
+
+html[data-site="marketing"] :focus-visible {
+  outline: 2px solid var(--mk-focus);
+  outline-offset: 2px;
+}
+
+/* --- buttons -------------------------------------------------------------
+   The reference's CTAs are an inverted near-white pill and a 5%-white pill.
+   Never brand-coloured. Applied both as `.mk-btn` for markup written in this
+   pass and as an override on the shared <Button> variants, so the waitlist
+   form and every route that already uses <Button> inherits the shape.       */
+html[data-site="marketing"] .mk-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  white-space: nowrap;
+  height: 44px;
+  padding-inline: 20px;
+  border-radius: var(--mk-r-pill);
+  font-family: var(--mk-font);
+  font-size: 16px;
+  font-weight: var(--mk-weight-medium);
+  line-height: 44px;
+  border: 1px solid transparent;
+  transition:
+    border 0.16s var(--mk-ease),
+    background-color 0.16s var(--mk-ease),
+    color 0.16s var(--mk-ease);
+}
+html[data-site="marketing"] .mk-btn-primary,
+html[data-site="marketing"] .mk-btn[data-variant="primary"] {
+  background: var(--mk-invert-bg);
+  color: var(--mk-invert-fg);
+  border-color: var(--mk-invert-bg);
+}
+html[data-site="marketing"] .mk-btn-primary:hover,
+html[data-site="marketing"] .mk-btn[data-variant="primary"]:hover {
+  background: var(--mk-invert-bg-hover);
+  border-color: var(--mk-invert-bg-hover);
+}
+html[data-site="marketing"] .mk-btn-secondary {
+  background: var(--mk-translucent);
+  color: var(--mk-fg);
+  border-color: transparent;
+}
+html[data-site="marketing"] .mk-btn-secondary:hover {
+  background: var(--mk-translucent-strong);
+}
+html[data-site="marketing"] .mk-btn-sm {
+  height: 32px;
+  padding-inline: 12px;
+  font-size: 13px;
+  line-height: 32px;
+}
+
+/* Shared <Button> (components/ui/button.tsx), marketing only. */
+html[data-site="marketing"] main button,
+html[data-site="marketing"] main a[class*="inline-flex"],
+html[data-site="marketing"] header a[class*="inline-flex"],
+html[data-site="marketing"] header button[class*="inline-flex"] {
+  border-radius: var(--mk-r-pill);
+}
+html[data-site="marketing"] .bg-mark,
+html[data-site="marketing"] .bg-mark-strong {
+  color: var(--mk-invert-fg);
+}
+/* The reference has no press-scale on any control. */
+html[data-site="marketing"] button:active,
+html[data-site="marketing"] a:active {
+  scale: 1;
+}
+
+/* --- nav ----------------------------------------------------------------- */
+html[data-site="marketing"] .mk-nav {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 100;
+  height: calc(var(--mk-nav-h) + 1px);
+  background: var(--mk-nav-bg);
+  border-bottom: 1px solid var(--mk-border-translucent);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  padding-top: var(--app-safe-top);
+}
+html[data-site="marketing"] .mk-nav-inner {
+  height: var(--mk-nav-h);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+html[data-site="marketing"] .mk-nav-link {
+  display: inline-flex;
+  align-items: center;
+  height: 32px;
+  padding-inline: 12px;
+  border-radius: var(--mk-r-pill);
+  font-size: 13px;
+  font-weight: var(--mk-weight-normal);
+  line-height: 19.5px;
+  color: var(--mk-fg-3);
+  transition:
+    color 0.1s var(--mk-ease),
+    background 0.1s var(--mk-ease);
+}
+html[data-site="marketing"] .mk-nav-link:hover {
+  color: var(--mk-fg);
+}
+html[data-site="marketing"] .mk-nav-link[data-active="true"] {
+  color: var(--mk-fg);
+}
+/*
+  `.mk-nav-link` sets `display`, and these rules are unlayered, so a Tailwind
+  `md:hidden` on the same element loses to it. The reference collapses its nav
+  links below 768px (measured: links are 0px wide at 768, 67px at 860), which
+  is the same breakpoint the menu toggle uses, so it gets a dedicated class at
+  equal specificity placed after the one it has to beat.
+*/
+html[data-site="marketing"] .mk-below-md {
+  display: inline-flex;
+}
+@media (min-width: 768px) {
+  html[data-site="marketing"] .mk-below-md {
+    display: none;
+  }
+}
+html[data-site="marketing"] .mk-wordmark {
+  display: inline-flex;
+  align-items: center;
+  height: 32px;
+  padding-inline: 8px;
+  margin-left: -8px;
+  border-radius: var(--mk-r);
+  color: var(--mk-fg);
+}
+/* The fixed nav is out of flow, so every marketing page starts below it. */
+html[data-site="marketing"] .mk-main {
+  padding-top: calc(var(--mk-nav-h) + 1px + var(--app-safe-top));
+}
+
+/* --- surfaces ------------------------------------------------------------ */
+html[data-site="marketing"] .mk-card {
+  background-color: var(--mk-bg-1);
+  background-image: linear-gradient(rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.03));
+  border: 1px solid var(--mk-border-translucent);
+  border-radius: var(--mk-r-lg);
+  box-shadow: rgba(0, 0, 0, 0.2) 0 0 0 1px;
+}
+html[data-site="marketing"] .mk-divider {
+  height: 1px;
+  background: var(--mk-hairline);
+  border-radius: var(--mk-r-pill);
+  border: 0;
+  width: 100%;
+}
+html[data-site="marketing"] .mk-rows > * {
+  border-top: 1px solid var(--mk-border);
+}
+html[data-site="marketing"] .mk-rows > *:last-child {
+  border-bottom: 1px solid var(--mk-border);
+}
+
+/*
+  Media frame. The reference wraps its product visual in a #090a0b plate with
+  8px padding holding a #101112 panel, and that plate is wider than the text
+  column - 1320px against 1280px at 1440, i.e. 60px gutters not 80px.
+*/
+html[data-site="marketing"] .mk-media {
+  background: var(--mk-plate);
+  padding: 8px;
+  border-radius: var(--mk-r-lg);
+  max-width: calc(var(--mk-max) - var(--mk-outer) * 2 - 24px);
+  margin-inline: auto;
+}
+html[data-site="marketing"] .mk-media-panel {
+  background: var(--mk-panel);
+  border: 1px solid var(--mk-border-translucent);
+  border-radius: var(--mk-r-lg);
+  overflow: hidden;
+}
+html[data-site="marketing"] .mk-media-inner {
+  border: 1px solid var(--mk-border-faint);
+  border-radius: var(--mk-r-md);
+  box-shadow: rgba(0, 0, 0, 0.2) 0 0 0 2px;
+  overflow: hidden;
+}
+/* Plain media, changelog style: no frame, 8px radius. */
+html[data-site="marketing"] .mk-media-plain {
+  border-radius: var(--mk-r-md);
+  overflow: hidden;
+  display: block;
+  width: 100%;
+}
+
+/*
+  The interactive demo renders real signed-in app components, whose palette is
+  light and already contrast-verified. The reference's own product visual is
+  its dark app; Enquiry's is light, so the app palette is re-asserted inside
+  the frame and only the frame around it is mirrored. Recorded in diff.md.
+*/
+html[data-site="marketing"] .mk-app-surface {
+  --color-paper: #f3eee6;
+  --color-paper-2: #e7dfd3;
+  --color-raised: #faf7f1;
+  --color-notebook: #f3eee6;
+  --color-ink: #1a1814;
+  --color-ink-2: #4f4a42;
+  --color-stone: #716b61;
+  --color-stone-on-paper-2: #686259;
+  --color-line: #e6ddd2;
+  --color-line-strong: #cfc4b4;
+  --color-line-control: #8e867a;
+  --color-line-control-hover: color-mix(in oklab, #8e867a 78%, black);
+  --color-mark: #2f4a3c;
+  --color-mark-hover: #263c31;
+  --color-mark-strong: color-mix(in oklab, #2f4a3c 82%, black);
+  --color-mark-fg: #f6f2eb;
+  --color-sidebar: #141210;
+  --color-sidebar-fg: #f3eee6;
+  --color-sidebar-muted: #a3988a;
+  --font-sans: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-serif: "IBM Plex Serif", ui-serif, Georgia, "Times New Roman", serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", monospace;
+  --shadow-border: 0px 0px 0px 1px #1a181414, 0px 1px 2px #1a18140a;
+  --shadow-border-hover: 0px 0px 0px 1px #1a18141f, 0px 1px 3px #1a18140f;
+  color-scheme: light;
+  color: var(--color-ink);
+  background: var(--color-paper);
+  font-family: var(--font-sans);
+}
+html[data-site="marketing"] .mk-app-surface .eyebrow {
+  font-family: var(--font-sans);
+  font-size: 0.6875rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-stone);
+  font-weight: 600;
+  line-height: 1.3;
+}
+html[data-site="marketing"] .mk-app-surface .eyebrow::before {
+  content: "";
+  display: inline-block;
+  width: 4px;
+  height: 4px;
+  margin-right: 0.5em;
+  margin-bottom: 1px;
+  border-radius: 999px;
+  background: var(--color-mark);
+  vertical-align: middle;
+}
+html[data-site="marketing"] .mk-app-surface button:not([class*="mk-btn"]),
+html[data-site="marketing"] .mk-app-surface a[class*="inline-flex"] {
+  border-radius: var(--radius-md);
+}
+
+/* --- form fields ---------------------------------------------------------
+   DERIVATION: neither reference surface carries a marketing form field, so
+   this is built from the reference's own surface tokens - bg-level-1 fill,
+   border-primary hairline, radius-8, tertiary placeholder, its focus ring. */
+html[data-site="marketing"] .field,
+html[data-site="marketing"] .mk-field {
+  background: var(--mk-bg-1);
+  border: 1px solid var(--mk-border);
+  border-radius: var(--mk-r-md);
+  color: var(--mk-fg);
+  font-family: var(--mk-font);
+  font-size: 15px;
+  min-height: 44px;
+  width: 100%;
+  padding-inline: 12px;
+  transition:
+    border-color 0.16s var(--mk-ease),
+    background-color 0.16s var(--mk-ease);
+}
+html[data-site="marketing"] .field::placeholder,
+html[data-site="marketing"] .mk-field::placeholder {
+  color: var(--mk-fg-3);
+}
+html[data-site="marketing"] .field:hover,
+html[data-site="marketing"] .mk-field:hover {
+  border-color: var(--mk-fg-4);
+}
+html[data-site="marketing"] .field:focus,
+html[data-site="marketing"] .mk-field:focus {
+  border-color: var(--mk-focus);
+  outline: 2px solid var(--mk-focus);
+  outline-offset: -1px;
+  box-shadow: none;
+}
+html[data-site="marketing"] .site-well {
+  background: transparent;
+  box-shadow: none;
+  border-radius: 0;
+  padding: 0;
+}
+html[data-site="marketing"] .site-plate {
+  background: var(--mk-plate);
+  border-radius: var(--mk-r-lg);
+}
+
+/* --- footer -------------------------------------------------------------- */
+html[data-site="marketing"] .mk-footer {
+  background: var(--mk-bg);
+  border-top: 1px solid var(--mk-border);
+}
+html[data-site="marketing"] .mk-footer-inner {
+  padding-block: 56px;
+}
+@media (max-width: 640px) {
+  html[data-site="marketing"] .mk-footer-inner {
+    padding-block: 56px 24px;
+  }
+}
+html[data-site="marketing"] .mk-footer-heading {
+  font-size: 13px;
+  font-weight: var(--mk-weight-medium);
+  letter-spacing: -0.13px;
+  line-height: 19.5px;
+  color: var(--mk-fg);
+  margin-bottom: 24px;
+}
+html[data-site="marketing"] .mk-footer-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  font-size: 13px;
+  font-weight: var(--mk-weight-normal);
+  letter-spacing: -0.13px;
+  line-height: 19.5px;
+  color: var(--mk-fg-3);
+  transition: color 0.1s var(--mk-ease);
+}
+html[data-site="marketing"] .mk-footer-link:hover {
+  color: var(--mk-fg);
+}
+
+/* --- changelog / roadmap entry ------------------------------------------
+   The pattern from linear.app/changelog: a 12-column grid with the date in
+   columns 1-3 beside a 1px vertical rule, and the entry body in columns
+   5-12. The newest group's rule is capped by a 6px marker dot. Stacks to a
+   single column at 640, exactly as the reference does.                     */
+html[data-site="marketing"] .mk-entry {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: 32px;
+}
+html[data-site="marketing"] .mk-entry-aside {
+  grid-column: 1 / 4;
+  padding-left: 24px;
+  margin-bottom: 16px;
+  position: relative;
+}
+html[data-site="marketing"] .mk-entry-rule {
+  position: absolute;
+  left: 9px;
+  top: 9px;
+  bottom: -9px;
+  width: 1px;
+  background: var(--mk-border);
+}
+html[data-site="marketing"] .mk-entry-marker {
+  position: absolute;
+  left: 6px;
+  top: 6px;
+  width: 6px;
+  height: 6px;
+  border-radius: var(--mk-r-pill);
+  background: var(--mk-marker);
+}
+html[data-site="marketing"] .mk-entry-date {
+  font-size: 14px;
+  font-weight: var(--mk-weight-normal);
+  letter-spacing: -0.182px;
+  line-height: 21px;
+  color: var(--mk-fg);
+}
+html[data-site="marketing"] .mk-entry-body {
+  grid-column: 5 / 13;
+}
+html[data-site="marketing"] .mk-entry-title {
+  font-size: 24px;
+  font-weight: var(--mk-weight-semibold);
+  letter-spacing: -0.288px;
+  line-height: 31.92px;
+  color: var(--mk-fg);
+}
+html[data-site="marketing"] .mk-entry-title[data-featured="true"] {
+  font-size: 32px;
+  letter-spacing: -0.704px;
+  line-height: 36px;
+}
+@media (max-width: 640px) {
+  html[data-site="marketing"] .mk-entry {
+    display: block;
+  }
+  html[data-site="marketing"] .mk-entry-aside {
+    padding-left: 0;
+  }
+  html[data-site="marketing"] .mk-entry-rule,
+  html[data-site="marketing"] .mk-entry-marker {
+    display: none;
+  }
+  html[data-site="marketing"] .mk-entry-title[data-featured="true"] {
+    font-size: 24px;
+    letter-spacing: -0.288px;
+    line-height: 31.92px;
+  }
+}
+
+/* --- tab row (changelog filters) ----------------------------------------- */
+html[data-site="marketing"] .mk-tab {
+  display: inline-flex;
+  align-items: center;
+  min-height: 40px;
+  font-size: 16px;
+  font-weight: var(--mk-weight-normal);
+  line-height: 24px;
+  color: var(--mk-fg-3);
+  transition: color 0.1s var(--mk-ease);
+}
+html[data-site="marketing"] .mk-tab:hover,
+html[data-site="marketing"] .mk-tab[data-active="true"] {
+  color: var(--mk-fg);
+}
