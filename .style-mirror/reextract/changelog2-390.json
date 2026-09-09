@@ -1,0 +1,964 @@
+{
+ "tab": {
+  "tag": "a",
+  "cls": "Jbvjba_tab I_mUeq_root I_mUeq_variant-dimmed",
+  "text": "All",
+  "box": {
+   "x": 24,
+   "y": 210,
+   "w": 16,
+   "h": 24
+  },
+  "fontSize": "16px",
+  "fontWeight": "400",
+  "lineHeight": "24px",
+  "color": "rgb(138, 143, 152)",
+  "letterSpacing": "normal",
+  "minHeight": "auto",
+  "paddingLeft": "0px",
+  "paddingRight": "0px",
+  "borderRadius": "0px",
+  "backgroundColor": "rgba(0, 0, 0, 0)",
+  "textDecorationLine": "none",
+  "transition": "color 0.1s"
+ },
+ "tab_active": {
+  "tag": "a",
+  "cls": "Jbvjba_tab I_mUeq_root I_mUeq_variant-dimmed",
+  "text": "Changelog",
+  "box": {
+   "x": 56,
+   "y": 210,
+   "w": 70,
+   "h": 24
+  },
+  "color": "rgb(247, 248, 248)",
+  "fontWeight": "400",
+  "borderBottomWidth": "0px",
+  "borderBottomColor": "rgb(247, 248, 248)",
+  "textDecorationLine": "none"
+ },
+ "tab_row": {
+  "tag": "div",
+  "cls": "Jbvjba_tabs ImRUSq_root",
+  "text": "AllChangelogProduct launchesFrom the teamFrom the communityP",
+  "box": {
+   "x": 0,
+   "y": 210,
+   "w": 390,
+   "h": 36
+  },
+  "display": "flex",
+  "gap": "16px",
+  "columnGap": "16px",
+  "position": "static",
+  "top": "auto",
+  "marginTop": "0px",
+  "paddingTop": "0px",
+  "paddingBottom": "12px",
+  "alignItems": "normal",
+  "justifyContent": "normal"
+ },
+ "tab_row_parent": {
+  "tag": "div",
+  "cls": "Jbvjba_tabRow ImRUSq_root ImRUSq_align-center ImRUSq_justify-space-bet",
+  "text": "AllChangelogProduct launchesFrom the teamFrom the communityP",
+  "box": {
+   "x": 24,
+   "y": 202,
+   "w": 342,
+   "h": 40
+  },
+  "display": "flex",
+  "gap": "normal",
+  "columnGap": "normal",
+  "position": "static",
+  "top": "auto",
+  "marginTop": "0px",
+  "paddingTop": "0px",
+  "paddingBottom": "0px",
+  "justifyContent": "space-between",
+  "alignItems": "center"
+ },
+ "tab_row_siblings": [
+  {
+   "tag": "div",
+   "cls": "Jbvjba_tabs ImRUSq_root",
+   "text": "AllChangelogProduct launchesFrom the teamFrom the communityP",
+   "box": {
+    "x": 0,
+    "y": 210,
+    "w": 390,
+    "h": 36
+   },
+   "display": "flex",
+   "position": "static",
+   "width": "390px",
+   "justifyContent": "normal"
+  },
+  {
+   "tag": "div",
+   "cls": "ImRUSq_root",
+   "text": "Search…",
+   "box": {
+    "x": 366,
+    "y": 222,
+    "w": 0,
+    "h": 0
+   },
+   "display": "flex",
+   "position": "static",
+   "width": "0px",
+   "justifyContent": "normal"
+  }
+ ],
+ "ul": {
+  "tag": "ul",
+  "cls": "",
+  "text": "Agents Fixed triage suggestions now showing the team name in",
+  "box": {
+   "x": 24,
+   "y": 2856,
+   "w": 342,
+   "h": 1087
+  },
+  "paddingLeft": "24px",
+  "marginTop": "0px",
+  "marginBottom": "0px",
+  "listStyleType": "none",
+  "listStylePosition": "outside",
+  "fontSize": "15px",
+  "lineHeight": "24px",
+  "color": "rgb(208, 214, 224)"
+ },
+ "li": {
+  "tag": "li",
+  "cls": "",
+  "text": "Agents Fixed triage suggestions now showing the team name in",
+  "box": {
+   "x": 48,
+   "y": 2856,
+   "w": 318,
+   "h": 49
+  },
+  "marginTop": "0px",
+  "paddingLeft": "0px",
+  "listStyleType": "none",
+  "fontSize": "15px",
+  "lineHeight": "24px",
+  "color": "rgb(208, 214, 224)",
+  "fontWeight": "400"
+ },
+ "li2": {
+  "tag": "li",
+  "cls": "",
+  "text": "Agents Fixed an issue where Linear Agent was sometimes not l",
+  "box": {
+   "x": 48,
+   "y": 2913,
+   "w": 318,
+   "h": 73
+  },
+  "marginTop": "8px",
+  "listStyleType": "none"
+ },
+ "li_marker": {
+  "color": "rgb(208, 214, 224)",
+  "content": "normal",
+  "fontSize": "15px"
+ },
+ "li_strong": null,
+ "prose_h3": null,
+ "prose_h4": null,
+ "h2_first": {
+  "tag": "h2",
+  "cls": "sc-KOGVz gRORXc",
+  "text": "Priority inbox",
+  "box": {
+   "x": 24,
+   "y": 411,
+   "w": 342,
+   "h": 32
+  },
+  "fontSize": "24px",
+  "fontWeight": "590",
+  "lineHeight": "31.92px",
+  "letterSpacing": "-0.288px",
+  "color": "rgb(247, 248, 248)",
+  "marginTop": "0px"
+ },
+ "h2_second": {
+  "tag": "h2",
+  "cls": "",
+  "text": "Draft projects with Linear Agent⁠",
+  "box": {
+   "x": 24,
+   "y": 1113,
+   "w": 342,
+   "h": 64
+  },
+  "fontSize": "24px",
+  "fontWeight": "590",
+  "lineHeight": "31.92px",
+  "letterSpacing": "-0.288px",
+  "color": "rgb(247, 248, 248)",
+  "marginTop": "56px"
+ },
+ "date_col": {
+  "tag": "div",
+  "cls": "I69PJq_changelogLeft _9PBFba_a",
+  "text": "September 3, 2026",
+  "box": {
+   "x": 24,
+   "y": 359,
+   "w": 342,
+   "h": 24
+  },
+  "position": "relative",
+  "top": "20px",
+  "gridColumn": "a",
+  "paddingLeft": "0px",
+  "marginBottom": "16px",
+  "display": "block",
+  "width": "342px",
+  "height": "24px"
+ },
+ "date_text": {
+  "tag": "span",
+  "cls": "sc-KOGVz kMaLye",
+  "text": "September 3, 2026",
+  "box": {
+   "x": 24,
+   "y": 363,
+   "w": 126,
+   "h": 17
+  },
+  "fontSize": "14px",
+  "fontWeight": "400",
+  "letterSpacing": "-0.182px",
+  "lineHeight": "21px",
+  "color": "rgb(247, 248, 248)",
+  "marginBottom": "0px"
+ },
+ "date_bar": {
+  "tag": "div",
+  "cls": "I69PJq_dateBar",
+  "text": "",
+  "box": {
+   "x": 0,
+   "y": 0,
+   "w": 0,
+   "h": 0
+  },
+  "position": "absolute",
+  "left": "auto",
+  "top": "auto",
+  "bottom": "auto",
+  "width": "1px",
+  "backgroundColor": "rgb(35, 37, 42)",
+  "marginLeft": "9px",
+  "marginTop": "9px",
+  "display": "none",
+  "height": "100%"
+ },
+ "date_bar_before": {
+  "content": "none",
+  "background": "rgba(0, 0, 0, 0)",
+  "width": "auto",
+  "height": "auto",
+  "borderRadius": "0px",
+  "top": "auto",
+  "left": "auto",
+  "position": "static"
+ },
+ "date_bar_after": {
+  "content": "none",
+  "background": "rgba(0, 0, 0, 0)",
+  "width": "auto",
+  "height": "auto",
+  "borderRadius": "0px",
+  "top": "auto",
+  "left": "auto",
+  "position": "static"
+ },
+ "entry": {
+  "tag": "div",
+  "cls": "I69PJq_changelogEntry _9PBFba_root",
+  "text": "September 3, 2026Priority inboxAn active workspace can creat",
+  "box": {
+   "x": 24,
+   "y": 339,
+   "w": 342,
+   "h": 2720
+  },
+  "display": "grid",
+  "gridTemplateColumns": "61.5px 61.5px 61.5px 61.5px",
+  "columnGap": "32px",
+  "rowGap": "32px",
+  "position": "relative",
+  "marginBottom": "0px",
+  "paddingBottom": "0px"
+ },
+ "entry_children": [
+  {
+   "tag": "div",
+   "cls": "I69PJq_dateBar",
+   "text": "",
+   "box": {
+    "x": 0,
+    "y": 0,
+    "w": 0,
+    "h": 0
+   },
+   "gridColumn": "auto",
+   "position": "absolute",
+   "paddingLeft": "0px",
+   "marginBottom": "0px",
+   "paddingBottom": "0px",
+   "display": "none"
+  },
+  {
+   "tag": "div",
+   "cls": "I69PJq_changelogLeft _9PBFba_a",
+   "text": "September 3, 2026",
+   "box": {
+    "x": 24,
+    "y": 359,
+    "w": 342,
+    "h": 24
+   },
+   "gridColumn": "a",
+   "position": "relative",
+   "paddingLeft": "0px",
+   "marginBottom": "16px",
+   "paddingBottom": "0px",
+   "display": "block"
+  },
+  {
+   "tag": "div",
+   "cls": "_9PBFba_b",
+   "text": "Priority inboxAn active workspace can create a significant a",
+   "box": {
+    "x": 24,
+    "y": 411,
+    "w": 342,
+    "h": 2648
+   },
+   "gridColumn": "b",
+   "position": "static",
+   "paddingLeft": "0px",
+   "marginBottom": "0px",
+   "paddingBottom": "0px",
+   "display": "block"
+  }
+ ],
+ "entries": [
+  {
+   "x": 24,
+   "y": 339,
+   "w": 342,
+   "h": 2720
+  },
+  {
+   "x": 24,
+   "y": 3059,
+   "w": 342,
+   "h": 2623
+  },
+  {
+   "x": 24,
+   "y": 5683,
+   "w": 342,
+   "h": 1432
+  },
+  {
+   "x": 24,
+   "y": 7115,
+   "w": 342,
+   "h": 2988
+  },
+  {
+   "x": 24,
+   "y": 10103,
+   "w": 342,
+   "h": 1523
+  },
+  {
+   "x": 24,
+   "y": 11626,
+   "w": 342,
+   "h": 1627
+  }
+ ],
+ "entry_pitches": [
+  {
+   "gap": 0,
+   "pitch": 2720
+  },
+  {
+   "gap": 1,
+   "pitch": 2624
+  },
+  {
+   "gap": 0,
+   "pitch": 1432
+  },
+  {
+   "gap": 0,
+   "pitch": 2988
+  },
+  {
+   "gap": 0,
+   "pitch": 1523
+  }
+ ],
+ "tail": [
+  {
+   "tag": "code",
+   "cls": "",
+   "text": "linear.app/review/<owner>/<repo>/pull/<id>",
+   "box": {
+    "x": 48,
+    "y": 22286,
+    "w": 317,
+    "h": 45
+   },
+   "fontSize": "13.125px",
+   "fontWeight": "400",
+   "color": "rgb(208, 214, 224)",
+   "backgroundColor": "rgb(28, 28, 31)",
+   "borderRadius": "3.9375px",
+   "marginTop": "0px",
+   "marginBottom": "0px",
+   "height": "auto",
+   "display": "inline",
+   "paddingTop": "1.3125px"
+  },
+  {
+   "tag": "li",
+   "cls": "",
+   "text": "Editor Fixed the tooltip for plain links covering link contr",
+   "box": {
+    "x": 48,
+    "y": 22340,
+    "w": 318,
+    "h": 49
+   },
+   "fontSize": "15px",
+   "fontWeight": "400",
+   "color": "rgb(208, 214, 224)",
+   "backgroundColor": "rgba(0, 0, 0, 0)",
+   "borderRadius": "0px",
+   "marginTop": "8px",
+   "marginBottom": "0px",
+   "height": "49px",
+   "display": "list-item",
+   "paddingTop": "0px"
+  },
+  {
+   "tag": "div",
+   "cls": "_5p4vjG_root",
+   "text": "Editor",
+   "box": {
+    "x": 48,
+    "y": 22340,
+    "w": 68,
+    "h": 25
+   },
+   "fontSize": "13px",
+   "fontWeight": "510",
+   "color": "rgb(208, 214, 224)",
+   "backgroundColor": "rgb(8, 9, 10)",
+   "borderRadius": "9999px",
+   "marginTop": "0px",
+   "marginBottom": "0px",
+   "height": "25px",
+   "display": "inline-flex",
+   "paddingTop": "0px"
+  },
+  {
+   "tag": "li",
+   "cls": "",
+   "text": "GitHub Fixed Linear issues with comma-containing label names",
+   "box": {
+    "x": 48,
+    "y": 22397,
+    "w": 318,
+    "h": 73
+   },
+   "fontSize": "15px",
+   "fontWeight": "400",
+   "color": "rgb(208, 214, 224)",
+   "backgroundColor": "rgba(0, 0, 0, 0)",
+   "borderRadius": "0px",
+   "marginTop": "8px",
+   "marginBottom": "0px",
+   "height": "73px",
+   "display": "list-item",
+   "paddingTop": "0px"
+  },
+  {
+   "tag": "div",
+   "cls": "_5p4vjG_root",
+   "text": "GitHub",
+   "box": {
+    "x": 48,
+    "y": 22397,
+    "w": 75,
+    "h": 25
+   },
+   "fontSize": "13px",
+   "fontWeight": "510",
+   "color": "rgb(208, 214, 224)",
+   "backgroundColor": "rgb(8, 9, 10)",
+   "borderRadius": "9999px",
+   "marginTop": "0px",
+   "marginBottom": "0px",
+   "height": "25px",
+   "display": "inline-flex",
+   "paddingTop": "0px"
+  },
+  {
+   "tag": "li",
+   "cls": "",
+   "text": "Initiatives Fixed Initiative projects table columns occasion",
+   "box": {
+    "x": 48,
+    "y": 22478,
+    "w": 318,
+    "h": 73
+   },
+   "fontSize": "15px",
+   "fontWeight": "400",
+   "color": "rgb(208, 214, 224)",
+   "backgroundColor": "rgba(0, 0, 0, 0)",
+   "borderRadius": "0px",
+   "marginTop": "8px",
+   "marginBottom": "0px",
+   "height": "73px",
+   "display": "list-item",
+   "paddingTop": "0px"
+  },
+  {
+   "tag": "div",
+   "cls": "_5p4vjG_root",
+   "text": "Initiatives",
+   "box": {
+    "x": 48,
+    "y": 22478,
+    "w": 91,
+    "h": 25
+   },
+   "fontSize": "13px",
+   "fontWeight": "510",
+   "color": "rgb(208, 214, 224)",
+   "backgroundColor": "rgb(8, 9, 10)",
+   "borderRadius": "9999px",
+   "marginTop": "0px",
+   "marginBottom": "0px",
+   "height": "25px",
+   "display": "inline-flex",
+   "paddingTop": "0px"
+  },
+  {
+   "tag": "li",
+   "cls": "",
+   "text": "Integrations Fixed an importer freeze when mapping a large n",
+   "box": {
+    "x": 48,
+    "y": 22559,
+    "w": 318,
+    "h": 49
+   },
+   "fontSize": "15px",
+   "fontWeight": "400",
+   "color": "rgb(208, 214, 224)",
+   "backgroundColor": "rgba(0, 0, 0, 0)",
+   "borderRadius": "0px",
+   "marginTop": "8px",
+   "marginBottom": "0px",
+   "height": "49px",
+   "display": "list-item",
+   "paddingTop": "0px"
+  },
+  {
+   "tag": "div",
+   "cls": "_5p4vjG_root",
+   "text": "Integrations",
+   "box": {
+    "x": 48,
+    "y": 22559,
+    "w": 105,
+    "h": 25
+   },
+   "fontSize": "13px",
+   "fontWeight": "510",
+   "color": "rgb(208, 214, 224)",
+   "backgroundColor": "rgb(8, 9, 10)",
+   "borderRadius": "9999px",
+   "marginTop": "0px",
+   "marginBottom": "0px",
+   "height": "25px",
+   "display": "inline-flex",
+   "paddingTop": "0px"
+  },
+  {
+   "tag": "li",
+   "cls": "",
+   "text": "Issues Fixed a line break appearing between an issue’s statu",
+   "box": {
+    "x": 48,
+    "y": 22616,
+    "w": 318,
+    "h": 73
+   },
+   "fontSize": "15px",
+   "fontWeight": "400",
+   "color": "rgb(208, 214, 224)",
+   "backgroundColor": "rgba(0, 0, 0, 0)",
+   "borderRadius": "0px",
+   "marginTop": "8px",
+   "marginBottom": "0px",
+   "height": "73px",
+   "display": "list-item",
+   "paddingTop": "0px"
+  },
+  {
+   "tag": "div",
+   "cls": "_5p4vjG_root",
+   "text": "Issues",
+   "box": {
+    "x": 48,
+    "y": 22616,
+    "w": 72,
+    "h": 25
+   },
+   "fontSize": "13px",
+   "fontWeight": "510",
+   "color": "rgb(208, 214, 224)",
+   "backgroundColor": "rgb(8, 9, 10)",
+   "borderRadius": "9999px",
+   "marginTop": "0px",
+   "marginBottom": "0px",
+   "height": "25px",
+   "display": "inline-flex",
+   "paddingTop": "0px"
+  },
+  {
+   "tag": "li",
+   "cls": "",
+   "text": "Labels Archived labels no longer appear in the form-template",
+   "box": {
+    "x": 48,
+    "y": 22697,
+    "w": 318,
+    "h": 49
+   },
+   "fontSize": "15px",
+   "fontWeight": "400",
+   "color": "rgb(208, 214, 224)",
+   "backgroundColor": "rgba(0, 0, 0, 0)",
+   "borderRadius": "0px",
+   "marginTop": "8px",
+   "marginBottom": "0px",
+   "height": "49px",
+   "display": "list-item",
+   "paddingTop": "0px"
+  },
+  {
+   "tag": "div",
+   "cls": "_5p4vjG_root",
+   "text": "Labels",
+   "box": {
+    "x": 48,
+    "y": 22697,
+    "w": 73,
+    "h": 25
+   },
+   "fontSize": "13px",
+   "fontWeight": "510",
+   "color": "rgb(208, 214, 224)",
+   "backgroundColor": "rgb(8, 9, 10)",
+   "borderRadius": "9999px",
+   "marginTop": "0px",
+   "marginBottom": "0px",
+   "height": "25px",
+   "display": "inline-flex",
+   "paddingTop": "0px"
+  },
+  {
+   "tag": "li",
+   "cls": "",
+   "text": "Links Fixed a crash when a link embed with a missing or inva",
+   "box": {
+    "x": 48,
+    "y": 22754,
+    "w": 318,
+    "h": 73
+   },
+   "fontSize": "15px",
+   "fontWeight": "400",
+   "color": "rgb(208, 214, 224)",
+   "backgroundColor": "rgba(0, 0, 0, 0)",
+   "borderRadius": "0px",
+   "marginTop": "8px",
+   "marginBottom": "0px",
+   "height": "73px",
+   "display": "list-item",
+   "paddingTop": "0px"
+  },
+  {
+   "tag": "div",
+   "cls": "_5p4vjG_root",
+   "text": "Links",
+   "box": {
+    "x": 48,
+    "y": 22754,
+    "w": 65,
+    "h": 25
+   },
+   "fontSize": "13px",
+   "fontWeight": "510",
+   "color": "rgb(208, 214, 224)",
+   "backgroundColor": "rgb(8, 9, 10)",
+   "borderRadius": "9999px",
+   "marginTop": "0px",
+   "marginBottom": "0px",
+   "height": "25px",
+   "display": "inline-flex",
+   "paddingTop": "0px"
+  },
+  {
+   "tag": "li",
+   "cls": "",
+   "text": "Mobile Release, Release Note, and Release Pipeline mentions ",
+   "box": {
+    "x": 48,
+    "y": 22835,
+    "w": 318,
+    "h": 73
+   },
+   "fontSize": "15px",
+   "fontWeight": "400",
+   "color": "rgb(208, 214, 224)",
+   "backgroundColor": "rgba(0, 0, 0, 0)",
+   "borderRadius": "0px",
+   "marginTop": "8px",
+   "marginBottom": "0px",
+   "height": "73px",
+   "display": "list-item",
+   "paddingTop": "0px"
+  },
+  {
+   "tag": "div",
+   "cls": "_5p4vjG_root",
+   "text": "Mobile",
+   "box": {
+    "x": 48,
+    "y": 22835,
+    "w": 74,
+    "h": 25
+   },
+   "fontSize": "13px",
+   "fontWeight": "510",
+   "color": "rgb(208, 214, 224)",
+   "backgroundColor": "rgb(8, 9, 10)",
+   "borderRadius": "9999px",
+   "marginTop": "0px",
+   "marginBottom": "0px",
+   "height": "25px",
+   "display": "inline-flex",
+   "paddingTop": "0px"
+  },
+  {
+   "tag": "li",
+   "cls": "",
+   "text": "Notifications Fixed agent completion notifications not being",
+   "box": {
+    "x": 48,
+    "y": 22916,
+    "w": 318,
+    "h": 73
+   },
+   "fontSize": "15px",
+   "fontWeight": "400",
+   "color": "rgb(208, 214, 224)",
+   "backgroundColor": "rgba(0, 0, 0, 0)",
+   "borderRadius": "0px",
+   "marginTop": "8px",
+   "marginBottom": "0px",
+   "height": "73px",
+   "display": "list-item",
+   "paddingTop": "0px"
+  },
+  {
+   "tag": "div",
+   "cls": "_5p4vjG_root",
+   "text": "Notifications",
+   "box": {
+    "x": 48,
+    "y": 22916,
+    "w": 110,
+    "h": 25
+   },
+   "fontSize": "13px",
+   "fontWeight": "510",
+   "color": "rgb(208, 214, 224)",
+   "backgroundColor": "rgb(8, 9, 10)",
+   "borderRadius": "9999px",
+   "marginTop": "0px",
+   "marginBottom": "0px",
+   "height": "25px",
+   "display": "inline-flex",
+   "paddingTop": "0px"
+  },
+  {
+   "tag": "a",
+   "cls": "",
+   "text": "settings",
+   "box": {
+    "x": 211,
+    "y": 22299,
+    "w": 54,
+    "h": 19
+   },
+   "fontSize": "15px",
+   "fontWeight": "400",
+   "color": "rgb(247, 248, 248)",
+   "backgroundColor": "rgba(0, 0, 0, 0)",
+   "borderRadius": "0px",
+   "marginTop": "0px",
+   "marginBottom": "0px",
+   "height": "auto",
+   "display": "inline",
+   "paddingTop": "0px"
+  },
+  {
+   "tag": "a",
+   "cls": "",
+   "text": "documentation",
+   "box": {
+    "x": 246,
+    "y": 22323,
+    "w": 104,
+    "h": 19
+   },
+   "fontSize": "15px",
+   "fontWeight": "400",
+   "color": "rgb(247, 248, 248)",
+   "backgroundColor": "rgba(0, 0, 0, 0)",
+   "borderRadius": "0px",
+   "marginTop": "0px",
+   "marginBottom": "0px",
+   "height": "auto",
+   "display": "inline",
+   "paddingTop": "0px"
+  },
+  {
+   "tag": "h2",
+   "cls": "",
+   "text": "Issue description comments⁠",
+   "box": {
+    "x": 24,
+    "y": 22401,
+    "w": 342,
+    "h": 32
+   },
+   "fontSize": "24px",
+   "fontWeight": "590",
+   "color": "rgb(247, 248, 248)",
+   "backgroundColor": "rgba(0, 0, 0, 0)",
+   "borderRadius": "0px",
+   "marginTop": "56px",
+   "marginBottom": "0px",
+   "height": "31.9062px",
+   "display": "block",
+   "paddingTop": "0px"
+  },
+  {
+   "tag": "span",
+   "cls": "j8azeW_iconOnlyParent",
+   "text": "Issue description comments⁠",
+   "box": {
+    "x": 24,
+    "y": 22402,
+    "w": 332,
+    "h": 29
+   },
+   "fontSize": "24px",
+   "fontWeight": "590",
+   "color": "rgb(247, 248, 248)",
+   "backgroundColor": "rgba(0, 0, 0, 0)",
+   "borderRadius": "0px",
+   "marginTop": "0px",
+   "marginBottom": "0px",
+   "height": "auto",
+   "display": "inline",
+   "paddingTop": "0px"
+  },
+  {
+   "tag": "p",
+   "cls": "",
+   "text": "You can now comment directly on text or images in issue desc",
+   "box": {
+    "x": 24,
+    "y": 22445,
+    "w": 342,
+    "h": 48
+   },
+   "fontSize": "15px",
+   "fontWeight": "400",
+   "color": "rgb(208, 214, 224)",
+   "backgroundColor": "rgba(0, 0, 0, 0)",
+   "borderRadius": "0px",
+   "marginTop": "12px",
+   "marginBottom": "0px",
+   "height": "48px",
+   "display": "block",
+   "paddingTop": "0px"
+  },
+  {
+   "tag": "p",
+   "cls": "",
+   "text": "Select any part of a description to leave a comment anchored",
+   "box": {
+    "x": 24,
+    "y": 22513,
+    "w": 342,
+    "h": 120
+   },
+   "fontSize": "15px",
+   "fontWeight": "400",
+   "color": "rgb(208, 214, 224)",
+   "backgroundColor": "rgba(0, 0, 0, 0)",
+   "borderRadius": "0px",
+   "marginTop": "20px",
+   "marginBottom": "0px",
+   "height": "120px",
+   "display": "block",
+   "paddingTop": "0px"
+  },
+  {
+   "tag": "div",
+   "cls": "",
+   "text": "FixesAsks The Creator in activity log copy for Slack Asks is",
+   "box": {
+    "x": 24,
+    "y": 22653,
+    "w": 342,
+    "h": 113
+   },
+   "fontSize": "15px",
+   "fontWeight": "400",
+   "color": "rgb(208, 214, 224)",
+   "backgroundColor": "rgba(0, 0, 0, 0)",
+   "borderRadius": "0px",
+   "marginTop": "20px",
+   "marginBottom": "0px",
+   "height": "113px",
+   "display": "block",
+   "paddingTop": "0px"
+  }
+ ],
+ "footer_y": 22983
+}

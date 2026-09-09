@@ -1,0 +1,1276 @@
+{
+ "lists": [
+  {
+   "ul": {
+    "tag": "ul",
+    "cls": "",
+    "text": "Agents Fixed triage suggestions now showing ",
+    "box": {
+     "x": 408,
+     "y": 3118,
+     "w": 624,
+     "h": 873
+    },
+    "paddingLeft": "24px",
+    "marginTop": "0px",
+    "marginBottom": "0px",
+    "listStyleType": "none",
+    "fontSize": "17px",
+    "lineHeight": "27.2px",
+    "color": "rgb(208, 214, 224)"
+   },
+   "liCount": 15,
+   "li": {
+    "tag": "li",
+    "cls": "",
+    "text": "Agents Fixed triage suggestions now showing ",
+    "box": {
+     "x": 432,
+     "y": 3118,
+     "w": 600,
+     "h": 54
+    },
+    "marginTop": "0px",
+    "paddingLeft": "0px",
+    "listStyleType": "none",
+    "fontSize": "17px",
+    "lineHeight": "27.2px",
+    "color": "rgb(208, 214, 224)"
+   },
+   "liMarker": {
+    "content": "normal",
+    "color": "rgb(208, 214, 224)"
+   },
+   "liBefore": {
+    "content": "counter(prose-ul, disc)",
+    "color": "rgb(208, 214, 224)",
+    "background": "rgba(0, 0, 0, 0)",
+    "width": "24px",
+    "height": "27.1875px",
+    "borderRadius": "0px",
+    "marginLeft": "0px",
+    "position": "absolute",
+    "left": "-25.5px"
+   },
+   "firstChild": {
+    "tag": "div",
+    "cls": "_5p4vjG_root",
+    "text": "Agents",
+    "box": {
+     "x": 432,
+     "y": 3120,
+     "w": 77,
+     "h": 25
+    },
+    "fontSize": "13px",
+    "fontWeight": "510",
+    "color": "rgb(208, 214, 224)",
+    "backgroundColor": "rgb(8, 9, 10)",
+    "borderRadius": "9999px",
+    "borderTopWidth": "1px",
+    "borderTopColor": "rgb(52, 52, 58)",
+    "boxShadow": "none",
+    "paddingLeft": "8px",
+    "paddingRight": "8px",
+    "height": "25px",
+    "marginRight": "0px",
+    "display": "inline-flex"
+   }
+  },
+  {
+   "ul": {
+    "tag": "ul",
+    "cls": "",
+    "text": "Accessibility Improved accessibility of view",
+    "box": {
+     "x": 408,
+     "y": 3175,
+     "w": 624,
+     "h": 1112
+    },
+    "paddingLeft": "24px",
+    "marginTop": "0px",
+    "marginBottom": "0px",
+    "listStyleType": "none",
+    "fontSize": "17px",
+    "lineHeight": "27.2px",
+    "color": "rgb(208, 214, 224)"
+   },
+   "liCount": 21,
+   "li": {
+    "tag": "li",
+    "cls": "",
+    "text": "Accessibility Improved accessibility of view",
+    "box": {
+     "x": 432,
+     "y": 3175,
+     "w": 600,
+     "h": 27
+    },
+    "marginTop": "0px",
+    "paddingLeft": "0px",
+    "listStyleType": "none",
+    "fontSize": "17px",
+    "lineHeight": "27.2px",
+    "color": "rgb(208, 214, 224)"
+   },
+   "liMarker": {
+    "content": "normal",
+    "color": "rgb(208, 214, 224)"
+   },
+   "liBefore": {
+    "content": "counter(prose-ul, disc)",
+    "color": "rgb(208, 214, 224)",
+    "background": "rgba(0, 0, 0, 0)",
+    "width": "24px",
+    "height": "27.1875px",
+    "borderRadius": "0px",
+    "marginLeft": "0px",
+    "position": "absolute",
+    "left": "-25.5px"
+   },
+   "firstChild": {
+    "tag": "div",
+    "cls": "_5p4vjG_root",
+    "text": "Accessibility",
+    "box": {
+     "x": 432,
+     "y": 3177,
+     "w": 112,
+     "h": 25
+    },
+    "fontSize": "13px",
+    "fontWeight": "510",
+    "color": "rgb(208, 214, 224)",
+    "backgroundColor": "rgb(8, 9, 10)",
+    "borderRadius": "9999px",
+    "borderTopWidth": "1px",
+    "borderTopColor": "rgb(52, 52, 58)",
+    "boxShadow": "none",
+    "paddingLeft": "8px",
+    "paddingRight": "8px",
+    "height": "25px",
+    "marginRight": "0px",
+    "display": "inline-flex"
+   }
+  },
+  {
+   "ul": {
+    "tag": "ul",
+    "cls": "",
+    "text": "Fixed ShiftCmd/CtrlO opening sub-issue creat",
+    "box": {
+     "x": 408,
+     "y": 3232,
+     "w": 624,
+     "h": 117
+    },
+    "paddingLeft": "24px",
+    "marginTop": "0px",
+    "marginBottom": "0px",
+    "listStyleType": "none",
+    "fontSize": "17px",
+    "lineHeight": "27.2px",
+    "color": "rgb(208, 214, 224)"
+   },
+   "liCount": 2,
+   "li": {
+    "tag": "li",
+    "cls": "",
+    "text": "Fixed ShiftCmd/CtrlO opening sub-issue creat",
+    "box": {
+     "x": 432,
+     "y": 3232,
+     "w": 600,
+     "h": 54
+    },
+    "marginTop": "0px",
+    "paddingLeft": "0px",
+    "listStyleType": "none",
+    "fontSize": "17px",
+    "lineHeight": "27.2px",
+    "color": "rgb(208, 214, 224)"
+   },
+   "liMarker": {
+    "content": "normal",
+    "color": "rgb(208, 214, 224)"
+   },
+   "liBefore": {
+    "content": "counter(prose-ul, disc)",
+    "color": "rgb(208, 214, 224)",
+    "background": "rgba(0, 0, 0, 0)",
+    "width": "24px",
+    "height": "27.1875px",
+    "borderRadius": "0px",
+    "marginLeft": "0px",
+    "position": "absolute",
+    "left": "-25.5px"
+   },
+   "firstChild": {
+    "tag": "kbd",
+    "cls": "",
+    "text": "ShiftCmd/CtrlO",
+    "box": {
+     "x": 480,
+     "y": 3235,
+     "w": 111,
+     "h": 22
+    },
+    "fontSize": "13.6px",
+    "fontWeight": "510",
+    "color": "rgb(208, 214, 224)",
+    "backgroundColor": "rgb(8, 9, 10)",
+    "borderRadius": "5px",
+    "borderTopWidth": "0px",
+    "borderTopColor": "rgb(208, 214, 224)",
+    "boxShadow": "rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgb(62, 62, 68) 0px 0px 0px 1px",
+    "paddingLeft": "6px",
+    "paddingRight": "6px",
+    "height": "22px",
+    "marginRight": "1px",
+    "display": "inline-block"
+   }
+  },
+  {
+   "ul": {
+    "tag": "ul",
+    "cls": "",
+    "text": "Added the startMode field and SLAStartMode e",
+    "box": {
+     "x": 408,
+     "y": 3289,
+     "w": 624,
+     "h": 117
+    },
+    "paddingLeft": "24px",
+    "marginTop": "0px",
+    "marginBottom": "0px",
+    "listStyleType": "none",
+    "fontSize": "17px",
+    "lineHeight": "27.2px",
+    "color": "rgb(208, 214, 224)"
+   },
+   "liCount": 2,
+   "li": {
+    "tag": "li",
+    "cls": "",
+    "text": "Added the startMode field and SLAStartMode e",
+    "box": {
+     "x": 432,
+     "y": 3289,
+     "w": 600,
+     "h": 54
+    },
+    "marginTop": "0px",
+    "paddingLeft": "0px",
+    "listStyleType": "none",
+    "fontSize": "17px",
+    "lineHeight": "27.2px",
+    "color": "rgb(208, 214, 224)"
+   },
+   "liMarker": {
+    "content": "normal",
+    "color": "rgb(208, 214, 224)"
+   },
+   "liBefore": {
+    "content": "counter(prose-ul, disc)",
+    "color": "rgb(208, 214, 224)",
+    "background": "rgba(0, 0, 0, 0)",
+    "width": "24px",
+    "height": "27.1875px",
+    "borderRadius": "0px",
+    "marginLeft": "0px",
+    "position": "absolute",
+    "left": "-25.5px"
+   },
+   "firstChild": {
+    "tag": "code",
+    "cls": "",
+    "text": "startMode",
+    "box": {
+     "x": 519,
+     "y": 3291,
+     "w": 90,
+     "h": 23
+    },
+    "fontSize": "14.875px",
+    "fontWeight": "400",
+    "color": "rgb(208, 214, 224)",
+    "backgroundColor": "rgb(28, 28, 31)",
+    "borderRadius": "4.4625px",
+    "borderTopWidth": "1px",
+    "borderTopColor": "rgb(52, 52, 58)",
+    "boxShadow": "none",
+    "paddingLeft": "3.71875px",
+    "paddingRight": "3.71875px",
+    "height": "auto",
+    "marginRight": "0px",
+    "display": "inline"
+   }
+  },
+  {
+   "ul": {
+    "tag": "ul",
+    "cls": "",
+    "text": "Model usage: Tokens are charged at the provi",
+    "box": {
+     "x": 408,
+     "y": 5471,
+     "w": 624,
+     "h": 90
+    },
+    "paddingLeft": "24px",
+    "marginTop": "12px",
+    "marginBottom": "0px",
+    "listStyleType": "none",
+    "fontSize": "17px",
+    "lineHeight": "27.2px",
+    "color": "rgb(208, 214, 224)"
+   },
+   "liCount": 2,
+   "li": {
+    "tag": "li",
+    "cls": "",
+    "text": "Model usage: Tokens are charged at the provi",
+    "box": {
+     "x": 432,
+     "y": 5471,
+     "w": 600,
+     "h": 54
+    },
+    "marginTop": "0px",
+    "paddingLeft": "0px",
+    "listStyleType": "none",
+    "fontSize": "17px",
+    "lineHeight": "27.2px",
+    "color": "rgb(208, 214, 224)"
+   },
+   "liMarker": {
+    "content": "normal",
+    "color": "rgb(208, 214, 224)"
+   },
+   "liBefore": {
+    "content": "counter(prose-ul, disc)",
+    "color": "rgb(208, 214, 224)",
+    "background": "rgba(0, 0, 0, 0)",
+    "width": "24px",
+    "height": "27.1875px",
+    "borderRadius": "0px",
+    "marginLeft": "0px",
+    "position": "absolute",
+    "left": "-25.5px"
+   },
+   "firstChild": {
+    "tag": "strong",
+    "cls": "",
+    "text": "Model usage:",
+    "box": {
+     "x": 432,
+     "y": 5474,
+     "w": 110,
+     "h": 20
+    },
+    "fontSize": "17px",
+    "fontWeight": "590",
+    "color": "rgb(247, 248, 248)",
+    "backgroundColor": "rgba(0, 0, 0, 0)",
+    "borderRadius": "0px",
+    "borderTopWidth": "0px",
+    "borderTopColor": "rgb(247, 248, 248)",
+    "boxShadow": "none",
+    "paddingLeft": "0px",
+    "paddingRight": "0px",
+    "height": "auto",
+    "marginRight": "0px",
+    "display": "inline"
+   }
+  },
+  {
+   "ul": {
+    "tag": "ul",
+    "cls": "",
+    "text": "Agents Fixed an issue where Linear couldn’t ",
+    "box": {
+     "x": 408,
+     "y": 5887,
+     "w": 624,
+     "h": 464
+    },
+    "paddingLeft": "24px",
+    "marginTop": "0px",
+    "marginBottom": "0px",
+    "listStyleType": "none",
+    "fontSize": "17px",
+    "lineHeight": "27.2px",
+    "color": "rgb(208, 214, 224)"
+   },
+   "liCount": 8,
+   "li": {
+    "tag": "li",
+    "cls": "",
+    "text": "Agents Fixed an issue where Linear couldn’t ",
+    "box": {
+     "x": 432,
+     "y": 5887,
+     "w": 600,
+     "h": 54
+    },
+    "marginTop": "0px",
+    "paddingLeft": "0px",
+    "listStyleType": "none",
+    "fontSize": "17px",
+    "lineHeight": "27.2px",
+    "color": "rgb(208, 214, 224)"
+   },
+   "liMarker": {
+    "content": "normal",
+    "color": "rgb(208, 214, 224)"
+   },
+   "liBefore": {
+    "content": "counter(prose-ul, disc)",
+    "color": "rgb(208, 214, 224)",
+    "background": "rgba(0, 0, 0, 0)",
+    "width": "24px",
+    "height": "27.1875px",
+    "borderRadius": "0px",
+    "marginLeft": "0px",
+    "position": "absolute",
+    "left": "-25.5px"
+   },
+   "firstChild": {
+    "tag": "div",
+    "cls": "_5p4vjG_root",
+    "text": "Agents",
+    "box": {
+     "x": 432,
+     "y": 5889,
+     "w": 77,
+     "h": 25
+    },
+    "fontSize": "13px",
+    "fontWeight": "510",
+    "color": "rgb(208, 214, 224)",
+    "backgroundColor": "rgb(8, 9, 10)",
+    "borderRadius": "9999px",
+    "borderTopWidth": "1px",
+    "borderTopColor": "rgb(52, 52, 58)",
+    "boxShadow": "none",
+    "paddingLeft": "8px",
+    "paddingRight": "8px",
+    "height": "25px",
+    "marginRight": "0px",
+    "display": "inline-flex"
+   }
+  },
+  {
+   "ul": {
+    "tag": "ul",
+    "cls": "",
+    "text": "Asks Added a per-channel Asks setting that p",
+    "box": {
+     "x": 408,
+     "y": 5944,
+     "w": 624,
+     "h": 374
+    },
+    "paddingLeft": "24px",
+    "marginTop": "0px",
+    "marginBottom": "0px",
+    "listStyleType": "none",
+    "fontSize": "17px",
+    "lineHeight": "27.2px",
+    "color": "rgb(208, 214, 224)"
+   },
+   "liCount": 7,
+   "li": {
+    "tag": "li",
+    "cls": "",
+    "text": "Asks Added a per-channel Asks setting that p",
+    "box": {
+     "x": 432,
+     "y": 5944,
+     "w": 600,
+     "h": 82
+    },
+    "marginTop": "0px",
+    "paddingLeft": "0px",
+    "listStyleType": "none",
+    "fontSize": "17px",
+    "lineHeight": "27.2px",
+    "color": "rgb(208, 214, 224)"
+   },
+   "liMarker": {
+    "content": "normal",
+    "color": "rgb(208, 214, 224)"
+   },
+   "liBefore": {
+    "content": "counter(prose-ul, disc)",
+    "color": "rgb(208, 214, 224)",
+    "background": "rgba(0, 0, 0, 0)",
+    "width": "24px",
+    "height": "27.1875px",
+    "borderRadius": "0px",
+    "marginLeft": "0px",
+    "position": "absolute",
+    "left": "-25.5px"
+   },
+   "firstChild": {
+    "tag": "div",
+    "cls": "_5p4vjG_root",
+    "text": "Asks",
+    "box": {
+     "x": 432,
+     "y": 5946,
+     "w": 64,
+     "h": 25
+    },
+    "fontSize": "13px",
+    "fontWeight": "510",
+    "color": "rgb(208, 214, 224)",
+    "backgroundColor": "rgb(8, 9, 10)",
+    "borderRadius": "9999px",
+    "borderTopWidth": "1px",
+    "borderTopColor": "rgb(52, 52, 58)",
+    "boxShadow": "none",
+    "paddingLeft": "8px",
+    "paddingRight": "8px",
+    "height": "25px",
+    "marginRight": "0px",
+    "display": "inline-flex"
+   }
+  },
+  {
+   "ul": {
+    "tag": "ul",
+    "cls": "",
+    "text": "Issues Open a GitHub-synced issue in GitHub ",
+    "box": {
+     "x": 408,
+     "y": 6001,
+     "w": 624,
+     "h": 90
+    },
+    "paddingLeft": "24px",
+    "marginTop": "0px",
+    "marginBottom": "0px",
+    "listStyleType": "none",
+    "fontSize": "17px",
+    "lineHeight": "27.2px",
+    "color": "rgb(208, 214, 224)"
+   },
+   "liCount": 2,
+   "li": {
+    "tag": "li",
+    "cls": "",
+    "text": "Issues Open a GitHub-synced issue in GitHub ",
+    "box": {
+     "x": 432,
+     "y": 6001,
+     "w": 600,
+     "h": 27
+    },
+    "marginTop": "0px",
+    "paddingLeft": "0px",
+    "listStyleType": "none",
+    "fontSize": "17px",
+    "lineHeight": "27.2px",
+    "color": "rgb(208, 214, 224)"
+   },
+   "liMarker": {
+    "content": "normal",
+    "color": "rgb(208, 214, 224)"
+   },
+   "liBefore": {
+    "content": "counter(prose-ul, disc)",
+    "color": "rgb(208, 214, 224)",
+    "background": "rgba(0, 0, 0, 0)",
+    "width": "24px",
+    "height": "27.1875px",
+    "borderRadius": "0px",
+    "marginLeft": "0px",
+    "position": "absolute",
+    "left": "-25.5px"
+   },
+   "firstChild": {
+    "tag": "div",
+    "cls": "_5p4vjG_root",
+    "text": "Issues",
+    "box": {
+     "x": 432,
+     "y": 6003,
+     "w": 73,
+     "h": 25
+    },
+    "fontSize": "13px",
+    "fontWeight": "510",
+    "color": "rgb(208, 214, 224)",
+    "backgroundColor": "rgb(8, 9, 10)",
+    "borderRadius": "9999px",
+    "borderTopWidth": "1px",
+    "borderTopColor": "rgb(52, 52, 58)",
+    "boxShadow": "none",
+    "paddingLeft": "8px",
+    "paddingRight": "8px",
+    "height": "25px",
+    "marginRight": "0px",
+    "display": "inline-flex"
+   }
+  },
+  {
+   "ul": {
+    "tag": "ul",
+    "cls": "",
+    "text": "Agent Fixed agent sometimes not showing a pr",
+    "box": {
+     "x": 408,
+     "y": 7284,
+     "w": 624,
+     "h": 1217
+    },
+    "paddingLeft": "24px",
+    "marginTop": "0px",
+    "marginBottom": "0px",
+    "listStyleType": "none",
+    "fontSize": "17px",
+    "lineHeight": "27.2px",
+    "color": "rgb(208, 214, 224)"
+   },
+   "liCount": 24,
+   "li": {
+    "tag": "li",
+    "cls": "",
+    "text": "Agent Fixed agent sometimes not showing a pr",
+    "box": {
+     "x": 432,
+     "y": 7284,
+     "w": 600,
+     "h": 27
+    },
+    "marginTop": "0px",
+    "paddingLeft": "0px",
+    "listStyleType": "none",
+    "fontSize": "17px",
+    "lineHeight": "27.2px",
+    "color": "rgb(208, 214, 224)"
+   },
+   "liMarker": {
+    "content": "normal",
+    "color": "rgb(208, 214, 224)"
+   },
+   "liBefore": {
+    "content": "counter(prose-ul, disc)",
+    "color": "rgb(208, 214, 224)",
+    "background": "rgba(0, 0, 0, 0)",
+    "width": "24px",
+    "height": "27.1875px",
+    "borderRadius": "0px",
+    "marginLeft": "0px",
+    "position": "absolute",
+    "left": "-25.5px"
+   },
+   "firstChild": {
+    "tag": "div",
+    "cls": "_5p4vjG_root",
+    "text": "Agent",
+    "box": {
+     "x": 432,
+     "y": 7286,
+     "w": 70,
+     "h": 25
+    },
+    "fontSize": "13px",
+    "fontWeight": "510",
+    "color": "rgb(208, 214, 224)",
+    "backgroundColor": "rgb(8, 9, 10)",
+    "borderRadius": "9999px",
+    "borderTopWidth": "1px",
+    "borderTopColor": "rgb(52, 52, 58)",
+    "boxShadow": "none",
+    "paddingLeft": "8px",
+    "paddingRight": "8px",
+    "height": "25px",
+    "marginRight": "0px",
+    "display": "inline-flex"
+   }
+  },
+  {
+   "ul": {
+    "tag": "ul",
+    "cls": "",
+    "text": "Agent Linear Agent can now update releasesBi",
+    "box": {
+     "x": 408,
+     "y": 7341,
+     "w": 624,
+     "h": 773
+    },
+    "paddingLeft": "24px",
+    "marginTop": "0px",
+    "marginBottom": "0px",
+    "listStyleType": "none",
+    "fontSize": "17px",
+    "lineHeight": "27.2px",
+    "color": "rgb(208, 214, 224)"
+   },
+   "liCount": 16,
+   "li": {
+    "tag": "li",
+    "cls": "",
+    "text": "Agent Linear Agent can now update releases",
+    "box": {
+     "x": 432,
+     "y": 7341,
+     "w": 600,
+     "h": 27
+    },
+    "marginTop": "0px",
+    "paddingLeft": "0px",
+    "listStyleType": "none",
+    "fontSize": "17px",
+    "lineHeight": "27.2px",
+    "color": "rgb(208, 214, 224)"
+   },
+   "liMarker": {
+    "content": "normal",
+    "color": "rgb(208, 214, 224)"
+   },
+   "liBefore": {
+    "content": "counter(prose-ul, disc)",
+    "color": "rgb(208, 214, 224)",
+    "background": "rgba(0, 0, 0, 0)",
+    "width": "24px",
+    "height": "27.1875px",
+    "borderRadius": "0px",
+    "marginLeft": "0px",
+    "position": "absolute",
+    "left": "-25.5px"
+   },
+   "firstChild": {
+    "tag": "div",
+    "cls": "_5p4vjG_root",
+    "text": "Agent",
+    "box": {
+     "x": 432,
+     "y": 7343,
+     "w": 70,
+     "h": 25
+    },
+    "fontSize": "13px",
+    "fontWeight": "510",
+    "color": "rgb(208, 214, 224)",
+    "backgroundColor": "rgb(8, 9, 10)",
+    "borderRadius": "9999px",
+    "borderTopWidth": "1px",
+    "borderTopColor": "rgb(52, 52, 58)",
+    "boxShadow": "none",
+    "paddingLeft": "8px",
+    "paddingRight": "8px",
+    "height": "25px",
+    "marginRight": "0px",
+    "display": "inline-flex"
+   }
+  },
+  {
+   "ul": {
+    "tag": "ul",
+    "cls": "",
+    "text": "Added subscribers field on DocumentAdded a s",
+    "box": {
+     "x": 408,
+     "y": 7398,
+     "w": 624,
+     "h": 62
+    },
+    "paddingLeft": "24px",
+    "marginTop": "0px",
+    "marginBottom": "0px",
+    "listStyleType": "none",
+    "fontSize": "17px",
+    "lineHeight": "27.2px",
+    "color": "rgb(208, 214, 224)"
+   },
+   "liCount": 2,
+   "li": {
+    "tag": "li",
+    "cls": "",
+    "text": "Added subscribers field on Document",
+    "box": {
+     "x": 432,
+     "y": 7398,
+     "w": 600,
+     "h": 27
+    },
+    "marginTop": "0px",
+    "paddingLeft": "0px",
+    "listStyleType": "none",
+    "fontSize": "17px",
+    "lineHeight": "27.2px",
+    "color": "rgb(208, 214, 224)"
+   },
+   "liMarker": {
+    "content": "normal",
+    "color": "rgb(208, 214, 224)"
+   },
+   "liBefore": {
+    "content": "counter(prose-ul, disc)",
+    "color": "rgb(208, 214, 224)",
+    "background": "rgba(0, 0, 0, 0)",
+    "width": "24px",
+    "height": "27.1875px",
+    "borderRadius": "0px",
+    "marginLeft": "0px",
+    "position": "absolute",
+    "left": "-25.5px"
+   },
+   "firstChild": {
+    "tag": "code",
+    "cls": "",
+    "text": "subscribers",
+    "box": {
+     "x": 489,
+     "y": 7400,
+     "w": 108,
+     "h": 23
+    },
+    "fontSize": "14.875px",
+    "fontWeight": "400",
+    "color": "rgb(208, 214, 224)",
+    "backgroundColor": "rgb(28, 28, 31)",
+    "borderRadius": "4.4625px",
+    "borderTopWidth": "1px",
+    "borderTopColor": "rgb(52, 52, 58)",
+    "boxShadow": "none",
+    "paddingLeft": "3.71875px",
+    "paddingRight": "3.71875px",
+    "height": "auto",
+    "marginRight": "0px",
+    "display": "inline"
+   }
+  },
+  {
+   "ul": {
+    "tag": "ul",
+    "cls": "",
+    "text": "Teams Fixed CtrlShift1–9 shortcuts for openi",
+    "box": {
+     "x": 408,
+     "y": 7455,
+     "w": 624,
+     "h": 27
+    },
+    "paddingLeft": "24px",
+    "marginTop": "0px",
+    "marginBottom": "0px",
+    "listStyleType": "none",
+    "fontSize": "17px",
+    "lineHeight": "27.2px",
+    "color": "rgb(208, 214, 224)"
+   },
+   "liCount": 1,
+   "li": {
+    "tag": "li",
+    "cls": "",
+    "text": "Teams Fixed CtrlShift1–9 shortcuts for openi",
+    "box": {
+     "x": 432,
+     "y": 7455,
+     "w": 600,
+     "h": 27
+    },
+    "marginTop": "0px",
+    "paddingLeft": "0px",
+    "listStyleType": "none",
+    "fontSize": "17px",
+    "lineHeight": "27.2px",
+    "color": "rgb(208, 214, 224)"
+   },
+   "liMarker": {
+    "content": "normal",
+    "color": "rgb(208, 214, 224)"
+   },
+   "liBefore": {
+    "content": "counter(prose-ul, disc)",
+    "color": "rgb(208, 214, 224)",
+    "background": "rgba(0, 0, 0, 0)",
+    "width": "24px",
+    "height": "27.1875px",
+    "borderRadius": "0px",
+    "marginLeft": "0px",
+    "position": "absolute",
+    "left": "-25.5px"
+   },
+   "firstChild": {
+    "tag": "div",
+    "cls": "_5p4vjG_root",
+    "text": "Teams",
+    "box": {
+     "x": 432,
+     "y": 7457,
+     "w": 74,
+     "h": 25
+    },
+    "fontSize": "13px",
+    "fontWeight": "510",
+    "color": "rgb(208, 214, 224)",
+    "backgroundColor": "rgb(8, 9, 10)",
+    "borderRadius": "9999px",
+    "borderTopWidth": "1px",
+    "borderTopColor": "rgb(52, 52, 58)",
+    "boxShadow": "none",
+    "paddingLeft": "8px",
+    "paddingRight": "8px",
+    "height": "25px",
+    "marginRight": "0px",
+    "display": "inline-flex"
+   }
+  }
+ ],
+ "list_count": 43,
+ "pill": {
+  "tag": "div",
+  "cls": "_5p4vjG_root",
+  "text": "Agents",
+  "box": {
+   "x": 432,
+   "y": 3120,
+   "w": 77,
+   "h": 25
+  },
+  "fontSize": "13px",
+  "fontWeight": "510",
+  "color": "rgb(208, 214, 224)",
+  "backgroundColor": "rgb(8, 9, 10)",
+  "borderRadius": "9999px",
+  "borderTopWidth": "1px",
+  "borderTopColor": "rgb(52, 52, 58)",
+  "boxShadow": "none",
+  "paddingLeft": "8px",
+  "paddingRight": "8px",
+  "height": "25px",
+  "marginRight": "0px",
+  "display": "inline-flex",
+  "letterSpacing": "normal",
+  "lineHeight": "20.8px"
+ },
+ "rhythm": {
+  "h1": {
+   "x": 78,
+   "y": 150,
+   "w": 95,
+   "h": 48
+  },
+  "h1_parent": {
+   "tag": "div",
+   "cls": "ImRUSq_root ImRUSq_align-center ImRUSq_justify-space-between",
+   "text": "Now",
+   "box": {
+    "x": 80,
+    "y": 150,
+    "w": 1280,
+    "h": 48
+   },
+   "display": "flex",
+   "justifyContent": "space-between",
+   "alignItems": "center",
+   "marginTop": "0px",
+   "paddingTop": "0px"
+  },
+  "h1_grandparent": {
+   "tag": "div",
+   "cls": "Fzcv4W_inset",
+   "text": "NowAllChangelogProduct launchesFrom the team",
+   "box": {
+    "x": 48,
+    "y": 149,
+    "w": 1344,
+    "h": 23828
+   },
+   "display": "block",
+   "paddingTop": "0px",
+   "marginTop": "0px",
+   "gap": "normal",
+   "rowGap": "normal"
+  },
+  "tabRow": {
+   "x": 80,
+   "y": 210,
+   "w": 1280,
+   "h": 40
+  },
+  "tabRow_style": {
+   "tag": "div",
+   "cls": "Jbvjba_tabRow ImRUSq_root ImRUSq_align-center ImRUSq_justify",
+   "text": "AllChangelogProduct launchesFrom the teamFro",
+   "box": {
+    "x": 80,
+    "y": 210,
+    "w": 1280,
+    "h": 40
+   },
+   "marginTop": "0px",
+   "paddingTop": "0px",
+   "height": "40px"
+  },
+  "divider": {
+   "x": 80,
+   "y": 282,
+   "w": 1280,
+   "h": 1
+  },
+  "divider_style": {
+   "tag": "div",
+   "cls": "b6oLUa_root",
+   "text": "",
+   "box": {
+    "x": 80,
+    "y": 282,
+    "w": 1280,
+    "h": 1
+   },
+   "marginTop": "32px",
+   "marginBottom": "64px",
+   "backgroundColor": "rgb(24, 25, 26)",
+   "height": "1px",
+   "borderRadius": "9999px"
+  },
+  "entry0": {
+   "x": 80,
+   "y": 347,
+   "w": 1280,
+   "h": 3014
+  },
+  "nav_h": {
+   "x": 0,
+   "y": 0,
+   "w": 1440,
+   "h": 73
+  }
+ },
+ "body_children": [
+  {
+   "tag": "a",
+   "cls": "I_mUeq_root",
+   "text": "Priority inbox",
+   "box": {
+    "x": 408,
+    "y": 347,
+    "w": 624,
+    "h": 36
+   },
+   "marginTop": "0px",
+   "marginBottom": "0px",
+   "display": "inline"
+  },
+  {
+   "tag": "div",
+   "cls": "",
+   "text": "An active workspace can create a significant",
+   "box": {
+    "x": 408,
+    "y": 431,
+    "w": 624,
+    "h": 2930
+   },
+   "marginTop": "0px",
+   "marginBottom": "0px",
+   "display": "block"
+  }
+ ],
+ "prose_children": [
+  {
+   "tag": "figure",
+   "cls": "",
+   "text": "",
+   "box": {
+    "x": 408,
+    "y": 431,
+    "w": 624,
+    "h": 361
+   },
+   "marginTop": "48px",
+   "marginBottom": "48px",
+   "fontSize": "17px",
+   "fontWeight": "400",
+   "lineHeight": "27.2px",
+   "color": "rgb(208, 214, 224)",
+   "paddingLeft": "0px"
+  },
+  {
+   "tag": "p",
+   "cls": "",
+   "text": "An active workspace can create a significant",
+   "box": {
+    "x": 408,
+    "y": 840,
+    "w": 624,
+    "h": 109
+   },
+   "marginTop": "20px",
+   "marginBottom": "0px",
+   "fontSize": "17px",
+   "fontWeight": "400",
+   "lineHeight": "27.2px",
+   "color": "rgb(208, 214, 224)",
+   "paddingLeft": "0px"
+  },
+  {
+   "tag": "p",
+   "cls": "",
+   "text": "Linear selects what appears in Priority by d",
+   "box": {
+    "x": 408,
+    "y": 968,
+    "w": 624,
+    "h": 82
+   },
+   "marginTop": "20px",
+   "marginBottom": "0px",
+   "fontSize": "17px",
+   "fontWeight": "400",
+   "lineHeight": "27.2px",
+   "color": "rgb(208, 214, 224)",
+   "paddingLeft": "0px"
+  },
+  {
+   "tag": "p",
+   "cls": "",
+   "text": "To get started, open the inbox display optio",
+   "box": {
+    "x": 408,
+    "y": 1070,
+    "w": 624,
+    "h": 27
+   },
+   "marginTop": "20px",
+   "marginBottom": "0px",
+   "fontSize": "17px",
+   "fontWeight": "400",
+   "lineHeight": "27.2px",
+   "color": "rgb(208, 214, 224)",
+   "paddingLeft": "0px"
+  },
+  {
+   "tag": "h2",
+   "cls": "",
+   "text": "Draft projects with Linear Agent⁠",
+   "box": {
+    "x": 408,
+    "y": 1153,
+    "w": 624,
+    "h": 32
+   },
+   "marginTop": "56px",
+   "marginBottom": "0px",
+   "fontSize": "24px",
+   "fontWeight": "590",
+   "lineHeight": "31.92px",
+   "color": "rgb(247, 248, 248)",
+   "paddingLeft": "0px"
+  },
+  {
+   "tag": "p",
+   "cls": "",
+   "text": "The new project composer lets you develop id",
+   "box": {
+    "x": 408,
+    "y": 1197,
+    "w": 624,
+    "h": 109
+   },
+   "marginTop": "12px",
+   "marginBottom": "0px",
+   "fontSize": "17px",
+   "fontWeight": "400",
+   "lineHeight": "27.2px",
+   "color": "rgb(208, 214, 224)",
+   "paddingLeft": "0px"
+  },
+  {
+   "tag": "p",
+   "cls": "",
+   "text": "Drafts save automatically as you work, so yo",
+   "box": {
+    "x": 408,
+    "y": 1326,
+    "w": 624,
+    "h": 54
+   },
+   "marginTop": "20px",
+   "marginBottom": "0px",
+   "fontSize": "17px",
+   "fontWeight": "400",
+   "lineHeight": "27.2px",
+   "color": "rgb(208, 214, 224)",
+   "paddingLeft": "0px"
+  },
+  {
+   "tag": "p",
+   "cls": "",
+   "text": "Select Create with Agent in the project crea",
+   "box": {
+    "x": 408,
+    "y": 1400,
+    "w": 624,
+    "h": 27
+   },
+   "marginTop": "20px",
+   "marginBottom": "0px",
+   "fontSize": "17px",
+   "fontWeight": "400",
+   "lineHeight": "27.2px",
+   "color": "rgb(208, 214, 224)",
+   "paddingLeft": "0px"
+  },
+  {
+   "tag": "figure",
+   "cls": "",
+   "text": "",
+   "box": {
+    "x": 408,
+    "y": 1475,
+    "w": 624,
+    "h": 410
+   },
+   "marginTop": "48px",
+   "marginBottom": "48px",
+   "fontSize": "17px",
+   "fontWeight": "400",
+   "lineHeight": "27.2px",
+   "color": "rgb(208, 214, 224)",
+   "paddingLeft": "0px"
+  },
+  {
+   "tag": "h2",
+   "cls": "",
+   "text": "Document editing on mobile⁠",
+   "box": {
+    "x": 408,
+    "y": 1942,
+    "w": 624,
+    "h": 32
+   },
+   "marginTop": "56px",
+   "marginBottom": "0px",
+   "fontSize": "24px",
+   "fontWeight": "590",
+   "lineHeight": "31.92px",
+   "color": "rgb(247, 248, 248)",
+   "paddingLeft": "0px"
+  }
+ ],
+ "prose_root": {
+  "tag": "div",
+  "cls": "VAt0ja_prose VAt0ja_size-large VAt0ja_size-defaults",
+  "text": "An active workspace can create a significant",
+  "box": {
+   "x": 408,
+   "y": 431,
+   "w": 624,
+   "h": 2858
+  },
+  "marginTop": "0px",
+  "fontSize": "17px",
+  "lineHeight": "27.2px",
+  "color": "rgb(208, 214, 224)"
+ }
+}
