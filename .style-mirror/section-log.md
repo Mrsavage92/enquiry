@@ -153,3 +153,133 @@ Rendered-pixel, both viewports, every visible text node on `/`. See the report f
 `text-line-strong`, a hairline *border* token used as a text colour. It fails in the light palette
 too (1.49:1), so it predates this work, and `/roadmap` belongs to another agent in this sequence.
 Recommended fix there: `text-stone`.
+
+---
+
+# updates
+
+Reference: https://linear.app/changelog. Method: a route-scoped extension of the harness
+(`.style-mirror/tools/_wk-sections.mjs`, `_wk-geom.mjs`, not committed as shared tools since
+`sections.mjs`/`geom.mjs` hardcode `BASE + "/"` and this builder's dev port is 5273, not 5261 -
+see "Shared-change requests" at the end of this log) plus the existing route-parametrised
+`contrast.mjs` unchanged. 32/32 computed-style checks match at both viewports, 0 contrast fails.
+
+**Re-extraction.** `.style-mirror/system.md` flags no shared class for a page-title tier distinct
+from the home hero (`.mk-h1`, 64px→38px) or a section heading (`.mk-h2`, 48px→24px) - both wrong
+for a short page name that must stay a constant size. Measured the reference's own `/changelog`
+"Now" h1 live (Playwright, both viewports): **48px / 510 / -1.056px / lh 48px, unchanged at 390**,
+optical margin -2px at 1440 / -1px at 390, color `#f7f8f8`, top padding 77px under the nav at
+*both* viewports (unlike the home hero's responsive 64/96 split). This is exactly
+`tokens.lock.json`'s already-recorded `typography.scale_*.h1_page` - confirmed against the live
+page rather than assumed, and consumed here for the first time. No shared class exists for it, so
+it is built as arbitrary utilities directly on the route's own `<h1>` (not `.mk-h1`/`.mk-h2`,
+neither of which holds a size across breakpoints): `text-[48px] font-[510] leading-[48px]
+tracking-[-1.056px] text-ink -ml-[2px] max-[640px]:-ml-[1px]`. Also measured live: the reference's
+own tab row (All / Changelog / Product launches / ...) sits between the title and the divider,
+title-top to tabs-top = 68px, matching `spacing.changelog_page_title_to_tabs` exactly. This route
+has no categories to filter, so the tabs are not reproduced - the existing "In public" eyebrow
+(copy this pass may not remove) sits in that slot instead, and the header uses `pt-[77px] pb-16`
+to land the title at the same measured offset the reference uses for a header **with no eyebrow**;
+adding one pushes the divider/entries down proportionally to the eyebrow's own height. Recorded
+as a derivation, not fixed further, because the alternative is inventing new copy.
+
+**Changelog entries.** Reused `.style-mirror/system.md` §4's pattern verbatim - one `.mk-entry`
+per post (all 5 keep their own date, including the three consecutive "26 Aug 2026" entries; the
+task requires every entry and date kept, and the rule/marker are per-entry, not per-date-group, so
+stacking still reads as one continuous line, exactly as home's roadmap preview already proves).
+Newest entry (`i===0`) gets the marker dot and `data-featured="true"`. Live re-extraction of the
+reference's own newest changelog post confirms the featured tier is real, not assumed: title
+"Priority inbox" computes to exactly 32px there (`h2_entry_featured` in tokens.lock.json).
+
+Verified (32/32, both viewports): h1 48px/510/-1.056px/lh48/`#f7f8f8`, optical margin -2/-1px;
+label 12px mono `#8a8f98`; lede 15px `#8a8f98`; divider 1px `#18191a` radius 9999; entry date 14px
+`#f7f8f8`; featured title 32px/590/-0.704px/lh36 (24px/590/-0.288px/lh31.92 at 390, per the
+existing breakpoint rule); non-featured title 24px/590; entry body prose 17px/lh27.2 `#d0d6e0`
+(15px/lh24 at 390); entry rule/marker colours; inline links `#828fff`; closing h2 48px/510/`#f7f8f8`.
+
+Geometry (`_wk-geom.mjs`, matches the reference exactly): h1 left x=78 (1440) / x=23 (390) -
+identical to the live-measured reference h1 position, not merely the container edge; entry aside
+x=80 w=296 (1440), content column x=408 w=624 (1440) - both exact matches to
+`layout.changelog_grid`; first entry title bottom = y484 at 1440x900 and y553 at 390x844, both
+comfortably inside the fold as required.
+
+MISMATCH FOUND AND FIXED (pre-harness, self-caught during composition): none required - all 32
+checks passed on the first harness run at both viewports.
+
+DERIVATION: the closing "Join early access" section reuses `.mk-prefooter` (home's own closing-CTA
+pattern - h2, lede, form, 224px margin-block) rather than inventing a smaller variant. On a page
+this short the resulting gap reads generous, but the alternative is a bespoke spacing value with
+no reference behind it; `.mk-prefooter` is the reference's own measured closing-CTA rhythm and the
+same class home's bottom CTA uses, so the composition stays inside the vocabulary.
+
+# early-access
+
+Reference: the system's own composing pattern (`.style-mirror/system.md` §5), not a fresh
+reference extraction - this route's task explicitly calls for "the system's page header," and its
+headline is a sentence ("Be one of the first businesses to use Enquiry."), not a short page name,
+so it takes the home hero tier (`.mk-h1`, 64px→38px) rather than `/updates`' page-title tier - the
+same split the system's own guide draws between a hero composition and a listing page. 26/26
+computed-style checks match at both viewports, 0 contrast fails.
+
+**Bug found and fixed: unlayered class beats a Tailwind colour utility (twice).** The offer
+sentence and each "What joining means" item title were built as `.mk-small` (unlayered, `color:
+var(--mk-fg-2)`) plus a Tailwind colour utility (`text-ink`, matching the home page's own identical
+`text-[var(--mk-fg)]` pattern on this exact sentence) intending to step the colour up to the
+brighter `--mk-fg` tier. `system.md` §1 states plainly that unlayered rules beat the Tailwind
+utilities layer regardless of source order or which utility is used - the computed-style harness
+caught it directly (`offer sentence / color: expected rgb(247, 248, 248) got rgb(208, 214, 224)`),
+proving both instances rendered as the untouched `fg-2` colour. **This means home's own copy of
+this sentence is very likely the same silent no-op** - out of this pass's ownership to fix, flagged
+under "Shared-change requests" below. Fixed here with an inline `style={{ color: "var(--mk-fg)" }}`,
+which wins over both the utilities layer and unlayered stylesheet rules; re-ran the harness after
+the fix and both instances now measure `rgb(247, 248, 248)` exactly.
+
+DEAD CODE FOUND AND REMOVED (no computed-value change, so not reported as a fix): the second
+content section was written as `.mk-section pt-0`, intending to zero the section's own top padding
+for a tighter gap under the hero. `.mk-section` is also unlayered (`padding-block: 128px`), so
+`pt-0` never applied - the section rendered at the full 128px top padding regardless of the class.
+Per the invisible-change rule, a class that does not change the computed value is not a real
+edit, so it was deleted rather than left as misleading intent; the section now correctly reads as
+using the reference's own standard section rhythm (matches home's own inter-section spacing, not a
+bespoke tightened value).
+
+Verified (26/26, both viewports): h1 64px/510/-1.408px/lh64 at 1440, 38px/510/-0.836px/lh41.8 at
+390, `#f7f8f8`; label 12px `#8a8f98`; lede 15px `#8a8f98`; offer sentence 14px `#f7f8f8` (post-fix);
+form field `#0f1011` fill, 1px `#23252a` border, radius 8, `#f7f8f8` text; primary CTA `#e5e5e6` on
+`#08090a`, radius 9999; "What joining means" h2 48px/510/`#f7f8f8`; `.mk-rows` divider 1px `#23252a`;
+card `#0f1011`, 1px rgba(255,255,255,.08), radius 12.
+
+Geometry: h1 left x=78 (1440) / x=23 (390), matching the same reference-derived hero-h1 position
+home's own hero uses; form field top y=504 at 1440x900 (comfortably inside the fold - "no empty
+fold" requirement met with the offer sentence and form both visible without scrolling); card near
+the bottom of the page at y=1415, the last content block before the footer.
+
+DERIVATION: the waitlist form sits directly under the offer sentence with no card wrap - it is not
+a signed-in app component (`system.md` §5.3's `.mk-app-surface` rule does not apply to it), so it
+already inherits the mirror palette through the app-named token remap, the same way home's hero
+form does.
+
+---
+
+## Contrast sweep (both routes, both viewports, rendered-pixel)
+
+0 real failures across 160 graded text nodes (updates: 47 @1440, 43 @390; early-access: 37 @1440,
+33 @390). Lowest pair: 5.51:1, `.mk-label` "Why not open it to everyone?" on early-access (both
+viewports) - a 12px mono label against `#08090a`, comfortably above the 4.5:1 threshold.
+
+## Shared-change requests (not made - outside this pass's ownership)
+
+1. **`src/routes/index.tsx` line ~315-318** almost certainly ships the same unlayered-vs-utility
+   no-op this log documents above: `<p className="mk-small mt-4 max-w-xl text-[var(--mk-fg)]">`
+   for the "Join before public release..." sentence renders as `--mk-fg-2` (`#d0d6e0`), not the
+   intended `--mk-fg` (`#f7f8f8`), because `.mk-small` is unlayered. Not fixed here (home is out
+   of this pass's ownership) - worth a one-line fix (inline `style` or drop `.mk-small` in favour
+   of bespoke utilities) whenever home is next touched.
+2. **`.style-mirror/tools/sections.mjs` and `geom.mjs`** hardcode `BASE = "http://127.0.0.1:5261"`
+   and `page.goto(BASE + "/", ...)` - fine for the home-page harness they were built for, but every
+   other route builder on a different assigned port (this pass used 5273) cannot run them as-is
+   without either editing a shared file or duplicating them. Worth a `--route` / `--port` CLI flag
+   so future route passes can reuse the canonical tool instead of writing a parallel one (this pass
+   wrote route-scoped equivalents against port 5273, ran them, then deleted them rather than
+   commit new files outside this pass's ownership boundary - the console output is preserved in
+   this log and in the deliverable report instead of as JSON in the repo).
