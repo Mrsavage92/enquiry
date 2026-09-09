@@ -72,6 +72,33 @@ repo actually guarantees: no committed override, therefore auth on.
 All probe data was removed afterwards; Orbit's row counts were confirmed
 unchanged before and after.
 
+### Applying migrations in production (2026-09-09)
+
+`enquiry_app` has `BYPASSRLS` and DML grants, but it owns no table - every
+table is owned by `postgres`. It cannot run DDL. `npm run build` used to chain
+`npm run db:migrate`, so migration 0007 (`alter table enquiry add column`)
+failed on the first Vercel build of commit `d6d13d8` with Postgres error
+42501, `insufficient_privilege`, and the build exited 1. The build no longer
+runs `db:migrate` at all; migrations are applied out of band, before the
+deploy that depends on them, as four steps:
+
+1. Apply the migration file as the table-owner role (`postgres`). Run
+   `npm run db:migrate` with an owner `DATABASE_URL`, or paste the file into
+   the Supabase SQL editor.
+2. Grant the new table to `enquiry_app`:
+   `grant select, insert, update, delete on <table> to enquiry_app;`
+3. Enable RLS on it: `alter table <table> enable row level security;`
+   No policies are added. This is the same deny-by-default pattern as every
+   other table (see `migrations/0005_rls_lockdown.sql`).
+4. Confirm the row landed in `_migrations`.
+
+0007 was applied this way on 2026-09-09, after the first build-time attempt
+failed on `d6d13d8`. `reviewed_send`'s grants and RLS were set up in the same
+pass. Migrations 0002 through 0006 were applied the same way, out of band, on
+2026-09-02 - they share one `_migrations` timestamp, so build-time migration
+through the app role never actually worked; it just never happened to touch a
+DDL statement before 0007.
+
 ## Still blocking a sale - needs Adam
 
 1. **Transactional email.** Magic-link delivery currently uses Supabase's
