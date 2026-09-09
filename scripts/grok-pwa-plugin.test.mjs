@@ -529,7 +529,7 @@ test("routeRules headers allow the Grok preview embed via CSP frame-ancestors, n
   assert.doesNotMatch(viteConfig, /["']X-Frame-Options["']\s*:/);
   assert.match(
     viteConfig,
-    /["']Content-Security-Policy["']\s*:\s*[\s\S]{0,40}frame-ancestors 'self' https:\/\/grok\.com https:\/\/grok-sandbox\.com/,
+    /["']Content-Security-Policy["']\s*:\s*[\s\S]{0,120}frame-ancestors 'self' https:\/\/grok\.com https:\/\/\*\.grok\.com https:\/\/grok-sandbox\.com https:\/\/\*\.grok-sandbox\.com/,
   );
 });
 

@@ -104,7 +104,7 @@ export default defineConfig(({ command, isPreview }) => ({
                   "X-Content-Type-Options": "nosniff",
                   "Referrer-Policy": "strict-origin-when-cross-origin",
                   "Content-Security-Policy":
-                    "frame-ancestors 'self' https://grok.com https://grok-sandbox.com",
+                    "frame-ancestors 'self' https://grok.com https://*.grok.com https://grok-sandbox.com https://*.grok-sandbox.com",
                   "Permissions-Policy": "camera=(), microphone=(), geolocation=()",
                 },
               },
