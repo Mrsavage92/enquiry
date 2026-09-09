@@ -31,7 +31,7 @@ import { auditSummary } from "@/domain/audit-copy";
 import {
   autopilotEligible,
   daysFromNow,
-  declineWithLetter,
+  declineEnquiryState,
   defaultDeclineBody,
   defaultHold,
   enableFollowUp as buildFollowUp,
@@ -1459,20 +1459,22 @@ export const usePrototype = create<PrototypeState & Actions>()(
         const enquiry = s.enquiries.find((e) => e.id === enquiryId);
         if (!enquiry) return;
         const business = s.businesses.find((b) => b.id === enquiry.businessId);
+        // The demo walkthrough still narrates a decline letter, but it is
+        // never sent and never recorded as sent - declineEnquiryState adds no
+        // conversation entry. The drafted text stays visible to the operator
+        // as the audit line's detail, a record rather than a rendered "Sent"
+        // message.
         const body = s.drafts[enquiryId]?.trim()
           ? s.drafts[enquiryId]
           : defaultDeclineBody(enquiry, business?.ownerFirstName ?? "");
-        const next = declineWithLetter(enquiry, {
-          body,
-          from: business?.ownerName ?? "You",
-          to: replyTo(enquiry),
-        });
+        const next = declineEnquiryState(enquiry);
         set({
           enquiries: bump(s.enquiries, next),
           undo: snapshotOf(s),
           audit: appendAudit(s.audit, {
             actor: business?.ownerName ?? "You",
             summary: auditSummary("decline", enquiry.fixtureId),
+            detail: body,
             objectType: "enquiry",
             objectId: enquiryId,
           }),
@@ -1484,17 +1486,7 @@ export const usePrototype = create<PrototypeState & Actions>()(
         const enquiry = s.enquiries.find((e) => e.id === enquiryId);
         if (!enquiry) return;
         const business = s.businesses.find((b) => b.id === enquiry.businessId);
-        const next = structuredClone(enquiry);
-        next.state = {
-          lifecycle: "DECLINED",
-          decision: "NONE",
-          commercial: next.state.commercial,
-          responsibility: "NONE",
-        };
-        next.followUpDue = false;
-        next.followUpReason = undefined;
-        next.atRisk = false;
-        next.snoozedUntil = undefined;
+        const next = declineEnquiryState(enquiry);
         set({
           enquiries: bump(s.enquiries, next),
           audit: appendAudit(s.audit, {

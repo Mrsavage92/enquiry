@@ -138,9 +138,11 @@ export function useLiveEnquiryMutations() {
       return writeThrough("Snooze", () => snoozeEnquiry({ data: { enquiryId, until } }), onFailure);
     },
     /**
-     * Decline an enquiry. Demo mode keeps its existing scripted behaviour
-     * (declineLetter's fabricated letter is a narrated demo beat, store-only,
-     * exactly as before).
+     * Decline an enquiry. Demo mode still narrates a decline letter
+     * (declineLetter, store-only), but the letter is never sent and never
+     * recorded as sent - it calls declineEnquiryState under the hood, the
+     * same conversation-free state change every other mode uses, and keeps
+     * the drafted text only as the audit line's detail.
      *
      * A live enquiry gets the honest version, and that now means the local
      * close is applied only once the server has confirmed it, not before.

@@ -4,7 +4,7 @@ import { ENQUIRIES } from "../fixtures/enquiries.ts";
 import { BUSINESSES } from "../fixtures/businesses.ts";
 import {
   autopilotEligible,
-  declineWithLetter,
+  declineEnquiryState,
   enableFollowUp,
   isCustomerFacingSend,
   needsSendConfirm,
@@ -210,30 +210,23 @@ test("fixture letters do not contradict the hold on the sheet", () => {
   }
 });
 
-test("KNOWN GAP: declineWithLetter (demo mode) still writes an outbound message that the thread renders as Sent", () => {
-  // This documents current behaviour, it does not endorse it. The live/server
-  // decline path (declineEnquiryInTransaction, src/lib/repo/close-enquiry-core.ts)
-  // was fixed to write only an audit_event row - no message, no channel contacted.
-  // declineWithLetter is the demo-only counterpart and was deliberately left
-  // fabricating a conversation entry (src/lib/workspace/live-mutations.ts calls
-  // it "a narrated demo beat, store-only, exactly as before"). Conversation.tsx
-  // renders any `direction: "outbound"` message with the literal label "Sent"
-  // regardless of why it was written, so a demo decline still produces a
-  // message that reads as sent to the customer even though the accompanying
-  // toast now says "Declined - nothing sent to the customer." If this test
-  // ever fails because declineWithLetter stops writing an outbound entry, that
-  // is the gap closing, not a regression - delete this test in that commit.
+test("a decline never produces an outbound conversation entry rendered as Sent", () => {
+  // Was: "KNOWN GAP: declineWithLetter (demo mode) still writes an outbound
+  // message that the thread renders as Sent." The live/server decline path
+  // (declineEnquiryInTransaction, src/lib/repo/close-enquiry-core.ts) writes
+  // only an audit_event row - no message, no channel contacted.
+  // declineEnquiryState (formerly declineWithLetter) is the shared demo/local
+  // counterpart and now matches that: conversation.tsx renders any
+  // `direction: "outbound"` message with the literal label "Sent" regardless
+  // of why it was written, so there is no conversation entry this function
+  // could add without misrepresenting the decline as something sent to the
+  // customer - it adds none.
   const priya = byId("f01");
-  const next = declineWithLetter(priya, {
-    body: "Not the right fit for this one.",
-    from: "You",
-    to: "customer@example.com",
-  });
-  const added = next.conversation[next.conversation.length - 1]!;
+  const next = declineEnquiryState(priya);
   assert.equal(
-    added.direction,
-    "outbound",
-    "declineWithLetter still fabricates an outbound conversation entry in demo mode",
+    next.conversation.length,
+    priya.conversation.length,
+    "declineEnquiryState must not add any conversation entry",
   );
-  assert.equal(next.conversation.length, priya.conversation.length + 1);
+  assert.equal(next.state.lifecycle, "DECLINED");
 });
