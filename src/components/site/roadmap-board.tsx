@@ -76,6 +76,7 @@ function StageEntry({
       data-stage={stage.id}
       data-horizon={later ? "later" : stage.current ? "now" : "next"}
       label={statusLabel(stage.status[0])}
+      note={stage.current ? "Where we are" : undefined}
       meta={stage.number}
       marker={stage.current}
     >

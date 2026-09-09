@@ -35,6 +35,7 @@ const QUIET: CSSProperties = { color: "var(--mk-fg-3)" };
 export function RoadmapEntry({
   id,
   label,
+  note,
   meta,
   marker,
   children,
@@ -43,6 +44,8 @@ export function RoadmapEntry({
   id?: string;
   /** The rail label. The reference puts the date here; the roadmap puts status. */
   label?: string;
+  /** An eyebrow above the rail label. Only the stage we are on carries one. */
+  note?: string;
   /** Second rail line - the stage number. The reference's rail carries one line. */
   meta?: string;
   /** The 6px marker dot. The reference caps only its newest group with one. */
@@ -72,7 +75,8 @@ export function RoadmapEntry({
         because .mk-entry collapses at `max-width: 640px`, and `sm:` starts at
         640 - one viewport width where the two would disagree.
       */}
-      <div className="mk-entry-aside relative top-5 flex items-baseline gap-3 self-start max-[640px]:pb-8 min-[641px]:sticky min-[641px]:top-24 min-[641px]:block">
+      <div className="mk-entry-aside relative top-5 flex flex-wrap items-baseline gap-x-3 self-start max-[640px]:pb-8 min-[641px]:sticky min-[641px]:top-24 min-[641px]:block">
+        {note ? <p className="mk-label min-[641px]:mb-1">{note}</p> : null}
         {label ? <p className="mk-entry-date">{label}</p> : null}
         {meta ? (
           <p className="mk-mini font-mono tabular-nums min-[641px]:mt-1" aria-hidden>
