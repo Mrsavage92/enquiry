@@ -2,7 +2,10 @@
   "schema_version": 2,
   "slug": "linear-app",
   "reference_url": "https://linear.app",
-  "reference_urls": ["https://linear.app", "https://linear.app/changelog"],
+  "reference_urls": [
+    "https://linear.app",
+    "https://linear.app/changelog"
+  ],
   "captured_at": "2026-09-09T00:00:00Z",
   "extraction_method": "playwright-headless-chromium-1440x900-and-390x844-wait-4s (style-mirror skill loaded; chrome-devtools/puppeteer MCP unavailable to this agent, Playwright equivalent per skill Step 2B/2C)",
   "color": {
@@ -176,7 +179,12 @@
         "line_height": "19.5px",
         "color": "#8a8f98"
       },
-      "tab": { "size": "16px", "weight": 400, "letter_spacing": "normal", "line_height": "24px" },
+      "tab": {
+        "size": "16px",
+        "weight": 400,
+        "letter_spacing": "normal",
+        "line_height": "24px"
+      },
       "date_label": {
         "size": "14px",
         "weight": 400,
@@ -236,7 +244,12 @@
   "layout": {
     "hero": "left-aligned-full-bleed",
     "hero_alignment": "left",
-    "above_fold_order": ["nav", "headline", "lede_row", "product_visual"],
+    "above_fold_order": [
+      "nav",
+      "headline",
+      "lede_row",
+      "product_visual"
+    ],
     "product_visual": "below-text-full-width",
     "density": "sparse",
     "page_wrapper_max_width": "1436px",
@@ -264,7 +277,7 @@
       "date_column_width": "296px",
       "date_column_padding_left": "24px",
       "date_column_margin_bottom": "16px",
-      "content_column_span": "5 / 13",
+      "content_column_span": "4 / 10",
       "content_column_width": "624px",
       "content_column_left_at_1440": "408px",
       "date_bar_rule": {
@@ -281,7 +294,9 @@
         "diameter": "6px",
         "sits_at": "top of the newest date group, centred on the 1px rule"
       },
-      "stacks_at_390": true
+      "stacks_at_390": true,
+      "content_column_span_note": "Measured from geometry: content column starts at x=408 and is 624px wide on the 1280px 12-column grid with a 32px gap, i.e. six columns starting at column 4. An earlier read of the reference's named grid line ('b') had this as 5/13, which put the column 109px too far right.",
+      "date_column_margin_bottom_applies_to": "the date wrapper, not the grid cell; the 1px rule is a sibling that spans the whole date group"
     },
     "page_divider": {
       "height": "1px",
@@ -289,7 +304,8 @@
       "border_radius": "9999px",
       "margin": "32px 0px 64px",
       "width": "content column"
-    }
+    },
+    "nav_content_inset_note": "The header is inset 1px tighter than body content - 77px vs 78px at 1440, 23px vs 24px at 390 - so the wordmark's optical bearing lines up with the h1's -2px pull."
   },
   "spacing": {
     "section_padding_block_1440": "128px",
@@ -412,10 +428,23 @@
         "line_height": "19.5px",
         "row_height": "28px"
       },
-      "legal_link_color": "#62666d"
+      "legal_link_color": "#62666d",
+      "grid": {
+        "columns": "repeat(6, 224px) over the 1344px content",
+        "gap": "0px",
+        "cell_padding_inline": "32px",
+        "container_padding": "56px 46px on the 1436px wrapper",
+        "first_column_content_left_at_1440": "80px",
+        "column_pitch": "224px"
+      }
     },
     "changelog_entry": {
-      "date": { "size": "14px", "weight": 400, "color": "#f7f8f8", "letter_spacing": "-0.182px" },
+      "date": {
+        "size": "14px",
+        "weight": 400,
+        "color": "#f7f8f8",
+        "letter_spacing": "-0.182px"
+      },
       "title_featured": {
         "size": "32px",
         "weight": 590,
@@ -456,14 +485,24 @@
     "css_smooth_scroll": false,
     "scroll_behavior": "auto",
     "view_transitions_detected": true,
-    "easing_curves_seen": ["cubic-bezier(0.25, 0.46, 0.45, 0.94)"],
-    "durations_seen": ["0.1s", "0.16s"],
+    "easing_curves_seen": [
+      "cubic-bezier(0.25, 0.46, 0.45, 0.94)"
+    ],
+    "durations_seen": [
+      "0.1s",
+      "0.16s"
+    ],
     "note": "No scroll-triggered entrance animation library on either surface. Motion is limited to short colour/background hover transitions on links and buttons."
   },
   "icons": {
     "family": "custom-fill-16",
     "viewbox": "0 0 16 16",
-    "render_size": ["13px", "14px", "15px", "16px"],
+    "render_size": [
+      "13px",
+      "14px",
+      "15px",
+      "16px"
+    ],
     "paint": "fill",
     "stroke": "none",
     "stroke_width": null,

@@ -1,0 +1,800 @@
+[
+  {
+    "name": "nav",
+    "rows": [
+      {
+        "el": "nav",
+        "prop": "position",
+        "expected": "fixed",
+        "actual": "fixed",
+        "ok": true
+      },
+      {
+        "el": "nav",
+        "prop": "height",
+        "expected": "65px",
+        "actual": "65px",
+        "ok": true
+      },
+      {
+        "el": "nav",
+        "prop": "backdropFilter",
+        "expected": "blur(20px)",
+        "actual": "blur(20px)",
+        "ok": true
+      },
+      {
+        "el": "nav",
+        "prop": "borderBottom",
+        "expected": "1px solid rgba(255, 255, 255, 0.08)",
+        "actual": "1px solid rgba(255, 255, 255, 0.08)",
+        "ok": true
+      },
+      {
+        "el": "nav",
+        "prop": "backgroundImage",
+        "expected": "linear-gradient(rgba(11, 11, 11, 0.8) 0%, oklab(0.149576 0.00000680983 0.00000298768 / 0.761905) 100%)",
+        "actual": "linear-gradient(rgba(11, 11, 11, 0.8) 0%, oklab(0.149576 0.00000680983 0.00000298768 / 0.761905) 100%)",
+        "ok": true
+      },
+      {
+        "el": "nav link",
+        "prop": "color",
+        "expected": "rgb(138, 143, 152)",
+        "actual": "rgb(138, 143, 152)",
+        "ok": true
+      },
+      {
+        "el": "nav link",
+        "prop": "fontSize",
+        "expected": "13px",
+        "actual": "13px",
+        "ok": true
+      },
+      {
+        "el": "nav link",
+        "prop": "fontWeight",
+        "expected": "400",
+        "actual": "400",
+        "ok": true
+      },
+      {
+        "el": "nav link",
+        "prop": "lineHeight",
+        "expected": "19.5px",
+        "actual": "19.5px",
+        "ok": true
+      },
+      {
+        "el": "nav link",
+        "prop": "height",
+        "expected": "32px",
+        "actual": "32px",
+        "ok": true
+      },
+      {
+        "el": "nav link",
+        "prop": "paddingInline",
+        "expected": "12px",
+        "actual": "12px",
+        "ok": true
+      },
+      {
+        "el": "nav link",
+        "prop": "borderRadius",
+        "expected": "9999px",
+        "actual": "9999px",
+        "ok": true
+      },
+      {
+        "el": "nav link",
+        "prop": "fontFamily",
+        "expected": "Inter",
+        "actual": "Inter",
+        "ok": true
+      },
+      {
+        "el": "nav CTA pill",
+        "prop": "backgroundColor",
+        "expected": "rgb(229, 229, 230)",
+        "actual": "rgb(229, 229, 230)",
+        "ok": true
+      },
+      {
+        "el": "nav CTA pill",
+        "prop": "color",
+        "expected": "rgb(8, 9, 10)",
+        "actual": "rgb(8, 9, 10)",
+        "ok": true
+      },
+      {
+        "el": "nav CTA pill",
+        "prop": "fontSize",
+        "expected": "13px",
+        "actual": "13px",
+        "ok": true
+      },
+      {
+        "el": "nav CTA pill",
+        "prop": "fontWeight",
+        "expected": "510",
+        "actual": "510",
+        "ok": true
+      },
+      {
+        "el": "nav CTA pill",
+        "prop": "height",
+        "expected": "32px",
+        "actual": "32px",
+        "ok": true
+      },
+      {
+        "el": "nav CTA pill",
+        "prop": "paddingInline",
+        "expected": "12px",
+        "actual": "12px",
+        "ok": true
+      },
+      {
+        "el": "nav CTA pill",
+        "prop": "borderRadius",
+        "expected": "9999px",
+        "actual": "9999px",
+        "ok": true
+      },
+      {
+        "el": "wordmark",
+        "prop": "height",
+        "expected": "32px",
+        "actual": "32px",
+        "ok": true
+      },
+      {
+        "el": "wordmark",
+        "prop": "paddingInline",
+        "expected": "8px",
+        "actual": "8px",
+        "ok": true
+      },
+      {
+        "el": "wordmark",
+        "prop": "marginLeft",
+        "expected": "-8px",
+        "actual": "-8px",
+        "ok": true
+      },
+      {
+        "el": "wordmark",
+        "prop": "borderRadius",
+        "expected": "6px",
+        "actual": "6px",
+        "ok": true
+      }
+    ]
+  },
+  {
+    "name": "hero",
+    "rows": [
+      {
+        "el": "hero",
+        "prop": "contentLeftEdge",
+        "expected": "24px",
+        "actual": "24px",
+        "ok": true
+      },
+      {
+        "el": "h1",
+        "prop": "fontFamily",
+        "expected": "Inter",
+        "actual": "Inter",
+        "ok": true
+      },
+      {
+        "el": "h1",
+        "prop": "fontSize",
+        "expected": "38px",
+        "actual": "38px",
+        "ok": true
+      },
+      {
+        "el": "h1",
+        "prop": "fontWeight",
+        "expected": "510",
+        "actual": "510",
+        "ok": true
+      },
+      {
+        "el": "h1",
+        "prop": "letterSpacing",
+        "expected": "-0.836px",
+        "actual": "-0.836px",
+        "ok": true
+      },
+      {
+        "el": "h1",
+        "prop": "lineHeight",
+        "expected": "41.8px",
+        "actual": "41.8px",
+        "ok": true
+      },
+      {
+        "el": "h1",
+        "prop": "color",
+        "expected": "rgb(247, 248, 248)",
+        "actual": "rgb(247, 248, 248)",
+        "ok": true
+      },
+      {
+        "el": "h1",
+        "prop": "opticalMargin",
+        "expected": "-1px",
+        "actual": "-1px",
+        "ok": true
+      },
+      {
+        "el": "lede",
+        "prop": "fontSize",
+        "expected": "15px",
+        "actual": "15px",
+        "ok": true
+      },
+      {
+        "el": "lede",
+        "prop": "fontWeight",
+        "expected": "400",
+        "actual": "400",
+        "ok": true
+      },
+      {
+        "el": "lede",
+        "prop": "letterSpacing",
+        "expected": "-0.165px",
+        "actual": "-0.165px",
+        "ok": true
+      },
+      {
+        "el": "lede",
+        "prop": "lineHeight",
+        "expected": "24px",
+        "actual": "24px",
+        "ok": true
+      },
+      {
+        "el": "lede",
+        "prop": "color",
+        "expected": "rgb(138, 143, 152)",
+        "actual": "rgb(138, 143, 152)",
+        "ok": true
+      },
+      {
+        "el": "label",
+        "prop": "fontSize",
+        "expected": "12px",
+        "actual": "12px",
+        "ok": true
+      },
+      {
+        "el": "label",
+        "prop": "lineHeight",
+        "expected": "16.8px",
+        "actual": "16.8px",
+        "ok": true
+      },
+      {
+        "el": "label",
+        "prop": "textTransform",
+        "expected": "none",
+        "actual": "none",
+        "ok": true
+      },
+      {
+        "el": "label",
+        "prop": "color",
+        "expected": "rgb(138, 143, 152)",
+        "actual": "rgb(138, 143, 152)",
+        "ok": true
+      },
+      {
+        "el": "label",
+        "prop": "fontFamily",
+        "expected": "ui-monospace",
+        "actual": "ui-monospace",
+        "ok": true
+      },
+      {
+        "el": "hero form field",
+        "prop": "backgroundColor",
+        "expected": "rgb(15, 16, 17)",
+        "actual": "rgb(15, 16, 17)",
+        "ok": true
+      },
+      {
+        "el": "hero form field",
+        "prop": "border",
+        "expected": "1px solid rgb(35, 37, 42)",
+        "actual": "1px solid rgb(35, 37, 42)",
+        "ok": true
+      },
+      {
+        "el": "hero form field",
+        "prop": "borderRadius",
+        "expected": "8px",
+        "actual": "8px",
+        "ok": true
+      },
+      {
+        "el": "hero form field",
+        "prop": "color",
+        "expected": "rgb(247, 248, 248)",
+        "actual": "rgb(247, 248, 248)",
+        "ok": true
+      },
+      {
+        "el": "hero form field",
+        "prop": "fontSize",
+        "expected": "15px",
+        "actual": "15px",
+        "ok": true
+      },
+      {
+        "el": "hero CTA",
+        "prop": "backgroundColor",
+        "expected": "rgb(229, 229, 230)",
+        "actual": "rgb(229, 229, 230)",
+        "ok": true
+      },
+      {
+        "el": "hero CTA",
+        "prop": "color",
+        "expected": "rgb(8, 9, 10)",
+        "actual": "rgb(8, 9, 10)",
+        "ok": true
+      },
+      {
+        "el": "hero CTA",
+        "prop": "borderRadius",
+        "expected": "9999px",
+        "actual": "9999px",
+        "ok": true
+      }
+    ]
+  },
+  {
+    "name": "product-visual",
+    "rows": [
+      {
+        "el": "product-visual",
+        "prop": "plateBg",
+        "expected": "rgb(9, 10, 11)",
+        "actual": "rgb(9, 10, 11)",
+        "ok": true
+      },
+      {
+        "el": "product-visual",
+        "prop": "platePadding",
+        "expected": "8px",
+        "actual": "8px",
+        "ok": true
+      },
+      {
+        "el": "product-visual",
+        "prop": "plateRadius",
+        "expected": "12px",
+        "actual": "12px",
+        "ok": true
+      },
+      {
+        "el": "media panel",
+        "prop": "backgroundColor",
+        "expected": "rgb(16, 17, 18)",
+        "actual": "rgb(16, 17, 18)",
+        "ok": true
+      },
+      {
+        "el": "media panel",
+        "prop": "border",
+        "expected": "1px solid rgba(255, 255, 255, 0.08)",
+        "actual": "1px solid rgba(255, 255, 255, 0.08)",
+        "ok": true
+      },
+      {
+        "el": "media panel",
+        "prop": "borderRadius",
+        "expected": "12px",
+        "actual": "12px",
+        "ok": true
+      },
+      {
+        "el": "media inner",
+        "prop": "border",
+        "expected": "1px solid rgba(255, 255, 255, 0.05)",
+        "actual": "1px solid rgba(255, 255, 255, 0.05)",
+        "ok": true
+      },
+      {
+        "el": "media inner",
+        "prop": "borderRadius",
+        "expected": "8px",
+        "actual": "8px",
+        "ok": true
+      },
+      {
+        "el": "media inner",
+        "prop": "boxShadow",
+        "expected": "rgba(0, 0, 0, 0.2) 0px 0px 0px 2px",
+        "actual": "rgba(0, 0, 0, 0.2) 0px 0px 0px 2px",
+        "ok": true
+      }
+    ]
+  },
+  {
+    "name": "content-sections",
+    "rows": [
+      {
+        "el": "content-sections",
+        "prop": "paddingBlock",
+        "expected": "0px",
+        "actual": "0px",
+        "ok": true
+      },
+      {
+        "el": "h2",
+        "prop": "fontFamily",
+        "expected": "Inter",
+        "actual": "Inter",
+        "ok": true
+      },
+      {
+        "el": "h2",
+        "prop": "fontSize",
+        "expected": "24px",
+        "actual": "24px",
+        "ok": true
+      },
+      {
+        "el": "h2",
+        "prop": "fontWeight",
+        "expected": "510",
+        "actual": "510",
+        "ok": true
+      },
+      {
+        "el": "h2",
+        "prop": "letterSpacing",
+        "expected": "-0.288px",
+        "actual": "-0.288px",
+        "ok": true
+      },
+      {
+        "el": "h2",
+        "prop": "lineHeight",
+        "expected": "31.92px",
+        "actual": "31.92px",
+        "ok": true
+      },
+      {
+        "el": "h2",
+        "prop": "color",
+        "expected": "rgb(247, 248, 248)",
+        "actual": "rgb(247, 248, 248)",
+        "ok": true
+      },
+      {
+        "el": "section head gap",
+        "prop": "paddingBottom",
+        "expected": "48px",
+        "actual": "48px",
+        "ok": true
+      },
+      {
+        "el": "row divider",
+        "prop": "borderTop",
+        "expected": "1px solid rgb(35, 37, 42)",
+        "actual": "1px solid rgb(35, 37, 42)",
+        "ok": true
+      }
+    ]
+  },
+  {
+    "name": "cards",
+    "rows": [
+      {
+        "el": "cards",
+        "prop": "backgroundColor",
+        "expected": "rgb(15, 16, 17)",
+        "actual": "rgb(15, 16, 17)",
+        "ok": true
+      },
+      {
+        "el": "cards",
+        "prop": "backgroundImage",
+        "expected": "linear-gradient(rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.03))",
+        "actual": "linear-gradient(rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.03))",
+        "ok": true
+      },
+      {
+        "el": "cards",
+        "prop": "border",
+        "expected": "1px solid rgba(255, 255, 255, 0.08)",
+        "actual": "1px solid rgba(255, 255, 255, 0.08)",
+        "ok": true
+      },
+      {
+        "el": "cards",
+        "prop": "borderRadius",
+        "expected": "12px",
+        "actual": "12px",
+        "ok": true
+      },
+      {
+        "el": "cards",
+        "prop": "boxShadow",
+        "expected": "rgba(0, 0, 0, 0.2) 0px 0px 0px 1px",
+        "actual": "rgba(0, 0, 0, 0.2) 0px 0px 0px 1px",
+        "ok": true
+      },
+      {
+        "el": "card title h3",
+        "prop": "fontSize",
+        "expected": "20px",
+        "actual": "20px",
+        "ok": true
+      },
+      {
+        "el": "card title h3",
+        "prop": "fontWeight",
+        "expected": "590",
+        "actual": "590",
+        "ok": true
+      },
+      {
+        "el": "card title h3",
+        "prop": "letterSpacing",
+        "expected": "-0.24px",
+        "actual": "-0.24px",
+        "ok": true
+      },
+      {
+        "el": "card title h3",
+        "prop": "lineHeight",
+        "expected": "26.6px",
+        "actual": "26.6px",
+        "ok": true
+      },
+      {
+        "el": "card title h3",
+        "prop": "color",
+        "expected": "rgb(208, 214, 224)",
+        "actual": "rgb(208, 214, 224)",
+        "ok": true
+      }
+    ]
+  },
+  {
+    "name": "changelog-entry",
+    "rows": [
+      {
+        "el": "changelog-entry",
+        "prop": "gap",
+        "expected": "32px",
+        "actual": "32px",
+        "ok": true
+      },
+      {
+        "el": "changelog-entry",
+        "prop": "columns",
+        "expected": "block",
+        "actual": "block",
+        "ok": true
+      },
+      {
+        "el": "entry aside",
+        "prop": "paddingLeft",
+        "expected": "0px",
+        "actual": "0px",
+        "ok": true
+      },
+      {
+        "el": "entry aside",
+        "prop": "marginBottom",
+        "expected": "16px",
+        "actual": "16px",
+        "ok": true
+      },
+      {
+        "el": "entry rule",
+        "prop": "background",
+        "expected": "none",
+        "actual": "none",
+        "ok": true
+      },
+      {
+        "el": "entry rule",
+        "prop": "width",
+        "expected": "none",
+        "actual": "none",
+        "ok": true
+      },
+      {
+        "el": "entry marker",
+        "prop": "background",
+        "expected": "none",
+        "actual": "none",
+        "ok": true
+      },
+      {
+        "el": "entry marker",
+        "prop": "size",
+        "expected": "none",
+        "actual": "none",
+        "ok": true
+      },
+      {
+        "el": "entry date",
+        "prop": "fontSize",
+        "expected": "14px",
+        "actual": "14px",
+        "ok": true
+      },
+      {
+        "el": "entry date",
+        "prop": "letterSpacing",
+        "expected": "-0.182px",
+        "actual": "-0.182px",
+        "ok": true
+      },
+      {
+        "el": "entry date",
+        "prop": "lineHeight",
+        "expected": "21px",
+        "actual": "21px",
+        "ok": true
+      },
+      {
+        "el": "entry date",
+        "prop": "color",
+        "expected": "rgb(247, 248, 248)",
+        "actual": "rgb(247, 248, 248)",
+        "ok": true
+      },
+      {
+        "el": "entry title",
+        "prop": "fontSize",
+        "expected": "24px",
+        "actual": "24px",
+        "ok": true
+      },
+      {
+        "el": "entry title",
+        "prop": "fontWeight",
+        "expected": "590",
+        "actual": "590",
+        "ok": true
+      },
+      {
+        "el": "entry title",
+        "prop": "letterSpacing",
+        "expected": "-0.288px",
+        "actual": "-0.288px",
+        "ok": true
+      },
+      {
+        "el": "entry title",
+        "prop": "lineHeight",
+        "expected": "31.92px",
+        "actual": "31.92px",
+        "ok": true
+      },
+      {
+        "el": "entry body",
+        "prop": "fontSize",
+        "expected": "15px",
+        "actual": "15px",
+        "ok": true
+      },
+      {
+        "el": "entry body",
+        "prop": "lineHeight",
+        "expected": "24px",
+        "actual": "24px",
+        "ok": true
+      },
+      {
+        "el": "entry body",
+        "prop": "color",
+        "expected": "rgb(208, 214, 224)",
+        "actual": "rgb(208, 214, 224)",
+        "ok": true
+      },
+      {
+        "el": "divider",
+        "prop": "backgroundColor",
+        "expected": "rgb(24, 25, 26)",
+        "actual": "rgb(24, 25, 26)",
+        "ok": true
+      },
+      {
+        "el": "divider",
+        "prop": "height",
+        "expected": "1px",
+        "actual": "1px",
+        "ok": true
+      },
+      {
+        "el": "divider",
+        "prop": "borderRadius",
+        "expected": "9999px",
+        "actual": "9999px",
+        "ok": true
+      }
+    ]
+  },
+  {
+    "name": "footer",
+    "rows": [
+      {
+        "el": "footer",
+        "prop": "backgroundColor",
+        "expected": "rgb(8, 9, 10)",
+        "actual": "rgb(8, 9, 10)",
+        "ok": true
+      },
+      {
+        "el": "footer",
+        "prop": "borderTop",
+        "expected": "1px solid rgb(35, 37, 42)",
+        "actual": "1px solid rgb(35, 37, 42)",
+        "ok": true
+      },
+      {
+        "el": "footer inner padding",
+        "prop": "paddingTop",
+        "expected": "56px",
+        "actual": "56px",
+        "ok": true
+      },
+      {
+        "el": "footer link",
+        "prop": "fontSize",
+        "expected": "13px",
+        "actual": "13px",
+        "ok": true
+      },
+      {
+        "el": "footer link",
+        "prop": "fontWeight",
+        "expected": "400",
+        "actual": "400",
+        "ok": true
+      },
+      {
+        "el": "footer link",
+        "prop": "letterSpacing",
+        "expected": "-0.13px",
+        "actual": "-0.13px",
+        "ok": true
+      },
+      {
+        "el": "footer link",
+        "prop": "lineHeight",
+        "expected": "19.5px",
+        "actual": "19.5px",
+        "ok": true
+      },
+      {
+        "el": "footer link",
+        "prop": "color",
+        "expected": "rgb(138, 143, 152)",
+        "actual": "rgb(138, 143, 152)",
+        "ok": true
+      },
+      {
+        "el": "footer link",
+        "prop": "minHeight",
+        "expected": "28px",
+        "actual": "28px",
+        "ok": true
+      }
+    ]
+  }
+]

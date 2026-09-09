@@ -199,28 +199,37 @@ export function SiteShell({ children, notebook }: { children: ReactNode; noteboo
       </header>
       <main className="mk-main relative z-10">{children}</main>
       <footer className="mk-footer relative z-10">
-        <div className="mk-container mk-footer-inner">
-          <div className="flex flex-col gap-10 sm:flex-row sm:justify-between sm:gap-16">
-            <div className="max-w-sm">
+        <div className="mk-page mk-footer-inner">
+          {/*
+            The reference footer is a 6-column grid over its 1344px content:
+            the brand mark in column 1 and five link columns on a 224px pitch
+            starting at x=304, all left-aligned rather than pushed to the right
+            edge. Enquiry's brand block carries a description as well as the
+            wordmark, so it takes the first two columns and the links fill the
+            remaining four on the same pitch.
+
+            The reference's columns carry headings ("Product", "Company").
+            Those are copy this pass is not allowed to invent, so the columns
+            ship unlabelled and every existing link keeps its wording and
+            destination.
+          */}
+          <div className="mk-footer-grid">
+            <div className="mk-footer-brand">
               <Wordmark />
-              <p className="mk-mini mt-3">
+              <p className="mk-mini mt-3 max-w-sm">
                 Enquiry puts the request together and prepares the next action. The app is the desk.
                 The website is how you get in.
               </p>
             </div>
-            {/*
-              The reference footer is a grid of link columns. Its columns carry
-              headings ("Product", "Company"); those are copy this pass is not
-              allowed to invent, so the columns ship unlabelled and every
-              existing link keeps its wording and destination.
-            */}
-            <div className="grid grid-cols-2 gap-x-16 gap-y-1 sm:grid-cols-2">
-              {FOOTER_LINKS.map((item) => (
-                <Link key={item.to} to={item.to} className="mk-footer-link">
-                  {item.label}
-                </Link>
-              ))}
-            </div>
+            {[0, 2, 4, 6].map((start) => (
+              <div key={start} className="flex flex-col">
+                {FOOTER_LINKS.slice(start, start + 2).map((item) => (
+                  <Link key={item.to} to={item.to} className="mk-footer-link">
+                    {item.label}
+                  </Link>
+                ))}
+              </div>
+            ))}
           </div>
         </div>
       </footer>

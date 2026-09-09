@@ -1276,7 +1276,15 @@ html[data-site="marketing"] {
   --mk-link: #828fff;
   --mk-marker: #fc7840;
   --mk-focus: #5e69d1;
-  --mk-nav-bg: linear-gradient(rgba(11, 11, 11, 0.8) 0%, rgba(11, 11, 11, 0.762) 100%);
+  /*
+    The reference's computed header fill, verbatim. Its second stop is an
+    oklab colour with alpha 0.761905; writing it as rgba() rounds to 0.76 and
+    no longer matches, so the oklab form is kept.
+  */
+  --mk-nav-bg: linear-gradient(
+    rgba(11, 11, 11, 0.8) 0%,
+    oklab(0.149576 0.00000680983 0.00000298768 / 0.761905) 100%
+  );
 
   /* --- type ------------------------------------------------------------- */
   --mk-font:
@@ -1656,6 +1664,15 @@ html[data-site="marketing"] .mk-nav {
   -webkit-backdrop-filter: blur(20px);
   padding-top: var(--app-safe-top);
 }
+/*
+  The reference insets its header 1px tighter than the body content - 77px
+  against 78px at 1440, 23px against 24px at 390 - so the wordmark's optical
+  bearing lands on the same line as the h1's -2px pull rather than 1px right
+  of it.
+*/
+html[data-site="marketing"] .mk-nav .mk-container {
+  padding-inline: calc(var(--mk-outer) + var(--mk-inset) - 1px);
+}
 html[data-site="marketing"] .mk-nav-inner {
   height: var(--mk-nav-h);
   display: flex;
@@ -1885,6 +1902,47 @@ html[data-site="marketing"] .mk-footer-inner {
     padding-block: 56px 24px;
   }
 }
+/*
+  Six columns over the content width, on the reference's own 224px pitch: its
+  brand mark sits in column 1 and its five link columns start at x=304. Row
+  pitch is 30px (28px rows + a 2px gap), also measured off the reference.
+*/
+html[data-site="marketing"] .mk-footer-grid {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  column-gap: 0;
+  row-gap: 2px;
+}
+/* Every cell carries the reference's own 32px inset, which is what puts its
+   first column's content on the x=80 content line at 1440. */
+html[data-site="marketing"] .mk-footer-grid > * {
+  padding-inline: var(--mk-inset);
+}
+/*
+  DERIVATION: the reference's brand cell holds only its mark and spans one
+  224px column. Enquiry's holds the wordmark plus a two-line description, so
+  it spans two. Column pitch, cell inset, gap, row pitch, type and colour are
+  all the reference's.
+*/
+html[data-site="marketing"] .mk-footer-brand {
+  grid-column: span 2;
+}
+@media (max-width: 1024px) {
+  html[data-site="marketing"] .mk-footer-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+  html[data-site="marketing"] .mk-footer-brand {
+    grid-column: 1 / -1;
+    margin-bottom: 48px;
+  }
+}
+@media (max-width: 640px) {
+  html[data-site="marketing"] .mk-footer-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    row-gap: 48px;
+    column-gap: 16px;
+  }
+}
 html[data-site="marketing"] .mk-footer-heading {
   font-size: 13px;
   font-weight: var(--mk-weight-medium);
@@ -1917,20 +1975,30 @@ html[data-site="marketing"] .mk-entry {
   display: grid;
   grid-template-columns: repeat(12, minmax(0, 1fr));
   gap: 32px;
+  position: relative;
 }
 html[data-site="marketing"] .mk-entry-aside {
   grid-column: 1 / 4;
   padding-left: 24px;
   margin-bottom: 16px;
-  position: relative;
 }
+/*
+  In the reference the date bar is a sibling of the date wrapper, not a child
+  of it: one continuous 1px rule running the whole height of a date group
+  while the wrapper stays the height of its own 24px date row. Anchoring it to
+  .mk-entry rather than the aside reproduces that - a rule inside the aside
+  would stop at the date and leave gaps between entries.
+*/
 html[data-site="marketing"] .mk-entry-rule {
   position: absolute;
   left: 9px;
   top: 9px;
-  bottom: -9px;
+  bottom: 0;
   width: 1px;
   background: var(--mk-border);
+}
+html[data-site="marketing"] .mk-entry-body {
+  padding-bottom: 48px;
 }
 html[data-site="marketing"] .mk-entry-marker {
   position: absolute;
@@ -1949,7 +2017,9 @@ html[data-site="marketing"] .mk-entry-date {
   color: var(--mk-fg);
 }
 html[data-site="marketing"] .mk-entry-body {
-  grid-column: 5 / 13;
+  /* Measured: content column starts at x=408 and is 624px wide on a 1280px
+     12-column grid with a 32px gap, i.e. columns 4 through 9. */
+  grid-column: 4 / 10;
 }
 html[data-site="marketing"] .mk-entry-title {
   font-size: 24px;

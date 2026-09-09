@@ -334,10 +334,10 @@ function Home() {
           </div>
           <div className="mk-divider mb-12" />
           {preview.map((item, i) => (
-            <div key={item.id} className="mk-entry pb-12">
+            <div key={item.id} className="mk-entry">
+              <span className="mk-entry-rule" aria-hidden />
+              {i === 0 ? <span className="mk-entry-marker" aria-hidden /> : null}
               <div className="mk-entry-aside">
-                <span className="mk-entry-rule" aria-hidden />
-                {i === 0 ? <span className="mk-entry-marker" aria-hidden /> : null}
                 <p className="mk-entry-date">{item.statusLabel}</p>
               </div>
               <div className="mk-entry-body">
