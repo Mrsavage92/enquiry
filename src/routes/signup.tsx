@@ -3,10 +3,7 @@ import { AuthRequestForm } from "@/components/auth/auth-request-form";
 
 export const Route = createFileRoute("/signup")({
   head: () => ({
-    meta: [
-      { title: "Set up Enquiry" },
-      { name: "robots", content: "noindex,nofollow" },
-    ],
+    meta: [{ title: "Set up Enquiry" }, { name: "robots", content: "noindex,nofollow" }],
   }),
   component: SignupPage,
 });
@@ -18,7 +15,7 @@ function SignupPage() {
       intent="signup"
       destination="/onboarding"
       heading="Set up Enquiry"
-      lede="For invited early-access businesses. Set up how your business works, then bring in the first enquiry when you are ready."
+      lede="This is early-access setup. If you have not been invited yet, join the waitlist first."
       cta="Email me a setup link"
       footer={
         <>
