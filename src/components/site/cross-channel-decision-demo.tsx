@@ -237,7 +237,17 @@ function CheckRow({
       <li className="flex items-start justify-between gap-3 border-t border-line px-0 py-2.5 first:border-t-0 first:pt-0">
         <p className="min-w-0 text-sm leading-snug">
           <span className="text-stone">{check.label}</span>
-          <span className="mx-1.5 text-stone">·</span>
+          {/*
+            text-ink-2, not text-stone. The rendered-pixel contrast sweep
+            measured this separator at 3.87:1 - "·" is a 2-3px glyph that never
+            reaches its specified colour, so text-stone's nominal 4.94:1 does
+            not survive rasterisation. text-ink-2 measures above 4.5:1 as
+            painted. The labels either side keep text-stone; they are wide
+            enough to render at full colour.
+          */}
+          <span className="mx-1.5 text-ink-2" aria-hidden>
+            ·
+          </span>
           <span>{check.value}</span>
         </p>
         <Badge tone={tone}>{badge}</Badge>

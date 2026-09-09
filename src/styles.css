@@ -1640,10 +1640,6 @@ html[data-site="marketing"] header a[class*="inline-flex"],
 html[data-site="marketing"] header button[class*="inline-flex"] {
   border-radius: var(--mk-r-pill);
 }
-html[data-site="marketing"] .bg-mark,
-html[data-site="marketing"] .bg-mark-strong {
-  color: var(--mk-invert-fg);
-}
 /* The reference has no press-scale on any control. */
 html[data-site="marketing"] button:active,
 html[data-site="marketing"] a:active {
