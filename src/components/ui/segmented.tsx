@@ -34,9 +34,7 @@ export function Segmented<T extends string>({
             className={cn(
               "inline-flex min-h-11 shrink-0 items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-[background-color,color,box-shadow] duration-150 ease-out",
               fullWidth ? "min-w-0 flex-1 px-2" : "px-3",
-              selected
-                ? "bg-ink text-paper shadow-border"
-                : "text-ink-2 hover:text-ink",
+              selected ? "bg-ink text-paper shadow-border" : "text-ink-2 hover:text-ink",
             )}
           >
             {option.label}
@@ -44,7 +42,7 @@ export function Segmented<T extends string>({
               <span
                 className={cn(
                   "ml-1.5 tabular-nums",
-                  selected ? "text-paper/70" : "text-stone",
+                  selected ? "text-paper/70" : "text-stone-on-paper-2",
                 )}
               >
                 {option.count}

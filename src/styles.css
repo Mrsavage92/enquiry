@@ -20,8 +20,31 @@
     grey character.
   */
   --color-stone: #716b61;
+  /*
+    Not a change to --color-stone (4.57:1 on paper, 4.94:1 on raised - both
+    already pass). --color-stone measures 4.00:1 on --color-paper-2, below
+    the 4.5:1 minimum for body-size text, wherever muted text sits on that
+    surface (src/components/shell/jump.tsx:244, the "Jump" shortcut-hint
+    chip on bg-paper-2). #686259 measures 4.57:1 on paper-2 - the smallest
+    step that clears AA there without touching the passing --color-stone
+    value used everywhere else.
+  */
+  --color-stone-on-paper-2: #686259;
   --color-line: #e6ddd2;
   --color-line-strong: #cfc4b4;
+  /*
+    --color-line (1.26:1 on raised) and --color-line-strong (1.61:1 on
+    raised, 1.49:1 on paper) both sit below the 3:1 WCAG 1.4.11 minimum for
+    a necessary UI-component boundary. Both stay unchanged for their
+    existing decorative uses (dividers, the "·" separators, the roadmap
+    marker) - a divider is never the sole way to perceive a boundary, so it
+    was never asked to hit 3:1. This token is for the one place that IS a
+    necessary boundary: the resting/hover border of every input, select and
+    textarea (the `.field` rules below). #8e867a measures 3.11:1 on paper
+    and 3.36:1 on raised - the smallest step that clears 3:1 on both.
+  */
+  --color-line-control: #8e867a;
+  --color-line-control-hover: color-mix(in oklab, var(--color-line-control) 78%, black);
   --color-sidebar: #141210;
   --color-sidebar-fg: #f3eee6;
   --color-sidebar-muted: #a3988a;
@@ -35,6 +58,18 @@
   */
   --color-mark-strong: color-mix(in oklab, var(--color-mark) 82%, black);
   --color-warn: #8f5a00;
+  /*
+    Same failure as --color-stone-on-paper-2 above, found by a computed-style
+    sweep rather than a grep: plain (unpilled) --color-warn text measures
+    5.01:1 on paper and 5.41:1 on raised, but 4.38:1 on --color-paper-2 -
+    below 4.5:1. Reachable wherever a queue row's blocking-situation label
+    (queue.tsx) renders on the row's hover/active paper-2 background, with
+    no --color-warn-bg pill underneath to lift the surface first. #8a5700
+    measures 4.62:1 on paper-2 - the smallest step that clears AA there
+    without touching the passing --color-warn value used everywhere else
+    (including every --color-warn-bg pill, which stays untouched).
+  */
+  --color-warn-on-paper-2: #8a5700;
   --color-warn-bg: #f7edd4;
   --color-danger: #b42318;
   --color-danger-bg: #f8ece8;
@@ -71,6 +106,86 @@
   --animate-sheet-out: sheet-out 0.2s var(--ease-out) both;
 }
 
+/*
+  Palette B trial - a reversible, flagged layer over the locked warm
+  paper/ink identity (doc 44, 2026-09-04: "a hierarchy/density pass inside
+  the existing warm paper/ink identity - explicitly NOT a... new palette").
+  Never the shipped default; takes effect only when `data-palette="b"` is
+  present on <html>, set by src/lib/palette-flag.ts behind `?palette=b`
+  (persisted to localStorage) and cleared by `?palette=a`. Values are the
+  "B - refined warm, recommended" candidate transcribed verbatim from
+  docs/design/2026-09-07_PALETTE_STUDY.html (`data-palette=refined`) and
+  docs/design/2026-09-07_VISUAL_DIRECTION_REVIEW.md:135-153.
+
+  Only the tokens the study itself defines a value for are overridden here.
+  The two new Part-1 tokens above (--color-stone-on-paper-2,
+  --color-line-control) are not part of the study - it never named them -
+  so they deliberately inherit their Part-1 hex values under this block
+  rather than getting invented B-specific numbers. Measured result of that
+  inheritance (both improve further under B, neither regresses): see
+  research/agent-runs/2026-09-07/44-visual-slice-tokens-and-palette-b.md.
+
+  Two repairs from the 2026-09-08 cold walkthrough
+  (research/agent-runs/2026-09-07/56-cold-walkthrough-preview-v1.md, Part 4):
+
+  1. --color-notebook was missing entirely, so every `.notebook` surface
+     (/roadmap) silently kept --color-paper's A value (#f3eee6) while the
+     rest of the site turned neutral under B - measured mean dE 0.32 across
+     the whole page, i.e. B did nothing there. --color-notebook is #f3eee6
+     under A, identical to --color-paper (dE 0.00) - the design intent is
+     that notebook mirrors paper. B now keeps that same relationship:
+     --color-notebook equals B's --color-paper.
+
+  2. --color-paper-2 was transcribed as the study's own --tint (#eff2ef),
+     which is only dE 1.7 / 1.04:1 off B's --color-paper (#f5f6f3) - the
+     study never tested this pairing (its layout never puts tint directly
+     against canvas), and #eff2ef was tuned to keep plain muted text
+     passing on it, not to read as a recessed surface. Under B every
+     recessed surface that depends on paper-2 (queue hover/selected rows,
+     incoming-message bubbles, neutral badges) collapsed to indistinguishable
+     from paper. #dfe1de replaces it: darkened within B's own cool-neutral
+     family (not a reversion to A's warm beige), chosen at the point of
+     maximum simultaneous margin in the only valid window - light enough to
+     keep the inherited Part-1 paper-2 text tokens (--color-stone-on-paper-2,
+     --color-warn-on-paper-2) at >=4.5:1, dark enough to keep >=1.2:1
+     luminance contrast against paper. Measured: paper vs paper-2 1.213:1
+     (dE 7.44, more separated than A's own 1.14:1 / dE 5.67); stone-on-
+     paper-2 on it 4.587:1; warn-on-paper-2 on it 4.635:1; ink-2 on it
+     5.340:1. Full derivation and every alternative tried:
+     research/agent-runs/2026-09-07/61-w3f-palette-b-repair.md.
+     Plain --color-stone/--color-warn (not the -on-paper-2 tokens) no longer
+     clear 4.5:1 against this darker paper-2 - by construction, no value can
+     satisfy both the 1.2:1 paper/paper-2 floor and keep the plain (lighter)
+     tokens passing at once. Not a regression in practice: the review's
+     rendered DOM sweep (research/agent-runs/2026-09-07/50-review-visual-
+     tokens.md) found zero reachable instances of plain text-stone/text-warn
+     on a bg-paper-2 container - every one was already migrated to the
+     dedicated -on-paper-2 token.
+*/
+html[data-palette="b"] {
+  --color-paper: #f5f6f3;
+  --color-raised: #ffffff;
+  --color-paper-2: #dfe1de;
+  --color-ink: #18221f;
+  --color-ink-2: #4e5c56;
+  --color-stone: #5e6a63;
+  --color-line: #d8deda;
+  --color-line-strong: #7a8780;
+  --color-sidebar: #18231e;
+  --color-sidebar-fg: #f7faf8;
+  --color-sidebar-muted: #b7c2bb;
+  --color-mark: #245947;
+  --color-mark-hover: #1b4939;
+  --color-mark-fg: #ffffff;
+  --color-warn: #835500;
+  --color-warn-bg: #fff3db;
+  --color-ok: #236447;
+  --color-ok-bg: #eaf4ed;
+  --color-danger: #af302a;
+  --color-danger-bg: #fff0ed;
+  --color-notebook: #f5f6f3;
+}
+
 @layer base {
   html {
     -webkit-font-smoothing: antialiased;
@@ -91,6 +206,36 @@
     font-family: var(--font-sans);
     color: var(--color-ink);
     background: var(--color-paper);
+  }
+  /*
+    Unconditional, not just under 860px. The app shell's own main region
+    (#main, overflow-y-auto) is meant to be the only scroller on every app
+    route, but html's base rule above sets overflow-y: auto unconditionally
+    for the marketing pages' own document scroll. The root cause of the
+    actual leak this guards against is fixed at .app-root below (position:
+    relative, so an absolutely-positioned descendant with no positioned
+    ancestor of its own stops taking its containing block from the
+    viewport) - that alone brings documentElement.scrollHeight back to
+    clientHeight. This rule is the second, independent layer: even with
+    the leak fixed, html and body should never be scroll candidates on an
+    app route, since #main already is one, and a future absolutely- or
+    fixed-positioned element added without a positioned ancestor would
+    reopen the same class of bug this guards against. Before either fix,
+    /enquiries and /enquiries/:id measured documentElement.scrollHeight
+    2364 against clientHeight 900, and End/PageDown/Space/scrollIntoView
+    could move the whole app shell up to 1464px off-screen, leaving a
+    blank paper viewport. This rule (and its body pairing below, both
+    already proven correct under 860px) removes html and body from scroll
+    candidacy entirely whenever .app-root is present, so the window cannot
+    scroll on any app route regardless of viewport width.
+  */
+  html:has(.app-root) {
+    height: 100%;
+    overflow: hidden;
+  }
+  html:has(.app-root) body {
+    height: 100%;
+    overflow: hidden;
   }
   h1,
   h2,
@@ -299,7 +444,7 @@
   }
   .field {
     border-radius: var(--radius-md);
-    border: 1px solid var(--color-line);
+    border: 1px solid var(--color-line-control);
     background: var(--color-raised);
     width: 100%;
     color: var(--color-ink);
@@ -330,7 +475,7 @@
     padding-right: 2rem;
   }
   .field:hover {
-    border-color: var(--color-line-strong);
+    border-color: var(--color-line-control-hover);
   }
   .field:focus {
     outline: 2px solid var(--color-mark);
@@ -356,6 +501,26 @@
     padding-bottom: var(--app-safe-bottom);
   }
   .app-root {
+    /*
+      The root cause of the documentElement.scrollHeight inflation this
+      fixes: an absolutely-positioned descendant with no positioned ancestor
+      (e.g. the sr-only "Draft message" label inside the enquiry detail's
+      reply textarea, src/components/enquiry/intelligence.tsx) takes its
+      containing block from the initial containing block (the viewport),
+      not from whichever overflow: hidden/auto box happens to clip it
+      visually. That box's own border-box then counts toward
+      documentElement's scrollable-overflow region even though every
+      DOM-ancestor overflow already contains it for painting purposes -
+      the two mechanisms are computed independently. Measured: with
+      .app-root position: static, /enquiries and /enquiries/:id reported
+      documentElement.scrollHeight 2364 against clientHeight 900; adding
+      position: relative here (making .app-root itself the containing
+      block for every such descendant app-wide, instead of patching each
+      one individually) brought it to 900 = 900 with no visual change,
+      since .app-root's own box model does not otherwise depend on its
+      position value. Overridden to fixed under 860px below, unaffected.
+    */
+    position: relative;
     overscroll-behavior: none;
   }
   .app-header {
@@ -480,22 +645,36 @@
   text-wrap: balance;
 }
 
+/*
+  Capped at 33.6px/1440 (was 40.8px). .site-hero is the one deliberate large
+  moment on the page and stays untouched; every other display heading sits in
+  a 25.6-33.6px band so the eyebrow-to-heading range for the rest of the page
+  reads at roughly 2.3-3.1x rather than the previous 3.7x, closer to the
+  2.75x restraint measured on Basecamp (agent-runs/2026-09-03/02) and the
+  app's own ~2.9x eyebrow-to-heading range.
+*/
 .site-display {
   font-family: var(--font-serif);
   font-weight: 600;
   letter-spacing: -0.03em;
-  line-height: 1.14;
+  line-height: 1.16;
   text-wrap: balance;
-  font-size: clamp(1.7rem, 3.2vw, 2.55rem);
+  font-size: clamp(1.6rem, 2.6vw, 2.1rem);
 }
 
+/*
+  Capped at 44px/1440 (was 54.4px) for the same reason as .site-display above.
+  Kept a step larger than .site-display because this class also renders as
+  the h1 on /demo (cross-channel-decision-demo.tsx, headingLevel="h1"), where
+  it is the only heading on the page.
+*/
 .site-display-proof {
   font-family: var(--font-serif);
   font-weight: 600;
   letter-spacing: -0.032em;
-  line-height: 1.12;
+  line-height: 1.14;
   text-wrap: balance;
-  font-size: clamp(2rem, 4.5vw, 3.4rem);
+  font-size: clamp(1.9rem, 3.4vw, 2.75rem);
 }
 
 .site-lede {
@@ -892,12 +1071,42 @@ html.embed .site-nav {
 }
 
 @media (max-width: 860px) {
-  html:not(:has(.app-root)),
-  html:not(:has(.app-root)) body {
+  /*
+    Marketing pages only (.app-root absent). Previously this rule also
+    applied to body, giving both html and body an overflow-y: auto scroll
+    box. body's own height is never less than its content (height: auto, no
+    cap), so it can never actually scroll internally - but merely declaring
+    overflow-y: auto makes it a scroll container per the CSS Position spec,
+    and position: sticky computes against the *nearest* scroll-container
+    ancestor. Below 860px that ancestor became body, whose scrollTop never
+    moves (window.scrollTo only moves html, the real
+    document.scrollingElement), so every sticky element on these pages -
+    not just this rule's own target - silently stopped pinning. html alone
+    already carries overflow-y: auto unconditionally (see the base `html`
+    rule above), so dropping body here restores the single-scroll-container
+    setup that already works at >=860px, with no visual change to layout.
+  */
+  html:not(:has(.app-root)) {
     height: auto;
     overflow-x: clip;
     overflow-y: auto;
     overscroll-behavior-y: auto;
+  }
+  /*
+    overflow-x only, not overflow-y - re-adding overflow-y here would
+    reopen the sticky bug the rule above just fixed (see that comment).
+    body needs its own overflow-x: clip because it was independently
+    containing a pre-existing ~12px header overflow at exactly 768px
+    (site-shell.tsx's md:flex nav links and sm:inline-flex "Open the app"
+    button both first appear in the same row at that breakpoint and are
+    together slightly wider than the viewport there). Dropping body from
+    the rule above silently uncapped that instead of fixing it. clip on
+    overflow-x alone does not make an element a CSS scroll container (only
+    a non-visible/non-clip overflow-y value does), so this cannot reopen
+    the sticky bug.
+  */
+  html:not(:has(.app-root)) body {
+    overflow-x: clip;
   }
   header.site-nav {
     position: relative;
@@ -925,14 +1134,12 @@ html.embed .site-nav {
   .site-field-grain {
     display: none;
   }
-  html:has(.app-root) {
-    height: 100%;
-    overflow: hidden;
-  }
-  html:has(.app-root) body {
-    height: 100%;
-    overflow: hidden;
-  }
+  /*
+    html:has(.app-root) and its body pairing used to live only here, so the
+    window-scroll containment they provide only applied under 860px - see
+    the unconditional copy in the base html/body rules above for why that
+    left /enquiries and /enquiries/:id scrollable above 860px.
+  */
   .app-root {
     position: fixed;
     inset: 0;

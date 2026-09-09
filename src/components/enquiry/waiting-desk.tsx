@@ -13,7 +13,7 @@ import { toastUndo } from "@/lib/toast-undo";
 import { useEmbedNav } from "@/lib/use-embed-nav";
 import { useFirstBetaActions } from "@/lib/workspace/live-mutations";
 import { previewFor } from "@/domain/send-preview";
-import { SendPreview } from "./send-preview";
+import { SendPreview, type SendPreviewCopyState } from "./send-preview";
 
 export function WaitingDesk({ enquiry, onDone }: { enquiry: Enquiry; onDone?: () => void }) {
   const acceptQuote = usePrototype((s) => s.acceptQuote);
@@ -34,6 +34,9 @@ export function WaitingDesk({ enquiry, onDone }: { enquiry: Enquiry; onDone?: ()
   const [sending, setSending] = useState(false);
   const [lostOpen, setLostOpen] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [reviewedSendId, setReviewedSendId] = useState<string | null>(null);
+  const [reviewBlocked, setReviewBlocked] = useState<string | null>(null);
+  const [reviewStale, setReviewStale] = useState<string | null>(null);
   const followUpBody = enquiry.decision.draft.body;
   const followUpPreview = previewFor({
     enquiry,
@@ -41,32 +44,80 @@ export function WaitingDesk({ enquiry, onDone }: { enquiry: Enquiry; onDone?: ()
     decision: enquiry.decision,
   });
 
-  /** Same rule as the main send: outside the demo, nothing is "sent" until the
-   *  owner sends it and Enquiry records that it happened. */
-  const sendFollowUp = async (clientRequestId?: string, edited?: boolean) => {
-    const body = followUpBody;
-    if (demoMode) {
-      approve(enquiry.id);
-      toastUndo("Follow-up sent. The quote stays on file.");
-      onDone?.();
+  /**
+   * The follow-up path uses exactly the same semantics as the main composer,
+   * by design: copying is copying, and only the owner's attestation records a
+   * send. Both used to copy-and-record in one step, so a follow-up that was
+   * never sent still moved the enquiry as though the customer had heard from
+   * the business a second time.
+   */
+  const copyFollowUp = async (): Promise<SendPreviewCopyState> => {
+    try {
+      if (!navigator.clipboard?.writeText) return "failed";
+      await navigator.clipboard.writeText(followUpBody);
+      return "copied";
+    } catch {
+      return "failed";
+    }
+  };
+
+  const openReview = async () => {
+    if (!followUpBody.trim()) {
+      toast.error("There is no follow-up prepared.");
       return;
     }
-    if (!body.trim()) {
-      toast.error("There is no follow-up prepared.");
+    if (demoMode) {
+      setReviewBlocked(null);
+      setReviewStale(null);
+      setReviewedSendId(null);
+      setConfirmOpen(true);
       return;
     }
     setSending(true);
     try {
-      try {
-        await navigator.clipboard?.writeText(body);
-      } catch {
-        /* clipboard unavailable - the text is still on screen to copy */
+      const res = await firstBeta.prepareReview(enquiry.id, followUpBody, replyChannel(enquiry));
+      if (!res.ok) {
+        setReviewBlocked(res.message);
+        setReviewedSendId(null);
+      } else {
+        setReviewBlocked(null);
+        setReviewedSendId(res.reviewedSendId);
       }
-      await firstBeta.recordSent(enquiry.id, body, replyChannel(enquiry), {
-        clientRequestId: clientRequestId ?? crypto.randomUUID(),
-        edited,
-      });
-      toast.success("Copied. Send it yourself - the quote stays on file.");
+      setReviewStale(null);
+      setConfirmOpen(true);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not prepare that for review.");
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const confirmExternalSend = async (staleAttestation = false) => {
+    if (demoMode) {
+      approve(enquiry.id);
+      toastUndo("Recorded as sent (demo). Nothing left this browser.");
+      setConfirmOpen(false);
+      onDone?.();
+      return;
+    }
+    if (!reviewedSendId) {
+      toast.error("Review the follow-up again before recording it as sent.");
+      return;
+    }
+    setSending(true);
+    try {
+      const res = await firstBeta.recordSent(enquiry.id, reviewedSendId, { staleAttestation });
+      if (!res.ok) {
+        if (res.reason === "stale") setReviewStale(res.message);
+        else setReviewBlocked(res.message);
+        return;
+      }
+      setConfirmOpen(false);
+      toast.success(
+        res.duplicate
+          ? "Already recorded - this follow-up is on file once."
+          : "Recorded as sent by you. The quote stays on file.",
+      );
       onDone?.();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Could not record that follow-up.");
@@ -150,7 +201,7 @@ export function WaitingDesk({ enquiry, onDone }: { enquiry: Enquiry; onDone?: ()
             <Button
               variant="secondary"
               className="min-h-11 w-full"
-              onClick={() => setConfirmOpen(true)}
+              onClick={() => void openReview()}
               disabled={sending}
             >
               {sending ? "Recording…" : rec.label}
@@ -295,11 +346,12 @@ export function WaitingDesk({ enquiry, onDone }: { enquiry: Enquiry; onDone?: ()
         preview={followUpPreview}
         pending={sending}
         compact={Boolean(phone)}
-        onConfirm={(clientRequestId) => {
-          void sendFollowUp(clientRequestId, followUpPreview.edited ?? false).then(() => {
-            setConfirmOpen(false);
-          });
-        }}
+        demoMode={demoMode}
+        blockedReason={reviewBlocked}
+        staleMessage={reviewStale}
+        onCopy={copyFollowUp}
+        onConfirm={() => void confirmExternalSend(false)}
+        onConfirmStale={() => void confirmExternalSend(true)}
       />
     </div>
   );

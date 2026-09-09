@@ -11,7 +11,7 @@ import {
 const FIXTURE_PHONES = ["0412 880 441", "0412 773 091", "07 3000 0000", "+61 4 glow"];
 
 test("Ridge & Co demo begins as a website form and continues as a text", () => {
-  assert.equal(SIGNATURE_DEMO.business, "Ridge & Co Painting");
+  assert.equal(SIGNATURE_DEMO.business, "Sample business · Ridge & Co Painting");
   assert.equal(SIGNATURE_DEMO.form.channel, "Website form");
   assert.equal(SIGNATURE_DEMO.text.channel, "Text message");
   assert.match(SIGNATURE_DEMO.form.message, /New Farm/i);
@@ -75,10 +75,7 @@ test("capacity claims stay grounded in Tom's empty-house crew-window rule", () =
   assert.match(RIDGE_CREW_WINDOW_RULE.body, /three weekdays/i);
   assert.match(RIDGE_CREW_WINDOW_RULE.body, /third contractor/i);
   assert.match(RIDGE_CREW_WINDOW_RULE.body, /48 hours notice/i);
-  const brain = readFileSync(
-    new URL("../../fixtures/businesses.ts", import.meta.url),
-    "utf8",
-  );
+  const brain = readFileSync(new URL("../../fixtures/businesses.ts", import.meta.url), "utf8");
   assert.match(brain, /id: "rd-crew-window"/);
   assert.ok(brain.includes(RIDGE_CREW_WINDOW_RULE.body));
   assert.match(brain, /source: src\("user", "Tom"\)/);

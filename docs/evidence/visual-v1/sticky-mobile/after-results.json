@@ -1,0 +1,108 @@
+{
+  "w390": {
+    "navAtTop": {
+      "x": 0,
+      "y": 957.890625,
+      "width": 390,
+      "height": 50.296875
+    },
+    "navAtScroll1000": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 50.296875
+    },
+    "scrollY1": 1000,
+    "navAtScroll2000": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 50.296875
+    },
+    "scrollY2": 2000,
+    "scrollDiagnostics": {
+      "htmlOverflowY": "auto",
+      "htmlHeight": "12045.8px",
+      "bodyOverflowY": "visible",
+      "bodyHeight": "12045.8px",
+      "htmlScrollTop": 2000,
+      "bodyScrollTop": 0,
+      "scrollingElement": "html",
+      "windowScrollY": 2000
+    },
+    "console": [
+      {
+        "type": "debug",
+        "text": "[vite] connecting..."
+      },
+      {
+        "type": "info",
+        "text": "%cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold"
+      },
+      {
+        "type": "debug",
+        "text": "[vite] connected."
+      }
+    ]
+  },
+  "w768": {
+    "navAtTop": {
+      "x": 0,
+      "y": 853.6875,
+      "width": 768,
+      "height": 50.296875
+    },
+    "navAtScroll1000": {
+      "x": 0,
+      "y": 68,
+      "width": 768,
+      "height": 50.296875
+    },
+    "scrollY1": 1000,
+    "navAtScroll2000": {
+      "x": 0,
+      "y": 68,
+      "width": 768,
+      "height": 50.296875
+    },
+    "scrollY2": 2000,
+    "scrollDiagnostics": {
+      "htmlOverflowY": "auto",
+      "htmlHeight": "10509.8px",
+      "bodyOverflowY": "visible",
+      "bodyHeight": "10509.8px",
+      "htmlScrollTop": 2000,
+      "bodyScrollTop": 0,
+      "scrollingElement": "html",
+      "windowScrollY": 2000
+    },
+    "console": [
+      {
+        "type": "debug",
+        "text": "[vite] connecting..."
+      },
+      {
+        "type": "info",
+        "text": "%cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold"
+      },
+      {
+        "type": "debug",
+        "text": "[vite] connected."
+      }
+    ]
+  },
+  "headerCheck390": {
+    "headerTop": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 69
+    },
+    "headerAfterScroll": {
+      "x": 0,
+      "y": -1000,
+      "width": 390,
+      "height": 69
+    }
+  }
+}

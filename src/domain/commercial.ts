@@ -1,4 +1,4 @@
-import type { AutomatedSend, Business, Channel, Enquiry, QuoteVersion, RecommendationAction } from "./types";
+import type { AutomatedSend, Business, Enquiry, QuoteVersion, RecommendationAction } from "./types";
 import { formatAud } from "./labels";
 import { isSendableAction, outboundBlocked } from "./situation";
 import { isShortChannel, replyChannel } from "./channel";
@@ -7,7 +7,9 @@ export function firstName(name: string): string {
   return name.split(" ")[0] ?? name;
 }
 
-export function defaultHold(total?: number): { amount: number; currency: "AUD"; label: string } | undefined {
+export function defaultHold(
+  total?: number,
+): { amount: number; currency: "AUD"; label: string } | undefined {
   if (!total || total < 100) return undefined;
   const raw = total * 0.3;
   const amount = Math.max(50, Math.round(raw / 5) * 5);
@@ -124,25 +126,22 @@ export function snoozeEnquiry(enquiry: Enquiry, untilIso: string): Enquiry {
   return next;
 }
 
-export function declineWithLetter(
-  enquiry: Enquiry,
-  letter: { body: string; from: string; to: string },
-): Enquiry {
+/**
+ * Decline an enquiry's core state - no conversation entry, no channel
+ * contacted. Declining is a state change, not a send, so this never adds a
+ * message: `conversation.tsx` renders any `direction: "outbound"` entry with
+ * the literal label "Sent" regardless of why it was written, so there is no
+ * conversation entry this function could add that would not misrepresent the
+ * decline as something sent to the customer.
+ *
+ * Shared by every mode that has no server to persist against (the demo
+ * walkthrough and the local-prototype decline actions in
+ * prototype-store.ts), mirroring what the live path actually persists -
+ * `declineEnquiryInTransaction` (src/lib/repo/close-enquiry-core.ts) writes
+ * only an audit_event row.
+ */
+export function declineEnquiryState(enquiry: Enquiry): Enquiry {
   const next = structuredClone(enquiry);
-  const channel: Channel = replyChannel(enquiry);
-  next.conversation = [
-    ...next.conversation,
-    {
-      id: `${enquiry.id}-out-decline-${Date.now()}`,
-      direction: "outbound",
-      channel,
-      at: new Date().toISOString(),
-      from: letter.from,
-      to: letter.to,
-      subject: isShortChannel(channel) ? undefined : next.decision.draft.subject,
-      body: letter.body,
-    },
-  ];
   next.state = {
     lifecycle: "DECLINED",
     decision: "NONE",
@@ -150,6 +149,7 @@ export function declineWithLetter(
     responsibility: "NONE",
   };
   next.followUpDue = false;
+  next.followUpReason = undefined;
   next.atRisk = false;
   next.snoozedUntil = undefined;
   return next;
@@ -163,11 +163,7 @@ export function defaultDeclineBody(enquiry: Enquiry, ownerFirst: string): string
   return `Hi ${first},\n\nI'm not the right fit for this one. Thank you for writing - I didn't want to leave you waiting.\n\n${ownerFirst}`;
 }
 
-export function autopilotEligible(
-  enquiry: Enquiry,
-  business: Business,
-  action: string,
-): boolean {
+export function autopilotEligible(enquiry: Enquiry, business: Business, action: string): boolean {
   if (enquiry.state.lifecycle !== "OPEN") return false;
   if (!enquiry.decision.automationEligible) return false;
   if (enquiry.decision.recommendation.action !== action) return false;
@@ -180,7 +176,11 @@ export function autopilotEligible(
   return true;
 }
 
-export function canAutopilotSend(enquiry: Enquiry, business: Business | undefined, offline: boolean) {
+export function canAutopilotSend(
+  enquiry: Enquiry,
+  business: Business | undefined,
+  offline: boolean,
+) {
   if (!business) return false;
   if (outboundBlocked(business, offline, enquiry)) return false;
   return autopilotEligible(enquiry, business, enquiry.decision.recommendation.action);
@@ -224,10 +224,7 @@ export function needsSendConfirm(enquiry: Enquiry): boolean {
   return action === "SEND_QUOTE" || action === "SEND_ESTIMATE";
 }
 
-export function recordAutomatedSend(
-  enquiry: Enquiry,
-  business: Business,
-): AutomatedSend {
+export function recordAutomatedSend(enquiry: Enquiry, business: Business): AutomatedSend {
   return {
     enquiryId: enquiry.id,
     customerName: enquiry.customerName,

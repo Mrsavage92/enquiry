@@ -4,6 +4,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { SheetContent } from "@/components/ui/sheet";
+import { ScrollFade } from "@/components/ui/scroll-fade";
+import { useScrollFade } from "@/lib/use-scroll-fade";
 import {
   derivedLabel,
   EVALUATOR_LABELS,
@@ -41,11 +43,13 @@ import {
 } from "@/domain/voice-detect";
 import { CaseFile } from "./case-file";
 import { isCustomerFacingSend, resolvedHold } from "@/domain/commercial";
+import { needsServiceConfirmation } from "@/domain/service-authority";
+import { correctionRoute } from "@/domain/fact-correction";
 import { previewFor } from "@/domain/send-preview";
 import { toastUndo } from "@/lib/toast-undo";
 import { toast } from "sonner";
 import { HearLetter } from "./hear-letter";
-import { SendPreview } from "./send-preview";
+import { SendPreview, type SendPreviewCopyState } from "./send-preview";
 import { DeclineConfirm } from "./decline-confirm";
 
 export function Intelligence({
@@ -62,6 +66,11 @@ export function Intelligence({
   const [correcting, setCorrecting] = useState<EnquiryFact | null>(null);
   const [draftOpen, setDraftOpen] = useState(!compact);
   const [sendConfirm, setSendConfirm] = useState(false);
+  // The server-frozen artefact this preview is about, and why the server would
+  // not let it proceed. Both cleared every time the preview is opened afresh.
+  const [reviewedSendId, setReviewedSendId] = useState<string | null>(null);
+  const [reviewBlocked, setReviewBlocked] = useState<string | null>(null);
+  const [reviewStale, setReviewStale] = useState<string | null>(null);
   const [noteOpen, setNoteOpen] = useState(false);
   const [declineOpen, setDeclineOpen] = useState(false);
   const [declining, setDeclining] = useState(false);
@@ -117,46 +126,112 @@ export function Intelligence({
     return () => window.clearTimeout(t);
   }, [enquiry.id, draftBody, considerVoice]);
   const blocked = outboundBlocked(business, offline, enquiry);
+  /**
+   * A commercial send whose service premise nobody has confirmed. The server
+   * refuses these (`prepareReviewedSendInTransaction`), so the desk must not
+   * offer them as ready: a legacy enquiry carrying a bare service label used to
+   * show an enabled "Send the quote", refuse on click, and leave the owner with
+   * no way to resolve it. The confirm control above is that way; this stops the
+   * button pretending the decision is already made.
+   */
+  const serviceUnconfirmed = !demoMode && needsServiceConfirmation(enquiry);
+  const commercialAction = rec.action === "SEND_QUOTE" || rec.action === "SEND_ESTIMATE";
+  const awaitingService = serviceUnconfirmed && commercialAction;
   const sendable = isSendableAction(rec.action);
   const reply = replyChannel(enquiry);
   const firstBeta = useFirstBetaActions();
   const [sending, setSending] = useState(false);
 
   /**
-   * Send, for real.
+   * Copying. Only copying.
    *
-   * Demo mode is a scripted story and `approve` is its narrator - fine there.
-   * A live business is not sending anything from inside Enquiry yet, and
-   * pretending otherwise was the single most dishonest thing in the product:
-   * the button said "Sent." while nothing left the building and the record
-   * vanished on reload. So the honest version - put the prepared text on the
-   * clipboard, let the owner send it from their own mailbox or phone, and
-   * record the send as a real outbound message with a real timestamp.
+   * It writes nothing, records nothing, and reports honestly whether the
+   * clipboard actually took the text. The previous version copied inside the
+   * send handler, swallowed any failure, and recorded an outbound message
+   * either way - so a denied clipboard still told the business it had replied.
    */
-  const commitSend = async (clientRequestId?: string, edited?: boolean) => {
-    if (demoMode) {
-      approve(enquiry.id);
-      toastUndo("Sent.");
-      return;
+  const copyDraft = async (): Promise<SendPreviewCopyState> => {
+    try {
+      if (!navigator.clipboard?.writeText) return "failed";
+      await navigator.clipboard.writeText(draftBody);
+      return "copied";
+    } catch {
+      return "failed";
     }
+  };
+
+  /**
+   * Open the approval preview, having first asked the server to freeze exactly
+   * what is about to be reviewed. The server can refuse - a closed enquiry, a
+   * service nobody confirmed, a message naming an amount the decision does not -
+   * and refusing here, before anything is copied or claimed, is the point.
+   */
+  const openReview = async () => {
     if (!draftBody.trim()) {
       toast.error("There is no prepared reply to send.");
       return;
     }
+    if (demoMode) {
+      // The demo has no server-side enquiry to freeze. It still goes through
+      // this same preview, and its confirmation is labelled as a simulation.
+      setReviewBlocked(null);
+      setReviewStale(null);
+      setReviewedSendId(null);
+      setSendConfirm(true);
+      return;
+    }
     setSending(true);
     try {
-      // Nice-to-have, not load-bearing: an insecure context or a denied
-      // permission must not stop the send being recorded.
-      try {
-        await navigator.clipboard?.writeText(draftBody);
-      } catch {
-        /* clipboard unavailable - the text is still on screen to copy */
+      const res = await firstBeta.prepareReview(enquiry.id, draftBody, reply);
+      if (!res.ok) {
+        setReviewBlocked(res.message);
+        setReviewedSendId(null);
+      } else {
+        setReviewBlocked(null);
+        setReviewedSendId(res.reviewedSendId);
       }
-      await firstBeta.recordSent(enquiry.id, draftBody, reply, {
-        clientRequestId: clientRequestId ?? crypto.randomUUID(),
-        edited,
-      });
-      toast.success("Copied. Send it from your own inbox - Enquiry has recorded it.");
+      setReviewStale(null);
+      setSendConfirm(true);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not prepare that for review.");
+    } finally {
+      setSending(false);
+    }
+  };
+
+  /**
+   * The owner attesting that they sent it themselves, from their own inbox.
+   *
+   * This is the only thing in the product that creates an outbound record. Not
+   * copying, not opening this dialog, not closing it. Enquiry did not deliver
+   * the message and does not claim to have.
+   */
+  const confirmExternalSend = async (staleAttestation = false) => {
+    if (demoMode) {
+      approve(enquiry.id);
+      toastUndo("Recorded as sent (demo). Nothing left this browser.");
+      return;
+    }
+    if (!reviewedSendId) {
+      toast.error("Review the message again before recording it as sent.");
+      return;
+    }
+    setSending(true);
+    try {
+      const res = await firstBeta.recordSent(enquiry.id, reviewedSendId, { staleAttestation });
+      if (!res.ok) {
+        if (res.reason === "stale") setReviewStale(res.message);
+        else setReviewBlocked(res.message);
+        return;
+      }
+      setSendConfirm(false);
+      toast.success(
+        res.duplicate
+          ? "Already recorded - this send is on file once."
+          : res.stale
+            ? "Recorded as you sent it. The newer decision is untouched."
+            : "Recorded as sent by you.",
+      );
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Could not record that send.");
     } finally {
@@ -167,400 +242,437 @@ export function Intelligence({
   const integ = integrationForChannel(business, reply, enquiry);
   const Panel = compact ? SheetContent : DialogContent;
   const preview = previewFor({ enquiry, business, draft: draftBody, decision: enquiry.decision });
+  // Desktop-only: the compact (mobile sheet) scroller never overflows the
+  // same way, and its own overflow-hidden wrapper isn't the scrolling
+  // element, so tracking it here would be inert anyway.
+  const { scrollRef: panelScrollRef, edges: panelFade } = useScrollFade<HTMLDivElement>(
+    [enquiry.id],
+    "vertical",
+  );
 
   return (
     <div
       className={cn(
         "flex flex-col bg-raised xl:border-l xl:border-line",
-        compact ? "min-h-0 flex-1 overflow-hidden" : "h-full min-h-0 overflow-y-auto",
+        compact ? "min-h-0 flex-1 overflow-hidden" : "h-full min-h-0 overflow-hidden",
       )}
     >
-      <div className={cn(compact ? "flex min-h-0 flex-1 flex-col overflow-hidden" : undefined)}>
-        {!compact ? (
-          // Sticky within this panel's own overflow-y-auto container (the
-          // outer div above), not the window - the business line and the
-          // decision-state badge are the one-word answer to "what state is
-          // this enquiry in", and a scrolled-past panel that hid it was the
-          // gap this closes. bg-raised is required on a sticky element or
-          // scrolled content shows through underneath it.
-          <header className="sticky top-0 z-10 border-b border-line bg-raised px-5 py-5">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <p className="eyebrow">
-                  {business?.name} · {channelLabel(enquiry.source)}
-                </p>
-                <h1 className="mt-1.5 text-2xl font-semibold leading-tight tracking-tight">
-                  {enquiry.customerName}
-                </h1>
-                <p className="mt-1 text-sm text-ink-2">{identityLine(enquiry)}</p>
-                <p className="mt-1.5 text-sm text-ink-2">
-                  {enquiry.serviceLabel}
-                  {enquiry.dateLabel ? ` · ${enquiry.dateLabel}` : ""}
-                  {enquiry.locationLabel ? ` · ${enquiry.locationLabel}` : ""}
-                </p>
-              </div>
-              <Badge tone={statusTone(enquiry)}>{derivedLabel(enquiry.state, enquiry)}</Badge>
-            </div>
-          </header>
-        ) : null}
-
-        {firstHint && !compact && (enquiry.fixtureId === "F01" || enquiry.fixtureId === "LIVE") ? (
-          <div className="border-b border-line px-5 py-3" role="status">
-            <div className="callout bg-paper-2 text-ink">
-              <p className="text-sm font-medium">Already decided.</p>
-              <p className="mt-1 text-sm text-ink-2">
-                Enquiry has already read the request, checked how this business works, and
-                recommended a next step. Open Why? for the evidence. Send only if it looks right.
-              </p>
-              <button
-                type="button"
-                className="mt-2 min-h-11 text-sm font-medium underline-offset-4 hover:underline"
-                onClick={() => dismissHint()}
-              >
-                Got it
-              </button>
-            </div>
-          </div>
-        ) : null}
-
-        {enquiry.notes ? (
-          <div className={cn("border-b border-line px-5", compact ? "py-3" : "py-3")}>
-            {compact ? null : <p className="eyebrow">Note</p>}
-            <p className={cn("text-sm leading-relaxed text-ink-2", !compact && "mt-1")}>
-              {enquiry.notes}
-            </p>
-          </div>
-        ) : null}
-
-        {lastChange ? (
-          <div className="border-b border-line px-5 py-3" role="status">
-            <div className="callout bg-ok-bg text-ok animate-[rise-in_320ms_var(--ease-smooth-out)]">
-              <p className="text-sm font-medium">Decision updated.</p>
-              {enquiry.decision.changeDiff?.length ? (
-                <ul className="mt-1 space-y-0.5 text-ink-2">
-                  {enquiry.decision.changeDiff.map((d) => (
-                    <li key={d.factLabel}>
-                      <span className="font-medium text-ink">{d.factLabel}:</span> {d.from} → {d.to}
-                    </li>
-                  ))}
-                </ul>
-              ) : null}
-            </div>
-          </div>
-        ) : null}
-
-        {situation ? (
-          <SituationCard enquiry={enquiry} situation={situation} compact={compact} />
-        ) : null}
-
-        {/* The honest refusal is only useful if the owner can answer it. */}
-        {demoMode ? null : <ServiceReadAs enquiry={enquiry} />}
-        {demoMode ? null : <AnswerBlocker enquiry={enquiry} />}
-
-        {enquiry.followUpDue && enquiry.followUpReason ? (
-          <div className={cn("border-b border-line px-5", compact ? "py-3" : "py-4")} role="status">
-            <p className="text-sm font-medium">Follow-up ready</p>
-            <p className="mt-1 text-sm leading-relaxed text-ink-2">{enquiry.followUpReason}</p>
-          </div>
-        ) : null}
-
-        {!evaluating ? (
-          <>
-            {compact ? null : (
-              <section className="border-b border-line px-5 py-5" aria-labelledby="rec-heading">
-                {situation && !sendable ? (
-                  <p id="rec-heading" className="text-sm leading-relaxed text-ink-2">
-                    {rec.reason}
+      <div
+        className={cn(
+          "relative min-h-0",
+          compact ? "flex flex-1 flex-col overflow-hidden" : "flex-1 overflow-hidden",
+        )}
+      >
+        <div
+          ref={panelScrollRef}
+          className={cn(
+            compact
+              ? "flex min-h-0 flex-1 flex-col overflow-hidden"
+              : "h-full overflow-y-auto pb-4",
+          )}
+        >
+          {!compact ? (
+            // Sticky within this div's own overflow-y-auto, not the window -
+            // the business line and the decision-state badge are the
+            // one-word answer to "what state is this enquiry in", and a
+            // scrolled-past panel that hid it was the gap this closes.
+            // bg-raised is required on a sticky element or scrolled content
+            // shows through underneath it.
+            <header className="sticky top-0 z-10 border-b border-line bg-raised px-5 py-5">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="eyebrow">
+                    {business?.name} · {channelLabel(enquiry.source)}
                   </p>
-                ) : (
-                  <>
-                    <p id="rec-heading" className="eyebrow-decision">
-                      Recommendation
-                    </p>
-                    <p className="mt-2 text-xl font-semibold leading-snug tracking-tight">
-                      {rec.label}
-                    </p>
-                    {recReasonIsMissingReason ? null : (
-                      <p className="mt-2 text-sm leading-relaxed text-ink-2">{rec.reason}</p>
-                    )}
-                  </>
-                )}
-                <div
-                  className={cn(
-                    "flex flex-wrap items-center gap-3",
-                    situation && !sendable ? "mt-3" : "mt-4",
-                  )}
-                >
-                  <button
-                    type="button"
-                    className="inline-flex min-h-11 items-center gap-1.5 text-sm font-medium text-ink-2 underline-offset-4 hover:text-ink hover:underline"
-                    onClick={() => {
-                      setWhyOpen(true);
-                      track(enquiry.fixtureId, "open_why");
-                    }}
-                  >
-                    <CircleHelp className="size-4" aria-hidden />
-                    Why?
-                  </button>
-                  <ConfidenceBadge confidence={enquiry.decision.confidence} />
-                  {enquiry.decision.risk === "PROHIBITED_AUTO" ? (
-                    <Badge tone="danger">Autopilot blocked</Badge>
-                  ) : enquiry.decision.automationEligible ? (
-                    <Badge tone="ok">Autopilot-ready</Badge>
-                  ) : null}
+                  <h1 className="mt-1.5 text-2xl font-semibold leading-tight tracking-tight">
+                    {enquiry.customerName}
+                  </h1>
+                  <p className="mt-1 text-sm text-ink-2">{identityLine(enquiry)}</p>
+                  <p className="mt-1.5 text-sm text-ink-2">
+                    {enquiry.serviceLabel}
+                    {enquiry.dateLabel ? ` · ${enquiry.dateLabel}` : ""}
+                    {enquiry.locationLabel ? ` · ${enquiry.locationLabel}` : ""}
+                  </p>
                 </div>
-              </section>
-            )}
+                <Badge tone={statusTone(enquiry)}>{derivedLabel(enquiry.state, enquiry)}</Badge>
+              </div>
+            </header>
+          ) : null}
 
-            {!compact &&
-            (enquiry.decision.automationEligible || enquiry.decision.failedGates.length > 0) ? (
-              <section className="border-b border-line px-5 py-5">
-                <p className="eyebrow">Autopilot</p>
-                {enquiry.decision.automationEligible ? (
-                  <p className="mt-2 text-sm leading-relaxed text-ink-2">
-                    This action class has evidence. Nothing sends on its own until you allow it in
-                    Trust. High-risk classes stay blocked.
-                  </p>
-                ) : (
-                  <ul className="mt-2 space-y-1 text-sm text-ink-2">
-                    {enquiry.decision.failedGates.map((g) => (
-                      <li key={g}>{g}</li>
-                    ))}
-                  </ul>
-                )}
-              </section>
-            ) : null}
-
-            {enquiry.decision.missing.length > 0 && !(compact && (situation || sendable)) ? (
-              <section
-                className={cn("border-b border-line px-5", compact ? "py-4" : "py-5")}
-                aria-labelledby="missing-heading"
-              >
-                <p
-                  id="missing-heading"
-                  className={compact ? "text-sm font-medium" : "eyebrow-decision"}
-                >
-                  {compact ? "Still needed" : "Blocking the next decision"}
+          {firstHint &&
+          !compact &&
+          (enquiry.fixtureId === "F01" || enquiry.fixtureId === "LIVE") ? (
+            <div className="border-b border-line px-5 py-3" role="status">
+              <div className="callout bg-paper-2 text-ink">
+                <p className="text-sm font-medium">Already decided.</p>
+                <p className="mt-1 text-sm text-ink-2">
+                  Enquiry has already read the request, checked how this business works, and
+                  recommended a next step. Open Why? for the evidence. Send only if it looks right.
                 </p>
-                <ul className="mt-3 space-y-2">
-                  {enquiry.decision.missing.map((m) => {
-                    // "Needed to price this" (AnswerBlocker) already states
-                    // this exact reason, with the input to resolve it,
-                    // whenever it is live and rendered - one fact, one place.
-                    // In demo mode AnswerBlocker never renders, so this stays
-                    // the only place the reason appears.
-                    const reasonShownElsewhere = m.blocking && !demoMode;
-                    return (
-                      <li key={m.factField} className="callout bg-warn-bg text-warn">
-                        <p className="text-sm font-medium">{m.label}</p>
-                        {compact ? null : (
-                          <p className="mt-0.5 text-sm text-ink-2">
-                            {reasonShownElsewhere ? "" : `${m.reason} `}Unlocks: {m.unlocks}.
-                          </p>
-                        )}
-                      </li>
-                    );
-                  })}
-                </ul>
-              </section>
-            ) : null}
-
-            {quoteSheets(enquiry).length > 0 ? (
-              <QuoteSheets enquiry={enquiry} business={business} compact={compact} />
-            ) : compact || commercial.kind === "not_applicable" ? null : (
-              <section className="border-b border-line px-5 py-5" aria-labelledby="value-heading">
-                <p id="value-heading" className="eyebrow">
-                  Commercial value
-                </p>
-                <CommercialValueMark className="mt-3" value={commercial} size="lg" />
-              </section>
-            )}
-
-            {!compact && applicable.length > 0 ? (
-              <section className="border-b border-line px-5 py-5" aria-labelledby="evals-heading">
-                <p id="evals-heading" className="eyebrow">
-                  What can be decided now
-                </p>
-                <dl className="mt-3 space-y-2">
-                  {pricing ? <EvaluatorRow result={pricing} omitAmount /> : null}
-                  {capacity ? <EvaluatorRow result={capacity} /> : null}
-                  {applicable
-                    .filter((e) => e.type !== "pricing" && e.type !== "capacity")
-                    .map((e) => (
-                      <EvaluatorRow key={e.type} result={e} />
-                    ))}
-                </dl>
-                {enquiry.fixtureId === "F17" ? (
-                  <p className="mt-3 text-xs text-stone">
-                    Compare with F01 (Glow). Same card, different evaluators - price and capacity
-                    stay hidden when they are not applicable.
-                  </p>
-                ) : null}
-              </section>
-            ) : null}
-
-            {!compact ? (
-              <section className="border-b border-line px-5 py-5" aria-labelledby="facts-heading">
-                <p id="facts-heading" className="eyebrow">
-                  What Enquiry understood
-                </p>
-                <FactList
-                  heading="This enquiry only"
-                  facts={enquiry.facts.filter((f) => !f.superseded && f.customerSpecific)}
-                  onCorrect={setCorrecting}
-                />
-                <FactList
-                  heading="From the request"
-                  facts={enquiry.facts.filter((f) => !f.superseded && !f.customerSpecific)}
-                  onCorrect={setCorrecting}
-                />
-              </section>
-            ) : null}
-
-            {!compact && !evaluating ? <CaseFile enquiry={enquiry} /> : null}
-
-            {compact ? (
-              <section className="flex min-h-0 flex-1 flex-col px-5 pb-2 pt-1">
                 <button
                   type="button"
-                  className="min-h-32 flex-1 overflow-y-auto rounded-xl bg-raised px-4 py-4 text-left shadow-border active:bg-paper"
-                  onClick={() => setDraftOpen(true)}
-                  aria-label="Edit reply"
+                  className="mt-2 min-h-11 text-sm font-medium underline-offset-4 hover:underline"
+                  onClick={() => dismissHint()}
                 >
-                  <p className="eyebrow">Reply</p>
-                  <p
+                  Got it
+                </button>
+              </div>
+            </div>
+          ) : null}
+
+          {enquiry.notes ? (
+            <div className={cn("border-b border-line px-5", compact ? "py-3" : "py-3")}>
+              {compact ? null : <p className="eyebrow">Note</p>}
+              <p className={cn("text-sm leading-relaxed text-ink-2", !compact && "mt-1")}>
+                {enquiry.notes}
+              </p>
+            </div>
+          ) : null}
+
+          {lastChange ? (
+            <div className="border-b border-line px-5 py-3" role="status">
+              <div className="callout bg-ok-bg text-ok animate-[rise-in_320ms_var(--ease-smooth-out)]">
+                <p className="text-sm font-medium">Decision updated.</p>
+                {enquiry.decision.changeDiff?.length ? (
+                  <ul className="mt-1 space-y-0.5 text-ink-2">
+                    {enquiry.decision.changeDiff.map((d) => (
+                      <li key={d.factLabel}>
+                        <span className="font-medium text-ink">{d.factLabel}:</span> {d.from} →{" "}
+                        {d.to}
+                      </li>
+                    ))}
+                  </ul>
+                ) : null}
+              </div>
+            </div>
+          ) : null}
+
+          {situation ? (
+            <SituationCard enquiry={enquiry} situation={situation} compact={compact} />
+          ) : null}
+
+          {/* The honest refusal is only useful if the owner can answer it. */}
+          {demoMode ? null : <ServiceReadAs enquiry={enquiry} />}
+          {demoMode ? null : <AnswerBlocker enquiry={enquiry} />}
+
+          {enquiry.followUpDue && enquiry.followUpReason ? (
+            <div
+              className={cn("border-b border-line px-5", compact ? "py-3" : "py-4")}
+              role="status"
+            >
+              <p className="text-sm font-medium">Follow-up ready</p>
+              <p className="mt-1 text-sm leading-relaxed text-ink-2">{enquiry.followUpReason}</p>
+            </div>
+          ) : null}
+
+          {!evaluating ? (
+            <>
+              {compact ? null : (
+                <section className="border-b border-line px-5 py-5" aria-labelledby="rec-heading">
+                  {situation && !sendable ? (
+                    <p id="rec-heading" className="text-sm leading-relaxed text-ink-2">
+                      {rec.reason}
+                    </p>
+                  ) : (
+                    <>
+                      <p id="rec-heading" className="eyebrow-decision">
+                        Recommendation
+                      </p>
+                      <p className="mt-2 text-xl font-semibold leading-snug tracking-tight">
+                        {rec.label}
+                      </p>
+                      {recReasonIsMissingReason ? null : (
+                        <p className="mt-2 text-sm leading-relaxed text-ink-2">{rec.reason}</p>
+                      )}
+                    </>
+                  )}
+                  <div
                     className={cn(
-                      "letter-body mt-3 whitespace-pre-wrap",
-                      short ? "font-sans" : "font-serif",
+                      "flex flex-wrap items-center gap-3",
+                      situation && !sendable ? "mt-3" : "mt-4",
                     )}
                   >
-                    {draftBody || "No message prepared."}
-                  </p>
-                </button>
-                {priceDrift ? (
-                  <p className="mt-3 text-sm text-warn">
-                    The quote on file is still {priceDrift.from}. This letter now says{" "}
-                    {priceDrift.to}.
-                  </p>
-                ) : null}
-                {sheetDrift ? (
-                  <div className="mt-3">
-                    <p className="text-sm text-warn">
-                      The sheet is {sheetDrift.sheet}. This letter says {sheetDrift.letter}.
-                    </p>
                     <button
                       type="button"
-                      className="mt-1 min-h-11 text-sm font-medium underline-offset-4 hover:underline"
-                      onClick={() =>
-                        editDraft(enquiry.id, alignLetterToSheet(draftBody, sheetFigures))
-                      }
+                      className="inline-flex min-h-11 items-center gap-1.5 text-sm font-medium text-ink-2 underline-offset-4 hover:text-ink hover:underline"
+                      onClick={() => {
+                        setWhyOpen(true);
+                        track(enquiry.fixtureId, "open_why");
+                      }}
                     >
-                      Use the sheet
+                      <CircleHelp className="size-4" aria-hidden />
+                      Why?
                     </button>
+                    <ConfidenceBadge confidence={enquiry.decision.confidence} />
+                    {enquiry.decision.risk === "PROHIBITED_AUTO" ? (
+                      <Badge tone="danger">Autopilot blocked</Badge>
+                    ) : enquiry.decision.automationEligible ? (
+                      <Badge tone="ok">Autopilot-ready</Badge>
+                    ) : null}
                   </div>
-                ) : null}
-                {voiceNotice?.enquiryId === enquiry.id ? (
-                  <div className="callout mt-3 bg-paper-2 text-ink" role="status">
-                    <p className="text-sm font-medium">{voiceNotice.reason}</p>
-                    <p className="mt-1 text-sm text-ink-2">
-                      {voiceNotice.from} → {voiceNotice.to}
+                </section>
+              )}
+
+              {!compact &&
+              (enquiry.decision.automationEligible || enquiry.decision.failedGates.length > 0) ? (
+                <section className="border-b border-line px-5 py-5">
+                  <p className="eyebrow">Autopilot</p>
+                  {enquiry.decision.automationEligible ? (
+                    <p className="mt-2 text-sm leading-relaxed text-ink-2">
+                      This action class has evidence. Nothing sends on its own until you allow it in
+                      Trust. High-risk classes stay blocked.
                     </p>
-                    <div className="mt-3 flex flex-col gap-2">
-                      <Button
-                        className="min-h-11 w-full"
-                        variant="secondary"
-                        onClick={() => decideVoice("enquiry")}
-                      >
-                        This enquiry only
-                      </Button>
-                      <Button className="min-h-11 w-full" onClick={() => decideVoice("teach")}>
-                        Update {business?.name ?? "this business"}’s voice
-                      </Button>
-                    </div>
-                  </div>
-                ) : null}
-              </section>
-            ) : (
-              <section className="px-5 py-5" aria-labelledby="draft-heading">
-                <div className="flex items-center justify-between gap-3">
+                  ) : (
+                    <ul className="mt-2 space-y-1 text-sm text-ink-2">
+                      {enquiry.decision.failedGates.map((g) => (
+                        <li key={g}>{g}</li>
+                      ))}
+                    </ul>
+                  )}
+                </section>
+              ) : null}
+
+              {enquiry.decision.missing.length > 0 && !(compact && (situation || sendable)) ? (
+                <section
+                  className={cn("border-b border-line px-5", compact ? "py-4" : "py-5")}
+                  aria-labelledby="missing-heading"
+                >
+                  <p
+                    id="missing-heading"
+                    className={compact ? "text-sm font-medium" : "eyebrow-decision"}
+                  >
+                    {compact ? "Still needed" : "Blocking the next decision"}
+                  </p>
+                  <ul className="mt-3 space-y-2">
+                    {enquiry.decision.missing.map((m) => {
+                      // "Needed to price this" (AnswerBlocker) already states
+                      // this exact reason, with the input to resolve it,
+                      // whenever it is live and rendered - one fact, one place.
+                      // In demo mode AnswerBlocker never renders, so this stays
+                      // the only place the reason appears.
+                      const reasonShownElsewhere = m.blocking && !demoMode;
+                      return (
+                        <li key={m.factField} className="callout bg-warn-bg text-warn">
+                          <p className="text-sm font-medium">{m.label}</p>
+                          {compact ? null : (
+                            <p className="mt-0.5 text-sm text-ink-2">
+                              {reasonShownElsewhere ? "" : `${m.reason} `}Unlocks: {m.unlocks}.
+                            </p>
+                          )}
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </section>
+              ) : null}
+
+              {quoteSheets(enquiry).length > 0 ? (
+                <QuoteSheets enquiry={enquiry} business={business} compact={compact} />
+              ) : compact || commercial.kind === "not_applicable" ? null : (
+                <section className="border-b border-line px-5 py-5" aria-labelledby="value-heading">
+                  <p id="value-heading" className="eyebrow">
+                    Commercial value
+                  </p>
+                  <CommercialValueMark className="mt-3" value={commercial} size="lg" />
+                </section>
+              )}
+
+              {!compact && applicable.length > 0 ? (
+                <section className="border-b border-line px-5 py-5" aria-labelledby="evals-heading">
+                  <p id="evals-heading" className="eyebrow">
+                    What can be decided now
+                  </p>
+                  <dl className="mt-3 space-y-2">
+                    {pricing ? <EvaluatorRow result={pricing} omitAmount /> : null}
+                    {capacity ? <EvaluatorRow result={capacity} /> : null}
+                    {applicable
+                      .filter((e) => e.type !== "pricing" && e.type !== "capacity")
+                      .map((e) => (
+                        <EvaluatorRow key={e.type} result={e} />
+                      ))}
+                  </dl>
+                  {enquiry.fixtureId === "F17" ? (
+                    <p className="mt-3 text-xs text-stone">
+                      Compare with F01 (Glow). Same card, different evaluators - price and capacity
+                      stay hidden when they are not applicable.
+                    </p>
+                  ) : null}
+                </section>
+              ) : null}
+
+              {!compact ? (
+                <section className="border-b border-line px-5 py-5" aria-labelledby="facts-heading">
+                  <p id="facts-heading" className="eyebrow">
+                    What Enquiry understood
+                  </p>
+                  <FactList
+                    heading="This enquiry only"
+                    facts={enquiry.facts.filter((f) => !f.superseded && f.customerSpecific)}
+                    onCorrect={setCorrecting}
+                  />
+                  <FactList
+                    heading="From the request"
+                    facts={enquiry.facts.filter((f) => !f.superseded && !f.customerSpecific)}
+                    onCorrect={setCorrecting}
+                  />
+                </section>
+              ) : null}
+
+              {!compact && !evaluating ? <CaseFile enquiry={enquiry} /> : null}
+
+              {compact ? (
+                <section className="flex min-h-0 flex-1 flex-col px-5 pb-2 pt-1">
                   <button
                     type="button"
-                    className="flex min-h-11 flex-1 items-center justify-between text-left"
-                    onClick={() => setDraftOpen((v) => !v)}
-                    aria-expanded={draftOpen}
+                    className="min-h-32 flex-1 overflow-y-auto rounded-xl bg-raised px-4 py-4 text-left shadow-border active:bg-paper"
+                    onClick={() => setDraftOpen(true)}
+                    aria-label="Edit reply"
                   >
-                    <p id="draft-heading" className="eyebrow">
-                      Prepared {short ? "message" : "reply"}
-                    </p>
-                    <ChevronDown
+                    <p className="eyebrow">Reply</p>
+                    <p
                       className={cn(
-                        "size-4 text-stone transition-transform duration-150 ease-out",
-                        draftOpen && "rotate-180",
+                        "letter-body mt-3 whitespace-pre-wrap",
+                        short ? "font-sans" : "font-serif",
                       )}
-                    />
-                  </button>
-                  <HearLetter text={draftBody} />
-                </div>
-                {draftOpen ? (
-                  <label className="mt-3 block">
-                    <span className="sr-only">Draft message</span>
-                    <textarea
-                      value={draftBody}
-                      onChange={(e) => editDraft(enquiry.id, e.target.value)}
-                      onBlur={() => considerVoice(enquiry.id)}
-                      rows={short ? 5 : 10}
-                      className={cn("field leading-relaxed", short ? "font-sans" : "font-serif")}
-                    />
-                  </label>
-                ) : null}
-                {priceDrift ? (
-                  <p className="mt-3 text-sm text-warn">
-                    The quote on file is still {priceDrift.from}. This letter now says{" "}
-                    {priceDrift.to}. Editing the reply does not change the price.
-                  </p>
-                ) : null}
-                {sheetDrift ? (
-                  <div className="mt-3">
-                    <p className="text-sm text-warn">
-                      The sheet is {sheetDrift.sheet}. This letter says {sheetDrift.letter}.
+                    >
+                      {draftBody || "No message prepared."}
                     </p>
+                  </button>
+                  {priceDrift ? (
+                    <p className="mt-3 text-sm text-warn">
+                      The quote on file is still {priceDrift.from}. This letter now says{" "}
+                      {priceDrift.to}.
+                    </p>
+                  ) : null}
+                  {sheetDrift ? (
+                    <div className="mt-3">
+                      <p className="text-sm text-warn">
+                        The sheet is {sheetDrift.sheet}. This letter says {sheetDrift.letter}.
+                      </p>
+                      <button
+                        type="button"
+                        className="mt-1 min-h-11 text-sm font-medium underline-offset-4 hover:underline"
+                        onClick={() =>
+                          editDraft(enquiry.id, alignLetterToSheet(draftBody, sheetFigures))
+                        }
+                      >
+                        Use the sheet
+                      </button>
+                    </div>
+                  ) : null}
+                  {voiceNotice?.enquiryId === enquiry.id ? (
+                    <div className="callout mt-3 bg-paper-2 text-ink" role="status">
+                      <p className="text-sm font-medium">{voiceNotice.reason}</p>
+                      <p className="mt-1 text-sm text-ink-2">
+                        {voiceNotice.from} → {voiceNotice.to}
+                      </p>
+                      <div className="mt-3 flex flex-col gap-2">
+                        <Button
+                          className="min-h-11 w-full"
+                          variant="secondary"
+                          onClick={() => decideVoice("enquiry")}
+                        >
+                          This enquiry only
+                        </Button>
+                        <Button className="min-h-11 w-full" onClick={() => decideVoice("teach")}>
+                          Update {business?.name ?? "this business"}’s voice
+                        </Button>
+                      </div>
+                    </div>
+                  ) : null}
+                </section>
+              ) : (
+                <section className="px-5 py-5" aria-labelledby="draft-heading">
+                  <div className="flex items-center justify-between gap-3">
                     <button
                       type="button"
-                      className="mt-1 min-h-11 text-sm font-medium underline-offset-4 hover:underline"
-                      onClick={() =>
-                        editDraft(enquiry.id, alignLetterToSheet(draftBody, sheetFigures))
-                      }
+                      className="flex min-h-11 flex-1 items-center justify-between text-left"
+                      onClick={() => setDraftOpen((v) => !v)}
+                      aria-expanded={draftOpen}
                     >
-                      Use the sheet
+                      <p id="draft-heading" className="eyebrow">
+                        Prepared {short ? "message" : "reply"}
+                      </p>
+                      <ChevronDown
+                        className={cn(
+                          "size-4 text-stone transition-transform duration-150 ease-out",
+                          draftOpen && "rotate-180",
+                        )}
+                      />
                     </button>
+                    <HearLetter text={draftBody} />
                   </div>
-                ) : null}
-                {voiceNotice?.enquiryId === enquiry.id ? (
-                  <div className="callout mt-3 bg-paper-2 text-ink" role="status">
-                    <p className="text-sm font-medium">{voiceNotice.reason}</p>
-                    <p className="mt-1 text-sm text-ink-2">
-                      {voiceNotice.from} → {voiceNotice.to}
+                  {draftOpen ? (
+                    <label className="mt-3 block">
+                      <span className="sr-only">Draft message</span>
+                      <textarea
+                        value={draftBody}
+                        onChange={(e) => editDraft(enquiry.id, e.target.value)}
+                        onBlur={() => considerVoice(enquiry.id)}
+                        rows={short ? 5 : 10}
+                        className={cn("field leading-relaxed", short ? "font-sans" : "font-serif")}
+                      />
+                    </label>
+                  ) : null}
+                  {priceDrift ? (
+                    <p className="mt-3 text-sm text-warn">
+                      The quote on file is still {priceDrift.from}. This letter now says{" "}
+                      {priceDrift.to}. Editing the reply does not change the price.
                     </p>
-                    <p className="mt-1 text-xs text-stone">
-                      Teaching updates {business?.name ?? "this business"}’s voice. Other open
-                      drafts will follow. Sent messages stay as sent.
-                    </p>
-                    <div className="mt-3 flex flex-wrap gap-2">
-                      <Button size="sm" variant="secondary" onClick={() => decideVoice("enquiry")}>
-                        This enquiry only
-                      </Button>
-                      <Button size="sm" onClick={() => decideVoice("teach")}>
-                        Update {business?.name ?? "this business"}’s voice
-                      </Button>
+                  ) : null}
+                  {sheetDrift ? (
+                    <div className="mt-3">
+                      <p className="text-sm text-warn">
+                        The sheet is {sheetDrift.sheet}. This letter says {sheetDrift.letter}.
+                      </p>
+                      <button
+                        type="button"
+                        className="mt-1 min-h-11 text-sm font-medium underline-offset-4 hover:underline"
+                        onClick={() =>
+                          editDraft(enquiry.id, alignLetterToSheet(draftBody, sheetFigures))
+                        }
+                      >
+                        Use the sheet
+                      </button>
                     </div>
-                  </div>
-                ) : null}
-                {grounded ? (
-                  <p className="mt-2 text-xs text-stone">Grounded in {grounded}.</p>
-                ) : null}
-              </section>
-            )}
-          </>
+                  ) : null}
+                  {voiceNotice?.enquiryId === enquiry.id ? (
+                    <div className="callout mt-3 bg-paper-2 text-ink" role="status">
+                      <p className="text-sm font-medium">{voiceNotice.reason}</p>
+                      <p className="mt-1 text-sm text-ink-2">
+                        {voiceNotice.from} → {voiceNotice.to}
+                      </p>
+                      <p className="mt-1 text-xs text-stone">
+                        Teaching updates {business?.name ?? "this business"}’s voice. Other open
+                        drafts will follow. Sent messages stay as sent.
+                      </p>
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          onClick={() => decideVoice("enquiry")}
+                        >
+                          This enquiry only
+                        </Button>
+                        <Button size="sm" onClick={() => decideVoice("teach")}>
+                          Update {business?.name ?? "this business"}’s voice
+                        </Button>
+                      </div>
+                    </div>
+                  ) : null}
+                  {grounded ? (
+                    <p className="mt-2 text-xs text-stone">Grounded in {grounded}.</p>
+                  ) : null}
+                </section>
+              )}
+            </>
+          ) : null}
+        </div>
+        {!compact ? (
+          // Only the "more below" cue: a top fade would sit under the
+          // sticky header above (already opaque, already the "scrolled
+          // away from the top" signal) rather than adding a second one.
+          <ScrollFade edges={{ start: false, end: panelFade.end }} orientation="vertical" />
         ) : null}
       </div>
 
@@ -599,26 +711,27 @@ export function Intelligence({
               <Button
                 className={cn("w-full", compact ? "min-h-14 text-base" : "min-h-11")}
                 disabled={
-                  sending || !rec.primaryEnabled || Boolean(rec.blockedReason) || Boolean(blocked)
+                  sending ||
+                  !rec.primaryEnabled ||
+                  awaitingService ||
+                  Boolean(rec.blockedReason) ||
+                  Boolean(blocked)
                 }
                 onClick={() => {
                   // Every action reaching this button is sendable
                   // (isSendableAction gates the branch above), so this is
-                  // always a customer-facing send - preview first, never a
-                  // bare commitSend(). The check stays explicit rather than
-                  // unconditional so the intent (and the invariant it
-                  // depends on) is provable and testable on its own, not
-                  // just true by accident of this component's structure.
-                  if (isCustomerFacingSend(rec.action)) {
-                    setSendConfirm(true);
-                    return;
-                  }
-                  void commitSend().then(() => {
-                    if (!compact) onDone?.();
-                  });
+                  // always a customer-facing send - preview first, and there
+                  // is no longer any other path: nothing records a send
+                  // except the owner's attestation inside that preview. The
+                  // check stays explicit rather than unconditional so the
+                  // intent (and the invariant it depends on) is provable and
+                  // testable on its own, not just true by accident of this
+                  // component's structure.
+                  if (!isCustomerFacingSend(rec.action)) return;
+                  void openReview();
                 }}
               >
-                {sending ? "Recording…" : rec.label}
+                {sending ? "Recording…" : awaitingService ? "Confirm the service first" : rec.label}
               </Button>
             ) : situation ? (
               <p className="text-sm text-ink-2">Settle the detail above first.</p>
@@ -627,7 +740,12 @@ export function Intelligence({
                 {rec.label}
               </Button>
             )}
-            {blocked ? (
+            {awaitingService ? (
+              <p className="text-sm text-warn">
+                Confirm what this enquiry is for before quoting it. Enquiry will not send a price
+                for a service nobody has agreed to.
+              </p>
+            ) : blocked ? (
               <div className="space-y-2">
                 <p className="text-sm text-warn">{blocked}</p>
                 {integ && integ.status !== "connected" && business ? (
@@ -652,11 +770,11 @@ export function Intelligence({
                 {commercial.kind === "not_applicable"
                   ? " the decision."
                   : " the price or feasibility."}
-                {demoMode ? null : " This copies the text - it does not send from here."}
+                {" Enquiry does not send from here - you send it, then record it."}
               </p>
-            ) : sendable && compact && !demoMode ? (
+            ) : sendable && compact ? (
               <p className="text-xs text-stone">
-                This copies the text - it does not send from here.
+                Enquiry does not send from here - you send it, then record it.
               </p>
             ) : null}
             {sendable || enquiry.state.lifecycle === "OPEN" ? (
@@ -819,9 +937,17 @@ export function Intelligence({
         preview={preview}
         pending={sending}
         compact={compact}
-        onConfirm={(clientRequestId) => {
-          void commitSend(clientRequestId, preview.edited ?? false).then(() => {
-            setSendConfirm(false);
+        demoMode={demoMode}
+        blockedReason={reviewBlocked}
+        staleMessage={reviewStale}
+        onCopy={copyDraft}
+        onConfirm={() => {
+          void confirmExternalSend(false).then(() => {
+            if (!compact) onDone?.();
+          });
+        }}
+        onConfirmStale={() => {
+          void confirmExternalSend(true).then(() => {
             if (!compact) onDone?.();
           });
         }}
@@ -844,7 +970,7 @@ export function Intelligence({
               // operator found it so they can retry.
               if (!ok) return;
               setDeclineOpen(false);
-              if (demoMode) toastUndo("Decline sent.");
+              if (demoMode) toastUndo("Declined - nothing sent to the customer.");
               else toast.success("Declined.");
               onDone?.();
             });
@@ -1102,10 +1228,54 @@ function CorrectDialog({
   sheet?: boolean;
 }) {
   const correctFact = usePrototype((s) => s.correctFact);
+  const demoMode = usePrototype((s) => s.demoMode);
+  const actions = useFirstBetaActions();
   const [value, setValue] = useState("");
+  const [saving, setSaving] = useState(false);
   useEffect(() => {
     setValue(fact?.displayValue ?? "");
   }, [fact]);
+
+  /**
+   * Apply a correction where it actually belongs.
+   *
+   * This used to call the client store in every mode: a success toast, a local
+   * audit line, no network request, nothing persisted, no recomputed price, and
+   * the whole thing gone on reload. A live correction now goes through the same
+   * server path as any other confirmation - tenancy re-derived, the fact
+   * superseded and re-inserted inside one transaction, the decision recomputed,
+   * the revision bumped, an audit row written - and the store is refreshed FROM
+   * that response rather than optimistically ahead of it, so what the desk shows
+   * is what the database holds.
+   */
+  const apply = async (next: string, display: string) => {
+    if (!fact) return;
+    const route = correctionRoute(fact.field, demoMode);
+    if (route.kind === "demo") {
+      correctFact(enquiry.id, fact.id, next, display);
+      onClose();
+      return;
+    }
+    setSaving(true);
+    try {
+      const res =
+        route.kind === "service"
+          ? await actions.setService(enquiry.id, next.trim())
+          : await actions.answerFact(enquiry.id, route.field, next.trim());
+      onClose();
+      toast.success(
+        res.action === "SEND_QUOTE" ? "Corrected. The price is updated." : res.explanation,
+      );
+    } catch (err) {
+      // The server refuses a value it cannot price from - a range, alternatives,
+      // a negative - exactly as it does for a first answer. Say so and leave the
+      // dialog open so the owner can fix it, rather than closing on a failure.
+      toast.error(err instanceof Error ? err.message : "Could not save that correction.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
   if (!fact) return null;
   const alts = fact.alternatives ?? [];
   const Panel = sheet ? SheetContent : DialogContent;
@@ -1120,10 +1290,8 @@ function CorrectDialog({
                 key={a}
                 variant="secondary"
                 className="min-h-11 w-full justify-start"
-                onClick={() => {
-                  correctFact(enquiry.id, fact.id, a, alternativeLabel(a));
-                  onClose();
-                }}
+                disabled={saving}
+                onClick={() => void apply(a, alternativeLabel(a))}
               >
                 {alternativeLabel(a)}
               </Button>
@@ -1134,8 +1302,7 @@ function CorrectDialog({
             className="space-y-3"
             onSubmit={(e) => {
               e.preventDefault();
-              correctFact(enquiry.id, fact.id, value, value);
-              onClose();
+              void apply(value, value);
             }}
           >
             <label className="block text-sm">
@@ -1151,8 +1318,8 @@ function CorrectDialog({
                 ? "This looks customer-specific. It will stay on this enquiry."
                 : "If this is how the business works, Enquiry will ask whether to learn it."}
             </p>
-            <Button type="submit" className="min-h-11 w-full">
-              Update fact
+            <Button type="submit" className="min-h-11 w-full" disabled={saving}>
+              {saving ? "Saving…" : "Update fact"}
             </Button>
           </form>
         )}

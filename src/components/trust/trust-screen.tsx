@@ -9,6 +9,7 @@ import { useLiveTrustMutations } from "@/lib/workspace/live-mutations";
 import { visibleBusinesses } from "@/lib/workspace/resolve-business";
 import { WorkspaceSettingUp } from "@/components/shell/workspace-setting-up";
 import type { ActionPolicyMode } from "@/domain/types";
+import { integrationStatusLabel } from "@/domain/labels";
 import { cn } from "@/lib/utils";
 import { useNarrow } from "@/lib/use-narrow";
 
@@ -117,7 +118,7 @@ export function TrustOverview() {
           >
             <dt className="text-sm">{i.provider}</dt>
             <dd className="text-sm text-ink-2">
-              {i.status === "connected" ? i.enquiryUsage[0] : i.status}
+              {i.status === "connected" ? i.enquiryUsage[0] : integrationStatusLabel(i.status)}
             </dd>
           </div>
         ))}
@@ -214,7 +215,9 @@ export function TrustAccess() {
                 <p className="font-medium">{i.provider}</p>
                 <p className="mt-0.5 text-sm text-stone">{i.accountLabel}</p>
               </div>
-              <Badge tone={i.status === "connected" ? "ok" : "warn"}>{i.status}</Badge>
+              <Badge tone={i.status === "connected" ? "ok" : "warn"}>
+                {integrationStatusLabel(i.status)}
+              </Badge>
             </div>
             <div className="mt-4 grid gap-4 sm:grid-cols-2">
               <div>

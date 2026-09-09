@@ -7,12 +7,22 @@
  *   bundled into the server build via `?raw` (the public/ directory is CDN
  *   static output on Vercel and not readable from the function).
  * - `/__grok/manifest.webmanifest` → per-app-named manifest (kept out of
- *   public/ so this dynamic response is the only one).
- * - Other HTML documents → stream-inject PWA + OG head tags at `</head>`.
- *   OG identity is baked via `virtual:grok-og-identity` at `vite build`
- *   (this function cannot read `src/lib/og/site.json` or `public/og.jpg`).
- *   This must be a middleware transforming `next()`: h3 discards the `response`
- *   runtime hook's return value, and `render:html` does not exist in Nitro v3.
+ *   public/ so this dynamic response is the only one). Only the ?install=1
+ *   tutorial page still links here - the main app's own manifest and icons
+ *   are static first-party files under public/ (manifest.webmanifest,
+ *   icon-192.png, icon-512.png, apple-touch-icon.png), linked directly from
+ *   src/routes/__root.tsx.
+ * - Other HTML documents → stream-inject OG head tags (and a couple of
+ *   apple-mobile-web-app-* fallback metas) at `</head>`. OG identity is baked
+ *   via `virtual:grok-og-identity` at `vite build` (this function cannot read
+ *   `src/lib/og/site.json` or `public/og.jpg`). This must be a middleware
+ *   transforming `next()`: h3 discards the `response` runtime hook's return
+ *   value, and `render:html` does not exist in Nitro v3.
+ *
+ * The Grok App Builder "Created with Grok" tracker script (grok.com/grok-app-
+ * builder/extensions.js, which set a 13-month grok_device_id cookie on every
+ * visitor with no disclosure in /privacy) was removed 2026-09-07 - see
+ * scripts/grok-pwa-shared.mjs's file header for detail.
  */
 import installPageTemplate from "../../scripts/install-page.html?raw";
 import { grokOgIdentity } from "virtual:grok-og-identity";

@@ -46,13 +46,17 @@ test("fixture content is demo-only", () => {
   assert.equal(mayShowFixtureContent({ demoMode: true }), true);
 });
 
-test("the Cmd/Ctrl+Enter workspace shortcut can only record a send in demo mode", () => {
+test("the Cmd/Ctrl+Enter workspace shortcut can record a send in no mode at all", () => {
   // A real send always goes through the same copy-and-record step as a
   // click on the Send button (which itself now always opens the approval
   // preview - see isCustomerFacingSend in commercial.ts). A keyboard
   // shortcut that skipped both would be a silent-send regression.
+  // Neither mode. A keyboard shortcut that records a send bypasses the
+  // approval preview and the owner's attestation, which is the one thing this
+  // product must never do - in a demonstration least of all, since that is
+  // exactly where a prospect learns what the product claims about sending.
   assert.equal(mayRecordSendViaShortcut(false), false);
-  assert.equal(mayRecordSendViaShortcut(true), true);
+  assert.equal(mayRecordSendViaShortcut(true), false);
 });
 
 test("a clean live handoff carries no fixture business, enquiry or booking", () => {

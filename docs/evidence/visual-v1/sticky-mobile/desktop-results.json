@@ -1,0 +1,27 @@
+{
+  "headerTop": {
+    "x": 0,
+    "y": 0,
+    "width": 1440,
+    "height": 69
+  },
+  "headerAfter": {
+    "x": 0,
+    "y": 0,
+    "width": 1440,
+    "height": 69
+  },
+  "navTop": {
+    "x": 0,
+    "y": 821.6875,
+    "width": 1440,
+    "height": 50.296875
+  },
+  "navAfter": {
+    "x": 0,
+    "y": 68,
+    "width": 1440,
+    "height": 50.296875
+  },
+  "console": []
+}

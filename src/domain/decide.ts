@@ -1,6 +1,7 @@
 import type { Enquiry, EnquiryFact, KnowledgeItem } from "./types";
 import { parseBusinessRule, type BusinessRule } from "./business-rule.ts";
-import { compilePrice, type CompilerFact, type PriceOutcome } from "./price-compiler.ts";
+import { compilePrice, matchRule, type CompilerFact, type PriceOutcome } from "./price-compiler.ts";
+import { parseQuantity } from "./quantity.ts";
 
 /**
  * Decide a real enquiry from a real business's confirmed rules.
@@ -24,6 +25,21 @@ export type Decision = {
   explanation: string;
   /** The single decision-critical missing fact, when there is one. */
   blocker?: { field: string; reason: string };
+  /**
+   * An amount Enquiry has calculated but is NOT authorised to quote, because
+   * the premise it rests on - the service - was proposed by a model and never
+   * confirmed by the owner. Deliberately separate from the decision's price so
+   * that nothing downstream which reads a decided price can mistake it for one:
+   * `confirmReviewedSendInTransaction` writes a quote row from the reviewed
+   * artefact's frozen `price`, and a provisional figure must never reach it.
+   */
+  provisional?: { amountMinor: number; currency: "AUD"; service: string; workings: string };
+  /**
+   * The services or prices the owner must choose between when the request is
+   * ambiguous. Surfaced so the desk can ask the smallest question rather than
+   * showing a figure that array order happened to pick.
+   */
+  serviceChoices?: string[];
 };
 
 /**
@@ -99,6 +115,46 @@ export function decideEnquiry(
     };
   }
 
+  // A confirmed answer that does not mean one quantity. The enquiry is not
+  // blocked on a MISSING fact - it is blocked on the answer already given, so
+  // the question goes back to that same field with the owner's own words in it.
+  if (price.kind === "UNRESOLVED_QUANTITY") {
+    return {
+      price,
+      action: "REQUEST_INFORMATION",
+      explanation: price.reason,
+      blocker: { field: price.field, reason: price.reason },
+    };
+  }
+
+  // Calculated, but resting on a service nobody confirmed. The figure is
+  // carried as `provisional` so the desk can show it honestly; the action is
+  // not a send, because the commercial premise has not been decided.
+  if (price.kind === "PROVISIONAL") {
+    return {
+      price,
+      action: "ESCALATE_HUMAN",
+      explanation: `Enquiry read this as ${price.service} and has not been told that is right. Confirm the service and the price follows.`,
+      provisional: {
+        amountMinor: price.amountMinor,
+        currency: price.currency,
+        service: price.service,
+        workings: price.workings,
+      },
+    };
+  }
+
+  // Several services, or several simultaneously Active prices for one service.
+  // The owner chooses. Rule order is not a commercial policy.
+  if (price.kind === "AMBIGUOUS_SERVICE") {
+    return {
+      price,
+      action: "ESCALATE_HUMAN",
+      explanation: price.message,
+      serviceChoices: [...new Set(price.choices.map((c) => c.service))],
+    };
+  }
+
   return {
     price,
     action: "ESCALATE_HUMAN",
@@ -107,4 +163,49 @@ export function decideEnquiry(
         ? "No pricing rules are set up yet, so Enquiry cannot price this."
         : `Nothing in this business's pricing covers "${price.service}".`,
   };
+}
+
+/**
+ * Validate an owner's answer BEFORE it is stored as a confirmed fact.
+ *
+ * The compiler already refuses to turn "5-6" into a quantity, but a fact stored
+ * as `confirmed` is the strongest statement this product makes about a
+ * customer's request - it is the thing that earns the right to drive money -
+ * and storing one whose value cannot mean what it claims to mean is a defect on
+ * its own, whatever the compiler does with it afterwards. So the server checks
+ * the answer against the rule that would consume it, and refuses rather than
+ * recording a confirmation of something unusable.
+ *
+ * Only fields a rule actually reads as a quantity are checked. An answer to
+ * "which room?" or "what date?" is free text and stays free text - this is not
+ * a general input validator, and inventing one would block ordinary answers.
+ *
+ * Returns null when the answer is acceptable, or the sentence to show the owner.
+ */
+export function validateFactAnswer(
+  business: { knowledge?: ReadonlyArray<RuleBearingKnowledge | KnowledgeItem> | null },
+  serviceLabel: string,
+  field: string,
+  value: string,
+): string | null {
+  const rules = activeRules(business);
+  const norm = (s: string) => s.trim().toLowerCase();
+  // Every rule that reads this field as its quantity, not just the one that
+  // currently prices this enquiry: the service can change after the answer is
+  // stored, and a value that is unusable for any of them is unusable.
+  const quantityRules = rules.filter(
+    (r) => r.kind === "per_unit" && norm(r.quantityField) === norm(field),
+  );
+  if (quantityRules.length === 0) return null;
+
+  const selected = matchRule(rules, serviceLabel);
+  const rule =
+    selected.kind === "one" && selected.rule.kind === "per_unit" &&
+    norm(selected.rule.quantityField) === norm(field)
+      ? selected.rule
+      : quantityRules[0]!;
+  if (rule.kind !== "per_unit") return null;
+
+  const parsed = parseQuantity(value, rule.unit, field);
+  return parsed.ok ? null : parsed.message;
 }

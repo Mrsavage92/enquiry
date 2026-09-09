@@ -14,7 +14,11 @@ Disallow: /trust
 Disallow: /lab
 Disallow: /onboarding
 Disallow: /login
+Disallow: /signup
 Disallow: /q/
 Disallow: /book/
+
+# Unlinked render target for public/og.jpg - not a real page.
+Disallow: /og-card
 
 Sitemap: https://enquiry-ashy.vercel.app/sitemap.xml

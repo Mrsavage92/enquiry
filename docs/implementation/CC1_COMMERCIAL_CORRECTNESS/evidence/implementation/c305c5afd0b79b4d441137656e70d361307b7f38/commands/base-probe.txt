@@ -1,0 +1,144 @@
+✖ SAFETY: confirmed text "5-6" must not become an exact positive quantity (1.3054ms)
+✖ SAFETY: confirmed text "4 or 5" must not become an exact positive quantity (0.1645ms)
+✖ SAFETY: confirmed text "-5" must not become an exact positive quantity (0.1176ms)
+✖ SAFETY: ambiguous service must not select a definite price (0.9561ms)
+✖ SAFETY: ambiguous service price must not depend on rule array order (1.3808ms)
+✖ SAFETY: an explicitly unconfirmed model service fact must not unlock exact pricing (0.203ms)
+ℹ tests 6
+ℹ suites 0
+ℹ pass 0
+ℹ fail 6
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 149.5891
+
+✖ failing tests:
+
+test at docs\implementation\CC1_COMMERCIAL_CORRECTNESS\probes\price-safety.probe.ts:22:3
+✖ SAFETY: confirmed text "5-6" must not become an exact positive quantity (1.3054ms)
+  AssertionError [ERR_ASSERTION]: {"kind":"EXACT","amountMinor":560000,"currency":"AUD","rule":{"kind":"per_unit","service":"Group makeup","amount":100,"currency":"AUD","unit":"person","quantityField":"guests"},"workings":"56 people at $100 each."}
+      at TestContext.<anonymous> (file:///C:/Users/Adam/AppData/Local/Temp/claude/c--Users-Adam--claude-projects/5a73410e-c57f-46e2-b844-9b0bb6652e49/scratchpad/enquiry-wt-cc1/docs/implementation/CC1_COMMERCIAL_CORRECTNESS/probes/price-safety.probe.ts:26:12)
+      at Test.runInAsyncScope (node:async_hooks:214:14)
+      at Test.run (node:internal/test_runner/test:1103:25)
+      at Test.start (node:internal/test_runner/test:1000:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:358:17) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 'EXACT',
+    expected: 'EXACT',
+    operator: 'notStrictEqual',
+    diff: 'simple'
+  }
+
+test at docs\implementation\CC1_COMMERCIAL_CORRECTNESS\probes\price-safety.probe.ts:22:3
+✖ SAFETY: confirmed text "4 or 5" must not become an exact positive quantity (0.1645ms)
+  AssertionError [ERR_ASSERTION]: {"kind":"EXACT","amountMinor":450000,"currency":"AUD","rule":{"kind":"per_unit","service":"Group makeup","amount":100,"currency":"AUD","unit":"person","quantityField":"guests"},"workings":"45 people at $100 each."}
+      at TestContext.<anonymous> (file:///C:/Users/Adam/AppData/Local/Temp/claude/c--Users-Adam--claude-projects/5a73410e-c57f-46e2-b844-9b0bb6652e49/scratchpad/enquiry-wt-cc1/docs/implementation/CC1_COMMERCIAL_CORRECTNESS/probes/price-safety.probe.ts:26:12)
+      at Test.runInAsyncScope (node:async_hooks:214:14)
+      at Test.run (node:internal/test_runner/test:1103:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:785:18)
+      at Test.postRun (node:internal/test_runner/test:1232:19)
+      at Test.run (node:internal/test_runner/test:1160:12)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 'EXACT',
+    expected: 'EXACT',
+    operator: 'notStrictEqual',
+    diff: 'simple'
+  }
+
+test at docs\implementation\CC1_COMMERCIAL_CORRECTNESS\probes\price-safety.probe.ts:22:3
+✖ SAFETY: confirmed text "-5" must not become an exact positive quantity (0.1176ms)
+  AssertionError [ERR_ASSERTION]: {"kind":"EXACT","amountMinor":50000,"currency":"AUD","rule":{"kind":"per_unit","service":"Group makeup","amount":100,"currency":"AUD","unit":"person","quantityField":"guests"},"workings":"5 people at $100 each."}
+      at TestContext.<anonymous> (file:///C:/Users/Adam/AppData/Local/Temp/claude/c--Users-Adam--claude-projects/5a73410e-c57f-46e2-b844-9b0bb6652e49/scratchpad/enquiry-wt-cc1/docs/implementation/CC1_COMMERCIAL_CORRECTNESS/probes/price-safety.probe.ts:26:12)
+      at Test.runInAsyncScope (node:async_hooks:214:14)
+      at Test.run (node:internal/test_runner/test:1103:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:785:18)
+      at Test.postRun (node:internal/test_runner/test:1232:19)
+      at Test.run (node:internal/test_runner/test:1160:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 'EXACT',
+    expected: 'EXACT',
+    operator: 'notStrictEqual',
+    diff: 'simple'
+  }
+
+test at docs\implementation\CC1_COMMERCIAL_CORRECTNESS\probes\price-safety.probe.ts:37:1
+✖ SAFETY: ambiguous service must not select a definite price (0.9561ms)
+  AssertionError [ERR_ASSERTION]: Expected "actual" to be strictly unequal to:
+  
+  'EXACT'
+      at TestContext.<anonymous> (file:///C:/Users/Adam/AppData/Local/Temp/claude/c--Users-Adam--claude-projects/5a73410e-c57f-46e2-b844-9b0bb6652e49/scratchpad/enquiry-wt-cc1/docs/implementation/CC1_COMMERCIAL_CORRECTNESS/probes/price-safety.probe.ts:38:10)
+      at Test.runInAsyncScope (node:async_hooks:214:14)
+      at Test.run (node:internal/test_runner/test:1103:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:785:18)
+      at Test.postRun (node:internal/test_runner/test:1232:19)
+      at Test.run (node:internal/test_runner/test:1160:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'EXACT',
+    expected: 'EXACT',
+    operator: 'notStrictEqual',
+    diff: 'simple'
+  }
+
+test at docs\implementation\CC1_COMMERCIAL_CORRECTNESS\probes\price-safety.probe.ts:41:1
+✖ SAFETY: ambiguous service price must not depend on rule array order (1.3808ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    {
+  +   amountMinor: 19000,
+  -   amountMinor: 17000,
+      currency: 'AUD',
+      kind: 'EXACT',
+      rule: {
+  +     amount: 190,
+  -     amount: 170,
+        currency: 'AUD',
+        kind: 'fixed_price',
+  +     service: 'Bridal makeup'
+  -     service: 'Event makeup'
+      },
+  +   workings: 'Bridal makeup is a fixed $190.'
+  -   workings: 'Event makeup is a fixed $170.'
+    }
+  
+      at TestContext.<anonymous> (file:///C:/Users/Adam/AppData/Local/Temp/claude/c--Users-Adam--claude-projects/5a73410e-c57f-46e2-b844-9b0bb6652e49/scratchpad/enquiry-wt-cc1/docs/implementation/CC1_COMMERCIAL_CORRECTNESS/probes/price-safety.probe.ts:44:10)
+      at Test.runInAsyncScope (node:async_hooks:214:14)
+      at Test.run (node:internal/test_runner/test:1103:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:785:18)
+      at Test.postRun (node:internal/test_runner/test:1232:19)
+      at Test.run (node:internal/test_runner/test:1160:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { kind: 'EXACT', amountMinor: 19000, currency: 'AUD', rule: { kind: 'fixed_price', service: 'Bridal makeup', amount: 190, currency: 'AUD' }, workings: 'Bridal makeup is a fixed $190.' },
+    expected: { kind: 'EXACT', amountMinor: 17000, currency: 'AUD', rule: { kind: 'fixed_price', service: 'Event makeup', amount: 170, currency: 'AUD' }, workings: 'Event makeup is a fixed $170.' },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at docs\implementation\CC1_COMMERCIAL_CORRECTNESS\probes\price-safety.probe.ts:47:1
+✖ SAFETY: an explicitly unconfirmed model service fact must not unlock exact pricing (0.203ms)
+  AssertionError [ERR_ASSERTION]: {"kind":"EXACT","amountMinor":19000,"currency":"AUD","rule":{"kind":"fixed_price","service":"Bridal makeup","amount":190,"currency":"AUD"},"workings":"Bridal makeup is a fixed $190."}
+      at TestContext.<anonymous> (file:///C:/Users/Adam/AppData/Local/Temp/claude/c--Users-Adam--claude-projects/5a73410e-c57f-46e2-b844-9b0bb6652e49/scratchpad/enquiry-wt-cc1/docs/implementation/CC1_COMMERCIAL_CORRECTNESS/probes/price-safety.probe.ts:51:10)
+      at Test.runInAsyncScope (node:async_hooks:214:14)
+      at Test.run (node:internal/test_runner/test:1103:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:785:18)
+      at Test.postRun (node:internal/test_runner/test:1232:19)
+      at Test.run (node:internal/test_runner/test:1160:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 'EXACT',
+    expected: 'EXACT',
+    operator: 'notStrictEqual',
+    diff: 'simple'
+  }
+exit=1

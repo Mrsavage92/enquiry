@@ -1,0 +1,487 @@
+{
+  "checks": [
+    {
+      "label": "f01@1440: panel overflows (scrollHeight 2716 > clientHeight 707)",
+      "ok": true,
+      "detail": {
+        "overflow": 2009
+      }
+    },
+    {
+      "label": "f01@1440: two fade divs present in the wrapper (top+bottom)",
+      "ok": true,
+      "detail": {
+        "count": 2,
+        "opacity": "1",
+        "cls": "pointer-events-none absolute inset-x-0 bottom-0 h-8 bg-gradient-to-t from-ink/10 to-transparent transition-opacity duration-150 opacity-100"
+      }
+    },
+    {
+      "label": "f01@1440: scrollTop=0 (actual 0/2009) bottom-band worst text contrast",
+      "ok": true,
+      "detail": {
+        "worst": null,
+        "worstRow": -1,
+        "fadeOpacity": "1"
+      }
+    },
+    {
+      "label": "f01@1440: scrollTop=0.15 (actual 301/2009) bottom-band worst text contrast",
+      "ok": true,
+      "detail": {
+        "worst": null,
+        "worstRow": -1,
+        "fadeOpacity": "1"
+      }
+    },
+    {
+      "label": "f01@1440: scrollTop=0.3 (actual 603/2009) bottom-band worst text contrast",
+      "ok": true,
+      "detail": {
+        "worst": null,
+        "worstRow": -1,
+        "fadeOpacity": "1"
+      }
+    },
+    {
+      "label": "f01@1440: scrollTop=0.45 (actual 904/2009) bottom-band worst text contrast",
+      "ok": true,
+      "detail": {
+        "worst": null,
+        "worstRow": -1,
+        "fadeOpacity": "1"
+      }
+    },
+    {
+      "label": "f01@1440: scrollTop=0.6 (actual 1205/2009) bottom-band worst text contrast",
+      "ok": true,
+      "detail": {
+        "worst": null,
+        "worstRow": -1,
+        "fadeOpacity": "1"
+      }
+    },
+    {
+      "label": "f01@1440: scrollTop=0.75 (actual 1507/2009) bottom-band worst text contrast",
+      "ok": true,
+      "detail": {
+        "worst": null,
+        "worstRow": -1,
+        "fadeOpacity": "1"
+      }
+    },
+    {
+      "label": "f01@1440: scrollTop=0.9 (actual 1808/2009) bottom-band worst text contrast",
+      "ok": true,
+      "detail": {
+        "worst": null,
+        "worstRow": -1,
+        "fadeOpacity": "1"
+      }
+    },
+    {
+      "label": "f01@1440: scrollTop=max (actual 2009/2009) bottom-band worst text contrast",
+      "ok": true,
+      "detail": {
+        "worst": null,
+        "worstRow": -1,
+        "fadeOpacity": "0"
+      }
+    },
+    {
+      "label": "f01@1440: at true bottom, bottom-fade opacity is 0",
+      "ok": true,
+      "detail": {
+        "count": 2,
+        "opacity": "0",
+        "cls": "pointer-events-none absolute inset-x-0 bottom-0 h-8 bg-gradient-to-t from-ink/10 to-transparent transition-opacity duration-150 opacity-0"
+      }
+    },
+    {
+      "label": "f01@1440: at rest (top), top-fade opacity is 0 (we deliberately hardcode start:false)",
+      "ok": true,
+      "detail": {
+        "count": 2,
+        "opacity": "1",
+        "cls": "pointer-events-none absolute inset-x-0 bottom-0 h-8 bg-gradient-to-t from-ink/10 to-transparent transition-opacity duration-150 opacity-100"
+      }
+    },
+    {
+      "label": "f02@1440: panel overflows (scrollHeight 2464 > clientHeight 707)",
+      "ok": true,
+      "detail": {
+        "overflow": 1757
+      }
+    },
+    {
+      "label": "f02@1440: two fade divs present in the wrapper (top+bottom)",
+      "ok": true,
+      "detail": {
+        "count": 2,
+        "opacity": "1",
+        "cls": "pointer-events-none absolute inset-x-0 bottom-0 h-8 bg-gradient-to-t from-ink/10 to-transparent transition-opacity duration-150 opacity-100"
+      }
+    },
+    {
+      "label": "f02@1440: scrollTop=0 (actual 0/1757) bottom-band worst text contrast",
+      "ok": true,
+      "detail": {
+        "worst": null,
+        "worstRow": -1,
+        "fadeOpacity": "1"
+      }
+    },
+    {
+      "label": "f02@1440: scrollTop=0.15 (actual 264/1757) bottom-band worst text contrast",
+      "ok": true,
+      "detail": {
+        "worst": null,
+        "worstRow": -1,
+        "fadeOpacity": "1"
+      }
+    },
+    {
+      "label": "f02@1440: scrollTop=0.3 (actual 527/1757) bottom-band worst text contrast",
+      "ok": true,
+      "detail": {
+        "worst": null,
+        "worstRow": -1,
+        "fadeOpacity": "1"
+      }
+    },
+    {
+      "label": "f02@1440: scrollTop=0.45 (actual 791/1757) bottom-band worst text contrast",
+      "ok": true,
+      "detail": {
+        "worst": null,
+        "worstRow": -1,
+        "fadeOpacity": "1"
+      }
+    },
+    {
+      "label": "f02@1440: scrollTop=0.6 (actual 1054/1757) bottom-band worst text contrast",
+      "ok": true,
+      "detail": {
+        "worst": null,
+        "worstRow": -1,
+        "fadeOpacity": "1"
+      }
+    },
+    {
+      "label": "f02@1440: scrollTop=0.75 (actual 1318/1757) bottom-band worst text contrast",
+      "ok": true,
+      "detail": {
+        "worst": null,
+        "worstRow": -1,
+        "fadeOpacity": "1"
+      }
+    },
+    {
+      "label": "f02@1440: scrollTop=0.9 (actual 1581/1757) bottom-band worst text contrast",
+      "ok": true,
+      "detail": {
+        "worst": null,
+        "worstRow": -1,
+        "fadeOpacity": "1"
+      }
+    },
+    {
+      "label": "f02@1440: scrollTop=max (actual 1757/1757) bottom-band worst text contrast",
+      "ok": true,
+      "detail": {
+        "worst": null,
+        "worstRow": -1,
+        "fadeOpacity": "0"
+      }
+    },
+    {
+      "label": "f02@1440: at true bottom, bottom-fade opacity is 0",
+      "ok": true,
+      "detail": {
+        "count": 2,
+        "opacity": "0",
+        "cls": "pointer-events-none absolute inset-x-0 bottom-0 h-8 bg-gradient-to-t from-ink/10 to-transparent transition-opacity duration-150 opacity-0"
+      }
+    },
+    {
+      "label": "f02@1440: at rest (top), top-fade opacity is 0 (we deliberately hardcode start:false)",
+      "ok": true,
+      "detail": {
+        "count": 2,
+        "opacity": "1",
+        "cls": "pointer-events-none absolute inset-x-0 bottom-0 h-8 bg-gradient-to-t from-ink/10 to-transparent transition-opacity duration-150 opacity-100"
+      }
+    },
+    {
+      "label": "f01@1280: panel overflows (scrollHeight 2736 > clientHeight 707)",
+      "ok": true,
+      "detail": {
+        "overflow": 2029
+      }
+    },
+    {
+      "label": "f01@1280: two fade divs present in the wrapper (top+bottom)",
+      "ok": true,
+      "detail": {
+        "count": 2,
+        "opacity": "1",
+        "cls": "pointer-events-none absolute inset-x-0 bottom-0 h-8 bg-gradient-to-t from-ink/10 to-transparent transition-opacity duration-150 opacity-100"
+      }
+    },
+    {
+      "label": "f01@1280: scrollTop=0 (actual 0/2029) bottom-band worst text contrast",
+      "ok": true,
+      "detail": {
+        "worst": null,
+        "worstRow": -1,
+        "fadeOpacity": "1"
+      }
+    },
+    {
+      "label": "f01@1280: scrollTop=0.5 (actual 1015/2029) bottom-band worst text contrast",
+      "ok": true,
+      "detail": {
+        "worst": null,
+        "worstRow": -1,
+        "fadeOpacity": "1"
+      }
+    },
+    {
+      "label": "f01@1280: scrollTop=max (actual 2029/2029) bottom-band worst text contrast",
+      "ok": true,
+      "detail": {
+        "worst": null,
+        "worstRow": -1,
+        "fadeOpacity": "0"
+      }
+    },
+    {
+      "label": "f01@1280: at true bottom, bottom-fade opacity is 0",
+      "ok": true,
+      "detail": {
+        "count": 2,
+        "opacity": "0",
+        "cls": "pointer-events-none absolute inset-x-0 bottom-0 h-8 bg-gradient-to-t from-ink/10 to-transparent transition-opacity duration-150 opacity-0"
+      }
+    },
+    {
+      "label": "f01@1280: at rest (top), top-fade opacity is 0 (we deliberately hardcode start:false)",
+      "ok": true,
+      "detail": {
+        "count": 2,
+        "opacity": "1",
+        "cls": "pointer-events-none absolute inset-x-0 bottom-0 h-8 bg-gradient-to-t from-ink/10 to-transparent transition-opacity duration-150 opacity-100"
+      }
+    },
+    {
+      "label": "f01@1024: panel overflows (scrollHeight 2716 > clientHeight 707)",
+      "ok": true,
+      "detail": {
+        "overflow": 2009
+      }
+    },
+    {
+      "label": "f01@1024: two fade divs present in the wrapper (top+bottom)",
+      "ok": true,
+      "detail": {
+        "count": 2,
+        "opacity": "1",
+        "cls": "pointer-events-none absolute inset-x-0 bottom-0 h-8 bg-gradient-to-t from-ink/10 to-transparent transition-opacity duration-150 opacity-100"
+      }
+    },
+    {
+      "label": "f01@1024: scrollTop=0 (actual 0/2009) bottom-band worst text contrast",
+      "ok": true,
+      "detail": {
+        "worst": null,
+        "worstRow": -1,
+        "fadeOpacity": "1"
+      }
+    },
+    {
+      "label": "f01@1024: scrollTop=0.5 (actual 1005/2009) bottom-band worst text contrast",
+      "ok": true,
+      "detail": {
+        "worst": null,
+        "worstRow": -1,
+        "fadeOpacity": "1"
+      }
+    },
+    {
+      "label": "f01@1024: scrollTop=max (actual 2009/2009) bottom-band worst text contrast",
+      "ok": true,
+      "detail": {
+        "worst": null,
+        "worstRow": -1,
+        "fadeOpacity": "0"
+      }
+    },
+    {
+      "label": "f01@1024: at true bottom, bottom-fade opacity is 0",
+      "ok": true,
+      "detail": {
+        "count": 2,
+        "opacity": "0",
+        "cls": "pointer-events-none absolute inset-x-0 bottom-0 h-8 bg-gradient-to-t from-ink/10 to-transparent transition-opacity duration-150 opacity-0"
+      }
+    },
+    {
+      "label": "f01@1024: at rest (top), top-fade opacity is 0 (we deliberately hardcode start:false)",
+      "ok": true,
+      "detail": {
+        "count": 2,
+        "opacity": "1",
+        "cls": "pointer-events-none absolute inset-x-0 bottom-0 h-8 bg-gradient-to-t from-ink/10 to-transparent transition-opacity duration-150 opacity-100"
+      }
+    },
+    {
+      "label": "f02@1280: panel overflows (scrollHeight 2484 > clientHeight 707)",
+      "ok": true,
+      "detail": {
+        "overflow": 1777
+      }
+    },
+    {
+      "label": "f02@1280: two fade divs present in the wrapper (top+bottom)",
+      "ok": true,
+      "detail": {
+        "count": 2,
+        "opacity": "1",
+        "cls": "pointer-events-none absolute inset-x-0 bottom-0 h-8 bg-gradient-to-t from-ink/10 to-transparent transition-opacity duration-150 opacity-100"
+      }
+    },
+    {
+      "label": "f02@1280: scrollTop=0 (actual 0/1777) bottom-band worst text contrast",
+      "ok": true,
+      "detail": {
+        "worst": null,
+        "worstRow": -1,
+        "fadeOpacity": "1"
+      }
+    },
+    {
+      "label": "f02@1280: scrollTop=0.5 (actual 889/1777) bottom-band worst text contrast",
+      "ok": true,
+      "detail": {
+        "worst": null,
+        "worstRow": -1,
+        "fadeOpacity": "1"
+      }
+    },
+    {
+      "label": "f02@1280: scrollTop=max (actual 1777/1777) bottom-band worst text contrast",
+      "ok": true,
+      "detail": {
+        "worst": null,
+        "worstRow": -1,
+        "fadeOpacity": "0"
+      }
+    },
+    {
+      "label": "f02@1280: at true bottom, bottom-fade opacity is 0",
+      "ok": true,
+      "detail": {
+        "count": 2,
+        "opacity": "0",
+        "cls": "pointer-events-none absolute inset-x-0 bottom-0 h-8 bg-gradient-to-t from-ink/10 to-transparent transition-opacity duration-150 opacity-0"
+      }
+    },
+    {
+      "label": "f02@1280: at rest (top), top-fade opacity is 0 (we deliberately hardcode start:false)",
+      "ok": true,
+      "detail": {
+        "count": 2,
+        "opacity": "1",
+        "cls": "pointer-events-none absolute inset-x-0 bottom-0 h-8 bg-gradient-to-t from-ink/10 to-transparent transition-opacity duration-150 opacity-100"
+      }
+    },
+    {
+      "label": "f02@1024: panel overflows (scrollHeight 2464 > clientHeight 707)",
+      "ok": true,
+      "detail": {
+        "overflow": 1757
+      }
+    },
+    {
+      "label": "f02@1024: two fade divs present in the wrapper (top+bottom)",
+      "ok": true,
+      "detail": {
+        "count": 2,
+        "opacity": "1",
+        "cls": "pointer-events-none absolute inset-x-0 bottom-0 h-8 bg-gradient-to-t from-ink/10 to-transparent transition-opacity duration-150 opacity-100"
+      }
+    },
+    {
+      "label": "f02@1024: scrollTop=0 (actual 0/1757) bottom-band worst text contrast",
+      "ok": true,
+      "detail": {
+        "worst": null,
+        "worstRow": -1,
+        "fadeOpacity": "1"
+      }
+    },
+    {
+      "label": "f02@1024: scrollTop=0.5 (actual 879/1757) bottom-band worst text contrast",
+      "ok": true,
+      "detail": {
+        "worst": null,
+        "worstRow": -1,
+        "fadeOpacity": "1"
+      }
+    },
+    {
+      "label": "f02@1024: scrollTop=max (actual 1757/1757) bottom-band worst text contrast",
+      "ok": true,
+      "detail": {
+        "worst": null,
+        "worstRow": -1,
+        "fadeOpacity": "0"
+      }
+    },
+    {
+      "label": "f02@1024: at true bottom, bottom-fade opacity is 0",
+      "ok": true,
+      "detail": {
+        "count": 2,
+        "opacity": "0",
+        "cls": "pointer-events-none absolute inset-x-0 bottom-0 h-8 bg-gradient-to-t from-ink/10 to-transparent transition-opacity duration-150 opacity-0"
+      }
+    },
+    {
+      "label": "f02@1024: at rest (top), top-fade opacity is 0 (we deliberately hardcode start:false)",
+      "ok": true,
+      "detail": {
+        "count": 2,
+        "opacity": "1",
+        "cls": "pointer-events-none absolute inset-x-0 bottom-0 h-8 bg-gradient-to-t from-ink/10 to-transparent transition-opacity duration-150 opacity-100"
+      }
+    },
+    {
+      "label": "f01@1440: primary action bar position unaffected by panel scroll",
+      "ok": true,
+      "detail": {
+        "before": 752,
+        "after": 752,
+        "scrollTop": 500
+      }
+    },
+    {
+      "label": "f02@1440: primary action bar position unaffected by panel scroll",
+      "ok": true,
+      "detail": {
+        "before": 752,
+        "after": 752,
+        "scrollTop": 500
+      }
+    },
+    {
+      "label": "compact/390: non-compact header absent (confirms phone-desk/compact mode, fix intentionally not applied here)",
+      "ok": true,
+      "detail": {
+        "compactHeaderFound": false,
+        "bodyText": "Skip to content\nSample workspace - not your data.\n\nPriya Shah\n\nGroup mobile makeup · 19 Sep 2026\n\nThread\n\n$625\n\n$190 holds the date\n\nREPLY\n\nHi Priya,\n\nI can come to 12 Merthyr Rd on Saturday 19 Septem"
+      }
+    }
+  ],
+  "failures": []
+}

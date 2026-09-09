@@ -28,6 +28,7 @@ export type OgSite = {
   type?: string;
   card?: string;
   image?: string;
+  imageAlt?: string;
   banner?: string;
   color?: string;
 };

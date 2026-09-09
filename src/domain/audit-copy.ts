@@ -15,7 +15,7 @@ export function auditSummary(action: string, fixtureId: string): string {
     case "mark_lost":
       return `${fixtureId} marked lost`;
     case "decline":
-      return `${fixtureId} declined, letter sent`;
+      return `${fixtureId} declined`;
     case "snooze":
       return `${fixtureId} snoozed`;
     case "note":

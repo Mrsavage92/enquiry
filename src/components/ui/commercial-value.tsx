@@ -15,10 +15,15 @@ export function CommercialValueMark({
   const notReady = value.kind === "not_ready";
 
   if (size === "sm") {
+    // Only call site is queue.tsx's row, which sits on the row's own
+    // hover/active bg-paper-2 - text-stone measures 4.00:1 there, below
+    // 4.5:1 (see --color-stone-on-paper-2 in styles.css). No other size
+    // reaches this branch, so the paper-2 variant is safe to use
+    // unconditionally here rather than passing a context prop through.
     return (
       <p className={cn("flex min-w-0 items-baseline gap-1.5", className)}>
         {notReady ? (
-          <span className="text-xs text-stone">Price not ready</span>
+          <span className="text-xs text-stone-on-paper-2">Price not ready</span>
         ) : (
           <>
             <span
@@ -31,7 +36,9 @@ export function CommercialValueMark({
               {value.amountLabel}
             </span>
             {value.kind === "estimate" ? (
-              <span className="text-2xs font-semibold uppercase tracking-wider text-stone">Est.</span>
+              <span className="text-2xs font-semibold uppercase tracking-wider text-stone-on-paper-2">
+                Est.
+              </span>
             ) : null}
           </>
         )}
@@ -64,7 +71,13 @@ export function CommercialValueMark({
   );
 }
 
-function KindMark({ kind, caption }: { kind: Exclude<CommercialValue["kind"], "not_ready" | "not_applicable">; caption: string }) {
+function KindMark({
+  kind,
+  caption,
+}: {
+  kind: Exclude<CommercialValue["kind"], "not_ready" | "not_applicable">;
+  caption: string;
+}) {
   return (
     <span
       className={cn(

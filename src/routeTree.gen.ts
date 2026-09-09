@@ -15,6 +15,7 @@ import { Route as DemoRouteImport } from './routes/demo'
 import { Route as EarlyAccessRouteImport } from './routes/early-access'
 import { Route as HowRouteImport } from './routes/how'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as OgCardRouteImport } from './routes/og-card'
 import { Route as OnboardingRouteImport } from './routes/onboarding'
 import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as RoadmapRouteImport } from './routes/roadmap'
@@ -65,6 +66,11 @@ const HowRoute = HowRouteImport.update({
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OgCardRoute = OgCardRouteImport.update({
+  id: '/og-card',
+  path: '/og-card',
   getParentRoute: () => rootRouteImport,
 } as any)
 const OnboardingRoute = OnboardingRouteImport.update({
@@ -184,6 +190,7 @@ export interface FileRoutesByFullPath {
   '/early-access': typeof EarlyAccessRoute
   '/how': typeof HowRoute
   '/login': typeof LoginRoute
+  '/og-card': typeof OgCardRoute
   '/onboarding': typeof OnboardingRoute
   '/privacy': typeof PrivacyRoute
   '/roadmap': typeof RoadmapRoute
@@ -213,6 +220,7 @@ export interface FileRoutesByTo {
   '/early-access': typeof EarlyAccessRoute
   '/how': typeof HowRoute
   '/login': typeof LoginRoute
+  '/og-card': typeof OgCardRoute
   '/onboarding': typeof OnboardingRoute
   '/privacy': typeof PrivacyRoute
   '/roadmap': typeof RoadmapRoute
@@ -242,6 +250,7 @@ export interface FileRoutesById {
   '/early-access': typeof EarlyAccessRoute
   '/how': typeof HowRoute
   '/login': typeof LoginRoute
+  '/og-card': typeof OgCardRoute
   '/onboarding': typeof OnboardingRoute
   '/privacy': typeof PrivacyRoute
   '/roadmap': typeof RoadmapRoute
@@ -273,6 +282,7 @@ export interface FileRouteTypes {
     | '/early-access'
     | '/how'
     | '/login'
+    | '/og-card'
     | '/onboarding'
     | '/privacy'
     | '/roadmap'
@@ -302,6 +312,7 @@ export interface FileRouteTypes {
     | '/early-access'
     | '/how'
     | '/login'
+    | '/og-card'
     | '/onboarding'
     | '/privacy'
     | '/roadmap'
@@ -330,6 +341,7 @@ export interface FileRouteTypes {
     | '/early-access'
     | '/how'
     | '/login'
+    | '/og-card'
     | '/onboarding'
     | '/privacy'
     | '/roadmap'
@@ -361,6 +373,7 @@ export interface RootRouteChildren {
   EarlyAccessRoute: typeof EarlyAccessRoute
   HowRoute: typeof HowRoute
   LoginRoute: typeof LoginRoute
+  OgCardRoute: typeof OgCardRoute
   OnboardingRoute: typeof OnboardingRoute
   PrivacyRoute: typeof PrivacyRoute
   RoadmapRoute: typeof RoadmapRoute
@@ -414,6 +427,13 @@ declare module '@tanstack/react-router' {
       path: '/login'
       fullPath: '/login'
       preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/og-card': {
+      id: '/og-card'
+      path: '/og-card'
+      fullPath: '/og-card'
+      preLoaderRoute: typeof OgCardRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/onboarding': {
@@ -633,6 +653,7 @@ const rootRouteChildren: RootRouteChildren = {
   EarlyAccessRoute: EarlyAccessRoute,
   HowRoute: HowRoute,
   LoginRoute: LoginRoute,
+  OgCardRoute: OgCardRoute,
   OnboardingRoute: OnboardingRoute,
   PrivacyRoute: PrivacyRoute,
   RoadmapRoute: RoadmapRoute,

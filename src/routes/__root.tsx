@@ -1,6 +1,8 @@
 import { createRootRoute, HeadContent, Outlet, Scripts } from "@tanstack/react-router";
 import { AuthProvider } from "@/lib/auth/provider";
 import { PreviewHostBridge } from "@/components/preview-host-bridge";
+import { PaletteFlag } from "@/components/palette-flag";
+import { PALETTE_INLINE_SCRIPT } from "@/lib/palette-flag";
 import { Toaster } from "sonner";
 import appCss from "../styles.css?url";
 
@@ -26,8 +28,8 @@ export const Route = createRootRoute({
     links: [
       { rel: "icon", type: "image/svg+xml", href: "/favicon.svg" },
       { rel: "stylesheet", href: appCss },
-      { rel: "manifest", href: "/__grok/manifest.webmanifest" },
-      { rel: "apple-touch-icon", href: "/__grok/icon-180.png" },
+      { rel: "manifest", href: "/manifest.webmanifest" },
+      { rel: "apple-touch-icon", href: "/apple-touch-icon.png" },
       {
         rel: "stylesheet",
         href: "https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Serif:wght@500;600&display=swap",
@@ -37,10 +39,14 @@ export const Route = createRootRoute({
   component: () => (
     <html lang="en-AU" suppressHydrationWarning>
       <head>
+        {/* Runs before first paint so the ?palette=b flag never flashes the
+            default palette first - see src/lib/palette-flag.ts. */}
+        <script dangerouslySetInnerHTML={{ __html: PALETTE_INLINE_SCRIPT }} />
         <HeadContent />
       </head>
       <body className="antialiased">
         <PreviewHostBridge />
+        <PaletteFlag />
         <AuthProvider>
           <Outlet />
         </AuthProvider>

@@ -47,14 +47,23 @@ export function mayShowFixtureContent(s: Pick<SessionShape, "demoMode">): boolea
 /**
  * Whether the workspace's Cmd/Ctrl+Enter keyboard shortcut may record a send.
  *
- * Demo only, deliberately. A real send copies the letter and records it
- * through the same approval preview as a click on the Send button; a
- * keyboard shortcut that quietly marked something sent without either step
- * would be exactly the theatre this product exists to remove. There is no
- * live-mode path here to gate more finely - it is demoMode or nothing.
+ * No longer, in any mode. The comment above this function used to say a real
+ * send "records it through the same approval preview as a click on the Send
+ * button" while this returned `true` for demo - so in demo the shortcut did
+ * exactly what the sentence said it must not: marked something sent with no
+ * preview, no copy and no owner attestation. A demonstration of a product whose
+ * entire claim is that nothing is sent without the owner saying so cannot
+ * contain a keystroke that sends without the owner saying so.
+ *
+ * Sending in demo still works through the Send button and its approval preview,
+ * where the attestation is explicit and labelled as a demonstration.
+ *
+ * Kept as a named policy rather than deleted so the rule stays provable in
+ * `live-demo-isolation.test.ts` instead of becoming an unwritten assumption
+ * inside a `useEffect`.
  */
-export function mayRecordSendViaShortcut(demoMode: boolean): boolean {
-  return demoMode;
+export function mayRecordSendViaShortcut(_demoMode: boolean): boolean {
+  return false;
 }
 
 /** The client state a successful LIVE onboarding must leave behind. */

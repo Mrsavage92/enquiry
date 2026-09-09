@@ -1,0 +1,22 @@
+{
+  "tag": "after",
+  "info": {
+    "rect": {
+      "x": 1099.984375,
+      "y": 12,
+      "w": 112.015625,
+      "h": 44
+    },
+    "borderColor": "rgb(79, 74, 66)",
+    "borderWidth": "1px",
+    "boxShadow": "rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(26, 24, 20, 0.04) 0px 1px 2px 0px",
+    "backgroundColor": "rgb(250, 247, 241)",
+    "parentBg": "rgba(0, 0, 0, 0)",
+    "text": "Open the app"
+  },
+  "pageBg": "#faf7f1",
+  "fill": "#faf7f1",
+  "ring": "#4f4a42",
+  "ringVsFill": 8.215091768033975,
+  "ringVsPage": 8.215091768033975
+}

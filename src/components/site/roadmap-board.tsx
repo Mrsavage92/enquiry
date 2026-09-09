@@ -4,10 +4,17 @@ import {
   ROADMAP_WRITTEN,
   NON_GOALS,
   STAGES,
+  statusLabel,
   type RoadmapStage,
   type RoadmapStatus,
 } from "@/lib/launch/roadmap";
-import { joinWaitlist, listMyRoadmapNeeds, saveRoadmapFeedback, toggleRoadmapNeed, trackLaunchEvent } from "@/lib/launch/api";
+import {
+  joinWaitlist,
+  listMyRoadmapNeeds,
+  saveRoadmapFeedback,
+  toggleRoadmapNeed,
+  trackLaunchEvent,
+} from "@/lib/launch/api";
 import {
   currentTouch,
   firstTouch,
@@ -150,7 +157,9 @@ function Feedback({
             }}
           >
             <label className="block text-sm">
-              <span className="mb-1 block text-stone">What problem would this solve for your business?</span>
+              <span className="mb-1 block text-stone">
+                What problem would this solve for your business?
+              </span>
               <textarea
                 className="field min-h-20"
                 rows={2}
@@ -164,7 +173,13 @@ function Feedback({
               <Button type="submit" size="sm" className="min-h-11">
                 Send
               </Button>
-              <Button type="button" size="sm" variant="ghost" className="min-h-11" onClick={() => setWhyOpen(false)}>
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                className="min-h-11"
+                onClick={() => setWhyOpen(false)}
+              >
                 Cancel
               </Button>
             </div>
@@ -247,7 +262,9 @@ function Feedback({
             />
           </label>
           <label className="block text-sm">
-            <span className="mb-1 block text-stone">What problem would this solve for your business?</span>
+            <span className="mb-1 block text-stone">
+              What problem would this solve for your business?
+            </span>
             <textarea
               className="field min-h-20"
               rows={2}
@@ -338,7 +355,10 @@ function StageBlock({
                 <h3 className="text-sm font-medium">{group.title}</h3>
                 <ul className="mt-3">
                   {group.items.map((item) => (
-                    <li key={item} className="border-t border-line py-3 text-sm leading-relaxed text-ink-2 last:border-b">
+                    <li
+                      key={item}
+                      className="border-t border-line py-3 text-sm leading-relaxed text-ink-2 last:border-b"
+                    >
                       {item}
                     </li>
                   ))}
@@ -350,10 +370,15 @@ function StageBlock({
           {stage.notClaiming ? (
             <Reveal delay={60}>
               <aside className="mt-8 rounded-lg border border-line bg-raised px-5 py-5">
-                <p className="text-xs uppercase tracking-wider text-stone">We’re not claiming this yet</p>
+                <p className="text-xs uppercase tracking-wider text-stone">
+                  We’re not claiming this yet
+                </p>
                 <ul className="mt-3">
                   {stage.notClaiming.map((item) => (
-                    <li key={item} className="border-t border-line py-2 text-sm text-ink-2 first:border-t-0 first:pt-0">
+                    <li
+                      key={item}
+                      className="border-t border-line py-2 text-sm text-ink-2 first:border-t-0 first:pt-0"
+                    >
                       {item}
                     </li>
                   ))}
@@ -505,7 +530,10 @@ export function RoadmapBoard() {
       (header instanceof HTMLElement ? header.getBoundingClientRect().height : 56) +
       (nav instanceof HTMLElement ? nav.getBoundingClientRect().height : 48) +
       12;
-    window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY - offset, behavior: "smooth" });
+    window.scrollTo({
+      top: el.getBoundingClientRect().top + window.scrollY - offset,
+      behavior: "smooth",
+    });
   };
 
   return (
@@ -532,23 +560,43 @@ export function RoadmapBoard() {
         aria-label="Roadmap stages"
       >
         <div className="mx-auto flex max-w-5xl gap-1 overflow-x-auto px-5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          {STAGES.map((s) => (
-            <button
-              key={s.id}
-              type="button"
-              onClick={() => jump(s.id)}
-              aria-current={active === s.id ? "true" : undefined}
-              className={cn(
-                "min-h-12 shrink-0 px-2.5 text-sm transition-colors duration-150",
-                active === s.id ? "font-medium text-ink" : "text-stone",
-              )}
-            >
-              <span className="mr-1.5 font-mono text-2xs tabular-nums">{s.number}</span>
-              <span className={cn("border-b-2 py-1", active === s.id ? "border-ink" : "border-transparent")}>
-                {s.short}
-              </span>
-            </button>
-          ))}
+          {STAGES.map((s) => {
+            const isActive = active === s.id;
+            const status = s.status[0];
+            return (
+              <button
+                key={s.id}
+                type="button"
+                onClick={() => jump(s.id)}
+                aria-current={isActive ? "true" : undefined}
+                className={cn(
+                  "min-h-12 shrink-0 px-2.5 py-1.5 text-sm transition-colors duration-150",
+                  isActive ? "font-medium text-ink" : "text-stone",
+                )}
+              >
+                <span>
+                  <span className="mr-1.5 font-mono text-2xs tabular-nums">{s.number}</span>
+                  <span
+                    className={cn(
+                      "border-b-2 py-1",
+                      isActive ? "border-ink" : "border-transparent",
+                    )}
+                  >
+                    {s.short}
+                  </span>
+                </span>
+                <span
+                  className={cn(
+                    "mt-0.5 text-2xs font-semibold uppercase tracking-[0.08em]",
+                    isActive ? "block" : "hidden sm:block",
+                    status === "working" ? "text-mark" : "text-stone",
+                  )}
+                >
+                  {statusLabel(status)}
+                </span>
+              </button>
+            );
+          })}
         </div>
       </nav>
 
@@ -558,13 +606,7 @@ export function RoadmapBoard() {
         </div>
         <div className="flex flex-col gap-24 sm:gap-32">
           {STAGES.map((stage) => (
-            <StageBlock
-              key={stage.id}
-              stage={stage}
-              needed={needed}
-              busy={busy}
-              onNeed={onNeed}
-            />
+            <StageBlock key={stage.id} stage={stage} needed={needed} busy={busy} onNeed={onNeed} />
           ))}
         </div>
       </div>
@@ -594,9 +636,12 @@ export function RoadmapBoard() {
         <div className="mx-auto max-w-3xl px-5 py-16 sm:py-20">
           <Reveal>
             <p className="eyebrow">Evidence</p>
-            <h2 className="text-halo mt-3 font-serif text-4xl font-semibold tracking-tight">Shipped</h2>
+            <h2 className="text-halo mt-3 font-serif text-4xl font-semibold tracking-tight">
+              Shipped
+            </h2>
             <p className="mt-5 max-w-lg text-base leading-relaxed text-ink-2">
-              Nothing to manufacture here yet. When something genuinely ships, this is where we’ll put it - with the date and proof.
+              Nothing to manufacture here yet. When something genuinely ships, this is where we’ll
+              put it - with the date and proof.
             </p>
           </Reveal>
         </div>
@@ -612,7 +657,9 @@ export function RoadmapBoard() {
               This is our direction, not a contract with the future.
             </p>
             <p className="mt-4 max-w-lg text-base leading-relaxed text-ink-2">
-              Customer evidence can change the order, the implementation, or occasionally whether something gets built at all. If that happens, we’ll update this page rather than quietly leave an old promise here.
+              Customer evidence can change the order, the implementation, or occasionally whether
+              something gets built at all. If that happens, we’ll update this page rather than
+              quietly leave an old promise here.
             </p>
             <p className="mt-4 max-w-lg text-sm text-stone">
               We would rather change our mind publicly than ship the wrong thing privately.
@@ -627,7 +674,8 @@ export function RoadmapBoard() {
             Want to help shape what gets built?
           </h2>
           <p className="mt-4 text-sm leading-relaxed text-ink-2">
-            Join early access. We’ll invite businesses gradually as Enquiry is ready for real-world use.
+            Join early access. We’ll invite businesses gradually as Enquiry is ready for real-world
+            use.
           </p>
           <div className="mt-8">
             <WaitlistForm compact />
@@ -638,7 +686,9 @@ export function RoadmapBoard() {
         </div>
       </section>
 
-      <p className="mx-auto max-w-3xl px-5 pb-6 text-xs text-stone">Last written {ROADMAP_WRITTEN}.</p>
+      <p className="mx-auto max-w-3xl px-5 pb-6 text-xs text-stone">
+        Last written {ROADMAP_WRITTEN}.
+      </p>
     </div>
   );
 }

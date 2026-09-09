@@ -439,6 +439,32 @@ export type DecisionSnapshot = {
   serviceComposition: string[];
   changeDiff?: ChangeDiff[];
   price?: DecisionPrice;
+  /**
+   * An amount Enquiry calculated whose premise the owner has not confirmed.
+   *
+   * Deliberately NOT `price`: every writer that turns a decision into money -
+   * `confirmReviewedSendInTransaction` above all - reads `price`, so a figure that
+   * is not yet an authorised commercial decision has to live somewhere those
+   * writers cannot mistake for one. The desk renders it as provisional.
+   */
+  provisionalPrice?: {
+    amountMinor: number;
+    currency: "AUD";
+    premise: "service_unconfirmed";
+    service: string;
+  };
+  /**
+   * Every amount this decision legitimately implies, in minor units - the
+   * total, the unit rate, and the minimum-billed total where one applies.
+   *
+   * The reviewed message has to be allowed to say "That comes to $580. 4 people
+   * at $145 each." without the unit rate reading as a disagreement, and it has
+   * to be refused when it names a figure the decision never implied. Derived
+   * from the structured rule, so the check never has to parse prose for
+   * authority. Absent on a decision made before this existed, in which case
+   * only the structured total is allowed.
+   */
+  impliedAmountsMinor?: number[];
 };
 
 export type WhyItem = {

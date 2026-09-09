@@ -5,6 +5,9 @@ import { formatAud } from "@/domain/labels";
 import type { Enquiry } from "@/domain/types";
 import { cn } from "@/lib/utils";
 import { usePrototype } from "@/store/prototype-store";
+import { useFirstBetaActions } from "@/lib/workspace/live-mutations";
+import { correctionRoute } from "@/domain/fact-correction";
+import { toast } from "sonner";
 
 export function SituationCard({
   enquiry,
@@ -20,6 +23,31 @@ export function SituationCard({
   const resolvePrice = usePrototype((s) => s.resolvePrice);
   const resolveDuplicate = usePrototype((s) => s.resolveDuplicate);
   const correctFact = usePrototype((s) => s.correctFact);
+  const demoMode = usePrototype((s) => s.demoMode);
+  const actions = useFirstBetaActions();
+
+  /**
+   * Same rule as the pencil-edit dialog: outside the demo, a correction goes to
+   * the server and the store is refreshed from the response.
+   *
+   * Live facts do not currently carry `alternatives`, so these buttons render
+   * only for fixtures today - but "it happens not to be reachable" is not a
+   * guarantee, and a second control quietly writing a commercial fact to the
+   * client store is exactly the defect this closes on the first one.
+   */
+  const chooseAlternative = async (factId: string, field: string, value: string) => {
+    const route = correctionRoute(field, demoMode);
+    if (route.kind === "demo") {
+      correctFact(enquiry.id, factId, value, alternativeLabel(value));
+      return;
+    }
+    try {
+      if (route.kind === "service") await actions.setService(enquiry.id, value.trim());
+      else await actions.answerFact(enquiry.id, route.field, value.trim());
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not save that.");
+    }
+  };
   const inviteToDm = usePrototype((s) => s.inviteToDm);
   const markLost = usePrototype((s) => s.markLost);
 
@@ -67,7 +95,7 @@ export function SituationCard({
               variant="secondary"
               className="h-auto min-h-12 w-full justify-start py-2.5 text-left"
               onClick={() =>
-                correctFact(enquiry.id, situation.fact!.id, a, alternativeLabel(a))
+                void chooseAlternative(situation.fact!.id, situation.fact!.field, a)
               }
             >
               {alternativeLabel(a)}

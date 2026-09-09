@@ -4,11 +4,14 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Segmented } from "@/components/ui/segmented";
+import { ScrollFade } from "@/components/ui/scroll-fade";
+import { useScrollFade } from "@/lib/use-scroll-fade";
 import {
   derivedLabel,
   commercialValue,
   filteredEnquiries,
   formatAud,
+  queueFilterHasMatch,
   queueSection,
   queueSummary,
   queueHeadline,
@@ -107,6 +110,7 @@ export function Queue({ activeId, phone = false }: { activeId?: string; phone?: 
   const [query, setQuery] = useState("");
   const [findOpen, setFindOpen] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
+  const { scrollRef: filterScrollRef, edges: filterFade } = useScrollFade<HTMLDivElement>([phone]);
   const scoped = enquiries.filter(
     (e) => businessFilter === "all" || e.businessId === businessFilter,
   );
@@ -144,6 +148,20 @@ export function Queue({ activeId, phone = false }: { activeId?: string; phone?: 
     lastArrivalId,
     demoMode,
   ]);
+  // `visible` can be non-empty purely because `filteredEnquiries` pins the
+  // open enquiry in regardless of filter match (so navigating away from it
+  // never silently vanishes the row) - not because the filter has anything
+  // real in it. Rendering the per-filter empty copy off `visible.length`
+  // alone let that pin hide "Nobody is waiting" behind the one enquiry the
+  // operator happened to have open. `lastArrivalId` is excluded from this
+  // check on purpose: a fresh arrival injected into a non-matching filter is
+  // a real, intentional row (the "Just arrived" strip explains why it is
+  // there), not the same silent pin.
+  const queueIsEmpty =
+    visible.length === 0 ||
+    (!q &&
+      !queueFilterHasMatch(enquiries, businessFilter, listFilter) &&
+      !(lastArrivalId && visible.some((v) => v.id === lastArrivalId)));
   const summary = queueSummary(scoped);
   const counts = {
     needs_you: summary.needsYou,
@@ -255,22 +273,25 @@ export function Queue({ activeId, phone = false }: { activeId?: string; phone?: 
           {visible.length} match{visible.length === 1 ? "" : "es"}
         </p>
       ) : (
-        <div className="overflow-x-auto px-3 pb-1 pt-2">
-          <Segmented
-            ariaLabel="Queue filter"
-            value={phone ? phoneFilter : queueFilter}
-            onChange={setQueueFilter}
-            fullWidth={phone}
-            options={(phone ? PHONE_FILTERS : FILTERS).map((f) => ({
-              id: f.id,
-              label: f.label,
-              count: counts[f.id],
-            }))}
-          />
+        <div className="relative px-3 pb-1 pt-2">
+          <div ref={filterScrollRef} className="overflow-x-auto">
+            <Segmented
+              ariaLabel="Queue filter"
+              value={phone ? phoneFilter : queueFilter}
+              onChange={setQueueFilter}
+              fullWidth={phone}
+              options={(phone ? PHONE_FILTERS : FILTERS).map((f) => ({
+                id: f.id,
+                label: f.label,
+                count: counts[f.id],
+              }))}
+            />
+          </div>
+          <ScrollFade edges={filterFade} />
         </div>
       )}
       <ul className="min-h-0 flex-1 space-y-0.5 overflow-y-auto px-2 pb-6 pt-1 stagger-in">
-        {visible.length === 0 ? (
+        {queueIsEmpty ? (
           <li className="px-3 py-12 text-center">
             <p className="text-sm font-medium text-ink">
               {q
@@ -339,23 +360,25 @@ export function Queue({ activeId, phone = false }: { activeId?: string; phone?: 
                   )}
                   aria-current={active ? "page" : undefined}
                 >
-                  <span
-                    aria-hidden
-                    className={cn(
-                      "absolute inset-y-2 left-0 w-0.5 rounded-full",
-                      e.state.decision === "EVALUATING"
-                        ? "bg-ink arrive-pulse"
-                        : active
-                          ? "bg-ink"
-                          : section === "needs_you"
-                            ? "bg-warn"
-                            : section === "at_risk"
-                              ? "bg-danger"
-                              : section === "waiting"
-                                ? "bg-line-strong"
-                                : "bg-transparent",
-                    )}
-                  />
+                  {phone ? null : (
+                    <span
+                      aria-hidden
+                      className={cn(
+                        "absolute inset-y-2 left-0 w-0.5 rounded-full",
+                        e.state.decision === "EVALUATING"
+                          ? "bg-ink arrive-pulse"
+                          : active
+                            ? "bg-ink"
+                            : section === "needs_you"
+                              ? "bg-warn"
+                              : section === "at_risk"
+                                ? "bg-danger"
+                                : section === "waiting"
+                                  ? "bg-line-strong"
+                                  : "bg-transparent",
+                      )}
+                    />
+                  )}
                   {phone ? (
                     <>
                       <div className="flex items-baseline justify-between gap-3">
@@ -370,15 +393,32 @@ export function Queue({ activeId, phone = false }: { activeId?: string; phone?: 
                       </div>
                       <p className="mt-0.5 truncate text-sm text-ink-2">
                         {e.serviceLabel}
-                        <span className="text-stone">
+                        <span className="text-stone-on-paper-2">
                           {" · "}
                           {channelLabel(e.source)}
                           {" · "}
                           {queueTime(e)}
                         </span>
                       </p>
+                      {/*
+                        The state carrier for this row. The left-edge rail used
+                        to be it, but the rail is coloured by `section`
+                        (queueSection), and a phone tab already filters to one
+                        section - every row in "You" is needs_you, every row in
+                        "Waiting" is waiting - so within any given tab the rail
+                        was always one repeated colour (measured: 9/9 identical
+                        bg-warn on "You"). It carried no per-row information and
+                        was aria-hidden, so the accessible name never had a
+                        state either. This Badge is the same component and the
+                        same statusTone/derivedLabel pair the desktop row uses,
+                        placed on its own line so it cannot push the name or
+                        the value mark into a wrap.
+                      */}
+                      <div className="mt-1.5">
+                        <Badge tone={statusTone(e)}>{derivedLabel(e.state, e)}</Badge>
+                      </div>
                       {blocking ? (
-                        <p className="mt-1 text-2xs text-warn">
+                        <p className="mt-1 text-2xs text-warn-on-paper-2">
                           {queueSituationLabel(situation.kind)}
                         </p>
                       ) : null}
@@ -395,7 +435,7 @@ export function Queue({ activeId, phone = false }: { activeId?: string; phone?: 
                         {e.serviceLabel}
                         {e.dateLabel ? ` · ${e.dateLabel}` : ""}
                       </p>
-                      <div className="mt-2 flex items-baseline justify-between gap-2 text-xs text-stone">
+                      <div className="mt-2 flex items-baseline justify-between gap-2 text-xs text-stone-on-paper-2">
                         {situation?.kind === "evaluating" ? (
                           <span className="text-ink-2">Reading</span>
                         ) : showValue ? (
@@ -406,11 +446,11 @@ export function Queue({ activeId, phone = false }: { activeId?: string; phone?: 
                         <span className="shrink-0">{queueTime(e)}</span>
                       </div>
                       {situation && situation.kind !== "evaluating" ? (
-                        <p className="mt-1 text-2xs text-warn">
+                        <p className="mt-1 text-2xs text-warn-on-paper-2">
                           {queueSituationLabel(situation.kind)}
                         </p>
                       ) : null}
-                      <p className="mt-1 text-2xs text-stone">
+                      <p className="mt-1 text-2xs text-stone-on-paper-2">
                         {businessFilter === "all" && business?.name ? `${business.name} · ` : ""}
                         {channelLabel(e.source)}
                       </p>

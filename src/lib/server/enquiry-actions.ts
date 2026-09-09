@@ -32,32 +32,39 @@ export const saveBusinessRule = createServerFn({ method: "POST" })
     return { businessId, rule: parsed.rule };
   })
   .handler(async ({ context, data }) => {
-    const { getSql } = await import("@/lib/db");
+    const { withTransaction } = await import("@/lib/db");
     const { requireBusinessAccess, recordAudit } = await import("@/lib/repo/tenancy.server");
     const { describeRule } = await import("@/domain/business-rule");
+    const { saveBusinessRuleInTransaction } = await import("@/lib/repo/business-rule-core");
     const businessId = await requireBusinessAccess(context.userId, data.businessId);
-    const sql = await getSql();
     const readable = describeRule(data.rule);
     // State is Active because a human confirmed it in the UI; nothing reaches
-    // this function without that confirmation.
-    const rows = await sql<{ id: string }>`
-      insert into knowledge_item
-        (business_id, section, title, body, class, state, source, version, rule_payload)
-      values (
-        ${businessId}, ${"pricing"}, ${data.rule.service}, ${readable},
-        ${"authoritative"}, ${"Active"},
-        ${JSON.stringify({ kind: "user", label: "Confirmed by the owner" })}::jsonb,
-        ${"1"}, ${JSON.stringify(data.rule)}::jsonb
-      )
-      returning id
-    `;
-    await recordAudit(businessId, {
-      actor: context.userId,
-      summary: `Pricing rule confirmed: ${readable}`,
-      objectType: "brain",
-      objectId: rows[0]?.id,
-    });
-    return { ok: true as const, id: rows[0]?.id ?? "" };
+    // this function without that confirmation. Saving it retires any earlier
+    // Active price for the same service in the SAME transaction - two live
+    // prices for one service is not a state the pricing compiler will resolve,
+    // and leaving it to be discovered at quote time is how an old price gets
+    // sent after the owner has already corrected it.
+    const result = await withTransaction((sql) =>
+      saveBusinessRuleInTransaction(sql, { businessId, rule: data.rule, readable }),
+    );
+    if (result.outcome !== "duplicate") {
+      await recordAudit(businessId, {
+        actor: context.userId,
+        summary: `Pricing rule confirmed: ${readable}`,
+        detail:
+          result.supersededLabels.length > 0
+            ? `Replaces: ${result.supersededLabels.join("; ")}`
+            : undefined,
+        objectType: "brain",
+        objectId: result.id,
+      });
+    }
+    return {
+      ok: true as const,
+      id: result.id,
+      outcome: result.outcome,
+      superseded: result.supersededLabels,
+    };
   });
 
 /**
@@ -144,6 +151,12 @@ export const createManualEnquiry = createServerFn({ method: "POST" })
         messageId,
         rawMessage: data.body,
         interpreter: createInterpreter(),
+        // The reads that build the prompt, and the provider call itself, run on
+        // the pool - a model taking eight seconds must not hold a transaction
+        // open. Everything it writes afterwards runs inside ONE, because a
+        // `for update` issued on a pooled connection is released at the end of
+        // its own statement and guards nothing.
+        runInTransaction: withTransaction,
       });
     } catch (err) {
       console.error("[interpret] best-effort read of a new enquiry failed:", err);
@@ -174,19 +187,23 @@ export const setEnquiryService = createServerFn({ method: "POST" })
     return { enquiryId, serviceLabel };
   })
   .handler(async ({ context, data }) => {
-    const { getSql, withTransaction } = await import("@/lib/db");
+    const { withTransaction } = await import("@/lib/db");
     const { requireEnquiryAccess, recordAudit } = await import("@/lib/repo/tenancy.server");
-    const { decideEnquiry } = await import("@/domain/decide");
-    const { snapshotFromDecision, stateFromDecision } = await import("@/domain/decision-snapshot");
+    const { applyDecision, isClosed, lockEnquiry } = await import("@/lib/repo/decision-apply");
     const { enquiryId, businessId } = await requireEnquiryAccess(context.userId, data.enquiryId);
-    const sql = await getSql();
 
-    const [enq] = await sql<{ customer_name: string }>`
-      select customer_name from enquiry where id = ${enquiryId}
-    `;
-    if (!enq) throw new Error("That enquiry no longer exists.");
+    // The service change, the decision it implies and the revision bump are one
+    // transaction. Previously the fact was written transactionally and the
+    // decision recomputed afterwards, outside it - a failure in between left
+    // the new service under the old decision, and two overlapping corrections
+    // could land their snapshots in the opposite order to their facts.
+    const result = await withTransaction(async (tx) => {
+      const locked = await lockEnquiry(tx, enquiryId);
+      if (!locked) throw new Error("That enquiry no longer exists.");
+      if (isClosed(locked.lifecycle)) {
+        throw new Error("That enquiry is closed. Reopen it before changing the service.");
+      }
 
-    await withTransaction(async (tx) => {
       await tx`
         update enquiry_fact set superseded = true, updated_at = now()
         where enquiry_id = ${enquiryId} and lower(field) = lower(${"service"})
@@ -207,47 +224,27 @@ export const setEnquiryService = createServerFn({ method: "POST" })
         update enquiry set service_label = ${data.serviceLabel}, updated_at = now()
         where id = ${enquiryId}
       `;
+
+      return applyDecision(tx, {
+        enquiryId,
+        businessId,
+        serviceLabel: data.serviceLabel,
+        customerName: locked.customerName,
+      });
     });
 
-    const facts = await sql<{ field: string; value: string; status: string }>`
-      select field, value, status from enquiry_fact
-      where enquiry_id = ${enquiryId} and superseded = false
-    `;
-    const knowledge = await sql<{ state: string; rule_payload: unknown }>`
-      select state, rule_payload from knowledge_item
-      where business_id = ${businessId} and rule_payload is not null
-    `;
-    const [owner] = await sql<{ owner_first_name: string | null }>`
-      select owner_first_name from business where id = ${businessId}
-    `;
-
-    const decision = decideEnquiry(
-      { knowledge: knowledge.map((k) => ({ state: k.state, rulePayload: k.rule_payload })) },
-      { serviceLabel: data.serviceLabel, facts: facts as never },
-    );
-    const snapshot = snapshotFromDecision(decision, {
-      customerName: enq.customer_name,
-      ownerFirstName: owner?.owner_first_name ?? undefined,
-      serviceLabel: data.serviceLabel,
-    });
-    const state = stateFromDecision(decision);
-
-    await sql`
-      update enquiry
-      set decision_snapshot = ${JSON.stringify(snapshot)}::jsonb,
-          decision_state = ${state.decisionState},
-          commercial_state = ${state.commercialState},
-          responsibility = ${state.responsibility},
-          updated_at = now()
-      where id = ${enquiryId}
-    `;
     await recordAudit(businessId, {
       actor: context.userId,
       summary: `Service confirmed as "${data.serviceLabel}"`,
       objectType: "enquiry",
       objectId: enquiryId,
     });
-    return { ok: true as const, action: decision.action, explanation: decision.explanation };
+    return {
+      ok: true as const,
+      action: result.decision.action,
+      explanation: result.decision.explanation,
+      revision: result.revision,
+    };
   });
 
 /**
@@ -264,51 +261,97 @@ export const setEnquiryService = createServerFn({ method: "POST" })
  */
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-export const recordSentReply = createServerFn({ method: "POST" })
+const CHANNELS = [
+  "email",
+  "form",
+  "forward",
+  "manual",
+  "sms",
+  "instagram",
+  "facebook",
+  "comment",
+];
+
+/**
+ * Freeze what the owner is about to review, server-side, and hand back its id.
+ *
+ * Preparing a review is not sending, is not copying, and creates no outbound
+ * record of any kind. It exists so that the text, the amount, the service, the
+ * recipient and the decision revision the owner actually looked at are all one
+ * server-held document - and so the confirmation that follows records THAT,
+ * rather than re-reading a snapshot that may have moved underneath it.
+ */
+export const prepareSendReview = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .validator((raw: unknown) => {
     const d = (raw ?? {}) as Record<string, unknown>;
     const enquiryId = typeof d.enquiryId === "string" ? d.enquiryId : "";
     const body = (typeof d.body === "string" ? d.body : "").trim().slice(0, 8000);
     if (!enquiryId) throw new Error("An enquiry id is required.");
-    if (!body) throw new Error("Nothing to record as sent.");
+    if (!body) throw new Error("There is nothing prepared to review.");
     const channel = typeof d.channel === "string" ? d.channel : "manual";
-    const allowed = [
-      "email",
-      "form",
-      "forward",
-      "manual",
-      "sms",
-      "instagram",
-      "facebook",
-      "comment",
-    ];
-    const rawClientRequestId = typeof d.clientRequestId === "string" ? d.clientRequestId : "";
-    const clientRequestId = UUID_RE.test(rawClientRequestId) ? rawClientRequestId : undefined;
-    // `edited` used to be read from the client here. It is no longer trusted -
-    // `recordSentReplyInTransaction` derives it itself, from the enquiry's own
-    // prepared draft, so a spoofed or stale client value can't reach the audit
-    // trail.
-    return {
-      enquiryId,
-      body,
-      channel: allowed.includes(channel) ? channel : "manual",
-      clientRequestId,
-    };
+    return { enquiryId, body, channel: CHANNELS.includes(channel) ? channel : "manual" };
   })
   .handler(async ({ context, data }) => {
     const { withTransaction } = await import("@/lib/db");
     const { requireEnquiryAccess } = await import("@/lib/repo/tenancy.server");
-    const { recordSentReplyInTransaction } = await import("@/lib/repo/sent-reply-core");
+    const { prepareReviewedSendInTransaction } = await import("@/lib/repo/reviewed-send-core");
     const { enquiryId, businessId } = await requireEnquiryAccess(context.userId, data.enquiryId);
     return withTransaction((sql) =>
-      recordSentReplyInTransaction(sql, {
+      prepareReviewedSendInTransaction(sql, {
         enquiryId,
         businessId,
         userId: context.userId,
         body: data.body,
         channel: data.channel as Channel,
-        clientRequestId: data.clientRequestId,
+      }),
+    );
+  });
+
+/**
+ * Record that the owner actually sent a reply themselves.
+ *
+ * Enquiry does not send anything in first beta. The owner copies the prepared
+ * text, sends it from their own mailbox or phone, and confirms here. That
+ * confirmation - and nothing else - becomes a real outbound row with a real
+ * `sent_at`. Copying does not. A failed copy does not. Closing the preview does
+ * not. Only an owner saying "I sent this" does.
+ *
+ * Everything recorded comes from the reviewed artefact named by
+ * `reviewedSendId`: no body, no amount and no recipient is taken from the
+ * client at this point, so a crafted or stale payload cannot produce a message
+ * and a quote that disagree.
+ */
+export const recordSentReply = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .validator((raw: unknown) => {
+    const d = (raw ?? {}) as Record<string, unknown>;
+    const enquiryId = typeof d.enquiryId === "string" ? d.enquiryId : "";
+    const reviewedSendId = typeof d.reviewedSendId === "string" ? d.reviewedSendId : "";
+    if (!enquiryId) throw new Error("An enquiry id is required.");
+    if (!UUID_RE.test(reviewedSendId)) {
+      throw new Error("Review the message before recording it as sent.");
+    }
+    return {
+      enquiryId,
+      reviewedSendId,
+      // The owner attesting they already sent an older approved message, after
+      // the enquiry has since changed. A deliberate second act, never a default.
+      staleAttestation: d.staleAttestation === true,
+    };
+  })
+  .handler(async ({ context, data }) => {
+    const { withTransaction } = await import("@/lib/db");
+    const { requireEnquiryAccess } = await import("@/lib/repo/tenancy.server");
+    const { confirmReviewedSendInTransaction } = await import("@/lib/repo/sent-reply-core");
+    const { enquiryId, businessId } = await requireEnquiryAccess(context.userId, data.enquiryId);
+    return withTransaction((sql) =>
+      confirmReviewedSendInTransaction(sql, {
+        reviewedSendId: data.reviewedSendId,
+        enquiryId,
+        businessId,
+        userId: context.userId,
+        staleAttestation: data.staleAttestation,
       }),
     );
   });
@@ -372,18 +415,42 @@ export const answerEnquiryFact = createServerFn({ method: "POST" })
   .handler(async ({ context, data }) => {
     const { getSql, withTransaction } = await import("@/lib/db");
     const { requireEnquiryAccess, recordAudit } = await import("@/lib/repo/tenancy.server");
-    const { decideEnquiry } = await import("@/domain/decide");
-    const { snapshotFromDecision, stateFromDecision } = await import("@/domain/decision-snapshot");
+    const { validateFactAnswer } = await import("@/domain/decide");
+    const { applyDecision, isClosed, lockEnquiry } = await import("@/lib/repo/decision-apply");
     const { enquiryId, businessId } = await requireEnquiryAccess(context.userId, data.enquiryId);
     const sql = await getSql();
 
     const [enq] = await sql<{
       service_label: string;
-      customer_name: string;
-    }>`select service_label, customer_name from enquiry where id = ${enquiryId}`;
+    }>`select service_label from enquiry where id = ${enquiryId}`;
     if (!enq) throw new Error("That enquiry no longer exists.");
 
-    await withTransaction(async (tx) => {
+    // Refuse to record a confirmation of something that cannot mean what it
+    // claims to. "5-6" is a range the owner has in mind, not a quantity, and
+    // storing it `confirmed` asserts they settled a number they did not settle.
+    // Checked here, at the write, as well as in the compiler that reads it - a
+    // UI-side input restriction is not an invariant.
+    const knowledgeForCheck = await sql<{ state: string; rule_payload: unknown }>`
+      select state, rule_payload from knowledge_item
+      where business_id = ${businessId} and rule_payload is not null
+    `;
+    const answerProblem = validateFactAnswer(
+      { knowledge: knowledgeForCheck.map((k) => ({ state: k.state, rulePayload: k.rule_payload })) },
+      enq.service_label ?? "",
+      data.field,
+      data.value,
+    );
+    if (answerProblem) throw new Error(answerProblem);
+
+    // The answer, the decision it unlocks and the revision bump are one
+    // transaction - see `setEnquiryService` above for the failure this closes.
+    const result = await withTransaction(async (tx) => {
+      const locked = await lockEnquiry(tx, enquiryId);
+      if (!locked) throw new Error("That enquiry no longer exists.");
+      if (isClosed(locked.lifecycle)) {
+        throw new Error("That enquiry is closed. Reopen it before answering.");
+      }
+
       // One live answer per field: an earlier one is superseded, not deleted,
       // so the case file still shows what was believed and when.
       await tx`
@@ -402,45 +469,26 @@ export const answerEnquiryFact = createServerFn({ method: "POST" })
           ${true}
         )
       `;
+
+      return applyDecision(tx, {
+        enquiryId,
+        businessId,
+        // Re-read under the lock rather than trusting the value read before it.
+        serviceLabel: locked.serviceLabel,
+        customerName: locked.customerName,
+      });
     });
 
-    const facts = await sql<{ field: string; value: string; status: string }>`
-      select field, value, status from enquiry_fact
-      where enquiry_id = ${enquiryId} and superseded = false
-    `;
-    const knowledge = await sql<{ state: string; rule_payload: unknown }>`
-      select state, rule_payload from knowledge_item
-      where business_id = ${businessId} and rule_payload is not null
-    `;
-    const [owner] = await sql<{ owner_first_name: string | null }>`
-      select owner_first_name from business where id = ${businessId}
-    `;
-
-    const decision = decideEnquiry(
-      { knowledge: knowledge.map((k) => ({ state: k.state, rulePayload: k.rule_payload })) },
-      { serviceLabel: enq.service_label, facts: facts as never },
-    );
-    const snapshot = snapshotFromDecision(decision, {
-      customerName: enq.customer_name,
-      ownerFirstName: owner?.owner_first_name ?? undefined,
-      serviceLabel: enq.service_label,
-    });
-    const state = stateFromDecision(decision);
-
-    await sql`
-      update enquiry
-      set decision_snapshot = ${JSON.stringify(snapshot)}::jsonb,
-          decision_state = ${state.decisionState},
-          commercial_state = ${state.commercialState},
-          responsibility = ${state.responsibility},
-          updated_at = now()
-      where id = ${enquiryId}
-    `;
     await recordAudit(businessId, {
       actor: context.userId,
       summary: `${data.field} confirmed as "${data.value}"`,
       objectType: "enquiry",
       objectId: enquiryId,
     });
-    return { ok: true as const, action: decision.action, explanation: decision.explanation };
+    return {
+      ok: true as const,
+      action: result.decision.action,
+      explanation: result.decision.explanation,
+      revision: result.revision,
+    };
   });

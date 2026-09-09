@@ -4,6 +4,7 @@ import { ENQUIRIES } from "../fixtures/enquiries.ts";
 import { BUSINESSES } from "../fixtures/businesses.ts";
 import {
   autopilotEligible,
+  declineEnquiryState,
   enableFollowUp,
   isCustomerFacingSend,
   needsSendConfirm,
@@ -73,7 +74,11 @@ test("send confirm is required for every commercial send, regardless of amount o
   // friction sits on top of it.
   const priya = byId("f01");
   assert.equal(priya.decision.risk, "LOW");
-  assert.equal(needsSendConfirm(priya), true, "a low-risk, under-$2000 quote still needs a preview");
+  assert.equal(
+    needsSendConfirm(priya),
+    true,
+    "a low-risk, under-$2000 quote still needs a preview",
+  );
 
   const harper = structuredClone(byId("f05"));
   harper.decision.recommendation.action = "SEND_QUOTE";
@@ -89,7 +94,11 @@ test("send confirm is required for every commercial send, regardless of amount o
   estimate.decision.recommendation.action = "SEND_ESTIMATE";
   estimate.decision.risk = "LOW";
   estimate.valueExact = { amount: 5, currency: "AUD" };
-  assert.equal(needsSendConfirm(estimate), true, "SEND_ESTIMATE is governed the same as SEND_QUOTE");
+  assert.equal(
+    needsSendConfirm(estimate),
+    true,
+    "SEND_ESTIMATE is governed the same as SEND_QUOTE",
+  );
 
   const nonSend = structuredClone(byId("f01"));
   nonSend.decision.recommendation.action = "REQUEST_INFORMATION";
@@ -125,13 +134,21 @@ test("isCustomerFacingSend also covers the sendable actions not yet promoted int
     "RECOMMEND_OFFER",
     "OFFER_BOOKING",
   ] as const) {
-    assert.equal(isCustomerFacingSend(action), true, `${action} must be gated as a customer-facing send`);
+    assert.equal(
+      isCustomerFacingSend(action),
+      true,
+      `${action} must be gated as a customer-facing send`,
+    );
   }
 });
 
 test("isCustomerFacingSend is false for actions that never write an outbound record", () => {
   for (const action of ["ROUTE_ENQUIRY", "WAIT", "ESCALATE_HUMAN", "NO_ACTION"] as const) {
-    assert.equal(isCustomerFacingSend(action), false, `${action} must not be gated as a send - it never reaches commitSend`);
+    assert.equal(
+      isCustomerFacingSend(action),
+      false,
+      `${action} must not be gated as a send - it never reaches commitSend`,
+    );
   }
 });
 
@@ -151,8 +168,10 @@ test("hold is a human fee, not 30% to the dollar", () => {
 test("resolved hold prefers the figure on the sheet", () => {
   assert.equal(resolvedHold({ total: { amount: 625 } })?.amount, 190);
   assert.equal(
-    resolvedHold({ total: { amount: 625 }, hold: { amount: 190, currency: "AUD", label: "To hold the date" } })
-      ?.amount,
+    resolvedHold({
+      total: { amount: 625 },
+      hold: { amount: 190, currency: "AUD", label: "To hold the date" },
+    })?.amount,
     190,
   );
 });
@@ -176,8 +195,11 @@ test("a letter that says $187 against a $190 hold is a mismatch", () => {
 
 test("fixture letters do not contradict the hold on the sheet", () => {
   for (const e of ENQUIRIES) {
-    const quote = [...e.decision.quotes].reverse().find((q) => q.status === "draft" || q.status === "accepted")
-      ?? e.decision.quotes[e.decision.quotes.length - 1];
+    const quote =
+      [...e.decision.quotes]
+        .reverse()
+        .find((q) => q.status === "draft" || q.status === "accepted") ??
+      e.decision.quotes[e.decision.quotes.length - 1];
     if (!quote) continue;
     const hold = resolvedHold(quote);
     const miss = detectSheetLetterMismatch(e.decision.draft.body, {
@@ -188,3 +210,23 @@ test("fixture letters do not contradict the hold on the sheet", () => {
   }
 });
 
+test("a decline never produces an outbound conversation entry rendered as Sent", () => {
+  // Was: "KNOWN GAP: declineWithLetter (demo mode) still writes an outbound
+  // message that the thread renders as Sent." The live/server decline path
+  // (declineEnquiryInTransaction, src/lib/repo/close-enquiry-core.ts) writes
+  // only an audit_event row - no message, no channel contacted.
+  // declineEnquiryState (formerly declineWithLetter) is the shared demo/local
+  // counterpart and now matches that: conversation.tsx renders any
+  // `direction: "outbound"` message with the literal label "Sent" regardless
+  // of why it was written, so there is no conversation entry this function
+  // could add without misrepresenting the decline as something sent to the
+  // customer - it adds none.
+  const priya = byId("f01");
+  const next = declineEnquiryState(priya);
+  assert.equal(
+    next.conversation.length,
+    priya.conversation.length,
+    "declineEnquiryState must not add any conversation entry",
+  );
+  assert.equal(next.state.lifecycle, "DECLINED");
+});

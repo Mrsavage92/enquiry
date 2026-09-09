@@ -1,5 +1,6 @@
 import type { Decision } from "./decide.ts";
 import { composeReply } from "./compose-reply.ts";
+import { impliedAmountsMinor } from "./price-compiler.ts";
 import type { CommercialState, DecisionSnapshot, DecisionState, Recommendation, Responsibility } from "./types";
 
 /**
@@ -88,9 +89,32 @@ export function snapshotFromDecision(
     // The computed price, before anything is sent - the only place a live,
     // never-sent enquiry's figure lives, since `quote_version` (and so
     // `quotes` above) is only written once a send actually happens.
-    price: decision.price.kind === "EXACT"
-      ? { kind: "EXACT", amountMinor: decision.price.amountMinor, currency: decision.price.currency }
+    price:
+      decision.price.kind === "EXACT"
+        ? {
+            kind: "EXACT",
+            amountMinor: decision.price.amountMinor,
+            currency: decision.price.currency,
+          }
+        : undefined,
+    // Shown to the owner as a provisional figure, never as a decided one. The
+    // send path reads `price`, which stays undefined until the service premise
+    // is confirmed, so a provisional amount cannot become a sent quote.
+    provisionalPrice: decision.provisional
+      ? {
+          amountMinor: decision.provisional.amountMinor,
+          currency: decision.provisional.currency,
+          premise: "service_unconfirmed",
+          service: decision.provisional.service,
+        }
       : undefined,
+    // The choices an ambiguous request leaves open, so the desk asks which one
+    // rather than presenting whichever rule happened to be listed first.
+    conflicts: decision.serviceChoices ?? base.conflicts,
+    // What the reviewed message is allowed to say about money. Stored with the
+    // decision because it is derived from the rule that produced the price, not
+    // from the text of any particular draft.
+    impliedAmountsMinor: impliedAmountsMinor(decision.price),
   };
 }
 

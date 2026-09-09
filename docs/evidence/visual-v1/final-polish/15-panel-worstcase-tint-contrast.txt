@@ -1,0 +1,3 @@
+Analysed 159 text nodes across f01+f02 (worst-case 10% ink tint applied to every one).
+Worst ratio found: 4.57:1 {"fixture":"f01","text":"Glow & Co · Email","fg":[113,107,97],"bg":[250,247,241],"fs":11,"ratioAtMaxTint":4.57}
+Failures (below their required threshold even at max tint): 0
