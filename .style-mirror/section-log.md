@@ -153,3 +153,202 @@ Rendered-pixel, both viewports, every visible text node on `/`. See the report f
 `text-line-strong`, a hairline *border* token used as a text colour. It fails in the light palette
 too (1.49:1), so it predates this work, and `/roadmap` belongs to another agent in this sequence.
 Recommended fix there: `text-stone`.
+
+---
+
+# roadmap
+
+Reference: https://linear.app/changelog, **re-extracted 2026-09-09** for this route -
+`.style-mirror/reextract/changelog{,2,3}-{1440,390}.json`. tokens.lock.json already carried the
+entry grid, the rail and the title tiers; the re-extraction adds the page header rhythm, the tab
+row, the sticky label column, the in-entry list, the media figure, the inline-link treatment and
+the end-of-page divider.
+
+Method: `.style-mirror/tools/sections-roadmap.mjs <outdir> <1440|390>` - the same shape as the
+lead's `sections.mjs`, with the roadmap's selectors and the re-extracted expected values.
+`sections.mjs` itself is shared with three other route builders this pass, so the spec sits beside
+it rather than inside it. Geometry: `.style-mirror/tools/geo-roadmap.mjs`.
+Contrast: the lead's `contrast.mjs`, unmodified.
+
+Final state: **0 mismatches at 1440 (114 checks), 0 at 390 (108).**
+
+## What the re-extraction settled
+
+| | reference value at 1440 | at 390 |
+|---|---|---|
+| page h1 | 48 / 510 / -1.056 / lh 48, `#f7f8f8`, optical -2px, top = nav + 77px | **48px unchanged**, optical -1px |
+| h1 row | flex, space-between, on the 1280px column | same |
+| tab row | 40px tall, 12px under the h1, space-between; tabs flex, gap 16 | breaks out full-bleed and scrolls |
+| tab | 16 / 400 / lh 24, `#8a8f98`, `#f7f8f8` when current, no underline, no padding, `transition: color .1s` | same |
+| header divider | 1px `#18191a`, radius 9999, margin `32px 0 64px`, full column | same |
+| entry | `grid`, 12 cols, column-gap 32, **row-gap 32**, position relative | 4 cols, both children full width |
+| rail column | `position: sticky; top: 96px`, 296px at x=80, padding-left 24, margin-bottom 16 | `position: relative; top: 20px`, full width, padding-left 0 |
+| rail rule | absolute, `top: 0 / margin-top: 9px / bottom: -9px`, 1px `#23252a`, x=89 | `display: none` |
+| entry body | 624px at x=408 | full width |
+| first title in a group | 32 / 590 / -0.704 / lh 36 | 24 / 590 / -0.288 / lh 31.92 |
+| later titles | 24 / 590, margin-top 56 | same |
+| first p after a title | margin-top 12 | same |
+| p after p | margin-top 20 | same |
+| prose | 17 / 400 / lh 27.2 `#d0d6e0` | 15 / lh 24 |
+| `strong` in prose | 17 / **590** / `#f7f8f8` | same |
+| list | padding-left 24, `list-style: none` with a `::before` disc counter in `#d0d6e0`; items margin-top 8, first 0 | same |
+| media | bare `<figure>`, margin-block 48, image radius 8, **no plate, no border, no shadow** | margin-block 32 |
+| inline link in prose | 17 / 400 `#f7f8f8`, `text-decoration: underline` | same |
+| entry groups | butt directly, gap 0 - the rule is continuous | same |
+| end of page | last entry, one divider (margin `32px 0 16px`), then the footer. No closing block. | same |
+
+## The navigation decision - taken from the extraction, not taste
+
+`/roadmap` carried a sticky era bar. The reference's `sticky_or_fixed` probe returns its per-group
+date columns **and nothing else**: its tab row is static, and its orientation while you scroll a
+long group is a label column at `position: sticky; top: 96px`. So the sticky bar is replaced rather
+than kept, and its two functions are split the way the reference splits them - jump-to-stage into
+the tab row under the h1, where-am-I onto the rail label. The IntersectionObserver that drove the
+old bar now drives the tab row's current state and still fires `roadmap_stage_view` /
+`roadmap_endgame_view` unchanged.
+
+96px is the reference's own value against its own 73px header, i.e. 23px of clearance; our nav is
+73px too, so `jump()` offsets by `header height + 23` and lands an entry on the same line.
+
+---
+
+### header - 4 mismatches found, 4 fixed, derivations: 3
+
+1. h1 rendered at 64px. `.mk-h1` is the reference's **home** h1 tier (64px, 38px at 390); the
+   changelog's page tier is 48px at both widths. Set inline from the re-extraction, with `.mk-h1`
+   still supplying family, colour and the optical margin variable. A shared `.mk-h1-page` is the
+   right home for it - filed as a request, not edited into `styles.css` this pass.
+2. Both ledes ran the full 1280px column. `.mk-lede` sets `max-width: none` in the unlayered
+   marketing layer, so a Tailwind `max-w-xl` on the same element loses to it. Capped inline.
+3. 16px between the two lede paragraphs; the reference's paragraph rhythm is 20px.
+4. `padding-top` was the old `pt-10 sm:pt-20`. The reference puts its h1 77px under a 73px header.
+
+DERIVATION: the eyebrow. The reference's changelog header is h1 + tab row, with no eyebrow.
+"Roadmap - Built in public" is copy that must be kept, so it takes the system's own `.mk-label`
+above the h1 - the same shape home uses.
+
+DERIVATION: the lede and the second paragraph. The changelog header has no lede either. They use
+`.mk-lede` at the system's hero recipe, which is the reference home's own lede tier.
+
+DERIVATION: the status legend. The reference has no legend. It is laid out under the CTAs, before
+the tab row, so the vocabulary is defined before the stream that speaks it: mark at the 12px mono
+label tier, label at the 14px rail tier, hint at the 13px tier - all three reference tiers.
+
+Verified: h1 48/510/-1.056/lh 48 with -2px optical at 1440 and -1px at 390; label 12px mono
+sentence-case `#8a8f98`; lede 15/400/-0.165/lh 24 `#8a8f98`; content left edge x=80 at 1440 and
+x=24 at 390; primary CTA `#e5e5e6` on `#08090a`, h44, pad-x 20, radius 9999, 16px/510; secondary
+`rgba(255,255,255,0.05)`.
+
+### era nav + divider - 1 mismatch found, 1 fixed, derivations: 1
+
+1. Below 640 the row clipped at the 24px content inset instead of the viewport, so "Trust" and
+   "Endgame" were unreachable with no scroll affordance - the contrast sweep caught it as a 1:1
+   pair, because the tab was not painted at all. The reference breaks its tab row out to the full
+   viewport width to scroll (`.tabs` measures x=0 w=390 while its row sits at x=24). Reproduced
+   with `-mx-6 / px-6` at the same 640 boundary `.mk-entry` uses.
+
+DERIVATION: the right-hand slot. The reference's tab row puts a search field and a bell there.
+Enquiry has no site search, so the slot carries the "Last updated / phase / access" line at the
+reference's 13px tier - the same role, the page's own utility.
+
+Verified: nav 40px tall, space-between; tabs flex with a 16px gap; idle tab 16/400/lh 24
+`#8a8f98` with no underline, no background, no padding; current tab `#f7f8f8` at the same weight
+(the reference's current tab is 400, not bold); divider 1px `#18191a`, radius 9999, margin
+`32px 0 64px`.
+
+### rail + first entry - 3 mismatches found, 3 fixed, derivations: 2
+
+1. The rule broke by 9px between groups. `.mk-entry-rule` stops at its group's bottom while its top
+   is inset 9px; the reference overshoots by exactly that 9px (`bottom: -9px`) so the rule is
+   continuous down the whole stream. Set inline so the class still handles the `<=640` hide.
+2. At 390 the two rail lines stacked and collided with the title by 5px. `.mk-entry` is
+   `display: block` below 640, so the grid's 32px row-gap disappears there. Status and number now
+   share one rail line, as the reference's does, and the row-gap is added back as padding. The
+   rail's rendered bottom now sits **28px** above the title box - the reference measures 28px.
+3. Breakpoints were Tailwind's `sm`, which starts at 640, while `.mk-entry` collapses at
+   `max-width: 640px`. Rewritten as `max-[640px]` / `min-[641px]` so the two never disagree.
+
+DERIVATION: the rail's second line. The reference's rail carries one line - a date. The roadmap's
+rail carries the status (the reference's 14px `#f7f8f8` date tier) and, because the stage number is
+copy that must be kept and the tab row no longer shows it, the number under it at the 13px tier.
+Below 640 they sit side by side so the rail stays one line, as the reference's is.
+
+DERIVATION: the marker dot. The reference caps its **newest** group with a 6px `#fc7840` dot. The
+roadmap has no newest; it caps the stage marked `current`, which is the same "you are here" role.
+
+Verified: 12 columns, column-gap 32; aside x=80 w=296 with 24px padding-left, `sticky` / `top: 96px`
+at 1440 and `relative` / `top: 20px` at 390; rule 1px `#23252a` at x=89 with `bottom: -9px`, hidden
+at 390; marker 6px `#fc7840`; rail label 14/400/-0.182/lh 21 `#f7f8f8`; body x=408 w=624 with
+48px padding-bottom; featured title 32/590/-0.704/lh 36 (24/590/-0.288/lh 31.92 at 390).
+
+### a mid entry with media - 0 mismatches found, 0 fixed, derivations: 1
+
+DERIVATION: the stage visual in the media slot. The reference's in-entry media is a bare `<figure>`
+at the full column width holding a screenshot at radius 8 - no plate, no bezel, no shadow, no
+background. The stage visual is live DOM rather than a raster that carries its own surface. It
+keeps the bare figure and its 48px/32px margin-block: it is built from the system's own card +
+hairline vocabulary, which already reads on the page ground. A panel was tried first and rejected -
+the reference does not frame anything inside an entry, and `#0f1011` cards on a `#101112` panel
+collapse to a 1-value difference.
+
+Also removed here: `font-serif` on the endgame flow (the reference has no serif on either surface;
+the marketing layer already remapped it to Inter, so this was intent, not a rendered change).
+
+Verified: lead paragraph 17/**590**/lh 27.2 `#f7f8f8` at margin-top 12; prose 17/400/lh 27.2
+`#d0d6e0` at margin-top 20 (15/lh 24 at 390); list padding-left 24, `list-style: disc`, items
+margin-top 8; figure margin-block 48 at 1440 and 32 at 390 with no background and no border.
+
+### closing entries + the end of the page - 0 mismatches found, 0 fixed, derivations: 1
+
+"What we're not building", "Shipped" and "Roadmaps change" were three bordered sections, one on a
+tinted surface. The reference has no closing block at all: its last entry is followed by one
+divider at margin `32px 0 16px` and then the footer. So they stay in the entry stream as three more
+entries and the divider closes it, exactly there.
+
+DERIVATION: the third block's rail label. "Restraint" and "Evidence" were already the first two
+sections' own eyebrows. "Roadmaps change." had none, and inventing one would be new copy, so the
+rail runs on unlabelled through it.
+
+Verified: closing divider 1px `#18191a`, radius 9999, margin `32px 0 16px`.
+
+### CTA - 0 mismatches found, 0 fixed, derivations: 1
+
+DERIVATION: there is no CTA on the reference's changelog - the page ends at the footer. Enquiry's
+closing ask uses the system's own `.mk-prefooter` (margin-block 224px / 96px) and the shared
+`WaitlistForm`, which is what home does, so the two pages close the same way.
+
+Verified: prefooter margin-block 224px at 1440 and 96px at 390; h2 48/510/-1.056/lh 48
+(24/510/-0.288/lh 31.92 at 390); waitlist field `#0f1011` with `1px #23252a`, radius 8, 15px.
+
+---
+
+## Contrast sweep
+
+Rendered-pixel, the lead's unmodified `contrast.mjs`, every visible text node on `/roadmap`.
+
+| | nodes | graded | fails | lowest real pair |
+|---|---|---|---|---|
+| 1440 | 215 | 215 | **0** | 4.88:1 - `p.w-full.text-xs` "." |
+| 390 | 211 | 210 | 1 (detector artefact, below) | 5.83:1 - `p.mt-0.5.text-xs` "Starts the enquiry" on `#0f1011` |
+
+**The two pairs system.md section 8 flagged are fixed.** They were the separators in the
+"Last updated / phase / access" line, painted with `text-line-strong` - a hairline *border* token
+used as a text colour - at 1.19:1 and 1.25:1. They are now `--mk-fg-2` (`#d0d6e0`), not the line's
+own `--mk-fg-3`, because a 13px separator glyph loses most of its area to antialiasing and never
+reaches its specified colour. Both now measure 6.13:1 in the sweep, alongside the rest of the line.
+
+**The one remaining 390 failure is a detector artefact, not a real pair.** `p.w-full.text-xs` "."
+is the trailing period of "We'll only email about Enquiry access. Privacy." in the shared
+`WaitlistForm`. Proof, in order:
+
+1. Its parent `<p>` is `text-stone` -> `#8a8f98`. Its own sibling text node on the same line
+   ("We'll only email about Enquiry access.") measures **6.13:1** in the same sweep.
+2. The reported box is 3x15px. Read back from the render, it holds 44 background pixels and **one**
+   non-background pixel. Widening the sample to 8x19 around the same glyph gives `#658a81` on
+   `#08090a` = **5.22:1** - the period's real subpixel-antialiased pixels sit just outside the 3px
+   Range rect the sweep clips to.
+3. The identical node, same component, same x, measures **4.88:1 and passes on `/` at 390** and
+   4.88:1 at 1440 here. Only the sub-pixel y placement differs.
+
+The equivalent node inside this route's own files was fixed by making the sentence a single text
+node (`Last written <date>.`), which is the right fix for `WaitlistForm` too - filed as a request.
