@@ -1,0 +1,43 @@
+{
+  "mobileSection": {
+    "sectionTop": 1899,
+    "h2Offset": 352,
+    "h2": {
+      "fs": "24px",
+      "ls": "-0.288px",
+      "lh": "31.92px",
+      "fw": "510"
+    },
+    "kids": [
+      {
+        "tag": "DIV",
+        "cls": "b-30Va_header",
+        "pad": "40px 0px 48px",
+        "mar": "0px",
+        "gap": "normal",
+        "top": 312,
+        "h": 269
+      },
+      {
+        "tag": "DIV",
+        "cls": "b-30Va_illustration",
+        "pad": "0px",
+        "mar": "0px",
+        "gap": "normal",
+        "top": 0,
+        "h": 312
+      },
+      {
+        "tag": "DIV",
+        "cls": "b-30Va_footer hide-mobile",
+        "pad": "0px",
+        "mar": "0px",
+        "gap": "normal",
+        "top": -1899,
+        "h": 0
+      }
+    ],
+    "secPad": "0px"
+  },
+  "dotEls": []
+}

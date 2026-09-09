@@ -1,0 +1,507 @@
+{
+  "schema_version": 2,
+  "slug": "linear-app",
+  "reference_url": "https://linear.app",
+  "reference_urls": ["https://linear.app", "https://linear.app/changelog"],
+  "captured_at": "2026-09-09T00:00:00Z",
+  "extraction_method": "playwright-headless-chromium-1440x900-and-390x844-wait-4s (style-mirror skill loaded; chrome-devtools/puppeteer MCP unavailable to this agent, Playwright equivalent per skill Step 2B/2C)",
+  "color": {
+    "body_bg": "#08090a",
+    "bg_level_1": "#0f1011",
+    "bg_level_2": "#141516",
+    "bg_level_3": "#191a1b",
+    "bg_marketing": "#010102",
+    "card_bg": "#0f1011",
+    "card_overlay": "linear-gradient(rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.03))",
+    "media_plate_bg": "#090a0b",
+    "media_panel_bg": "#101112",
+    "nav_bg": "linear-gradient(rgba(11, 11, 11, 0.8) 0%, rgba(11, 11, 11, 0.762) 100%)",
+    "nav_bg_flat": "#0b0b0bcc",
+    "nav_border": "rgba(255, 255, 255, 0.08)",
+    "border": "#23252a",
+    "border_translucent": "rgba(255, 255, 255, 0.05)",
+    "border_translucent_strong": "rgba(255, 255, 255, 0.08)",
+    "line_tertiary": "#18191a",
+    "line_secondary": "#202122",
+    "line_primary": "#37393a",
+    "text_primary": "#f7f8f8",
+    "text_secondary": "#d0d6e0",
+    "text_tertiary": "#8a8f98",
+    "text_quaternary": "#62666d",
+    "brand_accent": "#5e6ad2",
+    "accent": "#7170ff",
+    "accent_hover": "#828fff",
+    "link": "#828fff",
+    "link_hover": "#ffffff",
+    "cta_bg": "#e5e5e6",
+    "cta_text": "#08090a",
+    "cta_bg_hover": "#ffffff",
+    "cta_secondary_bg": "rgba(255, 255, 255, 0.05)",
+    "cta_secondary_text": "#f7f8f8",
+    "marker_orange": "#fc7840",
+    "focus_ring": "#5e69d1",
+    "hero_backdrop_gradient": "radial-gradient(52.53% 57.5% at 50% 100%, rgba(8, 9, 10, 0) 0%, rgba(8, 9, 10, 0.5) 100%), linear-gradient(rgb(8, 9, 10) 10%, rgb(208, 214, 224) 100%)",
+    "hero_glow": "radial-gradient(50% 50%, rgba(255, 255, 255, 0.04) 0%, rgba(255, 255, 255, 0) 90%)",
+    "raw_hex": {
+      "color-bg-primary": "#08090a",
+      "color-bg-level-1": "#0f1011",
+      "color-bg-secondary": "#1c1c1f",
+      "color-bg-tertiary": "#232326",
+      "color-text-primary": "#f7f8f8",
+      "color-text-secondary": "#d0d6e0",
+      "color-text-tertiary": "#8a8f98",
+      "color-text-quaternary": "#62666d",
+      "color-border-primary": "#23252a",
+      "color-border-secondary": "#34343a",
+      "color-line-tertiary": "#18191a",
+      "color-button-invert-bg": "#e5e5e6",
+      "color-brand-bg": "#5e6ad2",
+      "color-orange": "#fc7840",
+      "color-green": "#27a644",
+      "color-yellow": "#f0bf00",
+      "color-red": "#eb5757",
+      "color-blue": "#4ea7fc"
+    },
+    "hue_inferred": "neutral-cool-near-black with indigo accent"
+  },
+  "typography": {
+    "reference_family_computed": "\"Inter Variable\", \"SF Pro Display\", -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, Oxygen, Ubuntu, Cantarell, \"Open Sans\", \"Helvetica Neue\", sans-serif",
+    "build_family": "\"Inter\", \"SF Pro Display\", -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, Oxygen, Ubuntu, Cantarell, \"Open Sans\", \"Helvetica Neue\", sans-serif",
+    "build_family_note": "DERIVATION: identical typeface (Inter v4 variable). Linear self-hosts it under the PostScript family name 'Inter Variable'; Google Fonts serves the same variable font as family 'Inter' (wght 100-900, opsz 14-32). Family name substituted, fallback stack kept verbatim from the reference.",
+    "font_feature_settings": "\"cv01\", \"ss03\"",
+    "font_variation_settings": "\"opsz\" auto",
+    "heading_family": "\"Inter\", \"SF Pro Display\", -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, Oxygen, Ubuntu, Cantarell, \"Open Sans\", \"Helvetica Neue\", sans-serif",
+    "body_family": "\"Inter\", \"SF Pro Display\", -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, Oxygen, Ubuntu, Cantarell, \"Open Sans\", \"Helvetica Neue\", sans-serif",
+    "mono_family": "ui-monospace, \"SF Mono\", Menlo, monospace",
+    "mono_family_note": "DERIVATION: reference computes to \"Berkeley Mono\", ui-monospace, \"SF Mono\", Menlo, monospace. Berkeley Mono is commercially licensed and not self-hostable here, so the reference's own declared fallback stack is used verbatim with the paid face removed.",
+    "serif_family_used": false,
+    "serif_note": "Reference declares --font-serif-display: \"Tiempos Headline\" but uses it on neither surface extracted. Every heading on / and /changelog computes to the Inter stack. Marketing serif is therefore removed.",
+    "weights": {
+      "normal": 400,
+      "medium": 510,
+      "semibold": 590,
+      "bold": 680,
+      "light": 300
+    },
+    "scale_1440": {
+      "h1_home": {
+        "size": "64px",
+        "weight": 510,
+        "letter_spacing": "-1.408px",
+        "line_height": "64px",
+        "optical_margin_left": "-2px"
+      },
+      "h1_page": {
+        "size": "48px",
+        "weight": 510,
+        "letter_spacing": "-1.056px",
+        "line_height": "48px",
+        "optical_margin_left": "-2px"
+      },
+      "h2_section": {
+        "size": "48px",
+        "weight": 510,
+        "letter_spacing": "-1.056px",
+        "line_height": "48px"
+      },
+      "h2_entry_featured": {
+        "size": "32px",
+        "weight": 590,
+        "letter_spacing": "-0.704px",
+        "line_height": "36px"
+      },
+      "h2_entry": {
+        "size": "24px",
+        "weight": 590,
+        "letter_spacing": "-0.288px",
+        "line_height": "31.92px"
+      },
+      "h3_card": {
+        "size": "20px",
+        "weight": 590,
+        "letter_spacing": "-0.24px",
+        "line_height": "26.6px",
+        "color": "#d0d6e0"
+      },
+      "h3_footer_col": {
+        "size": "13px",
+        "weight": 510,
+        "letter_spacing": "-0.13px",
+        "line_height": "19.5px",
+        "color": "#f7f8f8",
+        "margin_bottom": "24px"
+      },
+      "lede": {
+        "size": "15px",
+        "weight": 400,
+        "letter_spacing": "-0.165px",
+        "line_height": "24px",
+        "color": "#8a8f98"
+      },
+      "prose": {
+        "size": "17px",
+        "weight": 400,
+        "letter_spacing": "normal",
+        "line_height": "27.2px",
+        "color": "#d0d6e0"
+      },
+      "body_regular": {
+        "size": "15px",
+        "weight": 400,
+        "letter_spacing": "-0.165px",
+        "line_height": "24px"
+      },
+      "small": {
+        "size": "14px",
+        "weight": 400,
+        "letter_spacing": "-0.182px",
+        "line_height": "21px"
+      },
+      "mini": {
+        "size": "13px",
+        "weight": 400,
+        "letter_spacing": "-0.13px",
+        "line_height": "19.5px"
+      },
+      "micro_mono": {
+        "size": "12px",
+        "weight": 400,
+        "letter_spacing": "normal",
+        "line_height": "16.8px"
+      },
+      "nav_link": {
+        "size": "13px",
+        "weight": 400,
+        "letter_spacing": "normal",
+        "line_height": "19.5px",
+        "color": "#8a8f98"
+      },
+      "tab": { "size": "16px", "weight": 400, "letter_spacing": "normal", "line_height": "24px" },
+      "date_label": {
+        "size": "14px",
+        "weight": 400,
+        "letter_spacing": "-0.182px",
+        "line_height": "21px",
+        "color": "#f7f8f8"
+      }
+    },
+    "scale_390": {
+      "h1_home": {
+        "size": "38px",
+        "weight": 510,
+        "letter_spacing": "-0.836px",
+        "line_height": "41.8px",
+        "optical_margin_left": "-1px"
+      },
+      "h1_page": {
+        "size": "48px",
+        "weight": 510,
+        "letter_spacing": "-1.056px",
+        "line_height": "48px",
+        "optical_margin_left": "-1px"
+      },
+      "h2_section": {
+        "size": "24px",
+        "weight": 510,
+        "letter_spacing": "-0.288px",
+        "line_height": "31.92px"
+      },
+      "h2_entry": {
+        "size": "24px",
+        "weight": 590,
+        "letter_spacing": "-0.288px",
+        "line_height": "31.92px"
+      },
+      "lede": {
+        "size": "15px",
+        "weight": 400,
+        "letter_spacing": "-0.165px",
+        "line_height": "24px"
+      },
+      "prose": {
+        "size": "15px",
+        "weight": 400,
+        "letter_spacing": "-0.165px",
+        "line_height": "24px"
+      },
+      "date_label": {
+        "size": "14px",
+        "weight": 400,
+        "letter_spacing": "-0.182px",
+        "line_height": "21px"
+      }
+    },
+    "axis_animation_detected": false
+  },
+  "layout": {
+    "hero": "left-aligned-full-bleed",
+    "hero_alignment": "left",
+    "above_fold_order": ["nav", "headline", "lede_row", "product_visual"],
+    "product_visual": "below-text-full-width",
+    "density": "sparse",
+    "page_wrapper_max_width": "1436px",
+    "page_outer_padding_inline": "46px",
+    "section_inset_padding_inline": "32px",
+    "content_column_width_at_1440": "1280px",
+    "content_left_edge_at_1440": "80px",
+    "content_left_edge_at_390": "24px",
+    "outer_padding_inline_390": "16px",
+    "section_inset_padding_inline_390": "8px",
+    "nav_height_1440": "72px",
+    "nav_height_390": "64px",
+    "nav_border_bottom": "1px solid rgba(255, 255, 255, 0.08)",
+    "nav_position": "fixed",
+    "nav_backdrop_filter": "blur(20px)",
+    "nav_content_left_at_1440": "79px",
+    "hero_h1_top_at_1440": "272px",
+    "hero_h1_top_at_390": "196px",
+    "changelog_grid": {
+      "columns": 12,
+      "column_width_at_1440": "77.3281px",
+      "gap": "32px",
+      "container_width": "1280px",
+      "date_column_span": "1 / 4",
+      "date_column_width": "296px",
+      "date_column_padding_left": "24px",
+      "date_column_margin_bottom": "16px",
+      "content_column_span": "5 / 13",
+      "content_column_width": "624px",
+      "content_column_left_at_1440": "408px",
+      "date_bar_rule": {
+        "width": "1px",
+        "background": "#23252a",
+        "margin": "9px 0px 0px 9px",
+        "left_at_1440": "89px",
+        "spans": "full height of the date group"
+      },
+      "marker_dot": {
+        "color": "#fc7840",
+        "shape": "circle",
+        "measured_from": "rendered pixel sample at (89,357) on reference-changelog-fold.png",
+        "diameter": "6px",
+        "sits_at": "top of the newest date group, centred on the 1px rule"
+      },
+      "stacks_at_390": true
+    },
+    "page_divider": {
+      "height": "1px",
+      "background": "#18191a",
+      "border_radius": "9999px",
+      "margin": "32px 0px 64px",
+      "width": "content column"
+    }
+  },
+  "spacing": {
+    "section_padding_block_1440": "128px",
+    "section_padding_block_390": "40px 48px",
+    "section_gap": "10px",
+    "prefooter_margin_block_1440": "224px",
+    "prefooter_margin_block_390": "96px",
+    "prefooter_gap": "40px",
+    "footer_padding_1440": "56px 46px",
+    "footer_padding_390": "56px 16px 24px",
+    "footer_row_gap_390": "48px",
+    "prose_paragraph_margin_top": "20px",
+    "changelog_page_title_to_tabs": "68px",
+    "cta_border_radius": "9999px",
+    "scale_ratio": 1.333
+  },
+  "radius": {
+    "r4": "4px",
+    "r6": "6px",
+    "r8": "8px",
+    "r12": "12px",
+    "r16": "16px",
+    "r24": "24px",
+    "r32": "32px",
+    "rounded": "9999px",
+    "media_image": "8px",
+    "media_plate": "12px",
+    "card": "12px",
+    "button": "9999px",
+    "nav_link": "9999px"
+  },
+  "components": {
+    "button_primary": {
+      "bg": "#e5e5e6",
+      "color": "#08090a",
+      "font_size": "16px",
+      "font_weight": 510,
+      "height": "44px",
+      "line_height": "44px",
+      "padding_inline": "20px",
+      "border_radius": "9999px",
+      "border": "1px solid #e5e5e6",
+      "transition": "border 0.16s cubic-bezier(0.25, 0.46, 0.45, 0.94), background-color 0.16s cubic-bezier(0.25, 0.46, 0.45, 0.94), color 0.16s cubic-bezier(0.25, 0.46, 0.45, 0.94)"
+    },
+    "button_secondary": {
+      "bg": "rgba(255, 255, 255, 0.05)",
+      "color": "#f7f8f8",
+      "font_size": "16px",
+      "font_weight": 510,
+      "height": "44px",
+      "line_height": "44px",
+      "padding_inline": "20px",
+      "border_radius": "9999px",
+      "border": "0px none"
+    },
+    "button_small_invert": {
+      "bg": "#e5e5e6",
+      "color": "#08090a",
+      "font_size": "13px",
+      "font_weight": 510,
+      "height": "32px",
+      "line_height": "32px",
+      "padding_inline": "12px",
+      "border_radius": "9999px",
+      "border": "1px solid #e5e5e6"
+    },
+    "nav_link": {
+      "color": "#8a8f98",
+      "font_size": "13px",
+      "font_weight": 400,
+      "line_height": "19.5px",
+      "height": "32px",
+      "padding_inline": "12px",
+      "border_radius": "9999px",
+      "transition": "color 0.1s cubic-bezier(0.25, 0.46, 0.45, 0.94), background 0.1s cubic-bezier(0.25, 0.46, 0.45, 0.94)"
+    },
+    "wordmark_link": {
+      "height": "32px",
+      "padding_inline": "8px",
+      "margin_left": "-8px",
+      "border_radius": "6px"
+    },
+    "card": {
+      "bg": "#0f1011",
+      "overlay": "linear-gradient(rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.03))",
+      "border": "1px solid rgba(255, 255, 255, 0.08)",
+      "border_radius": "12px",
+      "box_shadow": "rgba(0, 0, 0, 0.2) 0px 0px 0px 1px",
+      "padding": "12px 16px 16px"
+    },
+    "media_frame": {
+      "plate_bg": "#090a0b",
+      "plate_padding": "8px",
+      "plate_radius": "12px",
+      "panel_bg": "#101112",
+      "panel_border": "1px solid rgba(255, 255, 255, 0.08)",
+      "panel_radius": "12px",
+      "inner_border": "1px solid rgba(255, 255, 255, 0.05)",
+      "inner_radius": "8px",
+      "inner_shadow": "rgba(0, 0, 0, 0.2) 0px 0px 0px 2px",
+      "plate_width_at_1440": "1320px",
+      "plate_left_at_1440": "60px",
+      "note": "The hero product visual is WIDER than the 1280px text column: 60px gutters instead of 80px."
+    },
+    "footer": {
+      "bg": "#08090a",
+      "border_top": "1px solid #23252a",
+      "column_heading": {
+        "size": "13px",
+        "weight": 510,
+        "color": "#f7f8f8",
+        "letter_spacing": "-0.13px",
+        "margin_bottom": "24px"
+      },
+      "link": {
+        "size": "13px",
+        "weight": 400,
+        "color": "#8a8f98",
+        "letter_spacing": "-0.13px",
+        "line_height": "19.5px",
+        "row_height": "28px"
+      },
+      "legal_link_color": "#62666d"
+    },
+    "changelog_entry": {
+      "date": { "size": "14px", "weight": 400, "color": "#f7f8f8", "letter_spacing": "-0.182px" },
+      "title_featured": {
+        "size": "32px",
+        "weight": 590,
+        "letter_spacing": "-0.704px",
+        "line_height": "36px",
+        "color": "#f7f8f8"
+      },
+      "title": {
+        "size": "24px",
+        "weight": 590,
+        "letter_spacing": "-0.288px",
+        "line_height": "31.92px",
+        "color": "#f7f8f8"
+      },
+      "media_radius": "8px",
+      "body": {
+        "size": "17px",
+        "weight": 400,
+        "line_height": "27.2px",
+        "color": "#d0d6e0",
+        "margin_top": "20px"
+      },
+      "title_to_media_gap": "48px"
+    },
+    "tab_row": {
+      "active_color": "#f7f8f8",
+      "inactive_color": "#8a8f98",
+      "font_size": "16px",
+      "font_weight": 400,
+      "row_height": "40px"
+    }
+  },
+  "motion": {
+    "lenis_detected": false,
+    "gsap_detected": false,
+    "framer_motion_detected": false,
+    "rive_detected": false,
+    "css_smooth_scroll": false,
+    "scroll_behavior": "auto",
+    "view_transitions_detected": true,
+    "easing_curves_seen": ["cubic-bezier(0.25, 0.46, 0.45, 0.94)"],
+    "durations_seen": ["0.1s", "0.16s"],
+    "note": "No scroll-triggered entrance animation library on either surface. Motion is limited to short colour/background hover transitions on links and buttons."
+  },
+  "icons": {
+    "family": "custom-fill-16",
+    "viewbox": "0 0 16 16",
+    "render_size": ["13px", "14px", "15px", "16px"],
+    "paint": "fill",
+    "stroke": "none",
+    "stroke_width": null,
+    "note": "Fill-based custom SVG at a 16x16 viewBox. NOT a stroke icon set - Lucide/Heroicons stroke icons are a mismatch."
+  },
+  "textures": {
+    "grain": {
+      "present_in_reference": true,
+      "implementation": "url(https://static.linear.app/web/_next/static/static/grain-default.png) overlay on the hero backdrop block only",
+      "decision": "OMITTED - raster asset owned by the reference, cannot be obtained or reproduced exactly. Omission recorded rather than approximated with SVG turbulence."
+    }
+  },
+  "forbidden_additions": [
+    "gradient_mesh",
+    "border_glow",
+    "glassmorphism_on_cards",
+    "grid_lines",
+    "gradient_text",
+    "lucide_icons",
+    "stroke_icons",
+    "framer_motion_entrances",
+    "scroll_triggered_reveals",
+    "hover_scale_transforms",
+    "serif_headings",
+    "ruled_paper_background",
+    "uppercase_letterspaced_eyebrows",
+    "custom_cursor",
+    "rounded_corners_larger_than_12px_on_cards",
+    "centered_hero",
+    "shadcn_default_button_radius",
+    "logo_cloud_stats_testimonials_pricing_faq_boilerplate_sections",
+    "coloured_cta_buttons"
+  ],
+  "forbidden_rationale": {
+    "centered_hero": "Reference hero is LEFT aligned at the content edge (h1 x=78 at 1440, x=23 at 390).",
+    "coloured_cta_buttons": "Primary CTA is an inverted near-white pill (#e5e5e6 on #08090a), not a brand-coloured button. --color-brand-bg #5e6ad2 is not used for CTAs on either surface.",
+    "uppercase_letterspaced_eyebrows": "No uppercase tracked label appears on either surface. The nearest equivalent is a 12px monospace sentence-case label.",
+    "serif_headings": "Every heading computes to the Inter stack on both surfaces.",
+    "scroll_triggered_reveals": "No animation library detected and no IntersectionObserver-driven opacity/transform on either surface."
+  }
+}

@@ -1,0 +1,131 @@
+{
+  "gaps_1440": {
+    "rows": [
+      {
+        "cls": "b-30Va_root b-30Va_rootHom",
+        "top": 2546,
+        "bot": 3772,
+        "pad": "128px 0px",
+        "mar": "0px"
+      },
+      {
+        "cls": "b-30Va_root b-30Va_rootHom",
+        "top": 3782,
+        "bot": 5011,
+        "pad": "128px 0px",
+        "mar": "0px"
+      },
+      {
+        "cls": "b-30Va_root b-30Va_rootHom",
+        "top": 5021,
+        "bot": 6253,
+        "pad": "128px 0px",
+        "mar": "0px"
+      },
+      {
+        "cls": "b-30Va_root b-30Va_rootHom",
+        "top": 6263,
+        "bot": 7482,
+        "pad": "128px 0px",
+        "mar": "0px"
+      },
+      {
+        "cls": "Dc5tqa_container hide-lapt",
+        "top": 8226,
+        "bot": 8790,
+        "pad": "0px",
+        "mar": "0px"
+      },
+      {
+        "cls": "dYXc1G_homepagePrefooter",
+        "top": 9014,
+        "bot": 9242,
+        "pad": "0px",
+        "mar": "224px 0px"
+      }
+    ],
+    "gaps": [
+      10,
+      10,
+      10,
+      744,
+      224
+    ]
+  },
+  "inner_1440": {
+    "h2": {
+      "fs": "48px",
+      "mar": "0px",
+      "top": 2674,
+      "bot": 2757
+    },
+    "next": null
+  },
+  "gaps_390": {
+    "rows": [
+      {
+        "cls": "b-30Va_root b-30Va_rootHom",
+        "top": 1899,
+        "bot": 2481,
+        "pad": "0px",
+        "mar": "0px"
+      },
+      {
+        "cls": "b-30Va_root b-30Va_rootHom",
+        "top": 2491,
+        "bot": 3066,
+        "pad": "0px",
+        "mar": "0px"
+      },
+      {
+        "cls": "b-30Va_root b-30Va_rootHom",
+        "top": 3076,
+        "bot": 3647,
+        "pad": "0px",
+        "mar": "0px"
+      },
+      {
+        "cls": "b-30Va_root b-30Va_rootHom",
+        "top": 3657,
+        "bot": 4233,
+        "pad": "0px",
+        "mar": "0px"
+      }
+    ],
+    "gaps": [
+      10,
+      10,
+      10
+    ]
+  },
+  "inner_390": {
+    "h2": {
+      "fs": "24px",
+      "mar": "0px",
+      "top": 2251,
+      "bot": 2301
+    },
+    "next": null
+  },
+  "dot": {
+    "found": [],
+    "before": {
+      "content": "none",
+      "bg": "rgba(0, 0, 0, 0)",
+      "w": "auto",
+      "h": "auto",
+      "r": "0px",
+      "top": "auto",
+      "left": "auto"
+    },
+    "after": {
+      "content": "none",
+      "bg": "rgba(0, 0, 0, 0)",
+      "w": "auto",
+      "h": "auto",
+      "r": "0px",
+      "top": "auto",
+      "left": "auto"
+    }
+  }
+}
