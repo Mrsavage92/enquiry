@@ -88,16 +88,23 @@ export default defineConfig(({ command, isPreview }) => ({
             // NOT observable via `npm run dev`; verify against `npm run
             // build`'s generated .vercel/output/config.json instead (or
             // `npm run preview`, which sets isPreview and does load nitro).
-            // No CSP here on purpose: fonts.googleapis.com, inline styles
-            // from the framework, and the Supabase auth flow all need a
-            // carefully-scoped policy, and a wrong one on launch night is a
+            // No full CSP here on purpose: fonts.googleapis.com, inline
+            // styles from the framework, and the Supabase auth flow all need
+            // a carefully-scoped policy, and a wrong one on launch night is a
             // worse outcome than no policy tonight - tracked as a follow-up.
+            // frame-ancestors is the one directive shipped early anyway,
+            // because X-Frame-Options: DENY has no per-origin exception and
+            // would block src/routes/__root.tsx's PreviewHostBridge from
+            // rendering inside the Grok builder/sandbox preview chrome that
+            // subsystem exists to support (allow-listed the same way in
+            // src/lib/preview-embedder-origin.ts).
             routeRules: {
               "**": {
                 headers: {
                   "X-Content-Type-Options": "nosniff",
                   "Referrer-Policy": "strict-origin-when-cross-origin",
-                  "X-Frame-Options": "DENY",
+                  "Content-Security-Policy":
+                    "frame-ancestors 'self' https://grok.com https://grok-sandbox.com",
                   "Permissions-Policy": "camera=(), microphone=(), geolocation=()",
                 },
               },

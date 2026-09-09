@@ -515,6 +515,24 @@ test("vite config keeps the nitro serverDir wiring", () => {
   assert.match(viteConfig, /grokPwaPlugin\(\)/);
 });
 
+// Tripwire: X-Frame-Options: DENY has no per-origin exception, so it would
+// block the Grok preview embed (src/routes/__root.tsx's PreviewHostBridge,
+// allow-listed for grok.com/grok-sandbox.com in
+// src/lib/preview-embedder-origin.ts) from ever rendering inside its own
+// builder/sandbox chrome. frame-ancestors is the CSP replacement that can
+// express the same deny-by-default policy with those two exceptions.
+test("routeRules headers allow the Grok preview embed via CSP frame-ancestors, not X-Frame-Options", () => {
+  const viteConfig = readFileSync(join(TEMPLATE_ROOT, "vite.config.ts"), "utf8");
+  // Not a bare doesNotMatch(/X-Frame-Options/) - this test's own file comment
+  // names the header it deliberately does NOT set, which would trip a
+  // whole-file text match. Scope to the actual header-entry syntax instead.
+  assert.doesNotMatch(viteConfig, /["']X-Frame-Options["']\s*:/);
+  assert.match(
+    viteConfig,
+    /["']Content-Security-Policy["']\s*:\s*[\s\S]{0,40}frame-ancestors 'self' https:\/\/grok\.com https:\/\/grok-sandbox\.com/,
+  );
+});
+
 test("nitro middleware and its bundled assets exist", () => {
   const middleware = readFileSync(join(TEMPLATE_ROOT, "server/middleware/grok-pwa.ts"), "utf8");
   assert.match(middleware, /install-page\.html\?raw/);
