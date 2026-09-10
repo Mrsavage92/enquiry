@@ -855,78 +855,6 @@ html[data-palette="b"] {
   overflow-anchor: none;
 }
 
-.roadmap-rail {
-  position: relative;
-  padding-left: 3.25rem;
-}
-.roadmap-spine {
-  position: absolute;
-  left: 1.15rem;
-  top: 0.5rem;
-  bottom: 1.5rem;
-  width: 1px;
-  background: var(--color-line);
-  overflow: hidden;
-}
-.roadmap-spine-fill {
-  position: absolute;
-  inset: 0;
-  background: var(--color-mark);
-  transform: scaleY(0);
-  transform-origin: top center;
-  will-change: transform;
-}
-.roadmap-stage {
-  scroll-margin-top: 7.5rem;
-}
-.roadmap-marker {
-  position: absolute;
-  top: 0.2rem;
-  left: -3.25rem;
-  display: flex;
-  width: 3.25rem;
-  justify-content: center;
-}
-.roadmap-dot {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 2rem;
-  height: 2rem;
-  border-radius: 999px;
-  border: 1px solid var(--color-line-strong);
-  background: var(--color-notebook);
-  font-family: var(--font-mono);
-  font-size: 0.6875rem;
-  color: var(--color-ink-2);
-}
-.roadmap-dot.is-now {
-  background: var(--color-mark);
-  color: var(--color-mark-fg);
-  border-color: var(--color-mark);
-  animation: marker-settle 0.55s var(--ease-smooth-out) both;
-}
-.roadmap-stage[data-horizon="later"] .roadmap-dot {
-  color: var(--color-stone);
-  background: transparent;
-}
-.roadmap-endgame {
-  padding-top: 2rem;
-  padding-bottom: 1rem;
-}
-@media (min-width: 1024px) {
-  .roadmap-rail {
-    padding-left: 5.25rem;
-  }
-  .roadmap-spine {
-    left: 2.15rem;
-  }
-  .roadmap-marker {
-    width: 5.25rem;
-    left: -5.25rem;
-  }
-}
-
 html.embed {
   background: var(--color-paper);
 }
@@ -1061,15 +989,6 @@ html.embed .site-nav {
     transform: scaleY(1);
   }
 }
-@keyframes marker-settle {
-  0% {
-    transform: scale(0.86);
-  }
-  to {
-    transform: scale(1);
-  }
-}
-
 @media (max-width: 860px) {
   /*
     Marketing pages only (.app-root absent). Previously this rule also
@@ -1189,17 +1108,11 @@ html.embed .site-nav {
     opacity: 1;
     transform: none;
   }
-  .roadmap-spine-fill {
-    transition: none;
-  }
   .site-field-grain,
   .site-field-wash,
   .site-field-rules {
     animation: none !important;
     transform: none !important;
-  }
-  .roadmap-dot.is-now {
-    animation: none;
   }
 }
 
