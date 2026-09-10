@@ -1,9 +1,23 @@
 import { chromium } from "playwright";
+
+/*
+  Usage: node geom.mjs [--route=/roadmap] [--port=5273]
+  --route and --port default to "/" and 5261 (home, the original hardcoded
+  values), matching the flag sections.mjs and contrast.mjs now share.
+*/
+const flags = {};
+for (const a of process.argv.slice(2)) {
+  const m = /^--(route|port)=(.*)$/.exec(a);
+  if (m) flags[m[1]] = m[2];
+}
+const ROUTE = flags.route || "/";
+const BASE = `http://127.0.0.1:${flags.port || "5261"}`;
+
 const b = await chromium.launch();
 for (const w of [1440, 390]) {
   const c = await b.newContext({ viewport: { width: w, height: 900 } });
   const p = await c.newPage();
-  await p.goto("http://127.0.0.1:5261/", { waitUntil: "networkidle" });
+  await p.goto(BASE + ROUTE, { waitUntil: "networkidle" });
   await p.waitForTimeout(2000);
   const r = await p.evaluate(() => {
     const g = (sel) => {

@@ -2,9 +2,26 @@ import { chromium } from "playwright";
 import fs from "node:fs";
 import path from "node:path";
 
-const OUT = process.argv[2];
-const VP = Number(process.argv[3] || 1440);
-const BASE = "http://127.0.0.1:5261";
+/*
+  Usage: node sections.mjs <outdir> <1440|390> [--route=/roadmap] [--port=5273]
+  --route and --port default to "/" and 5261 (home, the original hardcoded
+  values) so every existing call site keeps working unchanged. Matches the
+  flag shape contrast.mjs's positional BASE/ROUTE args already give other
+  route builders - filed as a shared-change request in section-log.md
+  ("updates") and applied here.
+*/
+const args = process.argv.slice(2);
+const flags = {};
+const positional = [];
+for (const a of args) {
+  const m = /^--(route|port)=(.*)$/.exec(a);
+  if (m) flags[m[1]] = m[2];
+  else positional.push(a);
+}
+const OUT = positional[0];
+const VP = Number(positional[1] || 1440);
+const ROUTE = flags.route || "/";
+const BASE = `http://127.0.0.1:${flags.port || "5261"}`;
 fs.mkdirSync(OUT, { recursive: true });
 
 const L = JSON.parse(fs.readFileSync("tokens.lock.json", "utf8"));
@@ -392,7 +409,7 @@ const SECTIONS = (vp) => {
 const browser = await chromium.launch();
 const ctx = await browser.newContext({ viewport: { width: VP, height: VP === 1440 ? 900 : 844 } });
 const page = await ctx.newPage();
-await page.goto(BASE + "/", { waitUntil: "networkidle", timeout: 60000 });
+await page.goto(BASE + ROUTE, { waitUntil: "networkidle", timeout: 60000 });
 await page.waitForTimeout(2500);
 
 const specs = SECTIONS(VP);
