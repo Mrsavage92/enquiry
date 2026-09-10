@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  demoPhoneEnquiry,
   isLiveHandoffClean,
   mayPlayDemoArrival,
   mayRecordSendViaShortcut,
@@ -152,6 +153,25 @@ test("a live handoff that leaves the arrival armed fails", () => {
     }),
     false,
   );
+});
+
+test("the demo phone widget returns nothing for a live session, even when enquiries exist", () => {
+  // The R2B-era bug: `s.enquiries.find(...) ?? s.enquiries[0]` had no demoMode
+  // check at all, so a signed-in operator who navigated back to `/` was
+  // handed their own real first enquiry by a widget wired to demo controls.
+  const enquiries = [{ id: "f01" }, { id: "f02" }];
+  assert.equal(demoPhoneEnquiry({ demoMode: false, enquiries }, "f01"), undefined);
+  assert.equal(demoPhoneEnquiry({ demoMode: false, enquiries }, "unknown-id"), undefined);
+});
+
+test("the demo phone widget returns the fixture in demo mode", () => {
+  const enquiries = [{ id: "f01" }, { id: "f02" }];
+  assert.deepEqual(demoPhoneEnquiry({ demoMode: true, enquiries }, "f02"), { id: "f02" });
+});
+
+test("the demo phone widget never falls back to enquiries[0] for an unknown id", () => {
+  const enquiries = [{ id: "f01" }, { id: "f02" }];
+  assert.equal(demoPhoneEnquiry({ demoMode: true, enquiries }, "unknown-id"), undefined);
 });
 
 test("onboarding that did not complete is not a clean handoff", () => {

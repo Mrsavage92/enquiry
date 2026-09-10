@@ -66,6 +66,24 @@ export function mayRecordSendViaShortcut(_demoMode: boolean): boolean {
   return false;
 }
 
+/**
+ * The public homepage's "Interactive demo" phone widget renders only in
+ * demoMode. A signed-in operator who client-side navigates back to `/` keeps
+ * their real store state, `demoMode: false` included - so `enquiries` here is
+ * that operator's own data, not the fixture set. Returning `undefined` for a
+ * live session means the widget never touches it at all, and an unrecognised
+ * id in demo mode returns nothing rather than falling back to some other
+ * enquiry (the widget used to fall back to `enquiries[0]`, which for a live
+ * tenant meant their real first enquiry).
+ */
+export function demoPhoneEnquiry<E extends { id: string }>(
+  s: { demoMode: boolean; enquiries: E[] },
+  id: string,
+): E | undefined {
+  if (!s.demoMode) return undefined;
+  return s.enquiries.find((e) => e.id === id);
+}
+
 /** The client state a successful LIVE onboarding must leave behind. */
 export type LiveHandoffState = {
   onboarded: boolean;
