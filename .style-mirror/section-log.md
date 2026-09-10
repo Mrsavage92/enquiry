@@ -359,3 +359,88 @@ is the trailing period of "We'll only email about Enquiry access. Privacy." in t
 
 The equivalent node inside this route's own files was fixed by making the sentence a single text
 node (`Last written <date>.`), which is the right fix for `WaitlistForm` too - filed as a request.
+
+---
+
+## /how
+
+Built on `visual/mirror-how`, branched from `visual/mirror-linear` at `c165896`. Method: a standalone
+Playwright harness (not `.style-mirror/tools/*`, to avoid touching files shared with the three other
+routes being built in parallel) - computed-style assertions against `tokens.lock.json` and a
+rendered-pixel contrast sweep using the same background/foreground-extraction algorithm as
+`tools/contrast.mjs`. **Final state: 0 mismatches at 1440, 0 at 390, 52/52 computed-style checks
+pass at both viewports.**
+
+Re-extraction: before building, `linear.app`'s own below-hero feature sections were re-captured live
+at 1440 and 390 (section `padding-block`, `h2` metrics, lede colour) to complement `tokens.lock.json`
+rather than replace it. The live site's content has moved on from the 2026-09-09 capture (different
+section headings), but every measured value matched the locked tokens exactly - 128px section
+padding-block, h2 48px/510/-1.056px/lh 48px stepping to 24px/510/-0.288px/lh 31.92px at 390, text
+primary/secondary colours identical - so the existing component vocabulary (`.mk-card`, `.mk-section`,
+`.mk-section-head`) was used as-is rather than re-derived.
+
+✓ **page header** - 0 mismatches, 1 derivation
+
+The reference's own page-title tier (`h1_page` in `tokens.lock.json`) is 48px/510/-1.056px/lh 48px at
+**both** 1440 and 390 - it does not step down the way `.mk-h1`/`.mk-h2` do (those are the home-hero and
+section tiers). No existing class carries that exact non-shrinking behaviour, so the header is built
+locally in `how.tsx` with explicit Tailwind arbitrary values, reusing `--mk-h1-optical` (already
+defined in the shared layer, already switching -2px -> -1px at the reference's own 640 breakpoint)
+rather than duplicating it. Verified by computed-style assertion, not visual match alone: `fontSize`,
+`fontWeight`, `lineHeight`, `letterSpacing` and `marginLeft` all equal the `h1_page` scale at both
+viewports.
+
+✓ **feature section 1 (the live decision demo)** - 0 mismatches, 0 fixed
+
+Section-head (`mk-label` / `mk-h2` / `mk-lede`) + full-width `MediaFrame` + `.mk-app-surface`, the
+same shape as the interactive block on `/` - `CrossChannelDecisionDemo` owns `.mk-app-surface`
+internally when `compact`, matching `index.tsx`'s own call site exactly. Verified: h2 48px/510/
+-1.056px/lh 48px -> 24px/510/-0.288px/lh 31.92px at 390; media plate `#090a0b` 8px padding radius 12px.
+
+✓ **feature section 2 (the six steps) - new `how-steps.tsx`** - 0 mismatches, 0 fixed
+
+None of the six steps has its own product capture, so per system.md §4 this uses the card/list
+vocabulary rather than an invented illustration: a two-column `.mk-card` grid (the same surface as
+`/`'s "What Enquiry does instead", already verified there), each card a number label + `.mk-h3` title
++ `.mk-small` body. Collapses to one column below `sm` via the same `grid sm:grid-cols-2` the home
+page's card grid uses. Every word of the six steps is unchanged from the pre-mirror page.
+
+✓ **feature section 3 (the pricing case) - new `how-proof-case.tsx`** - 1 mismatch found, 1 fixed
+
+Replaces the shared `ProofCase` component on this route only (that component still carries
+`font-serif` and no `.mk-app-surface` wrapping, both against this pass's brief - `ProofCase` itself
+is out of this route's edit scope, so a new component was written instead of a shared-file change).
+Same shape as feature section 1: section-head + `MediaFrame` + `.mk-app-surface`, since this is also
+a recreation of real product output. Copy, the `FACTS` table, the `$625` `CountUp` and the
+`HearLetter` playback are byte-identical to the original.
+
+MISMATCH FOUND AND FIXED (contrast sweep): the "Missing · Nothing blocking" value used `text-ok`
+(`--color-ok: #27a644`, the marketing dark-surface green), which is not redefined inside
+`.mk-app-surface` and measured **2.96:1** on the app's light `#faf7f1` card - a straight port of a bug
+already present in the shared `ProofCase` component (same class, same failure, never wrapped in
+`.mk-app-surface` to notice it there). Fixed to `text-mark` (`--color-mark: #2f4a3c`), the token
+`CrossChannelDecisionDemo` already uses for the identical "positive fact" case
+(`cross-channel-decision-demo.tsx:214`) - same green semantic, contrast-correct for a light surface.
+Re-measured: **4.5:1+**, sweep now 0 fails.
+
+✓ **CTA block** - 0 mismatches, 0 fixed
+
+Two link-CTAs (`mk-btn mk-btn-primary` / `mk-btn-secondary`, verified h44/pill/`#e5e5e6`) then the
+system's `.mk-prefooter` shape with `WaitlistForm compact` - same construct as `index.tsx`'s closing
+section. All copy and both destinations (`/early-access`, `/demo`) unchanged.
+
+Nav and footer are untouched shared components (`SiteShell`) - not re-verified per-pixel here since
+no route-specific override was added; visually confirmed identical to the `/` capture.
+
+## Contrast sweep - /how
+
+Rendered-pixel, both viewports, every visible text node. **0 fails at 1440 (102 nodes), 0 fails at
+390 (98 nodes)** after the `text-mark` fix above. Lowest passing pair: 4.57:1, `#716b61` on `#f3eee6`
+("Then Maya texts…" toggle button, inside `CrossChannelDecisionDemo`, unchanged shared component).
+
+## Shared-change request from /how
+
+`ProofCase` (`src/components/site/proof-case.tsx`, not in this route's edit scope) has the same
+`text-ok` contrast bug documented above, plus `font-serif` and no `Reveal`-free path. It is currently
+unused by any route after this change. Recommend either deleting it or applying the same `text-mark`
+fix + `.mk-app-surface` wrap if another route adopts it later.
