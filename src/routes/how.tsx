@@ -26,17 +26,13 @@ function How() {
         Page header, not the home hero: the reference's own page-title tier
         (tokens.lock.json typography.scale_390.h1_page) stays 48px/510/
         -1.056px/lh 48px at BOTH 1440 and 390 - it does not step down the way
-        `.mk-h1`/`.mk-h2` do, so it is built here rather than borrowing either
-        class. `--mk-h1-optical` is reused rather than duplicated: it already
-        switches -2px -> -1px at the same 640 breakpoint the reference's own
-        page-title optical pull does.
+        `.mk-h1`/`.mk-h2` do. That is the shared `.mk-h1-page` tier in
+        styles.css, which also carries `--mk-h1-optical` itself.
       */}
       <section className="pb-[var(--mk-section-y)] pt-[64px] sm:pt-[96px]">
         <div className="mk-container">
           <p className="mk-label">How it works</p>
-          <h1 className="ml-[var(--mk-h1-optical)] mt-5 max-w-[22ch] text-[48px] leading-[48px] font-[var(--mk-weight-medium)] tracking-[-1.056px] text-[var(--mk-fg)]">
-            Work arrives. The next action is ready.
-          </h1>
+          <h1 className="mk-h1-page mt-5 max-w-[22ch]">Work arrives. The next action is ready.</h1>
           <p className="mk-lede mt-6 max-w-2xl">
             Enquiry reconstructs the request, applies how this business works, and works out what
             can safely be decided now. You approve. You should mainly make judgement calls - not CRM

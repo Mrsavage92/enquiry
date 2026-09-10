@@ -1501,6 +1501,25 @@ html[data-site="marketing"] .site-hero {
   margin-left: var(--mk-h1-optical);
   text-wrap: balance;
 }
+/*
+  Page-title tier: a short page name that must hold 48px at every width,
+  unlike .mk-h1 (home hero, steps to 38px at 640) or .mk-h2 (section
+  heading, steps to 24px at 640). Reference: linear.app/changelog's own
+  h1 ("Now"), measured 2026-09-09 and confirmed live by three independent
+  route builders (/roadmap, /how, /updates), all landing on the same
+  48px/510/-1.056px/lh 48px at both 1440 and 390, only the optical
+  margin-left stepping -2px -> -1px like .mk-h1's own.
+*/
+html[data-site="marketing"] .mk-h1-page {
+  font-family: var(--mk-font);
+  font-size: 48px;
+  font-weight: var(--mk-weight-medium);
+  letter-spacing: -1.056px;
+  line-height: 48px;
+  color: var(--mk-fg);
+  margin-left: var(--mk-h1-optical);
+  text-wrap: balance;
+}
 html[data-site="marketing"] .mk-h2,
 html[data-site="marketing"] .site-display,
 html[data-site="marketing"] .site-display-proof {

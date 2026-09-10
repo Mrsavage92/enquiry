@@ -22,18 +22,10 @@ export const Route = createFileRoute("/roadmap")({
 
   The reference puts its h1 at y=150 under a 73px header - 77px of padding - at
   48px/510/-1.056px/lh 48px, and holds that 48px at 390 too (only the optical
-  margin steps from -2px to -1px). The shared .mk-h1 is the reference HOME h1
-  tier (64px, 38px at 390), so the page tier is set inline here from the
-  re-extraction. A shared .mk-h1-page would be the right home for it; that is
-  filed as a request rather than edited into styles.css this pass.
+  margin steps from -2px to -1px). That is the shared `.mk-h1-page` tier in
+  styles.css - the reference's own page-title tier, distinct from `.mk-h1`
+  (home hero, 64px) and `.mk-h2` (section heading, 48px shrinking to 24px).
 */
-const PAGE_H1 = {
-  fontSize: "48px",
-  lineHeight: "48px",
-  letterSpacing: "-1.056px",
-  fontWeight: 510,
-} as const;
-
 const LEDE = { maxWidth: "36rem" } as const;
 
 function RoadmapPage() {
@@ -41,9 +33,7 @@ function RoadmapPage() {
     <SiteShell>
       <section className="mk-container pt-[77px]">
         <p className="mk-label">Roadmap · Built in public</p>
-        <h1 className="mk-h1 mt-5 max-w-[22ch]" style={PAGE_H1}>
-          We’re building Enquiry in the open.
-        </h1>
+        <h1 className="mk-h1-page mt-5 max-w-[22ch]">We’re building Enquiry in the open.</h1>
         {/*
           .mk-lede sets `max-width: none` in the unlayered marketing layer, so a
           Tailwind max-w-* on the same element loses to it. The cap goes inline.

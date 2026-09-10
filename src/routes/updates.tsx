@@ -45,27 +45,19 @@ function Updates() {
   return (
     <SiteShell>
       {/*
-        Page-header pattern, distinct from home's hero tier. Re-extracted live
-        from https://linear.app/changelog (.style-mirror/tools/_scratch not
-        kept - see section-log.md "updates" for the numbers): the "Now" h1
-        computes to 48px/510/-1.056px/lh 48px at BOTH 1440 and 390 (unchanged,
-        unlike the home hero's h1 which shrinks to 38px), optical margin -2px
-        at 1440 / -1px at 390, top padding 77px under the nav at both widths.
-        tokens.lock.json already carried this as typography.scale_*.h1_page;
-        this route is the first to consume it, so there is no shared class for
-        it yet - built with the same values as arbitrary utilities rather than
-        reusing .mk-h1 (64px hero tier, wrong here) or .mk-h2 (shrinks to 24px
-        at 640, wrong here - this title must stay 48px at every width, exactly
-        as the reference's "Now" does).
+        Page-header pattern, distinct from home's hero tier. The "Now" h1 on
+        https://linear.app/changelog computes to 48px/510/-1.056px/lh 48px at
+        BOTH 1440 and 390 (unchanged, unlike the home hero's h1 which shrinks
+        to 38px), optical margin -2px at 1440 / -1px at 390, top padding 77px
+        under the nav at both widths. That is the shared `.mk-h1-page` tier in
+        styles.css (tokens.lock.json's typography.scale_*.h1_page).
 
         The reference page has no eyebrow above "Now" - ours keeps "In public"
         because that copy already existed and is not this pass's to remove.
       */}
       <section className="mk-container pt-[77px] pb-16">
         <p className="mk-label">In public</p>
-        <h1 className="mt-5 max-w-[20ch] -ml-[2px] text-[48px] font-[510] leading-[48px] tracking-[-1.056px] text-ink max-[640px]:-ml-[1px]">
-          Updates
-        </h1>
+        <h1 className="mk-h1-page mt-5 max-w-[20ch]">Updates</h1>
         <p className="mk-lede mt-6 max-w-xl">
           Meaningful notes from building Enquiry in public. Not a changelog - only progress that
           changes what the product is, or how we think about it.
