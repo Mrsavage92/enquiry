@@ -312,7 +312,14 @@ function Home() {
               Access opens gradually so we can work closely with the first businesses and make
               Enquiry trustworthy before opening it more widely.
             </p>
-            <p className="mk-small mt-4 max-w-xl text-[var(--mk-fg)]">
+            {/*
+              .mk-small is unlayered (color: var(--mk-fg-2)), so a Tailwind
+              text-[var(--mk-fg)] utility on the same element loses to it
+              regardless of source order - the same bug /early-access found
+              and fixed on its identical offer sentence. Inline style wins
+              over both layers.
+            */}
+            <p className="mk-small mt-4 max-w-xl" style={{ color: "var(--mk-fg)" }}>
               Join before public release and get 30% off your first 12 months if you become a paying
               customer.
             </p>
@@ -337,7 +344,9 @@ function Home() {
                   {String(i + 1).padStart(2, "0")}
                 </span>
                 <div>
-                  <p className="mk-small text-[var(--mk-fg)]">{s.t}</p>
+                  <p className="mk-small" style={{ color: "var(--mk-fg)" }}>
+                    {s.t}
+                  </p>
                   <p className="mk-small mt-1">{s.b}</p>
                 </div>
               </li>
