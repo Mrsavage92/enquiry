@@ -29,7 +29,7 @@ function How() {
         `.mk-h1`/`.mk-h2` do. That is the shared `.mk-h1-page` tier in
         styles.css, which also carries `--mk-h1-optical` itself.
       */}
-      <section className="pb-[var(--mk-section-y)] pt-[64px] sm:pt-[96px]">
+      <section className="mk-page-header pt-[64px] sm:pt-[96px]">
         <div className="mk-container">
           <p className="mk-label">How it works</p>
           <h1 className="mk-h1-page mt-5 max-w-[22ch]">Work arrives. The next action is ready.</h1>

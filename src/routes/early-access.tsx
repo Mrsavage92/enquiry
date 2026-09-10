@@ -43,7 +43,7 @@ function EarlyAccess() {
         page-title tier /updates uses - the same split the system's own
         composing guide draws between a hero and a listing page.
       */}
-      <section className="mk-container pt-[96px] pb-16 sm:pt-[120px]">
+      <section className="mk-page-header mk-container pt-[96px] sm:pt-[120px]">
         <p className="mk-label">Early access</p>
         <h1 className="mk-h1 mt-5 max-w-[18ch]">Be one of the first businesses to use Enquiry.</h1>
         <p className="mk-lede mt-6 max-w-xl">

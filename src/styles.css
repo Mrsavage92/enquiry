@@ -1215,6 +1215,7 @@ html[data-site="marketing"] {
   --mk-nav-h: 72px;
   --mk-section-y: 128px;
   --mk-section-head-gap: 96px;
+  --mk-header-gap: 70px;
   --mk-h1-size: 64px;
   --mk-h1-tracking: -1.408px;
   --mk-h1-leading: 64px;
@@ -1399,6 +1400,26 @@ html[data-site="marketing"] .page-rule {
 @media (max-width: 640px) {
   .mk-prefooter {
     margin-block: 96px;
+  }
+}
+/*
+  A text-only page header (.mk-page-header - /how, /early-access) has no
+  product visual of its own, unlike home's hero, which puts its film inside
+  the header section before the header's own bottom padding ever applies.
+  Without this rule, the header's padding-bottom and the very next
+  .mk-section's padding-top both resolve to --mk-section-y and stack to
+  256px of empty space - two full section rhythms of nothing where the
+  reference has a product visual. .mk-page-header itself carries no
+  padding-bottom, and this gives the following .mk-section the reference's
+  own hero-to-visual gap instead of a second --mk-section-y: linear.app,
+  hero lede bottom 457px to product-visual top 527px at 1440x900, measured
+  2026-09-10. Scoped to >=769px because --mk-section-y is already 0-48px
+  below that width (mk-section-head's own 40px mobile padding-top covers
+  the gap there), so the stack never happens on narrower viewports.
+*/
+@media (min-width: 769px) {
+  .mk-page-header + .mk-section {
+    padding-top: var(--mk-header-gap);
   }
 }
 
