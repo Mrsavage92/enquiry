@@ -1,50 +1,58 @@
 # Enquiry - Current Implementation Phase
 
-Updated: 2026-09-07 (Australia/Brisbane).
+Updated: 2026-09-10 (Australia/Brisbane).
 
-## Active slice: CC1 - Commercial correctness and truthful action recording
+## Active slice: UI1 - Core experience redesign
 
-**Status: AUTHORISED FOR IMPLEMENTATION. Not implemented or signed off by this package.**
+**Status: AUTHORISED FOR IMPLEMENTATION. Not deployed, merged to production or signed off.**
 
-Product-owner instruction on 2026-09-07: add the commercial-correctness review to GitHub as a package for Claude to implement. This authorises the bounded CC1 correction below, not a rewrite, general R2 completion, deployment or external beta release.
+Product-owner instruction on 2026-09-10: implement the UI1 core-experience redesign end-to-end on the dedicated `design/ui1-quiet-signal` branch. This is an authorised presentation and interaction-architecture reset, not a cosmetic spacing pass.
 
-Start here: [CC1 implementation package](./implementation/CC1_COMMERCIAL_CORRECTNESS/README.md).
+Start here:
 
-Read `AGENTS.project.md`, this file, the package and its linked review before editing. The package contains the implementation order, source map, acceptance cases, executable diagnostic probes and required handoff.
+- `AGENTS.project.md`
+- `docs/design/UI1_VISUAL_DIRECTION_V2.md`
+- `docs/design/UI1_QUIET_SIGNAL_WORKING_DIRECTION.md`
 
-## Exactly what Claude should implement
+The referenced design docs began as research drafts. This file now makes their UI1 direction implementation authority for the operator app, with the corrections in the user handover taking precedence where they are more specific.
 
-- CC1-01 / review P1-01: preserve quantity meaning; never turn ranges, alternatives or negatives into a different exact quantity.
-- CC1-02 / P1-02: resolve service/rule ambiguity explicitly, never by rule-array order.
-- CC1-03 / P1-03: enforce owner confirmation of model-proposed commercial service identity.
-- CC1-04 / P1-04: separate copying a draft from confirming an actual external send.
-- CC1-05 / P1-05: keep reviewed message, structured price and recorded quote consistent; protect stale approvals.
-- CC1-06 / P2-01: transaction/revision safeguards directly necessary to keep related facts, decisions and sent records consistent.
+## Exactly what Codex should implement
 
-Follow the package sequence within this one authorised slice. Do not stop for a new phase approval between its implementation steps. Run the specified checks, record the evidence and stop for independent review at the end. An unavailable verification environment must be reported as a blocker, not silently treated as a pass.
+Implement UI1 in bounded slices:
 
-## Current status and historical reconciliation
+1. foundations, tokens, wordmark, shell and navigation;
+2. Today and the responsive mobile shell;
+3. complete Enquiries list and open-enquiry desktop/mobile;
+4. Booked;
+5. Business;
+6. Insights;
+7. More/account, plan/usage placeholder, referral/help/settings/account surfaces and states;
+8. polish, accessibility, reduced motion, representative viewport verification and tests.
 
-- The previous authority recorded R2A sign-off at `d382f2d`. Preserve that recorded decision; do not reopen the old live/demo transition fix merely because an archived instruction calls it active.
-- A real manual first-beta loop was reported browser-verified on 2026-09-03. Its detailed external dossier has not been independently rerun by this package, and that historical result does not clear the commercial defects found subsequently.
-- Approval-preview and interpreter/null-fallback source now exists. The former statement that interpretation had not started is obsolete. Existence is not full R2E sign-off or proof of real-provider quality.
-- Full R2B-R2F completion and the complete first-beta gate are not certified here. Existing work must be preserved and evaluated, not assumed absent or complete from a phase label.
-- The prior current-phase file is preserved byte-for-byte in [history](./history/2026-09-07_CURRENT_PHASE_PRE_CC1.md). Its contradictory R2A-only and prior active-slice instructions are historical, not current execution authority.
+The target information architecture is:
 
-The [registry](./PHASE_REGISTRY.md) reflects this bounded sequencing update. `AGENTS.project.md` remains the product contract. This file is the current execution authority; the CC1 package supplies the detailed brief.
+- desktop primary: Today, Enquiries, Booked, Business, Insights;
+- secondary/account: plan and usage, Refer a friend, Help & support, Settings, Account;
+- mobile bottom navigation: Today, Enquiries, Booked, Business, More.
+
+The target visual direction is Editorial Utility: clean white working surfaces, soft lilac/lavender shell, restrained violet identity, modern sans typography, generous spacing, polished rounded components, subtle borders/shadows and selective semantic green/amber/red.
 
 ## Preserve
 
-Keep server-side auth/membership checks, tenant isolation, explicit demo separation, raw-message persistence before best-effort interpretation, deterministic commercial validation, proposed-fact provenance, AUD-only supported money semantics and human action authority. The original review remains an immutable historical assessment of its stated commit.
+Keep server-side auth/membership checks, tenant isolation, explicit demo separation, raw-message persistence before best-effort interpretation, deterministic commercial validation, proposed-fact provenance, AUD-only supported money semantics, human action authority, and all CC1 truthful-action safeguards.
 
-## Not authorised by CC1
+UI1 may move, rename, group or progressively disclose presentation surfaces. UI1 must not weaken the product contract: do not fabricate sends, bookings, payments, integrations, availability, quotas, pricing, analytics or referral rewards.
 
-No production mailbox/social/SMS/payment/calendar/booking integration programme; no visual redesign or PWA phase; no new broad evaluator family, generic rules engine or CRM; no model upgrade; no unrelated refactor; no automatic legacy financial-data rewrite. Necessary focused migrations, UI corrections, transaction helpers and tests for CC1 are permitted. Do not modify production data, rotate credentials, auto-merge or deploy merely because this package is authorised.
+Material uncertainty, blockers, unsupported decisions, price conflicts, availability uncertainty and unsafe actions must remain visible when they affect the next action. Hide technical detail by default but keep Why this?/details/evidence reachable.
+
+## Not authorised by UI1
+
+No production mailbox/social/SMS/payment/calendar/booking integration programme; no new broad evaluator family, generic rules engine or CRM; no model upgrade; no unrelated backend refactor; no automatic legacy financial-data rewrite; no production data mutation; no credential rotation; no production deploy; no merge to `main` without explicit approval.
 
 ## Completion and release gates
 
-Use the package's [acceptance matrix](./implementation/CC1_COMMERCIAL_CORRECTNESS/ACCEPTANCE.md), [handoff template](./implementation/CC1_COMMERCIAL_CORRECTNESS/HANDOFF_TEMPLATE.md) and `docs/TEST_REGRESSION_POLICY.md`.
+Run existing tests/typecheck and add or update UI tests where appropriate. Verify representative phone/tablet/desktop widths, keyboard/focus, reduced motion, long content, empty/error/loading states and accessibility.
 
-The implementer reports implemented/verified/blocked status separately. Independent review, not the implementer, signs off CC1 and decides subsequent R2 sequencing. `docs/BETA_READINESS_GATE.md` and `docs/PUBLIC_TRAFFIC_GATE.md` remain open unless separately evidenced and approved. Historical credential rotation, auth/deployment and visual/public-claim checks are not cleared by this document.
+The result must look materially different from the existing Enquiry UI. A result that can be described as "the old Enquiry with cleaner spacing" fails.
 
-Current sequence: **CC1 implementation -> independent review -> explicit next R2 decision -> first-beta gate.** Later visual/PWA phases remain deferred to their own authority.
+Independent review, not the implementer, signs off UI1 and decides subsequent R2 sequencing. `docs/BETA_READINESS_GATE.md` and `docs/PUBLIC_TRAFFIC_GATE.md` remain open unless separately evidenced and approved.

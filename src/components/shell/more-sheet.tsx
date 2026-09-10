@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { Brain, Globe, LineChart, Settings, Shield } from "lucide-react";
+import { CircleHelp, Gift, Globe, LineChart, Settings, Sparkle, UserRound } from "lucide-react";
 import { Dialog as DialogRoot } from "@/components/ui/dialog";
 import { SheetContent } from "@/components/ui/sheet";
 import { usePrototype } from "@/store/prototype-store";
@@ -70,12 +70,22 @@ export function MoreSheet({
             </li>
           ))}
         </ul>
+        <Link to="/usage" onClick={close} className="mt-4 block rounded-xl bg-paper-2 p-3">
+          <div className="flex items-center gap-2 text-sm font-medium">
+            <Sparkle className="size-4 text-mark" aria-hidden />
+            Plan & usage
+          </div>
+          <p className="mt-1 text-xs leading-relaxed text-ink-2">
+            Usage limits are not configured yet. This will show the real plan when pricing is set.
+          </p>
+        </Link>
         <ul className="mt-3 grid gap-1">
           {embed ? null : <MoreLink to="/" onClick={close} icon={Globe} label="Website" />}
-          <MoreLink to="/business" onClick={close} icon={Brain} label="Brain" />
-          <MoreLink to="/trust" onClick={close} icon={Shield} label="Trust" />
           <MoreLink to="/insights" onClick={close} icon={LineChart} label="Insights" />
+          <MoreLink to="/refer" onClick={close} icon={Gift} label="Refer a friend" />
+          <MoreLink to="/support" onClick={close} icon={CircleHelp} label="Help & support" />
           <MoreLink to="/settings" onClick={close} icon={Settings} label="Settings" />
+          <MoreLink to="/account" onClick={close} icon={UserRound} label="Account" />
         </ul>
         {embed ? null : (
           <div className="mt-5 border-t border-line pt-4">
@@ -132,9 +142,9 @@ function MoreLink({
   icon: Icon,
   label,
 }: {
-  to: "/" | "/business" | "/trust" | "/insights" | "/settings";
+  to: "/" | "/account" | "/business" | "/insights" | "/refer" | "/settings" | "/support" | "/usage";
   onClick: () => void;
-  icon: typeof Brain;
+  icon: typeof Globe;
   label: string;
 }) {
   return (

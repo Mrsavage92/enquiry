@@ -405,9 +405,9 @@ export function Intelligence({
                     </button>
                     <ConfidenceBadge confidence={enquiry.decision.confidence} />
                     {enquiry.decision.risk === "PROHIBITED_AUTO" ? (
-                      <Badge tone="danger">Autopilot blocked</Badge>
+                      <Badge tone="danger">Owner review required</Badge>
                     ) : enquiry.decision.automationEligible ? (
-                      <Badge tone="ok">Autopilot-ready</Badge>
+                      <Badge tone="ok">Safeguards clear</Badge>
                     ) : null}
                   </div>
                 </section>
@@ -416,11 +416,11 @@ export function Intelligence({
               {!compact &&
               (enquiry.decision.automationEligible || enquiry.decision.failedGates.length > 0) ? (
                 <section className="border-b border-line px-5 py-5">
-                  <p className="eyebrow">Autopilot</p>
+                  <p className="eyebrow">Send safeguards</p>
                   {enquiry.decision.automationEligible ? (
                     <p className="mt-2 text-sm leading-relaxed text-ink-2">
-                      This action class has evidence. Nothing sends on its own until you allow it in
-                      Trust. High-risk classes stay blocked.
+                      The evidence needed for this next step is available. Enquiry still does not
+                      send it for you; review the reply, send it yourself, then record it here.
                     </p>
                   ) : (
                     <ul className="mt-2 space-y-1 text-sm text-ink-2">
