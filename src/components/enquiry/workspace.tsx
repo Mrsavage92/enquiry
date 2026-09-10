@@ -1,4 +1,5 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import { ArrowLeft, ArrowRight, CircleHelp, Mail, MapPin, PanelRightOpen } from "lucide-react";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useNarrow } from "@/lib/use-narrow";
 import { usePrototype } from "@/store/prototype-store";
@@ -14,8 +15,13 @@ import { filteredEnquiries } from "@/domain/labels";
 import { isFramed } from "@/lib/embed";
 import { mayPlayDemoArrival } from "@/domain/live-demo-isolation";
 import { resolveSendKey } from "@/domain/send-keys";
+import { Badge } from "@/components/ui/badge";
+import { derivedLabel } from "@/domain/labels";
+import { statusTone } from "@/domain/status-tone";
+import { identityLine } from "@/domain/format";
 
 export function EnquiryWorkspace({ enquiryId }: { enquiryId?: string }) {
+  const [detailsOpen, setDetailsOpen] = useState(false);
   const mobile = useNarrow(860);
   const enquiries = usePrototype((s) => s.enquiries);
   const businessFilter = usePrototype((s) => s.businessFilter);
@@ -152,7 +158,7 @@ export function EnquiryWorkspace({ enquiryId }: { enquiryId?: string }) {
         <p className="mt-2 text-sm leading-relaxed text-ink-2">
           {merged
             ? `The resend was added to ${merged.toName}. Enquiry does not keep two cards for the same job.`
-            : "It isn’t in the current fixture set - it may have been merged, or this workspace was reset."}
+            : "It may have been removed or merged, or you may be in a different workspace."}
         </p>
         <div className="mt-5 flex flex-wrap gap-2">
           {merged ? (
@@ -179,34 +185,85 @@ export function EnquiryWorkspace({ enquiryId }: { enquiryId?: string }) {
   }
 
   return (
-    <div className="flex h-full min-h-0 flex-col overflow-hidden bg-paper">
+    <div className="flex h-full min-h-0 flex-col overflow-hidden bg-raised">
       {enquiry ? (
         <>
-          <header className="shrink-0 border-b border-line bg-raised px-5 py-4">
-            <Button asChild variant="ghost" size="sm" className="px-0 text-stone">
-              <Link to="/today">Back to Today</Link>
-            </Button>
-            <div className="mt-3 flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
-              <div>
-                <h1 className="text-3xl font-semibold leading-tight">{enquiry.customerName}</h1>
-                <p className="mt-2 text-sm text-ink-2">
-                  {enquiry.serviceLabel}
-                  {enquiry.dateLabel ? ` · ${enquiry.dateLabel}` : ""}
-                  {enquiry.locationLabel ? ` · ${enquiry.locationLabel}` : ""}
-                </p>
+          <header className="enquiry-header">
+            <Link
+              to="/enquiries"
+              className="enquiry-back"
+              aria-label="Back to enquiries"
+              title="Back to enquiries"
+            >
+              <ArrowLeft size={18} />
+            </Link>
+            <span className="customer-avatar" aria-hidden>
+              {enquiry.customerName
+                .split(/\s+/)
+                .map((n) => n[0])
+                .slice(0, 2)
+                .join("")}
+            </span>
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-center gap-3">
+                <h1>{enquiry.customerName}</h1>
+                <Badge tone={statusTone(enquiry)}>{derivedLabel(enquiry.state, enquiry)}</Badge>
               </div>
-              <Button asChild variant="secondary" size="sm">
-                <Link to="/enquiries">All enquiries</Link>
-              </Button>
+              <p>
+                {enquiry.serviceLabel}
+                {enquiry.dateLabel ? ` · ${enquiry.dateLabel}` : ""}
+              </p>
             </div>
+            <Button
+              variant="ghost"
+              size="icon"
+              aria-label="Enquiry details"
+              title="Enquiry details"
+              onClick={() => setDetailsOpen(true)}
+            >
+              <PanelRightOpen size={19} />
+            </Button>
           </header>
-          <div className="grid min-h-0 flex-1 overflow-hidden xl:grid-cols-[minmax(0,1fr)_minmax(24rem,30rem)]">
-            <div key={`${enquiry.id}-conversation`} className="hidden min-h-0 xl:block">
-              <Conversation enquiry={enquiry} />
+          <div className="enquiry-work-grid">
+            <div className="enquiry-conversation-scroll" key={enquiry.id}>
+              <Conversation enquiry={enquiry} embedded />
+              <Intelligence
+                enquiry={enquiry}
+                inline
+                detailsOpen={detailsOpen}
+                onDetailsOpenChange={setDetailsOpen}
+              />
             </div>
-            <div key={`${enquiry.id}-intelligence`} className="min-h-0">
-              <Intelligence enquiry={enquiry} />
-            </div>
+            <aside className="enquiry-context">
+              <div className="ui-section-heading">
+                <CircleHelp size={17} className="text-mark" aria-hidden />
+                <h2>Why this reply?</h2>
+              </div>
+              <ul className="context-reasons">
+                {enquiry.decision.why.slice(0, 3).map((reason) => (
+                  <li key={reason.id}>
+                    <p>{reason.claim}</p>
+                    <span>{reason.evidence}</span>
+                  </li>
+                ))}
+              </ul>
+              <button className="ui-text-link" onClick={() => setDetailsOpen(true)}>
+                View full details <ArrowRight size={15} aria-hidden />
+              </button>
+              <section className="context-customer">
+                <h2>Customer details</h2>
+                <p>
+                  <Mail size={16} aria-hidden />
+                  <span>{identityLine(enquiry)}</span>
+                </p>
+                {enquiry.locationLabel ? (
+                  <p>
+                    <MapPin size={16} aria-hidden />
+                    <span>{enquiry.locationLabel}</span>
+                  </p>
+                ) : null}
+              </section>
+            </aside>
           </div>
         </>
       ) : (

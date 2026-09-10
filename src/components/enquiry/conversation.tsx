@@ -17,14 +17,17 @@ import { QuoteSheet } from "./quote-sheet";
 export function Conversation({
   enquiry,
   compact = false,
+  embedded = false,
 }: {
   enquiry: Enquiry;
   compact?: boolean;
+  embedded?: boolean;
 }) {
   const endRef = useRef<HTMLLIElement>(null);
   const channel = enquiry.source;
 
   useEffect(() => {
+    if (embedded && enquiry.conversation.length <= 1) return;
     const el = endRef.current;
     if (!el) return;
     let pane: HTMLElement | null = el.parentElement;
@@ -36,11 +39,17 @@ export function Conversation({
       }
       pane = pane.parentElement;
     }
-  }, [enquiry.conversation.length, compact]);
+  }, [enquiry.conversation.length, compact, embedded]);
 
   return (
-    <div className={cn("flex min-h-0 flex-col bg-paper", compact ? "" : "h-full")}>
-      {compact ? null : (
+    <div
+      className={cn(
+        "flex min-h-0 flex-col",
+        embedded ? "conversation-embedded" : "bg-paper",
+        compact || embedded ? "" : "h-full",
+      )}
+    >
+      {compact || embedded ? null : (
         <header className="border-b border-line bg-raised px-6 py-4">
           <p className="eyebrow">{threadLabel(channel)}</p>
           <h2 className="mt-1 text-lg font-semibold tracking-tight">{enquiry.customerName}</h2>
@@ -53,7 +62,11 @@ export function Conversation({
       <ol
         className={cn(
           "mx-auto w-full max-w-xl",
-          compact ? "px-4 py-4" : "min-h-0 flex-1 overflow-y-auto px-6 py-7",
+          embedded
+            ? "px-6 py-6"
+            : compact
+              ? "px-4 py-4"
+              : "min-h-0 flex-1 overflow-y-auto px-6 py-7",
         )}
       >
         {enquiry.conversation.map((m, i) => (

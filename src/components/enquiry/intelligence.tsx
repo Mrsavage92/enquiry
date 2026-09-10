@@ -55,16 +55,24 @@ import { DeclineConfirm } from "./decline-confirm";
 export function Intelligence({
   enquiry,
   compact = false,
+  inline = false,
+  detailsOpen,
+  onDetailsOpenChange,
   onDone,
 }: {
   enquiry: Enquiry;
   compact?: boolean;
+  inline?: boolean;
+  detailsOpen?: boolean;
+  onDetailsOpenChange?: (open: boolean) => void;
   onDone?: () => void;
 }) {
   const [whyOpen, setWhyOpen] = useState(false);
-  const [evidenceOpen, setEvidenceOpen] = useState(false);
+  const [internalEvidenceOpen, setInternalEvidenceOpen] = useState(false);
+  const evidenceOpen = detailsOpen ?? internalEvidenceOpen;
+  const setEvidenceOpen = onDetailsOpenChange ?? setInternalEvidenceOpen;
   const [correcting, setCorrecting] = useState<EnquiryFact | null>(null);
-  const [draftOpen, setDraftOpen] = useState(!compact);
+  const [draftOpen, setDraftOpen] = useState(!compact && !inline);
   const [sendConfirm, setSendConfirm] = useState(false);
   // The server-frozen artefact this preview is about, and why the server would
   // not let it proceed. Both cleared every time the preview is opened afresh.
@@ -138,6 +146,12 @@ export function Intelligence({
   const commercialAction = rec.action === "SEND_QUOTE" || rec.action === "SEND_ESTIMATE";
   const awaitingService = serviceUnconfirmed && commercialAction;
   const sendable = isSendableAction(rec.action);
+  const awaitingOutcome =
+    enquiry.state.lifecycle === "BOOKED" ||
+    (enquiry.state.decision === "WAITING_ON_CLIENT" &&
+      (enquiry.state.commercial === "QUOTED" ||
+        enquiry.state.commercial === "ESTIMATED" ||
+        enquiry.state.commercial === "ACCEPTED"));
   const reply = replyChannel(enquiry);
   const firstBeta = useFirstBetaActions();
   const [sending, setSending] = useState(false);
@@ -253,25 +267,31 @@ export function Intelligence({
   return (
     <div
       className={cn(
-        "flex flex-col bg-raised xl:border-l xl:border-line",
-        compact ? "min-h-0 flex-1 overflow-hidden" : "h-full min-h-0 overflow-hidden",
+        "flex flex-col bg-raised",
+        inline
+          ? "inline-reply"
+          : compact
+            ? "min-h-0 flex-1 overflow-hidden"
+            : "h-full min-h-0 overflow-hidden xl:border-l xl:border-line",
       )}
     >
       <div
         className={cn(
           "relative min-h-0",
-          compact ? "flex flex-1 flex-col overflow-hidden" : "flex-1 overflow-hidden",
+          inline ? "" : compact ? "flex flex-1 flex-col overflow-hidden" : "flex-1 overflow-hidden",
         )}
       >
         <div
           ref={panelScrollRef}
           className={cn(
-            compact
-              ? "flex min-h-0 flex-1 flex-col overflow-hidden"
-              : "h-full overflow-y-auto pb-4",
+            inline
+              ? ""
+              : compact
+                ? "flex min-h-0 flex-1 flex-col overflow-hidden"
+                : "h-full overflow-y-auto pb-4",
           )}
         >
-          {!compact ? (
+          {!compact && !inline ? (
             // Sticky within this div's own overflow-y-auto, not the window -
             // the business line and the decision-state badge are the
             // one-word answer to "what state is this enquiry in", and a
@@ -300,6 +320,7 @@ export function Intelligence({
           ) : null}
 
           {firstHint &&
+          !inline &&
           !compact &&
           (enquiry.fixtureId === "F01" || enquiry.fixtureId === "LIVE") ? (
             <div className="border-b border-line px-5 py-3" role="status">
@@ -365,9 +386,9 @@ export function Intelligence({
             </div>
           ) : null}
 
-          {!evaluating ? (
+          {!evaluating && !(inline && awaitingOutcome) ? (
             <>
-              {compact ? null : (
+              {compact && !inline ? null : (
                 <section className="border-b border-line px-5 py-5" aria-labelledby="rec-heading">
                   {situation && !sendable ? (
                     <p id="rec-heading" className="text-sm leading-relaxed text-ink-2">
@@ -376,10 +397,17 @@ export function Intelligence({
                   ) : (
                     <>
                       <p id="rec-heading" className="eyebrow-decision">
-                        Recommendation
+                        {inline ? "Suggested next step" : "Recommendation"}
                       </p>
                       <p className="mt-2 text-xl font-semibold leading-snug tracking-tight">
-                        {rec.label}
+                        {inline &&
+                        sendable &&
+                        rec.primaryEnabled &&
+                        !awaitingService &&
+                        !rec.blockedReason &&
+                        !blocked
+                          ? "Your reply is ready"
+                          : rec.label}
                       </p>
                       {recReasonIsMissingReason ? null : (
                         <p className="mt-2 text-sm leading-relaxed text-ink-2">{rec.reason}</p>
@@ -401,19 +429,50 @@ export function Intelligence({
                       }}
                     >
                       <CircleHelp className="size-4" aria-hidden />
-                      Why?
+                      {inline ? "Why this reply?" : "Why?"}
                     </button>
-                    <ConfidenceBadge confidence={enquiry.decision.confidence} />
+                    {!inline || enquiry.decision.confidence === "Low" ? (
+                      <ConfidenceBadge confidence={enquiry.decision.confidence} />
+                    ) : null}
                     {enquiry.decision.risk === "PROHIBITED_AUTO" ? (
                       <Badge tone="danger">Owner review required</Badge>
-                    ) : enquiry.decision.automationEligible ? (
+                    ) : enquiry.decision.automationEligible && !inline ? (
                       <Badge tone="ok">Safeguards clear</Badge>
                     ) : null}
                   </div>
                 </section>
               )}
 
+              {inline &&
+              enquiry.decision.failedGates.some(
+                (gate) => !/^Action class .* is set to /i.test(gate),
+              ) ? (
+                <div className="mx-5 mb-3 rounded-lg bg-warn-bg p-3 text-sm text-warn">
+                  <ul className="space-y-2">
+                    {enquiry.decision.failedGates
+                      .filter((gate) => !/^Action class .* is set to /i.test(gate))
+                      .map((gate) => (
+                        <li key={gate}>
+                          {(
+                            {
+                              "PricingResult ERROR": "Pricing could not be verified",
+                              "Conflicting authoritative rules": "Your confirmed prices disagree",
+                              "Risk class PROHIBITED_AUTO": "This requires your personal review",
+                              "Public surface - Autopilot blocked":
+                                "Public replies require your review",
+                              "Material service mapping below safe threshold":
+                                "The requested service is not clear enough to quote",
+                              "Follow-up action class is Ask every time":
+                                "Follow-ups require your approval",
+                            } as Record<string, string>
+                          )[gate] ?? gate}
+                        </li>
+                      ))}
+                  </ul>
+                </div>
+              ) : null}
               {!compact &&
+              !inline &&
               (enquiry.decision.automationEligible || enquiry.decision.failedGates.length > 0) ? (
                 <section className="border-b border-line px-5 py-5">
                   <p className="eyebrow">Send safeguards</p>
@@ -466,7 +525,7 @@ export function Intelligence({
                 </section>
               ) : null}
 
-              {quoteSheets(enquiry).length > 0 ? (
+              {inline ? null : quoteSheets(enquiry).length > 0 ? (
                 <QuoteSheets enquiry={enquiry} business={business} compact={compact} />
               ) : compact || commercial.kind === "not_applicable" ? null : (
                 <section className="border-b border-line px-5 py-5" aria-labelledby="value-heading">
@@ -477,7 +536,7 @@ export function Intelligence({
                 </section>
               )}
 
-              {!compact && applicable.length > 0 ? (
+              {!compact && !inline && applicable.length > 0 ? (
                 <section className="border-b border-line px-5 py-5" aria-labelledby="evals-heading">
                   <p id="evals-heading" className="eyebrow">
                     What can be decided now
@@ -500,7 +559,7 @@ export function Intelligence({
                 </section>
               ) : null}
 
-              {!compact ? (
+              {!compact && !inline ? (
                 <section className="border-b border-line px-5 py-5" aria-labelledby="facts-heading">
                   <p id="facts-heading" className="eyebrow">
                     What Enquiry understood
@@ -518,17 +577,22 @@ export function Intelligence({
                 </section>
               ) : null}
 
-              {!compact && !evaluating ? <CaseFile enquiry={enquiry} /> : null}
+              {!compact && !inline && !evaluating ? <CaseFile enquiry={enquiry} /> : null}
 
               {compact ? (
-                <section className="flex min-h-0 flex-1 flex-col px-5 pb-2 pt-1">
+                <section
+                  className={cn("px-5 pb-2 pt-1", !inline && "flex min-h-0 flex-1 flex-col")}
+                >
                   <button
                     type="button"
-                    className="min-h-32 flex-1 overflow-y-auto rounded-xl bg-raised px-4 py-4 text-left shadow-border active:bg-paper"
+                    className={cn(
+                      "w-full rounded-lg bg-raised px-4 py-4 text-left active:bg-paper",
+                      !inline && "min-h-32 flex-1 overflow-y-auto shadow-border",
+                    )}
                     onClick={() => setDraftOpen(true)}
                     aria-label="Edit reply"
                   >
-                    <p className="eyebrow">Reply</p>
+                    <p className="eyebrow">Prepared reply</p>
                     <p
                       className={cn(
                         "letter-body mt-3 whitespace-pre-wrap",
@@ -591,7 +655,11 @@ export function Intelligence({
                       aria-expanded={draftOpen}
                     >
                       <p id="draft-heading" className="eyebrow">
-                        Prepared {short ? "message" : "reply"}
+                        {inline
+                          ? draftOpen
+                            ? "Finish editing"
+                            : "Read & edit reply"
+                          : `Prepared ${short ? "message" : "reply"}`}
                       </p>
                       <ChevronDown
                         className={cn(
@@ -609,10 +677,12 @@ export function Intelligence({
                         value={draftBody}
                         onChange={(e) => editDraft(enquiry.id, e.target.value)}
                         onBlur={() => considerVoice(enquiry.id)}
-                        rows={short ? 5 : 10}
+                        rows={inline ? 7 : short ? 5 : 10}
                         className={cn("field leading-relaxed", short ? "font-sans" : "font-serif")}
                       />
                     </label>
+                  ) : inline ? (
+                    <p className="inline-reply-body">{draftBody || "No reply prepared."}</p>
                   ) : null}
                   {priceDrift ? (
                     <p className="mt-3 text-sm text-warn">
@@ -668,7 +738,7 @@ export function Intelligence({
             </>
           ) : null}
         </div>
-        {!compact ? (
+        {!compact && !inline ? (
           // Only the "more below" cue: a top fade would sit under the
           // sticky header above (already opaque, already the "scrolled
           // away from the top" signal) rather than adding a second one.
@@ -684,15 +754,11 @@ export function Intelligence({
       >
         {evaluating ? (
           <p className="text-sm text-stone">Wait until Enquiry finishes reading.</p>
-        ) : enquiry.state.lifecycle === "BOOKED" ||
-          (enquiry.state.decision === "WAITING_ON_CLIENT" &&
-            (enquiry.state.commercial === "QUOTED" ||
-              enquiry.state.commercial === "ESTIMATED" ||
-              enquiry.state.commercial === "ACCEPTED")) ? (
+        ) : awaitingOutcome ? (
           <WaitingDesk enquiry={enquiry} onDone={onDone} />
         ) : (
           <div className="flex flex-col gap-2">
-            {compact && sendable ? (
+            {compact && !inline && sendable ? (
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <button
                   type="button"
@@ -731,7 +797,13 @@ export function Intelligence({
                   void openReview();
                 }}
               >
-                {sending ? "Recording…" : awaitingService ? "Confirm the service first" : rec.label}
+                {sending
+                  ? "Preparing review..."
+                  : awaitingService
+                    ? "Confirm the service first"
+                    : inline
+                      ? "Review reply"
+                      : rec.label}
               </Button>
             ) : situation ? (
               <p className="text-sm text-ink-2">Settle the detail above first.</p>
@@ -766,15 +838,11 @@ export function Intelligence({
               <p className="text-sm text-danger">{rec.blockedReason}</p>
             ) : sendable && !compact ? (
               <p className="text-xs text-stone">
-                One primary action. Editing the draft does not change
-                {commercial.kind === "not_applicable"
-                  ? " the decision."
-                  : " the price or feasibility."}
-                {" Enquiry does not send from here - you send it, then record it."}
+                You send from your own inbox, then record it here.
               </p>
             ) : sendable && compact ? (
               <p className="text-xs text-stone">
-                Enquiry does not send from here - you send it, then record it.
+                You send from your own inbox, then record it here.
               </p>
             ) : null}
             {sendable || enquiry.state.lifecycle === "OPEN" ? (
@@ -880,7 +948,25 @@ export function Intelligence({
       </Dialog>
 
       <Dialog open={evidenceOpen} onOpenChange={setEvidenceOpen}>
-        <Panel title="Evidence">
+        <Panel title="Enquiry details" className={compact ? undefined : "enquiry-details-drawer"}>
+          <p className="mb-4 text-sm text-stone">
+            {identityLine(enquiry)} · {channelLabel(enquiry.source)}
+          </p>
+          {quoteSheets(enquiry).length > 0 ? (
+            <QuoteSheets enquiry={enquiry} business={business} />
+          ) : null}
+          {enquiry.decision.failedGates.length > 0 ? (
+            <details className="my-5 text-sm">
+              <summary className="min-h-11 cursor-pointer py-3 font-medium">
+                Action safeguards
+              </summary>
+              <ul className="space-y-2 text-ink-2">
+                {enquiry.decision.failedGates.map((g) => (
+                  <li key={g}>{g}</li>
+                ))}
+              </ul>
+            </details>
+          ) : null}
           <dl className="space-y-2">
             {pricing ? <EvaluatorRow result={pricing} /> : null}
             {capacity ? <EvaluatorRow result={capacity} /> : null}
@@ -921,6 +1007,7 @@ export function Intelligence({
                 </li>
               ))}
           </ul>
+          <CaseFile enquiry={enquiry} />
         </Panel>
       </Dialog>
 
@@ -985,6 +1072,7 @@ export function Intelligence({
             rows={4}
             defaultValue={enquiry.notes ?? ""}
             id="enquiry-note"
+            aria-label="Private enquiry note"
           />
           <div className="mt-4 flex flex-col gap-2 sm:flex-row">
             <Button
@@ -1008,19 +1096,20 @@ export function Intelligence({
         <Dialog open={draftOpen} onOpenChange={setDraftOpen}>
           <SheetContent title={short ? "Message" : "Reply"}>
             <textarea
+              aria-label="Draft reply"
               value={draftBody}
               onChange={(e) => editDraft(enquiry.id, e.target.value)}
               onBlur={() => considerVoice(enquiry.id)}
               rows={short ? 6 : 10}
-              className={cn("field min-h-40 leading-relaxed", short ? "font-sans" : "font-serif")}
+              className="field min-h-24 max-h-[40dvh] font-sans leading-relaxed"
             />
             {grounded ? <p className="mt-2 text-xs text-stone">Grounded in {grounded}.</p> : null}
-            <div className="mt-3 flex justify-end">
+            <div className="mt-4 flex items-center gap-4">
               <HearLetter text={draftBody} compact />
+              <Button className="min-h-12 flex-1" onClick={() => setDraftOpen(false)}>
+                Done
+              </Button>
             </div>
-            <Button className="mt-4 min-h-12 w-full" onClick={() => setDraftOpen(false)}>
-              Done
-            </Button>
           </SheetContent>
         </Dialog>
       ) : null}

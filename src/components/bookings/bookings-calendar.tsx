@@ -5,7 +5,6 @@ import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
-import { PageHeader } from "@/components/ui/page-header";
 import { Segmented } from "@/components/ui/segmented";
 import {
   activeBookings,
@@ -64,11 +63,15 @@ export function BookingsCalendar({
 
   const todayKey = todayKeyInZone(new Date(), tz);
   const [view, setView] = useState<CalView>("day");
+  const [scheduleView, setScheduleView] = useState<"upcoming" | "past" | "calendar">(
+    initialDay || initialJob ? "calendar" : "upcoming",
+  );
   const [cursor, setCursor] = useState(
     initialDay && /^\d{4}-\d{2}-\d{2}$/.test(initialDay) ? initialDay : todayKey,
   );
   const [openId, setOpenId] = useState<string | null>(initialJob ?? null);
-  const openBooking = visible.find((b) => b.id === openId) ?? bookings.find((b) => b.id === openId) ?? null;
+  const openBooking =
+    visible.find((b) => b.id === openId) ?? bookings.find((b) => b.id === openId) ?? null;
 
   useEffect(() => {
     if (!initialJob) return;
@@ -87,33 +90,40 @@ export function BookingsCalendar({
   }).length;
   const holdDue = visible.filter(isHoldDue).length;
   const dayJobs = sortedOnDay(visible, cursor);
-  const wide = view === "week" && !phone ? "max-w-6xl" : view === "month" ? "max-w-3xl" : "max-w-2xl";
+  const scheduleDays = [...new Set(visible.map((job) => dayKeyFromIso(job.when)))]
+    .filter((day) => (scheduleView === "past" ? day < todayKey : day >= todayKey))
+    .sort((a, b) => (scheduleView === "past" ? b.localeCompare(a) : a.localeCompare(b)));
 
-  const summary = visible.length === 0
-    ? "Nothing handed off yet"
-    : [
-        `${weekCount} this week`,
-        weekSum ? formatAud(weekSum) : null,
-        holdDue ? `${holdDue} hold due` : null,
-      ]
-        .filter(Boolean)
-        .join(" · ");
+  const summary =
+    visible.length === 0
+      ? "Nothing handed off yet"
+      : [
+          `${weekCount} this week`,
+          weekSum ? formatAud(weekSum) : null,
+          holdDue ? `${holdDue} hold due` : null,
+        ]
+          .filter(Boolean)
+          .join(" · ");
 
   return (
-    <div className={cn("mx-auto px-4 py-5 pb-8 sm:py-8", wide)}>
-      {phone ? (
-        <header className="px-1 pb-1">
-          <p className="text-3xl font-semibold leading-tight">Booked</p>
-          <p className="mt-1 text-sm text-stone">{summary}</p>
-        </header>
-      ) : (
-        <PageHeader
-          title="Booked"
-          description="Upcoming and past work from accepted quotes. Open decisions stay in Today."
-        >
-          <p className="mt-3 text-sm text-stone">{summary}</p>
-        </PageHeader>
-      )}
+    <div className="ui-page booked-page">
+      <header className="ui-page-header">
+        <div>
+          <h1>Booked</h1>
+          <p className="ui-page-description">{summary}</p>
+        </div>
+      </header>
+      <Segmented
+        ariaLabel="Booking schedule"
+        value={scheduleView}
+        onChange={setScheduleView}
+        options={[
+          { id: "upcoming", label: "Upcoming" },
+          { id: "past", label: "Past" },
+          { id: "calendar", label: "Calendar" },
+        ]}
+        fullWidth={phone}
+      />
 
       {visible.length === 0 ? (
         <EmptyState
@@ -125,6 +135,38 @@ export function BookingsCalendar({
             </Button>
           }
         />
+      ) : scheduleView !== "calendar" ? (
+        <div className="booking-schedule">
+          {scheduleDays.length ? (
+            scheduleDays.map((day) => (
+              <DayAgenda
+                key={day}
+                dayKey={day}
+                jobs={sortedOnDay(visible, day)}
+                all={visible}
+                onOpen={setOpenId}
+              />
+            ))
+          ) : (
+            <EmptyState
+              title={scheduleView === "past" ? "No past bookings" : "No upcoming bookings"}
+              body={
+                scheduleView === "past"
+                  ? "Completed dates will appear here."
+                  : "Accepted work will appear here when a booking is recorded."
+              }
+              action={
+                scheduleView === "upcoming" &&
+                visible.some((job) => dayKeyFromIso(job.when) < todayKey) ? (
+                  <Button variant="ghost" size="sm" onClick={() => setScheduleView("past")}>
+                    View past bookings
+                    <ChevronRight size={15} aria-hidden />
+                  </Button>
+                ) : undefined
+              }
+            />
+          )}
+        </div>
       ) : (
         <>
           <div className="mt-5 flex items-center gap-2">
@@ -149,7 +191,12 @@ export function BookingsCalendar({
           </div>
 
           {view === "day" ? (
-            <WeekStrip bookings={visible} cursor={cursor} todayKey={todayKey} onSelect={setCursor} />
+            <WeekStrip
+              bookings={visible}
+              cursor={cursor}
+              todayKey={todayKey}
+              onSelect={setCursor}
+            />
           ) : null}
 
           {view === "day" ? (
@@ -191,7 +238,11 @@ export function BookingsCalendar({
         </>
       )}
 
-      <JobSheet booking={openBooking} open={Boolean(openBooking)} onOpenChange={(v) => !v && setOpenId(null)} />
+      <JobSheet
+        booking={openBooking}
+        open={Boolean(openBooking)}
+        onOpenChange={(v) => !v && setOpenId(null)}
+      />
     </div>
   );
 }
@@ -260,7 +311,12 @@ function WeekStrip({
                   />
                 ))}
                 {jobs.length === 0 && isToday ? (
-                  <span className={cn("block h-0.5 w-3 rounded-full", selectedDay ? "bg-paper/80" : "bg-ink")} />
+                  <span
+                    className={cn(
+                      "block h-0.5 w-3 rounded-full",
+                      selectedDay ? "bg-paper/80" : "bg-ink",
+                    )}
+                  />
                 ) : null}
               </span>
             </button>
@@ -360,14 +416,16 @@ function AgendaRow({
         type="button"
         onClick={() => onOpen(job.id)}
         className={cn(
-              "flex w-full min-h-11 gap-3 rounded-xl bg-raised px-3 py-3 text-left shadow-border",
+          "booking-agenda-row flex w-full min-h-11 gap-3 border-b border-line bg-white px-1 py-4 text-left",
           now && "job-now",
           holdDue && "job-hold",
         )}
       >
         <div className="w-14 shrink-0 pt-0.5">
           <p className="text-sm font-medium tabular-nums leading-tight">{formatTime(job.when)}</p>
-          {long ? <p className="mt-0.5 text-2xs tabular-nums text-stone">{formatTime(end)}</p> : null}
+          {long ? (
+            <p className="mt-0.5 text-2xs tabular-nums text-stone">{formatTime(end)}</p>
+          ) : null}
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex items-baseline justify-between gap-3">
@@ -469,7 +527,12 @@ function PhoneWeek({
               onClick={() => onSelectDay(key)}
               className="flex min-h-11 w-full items-baseline justify-between gap-3 py-2 text-left"
             >
-              <p className={cn("text-sm", isToday || selected ? "font-medium text-ink" : "text-stone")}>
+              <p
+                className={cn(
+                  "text-sm",
+                  isToday || selected ? "font-medium text-ink" : "text-stone",
+                )}
+              >
                 {isToday ? "Today · " : ""}
                 {formatWeekdayMed(d)} {d.getDate()}
               </p>
@@ -487,7 +550,9 @@ function PhoneWeek({
                 <span className="min-w-0 truncate">
                   <span className="tabular-nums text-stone">{formatTime(job.when)}</span>
                   <span className="ml-2 font-medium">{job.customerName}</span>
-                  {isHoldDue(job) ? <span className="ml-1.5 text-sm text-warn">Hold due</span> : null}
+                  {isHoldDue(job) ? (
+                    <span className="ml-1.5 text-sm text-warn">Hold due</span>
+                  ) : null}
                   {happeningNow(job) ? <span className="ml-1.5 text-sm text-ok">Now</span> : null}
                 </span>
                 {job.value && jobs.length > 1 ? (
@@ -529,11 +594,16 @@ function WeekGrid({
   const now = wallNow();
   const nowKey = dayKeyFromDate(now);
   const nowInWeek = nowKey >= dayKeyFromDate(days[0]!) && nowKey <= dayKeyFromDate(days[6]!);
-  const nowTop = nowInWeek ? ((now.getHours() * 60 + now.getMinutes()) / 60 - startHour) * PX_PER_HOUR : null;
+  const nowTop = nowInWeek
+    ? ((now.getHours() * 60 + now.getMinutes()) / 60 - startHour) * PX_PER_HOUR
+    : null;
 
   return (
     <div className="mt-5 overflow-x-auto">
-      <div className="grid min-w-0" style={{ gridTemplateColumns: "3rem repeat(7, minmax(0, 1fr))" }}>
+      <div
+        className="grid min-w-0"
+        style={{ gridTemplateColumns: "3rem repeat(7, minmax(0, 1fr))" }}
+      >
         <div />
         {days.map((d) => {
           const key = dayKeyFromDate(d);
@@ -552,7 +622,9 @@ function WeekGrid({
               )}
             >
               <span className="text-2xs font-medium">{formatWeekdayMed(d)}</span>
-              <span className="text-base font-semibold tabular-nums leading-none">{d.getDate()}</span>
+              <span className="text-base font-semibold tabular-nums leading-none">
+                {d.getDate()}
+              </span>
             </button>
           );
         })}
@@ -586,7 +658,10 @@ function WeekGrid({
                 />
               ))}
               {isToday && nowTop != null && nowTop >= 0 && nowTop <= height ? (
-                <div className="pointer-events-none absolute inset-x-0 z-10" style={{ top: nowTop }}>
+                <div
+                  className="pointer-events-none absolute inset-x-0 z-10"
+                  style={{ top: nowTop }}
+                >
                   <span className="absolute -left-1 top-1/2 size-1.5 -translate-y-1/2 rounded-full bg-ink" />
                   <span className="block h-px bg-ink/80" />
                 </div>
@@ -618,12 +693,16 @@ function WeekGrid({
                       width: `calc(${width}% - 4px)`,
                     }}
                   >
-                    <p className="truncate text-2xs font-medium leading-tight">{job.customerName}</p>
+                    <p className="truncate text-2xs font-medium leading-tight">
+                      {job.customerName}
+                    </p>
                     {h >= 36 ? (
                       <p className="truncate text-2xs text-stone">{formatTime(job.when)}</p>
                     ) : null}
                     {h >= 52 ? (
-                      <p className="truncate text-2xs text-stone">{job.location ?? job.serviceLabel}</p>
+                      <p className="truncate text-2xs text-stone">
+                        {job.location ?? job.serviceLabel}
+                      </p>
                     ) : null}
                   </button>
                 );
@@ -702,10 +781,7 @@ function MonthGrid({
               type="button"
               disabled={!inMonth}
               onClick={() => inMonth && onSelect(key)}
-              className={cn(
-                "flex flex-col items-center gap-1 py-1.5",
-                !inMonth && "text-stone/40",
-              )}
+              className={cn("flex flex-col items-center gap-1 py-1.5", !inMonth && "text-stone/40")}
             >
               <span
                 className={cn(

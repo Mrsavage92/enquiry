@@ -4,7 +4,15 @@ Updated: 2026-09-10 (Australia/Brisbane).
 
 ## Active slice: UI1 - Core experience redesign
 
-**Status: AUTHORISED FOR IMPLEMENTATION. Not deployed, merged to production or signed off.**
+**Status: UI1 CORE VISUAL REFINEMENT ACCEPTED BY THE ORIGINAL DESIGN REVIEW CHAT. Release approval remains separate.**
+
+PR #19 was merged and deployed, then rejected by the product owner and original design reviewer as an incomplete visual redesign. The corrective implementation is on `codex/ui1-visual-refinement`, based on main commit `47a8d29`. It has not been merged or deployed to production.
+
+The original ChatGPT design conversation reviewed actual before/after screenshots directly on 2026-09-10. Its final verdict was "UI1 core visual redesign: ACCEPTED", subject to checking the mobile reply tray. Browser viewport checks subsequently verified the reply action and complete editable text at reduced heights. Physical iOS/Android keyboard and safe-area testing is still a release QA limitation, not a claimed result.
+
+After reviewing the compact-editor and supporting-screen evidence, the original design chat closed its review: **"Design review: CLOSED / PASS."** No further design round was requested. Physical-device keyboard testing remains an outstanding release-QA item.
+
+See `docs/design/UI1_VISUAL_REFINEMENT_REVIEW.md` for scope, evidence, verification and limitations. This visual acceptance does not close beta readiness, production traffic, integration or correctness gates.
 
 Product-owner instruction on 2026-09-10: implement the UI1 core-experience redesign end-to-end on the dedicated `design/ui1-quiet-signal` branch. This is an authorised presentation and interaction-architecture reset, not a cosmetic spacing pass.
 
