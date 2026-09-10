@@ -347,12 +347,18 @@ export function WaitlistForm({
       <Button type="submit" variant={ctaVariant} className="min-h-12 px-6" disabled={busy}>
         {busy ? "Joining…" : ctaLabel}
       </Button>
+      {/*
+        The trailing "." used to be a text node of its own after </Link> - a
+        3px-wide node the rendered-pixel contrast sweep cannot resolve (it
+        graded the same glyph anywhere from 1.05:1 to 4.88:1 purely on
+        sub-pixel placement, see .style-mirror/section-log.md "roadmap").
+        Folded into the link's own text so the sentence ends in one node.
+      */}
       <p className={compact ? "w-full text-xs text-stone" : "text-xs text-stone"}>
         We’ll only email about Enquiry access.{" "}
         <Link to="/privacy" className="underline-offset-4 hover:underline">
-          Privacy
+          Privacy.
         </Link>
-        .
       </p>
     </form>
   );
