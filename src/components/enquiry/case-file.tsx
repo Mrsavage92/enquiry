@@ -1,4 +1,5 @@
 import { formatWhen } from "@/domain/format";
+import { messageStatusLabel } from "@/domain/labels";
 import type { Enquiry } from "@/domain/types";
 
 export function CaseFile({ enquiry }: { enquiry: Enquiry }) {
@@ -12,8 +13,8 @@ export function CaseFile({ enquiry }: { enquiry: Enquiry }) {
     ...enquiry.conversation.map((m) => ({
       id: m.id,
       at: m.at,
-      label: m.direction === "inbound" ? "They wrote" : "You sent",
-      detail: m.quoted ? "Quote sheet attached" : m.subject ?? m.body.slice(0, 72),
+      label: messageStatusLabel(m, { inbound: "They wrote", outbound: "You sent" }),
+      detail: m.quoted ? "Quote sheet attached" : (m.subject ?? m.body.slice(0, 72)),
     })),
     ...(enquiry.decision.changeDiff ?? []).map((d, i) => ({
       id: `diff-${i}`,

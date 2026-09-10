@@ -1122,6 +1122,7 @@ export const usePrototype = create<PrototypeState & Actions>()(
                 body: isShortChannel(replyChannel(enquiry))
                   ? "Yes that works. Please lock it in."
                   : "Yes - that works. Please lock it in.",
+                simulated: true as const,
               },
             ];
         next.conversation = [...next.conversation, ...inbound];
@@ -1143,6 +1144,7 @@ export const usePrototype = create<PrototypeState & Actions>()(
             quoteId: enquiry.decision.quotes.find(
               (q) => q.status === "sent" || q.status === "draft",
             )?.id,
+            simulated: true,
           });
         }
         next.state = {
@@ -1208,6 +1210,7 @@ export const usePrototype = create<PrototypeState & Actions>()(
             ? undefined
             : enquiry.decision.draft.subject,
           body: text,
+          simulated: true as const,
         };
         const withReply = structuredClone(enquiry);
         withReply.conversation = [...withReply.conversation, inbound];

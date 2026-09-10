@@ -5,6 +5,7 @@ import type {
   Enquiry,
   EnquiryFact,
   IntegrationHealth,
+  Message,
 } from "./types";
 
 /**
@@ -63,6 +64,26 @@ export function integrationStatusLabel(status: IntegrationHealth["status"]): str
     default:
       return "Not connected";
   }
+}
+
+/**
+ * The one place a message's direction becomes reader-facing text.
+ *
+ * A `simulated` message (the demo store's scripted client reply, or its
+ * "off-channel acceptance" theatre) never reads as "Received"/"Sent" or
+ * "They wrote"/"You sent" - those claim a real round trip through a real
+ * channel, and this message never took one. Callers pass their own pair of
+ * labels for the non-simulated case since conversation.tsx and case-file.tsx
+ * each use different wording for the same direction.
+ */
+export function messageStatusLabel(
+  message: Pick<Message, "direction" | "simulated">,
+  labels: { inbound: string; outbound: string },
+): string {
+  if (message.simulated) {
+    return message.direction === "inbound" ? "Simulated reply" : "Simulated";
+  }
+  return message.direction === "inbound" ? labels.inbound : labels.outbound;
 }
 
 export function derivedLabel(state: CompositeState, enquiry?: Enquiry): string {

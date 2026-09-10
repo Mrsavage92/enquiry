@@ -7,6 +7,7 @@ import {
   factStatusTone,
   filteredEnquiries,
   integrationStatusLabel,
+  messageStatusLabel,
   nextNeedsYou,
   pricingApplicability,
   queueFilterHasMatch,
@@ -86,6 +87,32 @@ test("every integration status has a human label - the raw snake_case value neve
 
 test("not_connected reads as Not connected", () => {
   assert.equal(integrationStatusLabel("not_connected"), "Not connected");
+});
+
+const CONVERSATION_LABELS = { inbound: "Received", outbound: "Sent" } as const;
+const CASE_FILE_LABELS = { inbound: "They wrote", outbound: "You sent" } as const;
+
+test("an ordinary message reads with the caller's own labels", () => {
+  assert.equal(messageStatusLabel({ direction: "inbound" }, CONVERSATION_LABELS), "Received");
+  assert.equal(messageStatusLabel({ direction: "outbound" }, CONVERSATION_LABELS), "Sent");
+  assert.equal(messageStatusLabel({ direction: "inbound" }, CASE_FILE_LABELS), "They wrote");
+  assert.equal(messageStatusLabel({ direction: "outbound" }, CASE_FILE_LABELS), "You sent");
+});
+
+test("a simulated message never reads as Received/Sent or They wrote/You sent, in either caller", () => {
+  // The demo store fabricates these (a scripted client reply, an "off-channel
+  // acceptance") - they never round-tripped a real channel, so no wording
+  // that claims a real round trip may reach the screen for them.
+  for (const labels of [CONVERSATION_LABELS, CASE_FILE_LABELS]) {
+    assert.equal(
+      messageStatusLabel({ direction: "inbound", simulated: true }, labels),
+      "Simulated reply",
+    );
+    assert.equal(
+      messageStatusLabel({ direction: "outbound", simulated: true }, labels),
+      "Simulated",
+    );
+  }
 });
 
 test("connected and not_connected never share a label", () => {

@@ -1,9 +1,4 @@
-export type LifecycleState =
-  | "OPEN"
-  | "BOOKED"
-  | "DECLINED"
-  | "LOST"
-  | "CANCELLED";
+export type LifecycleState = "OPEN" | "BOOKED" | "DECLINED" | "LOST" | "CANCELLED";
 
 export type DecisionState =
   | "EVALUATING"
@@ -14,19 +9,9 @@ export type DecisionState =
   | "BOOKING_PENDING"
   | "NONE";
 
-export type CommercialState =
-  | "UNASSESSED"
-  | "ESTIMATED"
-  | "QUOTABLE"
-  | "QUOTED"
-  | "ACCEPTED";
+export type CommercialState = "UNASSESSED" | "ESTIMATED" | "QUOTABLE" | "QUOTED" | "ACCEPTED";
 
-export type Responsibility =
-  | "SYSTEM"
-  | "BUSINESS"
-  | "CUSTOMER"
-  | "EXTERNAL_SYSTEM"
-  | "NONE";
+export type Responsibility = "SYSTEM" | "BUSINESS" | "CUSTOMER" | "EXTERNAL_SYSTEM" | "NONE";
 
 export type CompositeState = {
   lifecycle: LifecycleState;
@@ -70,52 +55,25 @@ export type CapacityKind =
   | "UNKNOWN_MISSING_FACTS"
   | "UNKNOWN_INTEGRATION"
   | "NOT_APPLICABLE";
-export type EligibilityKind =
-  | "PASS"
-  | "FAIL"
-  | "REQUIRES_EXCEPTION"
-  | "UNKNOWN"
-  | "NOT_APPLICABLE";
+export type EligibilityKind = "PASS" | "FAIL" | "REQUIRES_EXCEPTION" | "UNKNOWN" | "NOT_APPLICABLE";
 export type GenericEvalKind = "VALIDATED" | "BLOCKED" | "UNKNOWN" | "NOT_APPLICABLE";
 
 export type ConfidenceBand = "High" | "Medium" | "Low";
 export type RiskClass = "LOW" | "MEDIUM" | "HIGH" | "PROHIBITED_AUTO";
 
 export type FactAssertion = "customer" | "user" | "system";
-export type FactStatus =
-  | "confirmed"
-  | "inferred"
-  | "check_this"
-  | "unknown"
-  | "conflict"
-  | "range";
+export type FactStatus = "confirmed" | "inferred" | "check_this" | "unknown" | "conflict" | "range";
 
 export type KnowledgeState =
-  | "Proposed"
-  | "Confirmed"
-  | "Active"
-  | "Needs review"
-  | "Superseded"
-  | "Disabled";
+  "Proposed" | "Confirmed" | "Active" | "Needs review" | "Superseded" | "Disabled";
 
-export type KnowledgeClass =
-  | "authoritative"
-  | "operational"
-  | "interpretive"
-  | "customer_specific";
+export type KnowledgeClass = "authoritative" | "operational" | "interpretive" | "customer_specific";
 
 export type TrustMode = "Private" | "Observe" | "Assist" | "Autopilot";
 export type ActionPolicyMode = "Never" | "Ask every time" | "Automatic when safe";
 
 export type Channel =
-  | "email"
-  | "form"
-  | "forward"
-  | "manual"
-  | "sms"
-  | "instagram"
-  | "facebook"
-  | "comment";
+  "email" | "form" | "forward" | "manual" | "sms" | "instagram" | "facebook" | "comment";
 
 export type Money = {
   amount: number;
@@ -234,6 +192,8 @@ export type Message = {
   quoteId?: string;
   formFields?: { label: string; value: string }[];
   commentContext?: string;
+  /** Fabricated by the demo store (a scripted client reply or "off-channel" acceptance), not a message that actually round-tripped a channel. */
+  simulated?: true;
 };
 
 export type QuoteVersion = {
@@ -314,14 +274,7 @@ export type LearningSuggestion = {
 export type KnowledgeItem = {
   id: string;
   businessId: string;
-  section:
-    | "service"
-    | "pricing"
-    | "required_fact"
-    | "operating"
-    | "policy"
-    | "capacity"
-    | "alias";
+  section: "service" | "pricing" | "required_fact" | "operating" | "policy" | "capacity" | "alias";
   title: string;
   body: string;
   class: KnowledgeClass;
@@ -554,4 +507,3 @@ export type InstrumentationEvent = {
   action: string;
   at: number;
 };
-

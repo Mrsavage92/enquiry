@@ -6,6 +6,7 @@ import {
   isShortChannel,
   threadLabel,
 } from "@/domain/format";
+import { messageStatusLabel } from "@/domain/labels";
 import type { Enquiry, Message } from "@/domain/types";
 import { cn } from "@/lib/utils";
 import { useEffect, useRef, type Ref } from "react";
@@ -103,7 +104,7 @@ function MessageBlock({
         <div className={cn("flex", outbound ? "justify-end" : "justify-start")}>
           <div className={cn("max-w-[90%]", outbound && "text-right")}>
             <p className="text-2xs font-medium text-stone">
-              {outbound ? "Sent" : "Received"}
+              {messageStatusLabel(m, { inbound: "Received", outbound: "Sent" })}
               <span className="tabular-nums text-stone"> · {formatTime(m.at)}</span>
             </p>
             <div className={cn("msg mt-1 text-left", outbound ? "msg-out ml-auto" : "msg-in")}>
@@ -124,7 +125,8 @@ function MessageBlock({
         <p className="shrink-0 text-2xs tabular-nums text-stone">{formatWhen(m.at)}</p>
       </div>
       <p className="mt-0.5 text-2xs font-semibold uppercase tracking-wider text-stone">
-        {outbound ? "Sent" : "Received"} · {channelLabel(m.channel)}
+        {messageStatusLabel(m, { inbound: "Received", outbound: "Sent" })} ·{" "}
+        {channelLabel(m.channel)}
       </p>
       {m.commentContext ? <p className="mt-1 text-xs text-stone">{m.commentContext}</p> : null}
 
