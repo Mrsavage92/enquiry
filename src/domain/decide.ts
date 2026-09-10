@@ -68,13 +68,22 @@ export function activeRules(business: {
   return out;
 }
 
-/** The compiler only trusts confirmed facts, so hand it exactly what it needs. */
+/**
+ * The compiler only trusts confirmed facts, so hand it exactly what it needs.
+ *
+ * A superseded fact is dropped here rather than trusted to arrive pre-filtered:
+ * `serviceIsUnconfirmed`/`quantityFrom` in `price-compiler.ts` select a fact
+ * via plain `Array.find()`, so a stale superseded fact ordered before its
+ * replacement would otherwise decide the outcome by array order.
+ */
 export function toCompilerFacts(facts: EnquiryFact[]): CompilerFact[] {
-  return (facts ?? []).map((f) => ({
-    field: f.field,
-    value: f.value,
-    status: f.status,
-  }));
+  return (facts ?? [])
+    .filter((f) => !f.superseded)
+    .map((f) => ({
+      field: f.field,
+      value: f.value,
+      status: f.status,
+    }));
 }
 
 /**
@@ -200,7 +209,8 @@ export function validateFactAnswer(
 
   const selected = matchRule(rules, serviceLabel);
   const rule =
-    selected.kind === "one" && selected.rule.kind === "per_unit" &&
+    selected.kind === "one" &&
+    selected.rule.kind === "per_unit" &&
     norm(selected.rule.quantityField) === norm(field)
       ? selected.rule
       : quantityRules[0]!;

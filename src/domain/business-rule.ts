@@ -151,13 +151,17 @@ export function describeRule(rule: BusinessRule): string {
  * Two rules for the same service with different fingerprints DO disagree, and
  * that is a conflict the owner has to settle rather than one array order gets
  * to settle for them.
+ *
+ * `JSON.stringify` of the parts array, not a `|`-joined string: these fields
+ * are owner-typed prose and a literal `|` inside one would otherwise let two
+ * genuinely different rules collide on the same fingerprint.
  */
 export function ruleFingerprint(rule: BusinessRule): string {
   const norm = (s: string) => s.trim().toLowerCase();
   if (rule.kind === "fixed_price") {
-    return `fixed_price|${norm(rule.service)}|${rule.amount}|${rule.currency}`;
+    return JSON.stringify(["fixed_price", norm(rule.service), rule.amount, rule.currency]);
   }
-  return [
+  return JSON.stringify([
     "per_unit",
     norm(rule.service),
     rule.amount,
@@ -165,5 +169,5 @@ export function ruleFingerprint(rule: BusinessRule): string {
     norm(rule.unit),
     norm(rule.quantityField),
     rule.minimumQuantity ?? "",
-  ].join("|");
+  ]);
 }
