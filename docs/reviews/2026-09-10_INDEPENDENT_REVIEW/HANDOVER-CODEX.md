@@ -112,9 +112,9 @@ All on this machine, Windows 11, Node 22, in-memory PGLite (no `DATABASE_URL` se
 
 | Branch | tsc | eslint | targeted tests | full suite (`--test-concurrency=1`) |
 | --- | --- | --- | --- | --- |
-| `cc2/public-demo-honesty` @ `0221011` | clean | clean | 59/59 | FILL FROM full-suite-results.txt |
-| `cc2/live-controls` @ `f2c7fd9` | clean | clean | 25/25 | FILL FROM full-suite-results.txt |
-| `cc2/pricing-hardening` @ head | clean | clean | green | FILL FROM full-suite-results.txt |
+| `cc2/public-demo-honesty` @ `0221011` | clean | clean | 59/59 | 731/731, 0 fail (13:46) |
+| `cc2/live-controls` @ `f2c7fd9` | clean | clean | 25/25 | 727/727, 0 fail (13:52) |
+| `cc2/pricing-hardening` @ `61c9251` | clean | clean | 66/66 | 763/763, 0 fail (14:04) |
 
 `npm run build` succeeds on all three branches at the SHAs above (exit 0). The built client bundle on `cc2/public-demo-honesty` contains the "Simulated reply" string once and the other two branches contain it zero times, which is the expected split and the pre-merge content check for B2.
 
