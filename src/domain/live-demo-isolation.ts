@@ -67,6 +67,18 @@ export function mayRecordSendViaShortcut(_demoMode: boolean): boolean {
 }
 
 /**
+ * Whether the scripted demo client reply may land when its timer fires.
+ *
+ * The timer is armed 7.2 s after a demo send. A live handoff in between
+ * (`hydrateFromServer`, `markOnboardedLocally`) clears it, but this fire-time
+ * check is the guarantee: a fabricated customer reply never enters a live
+ * workspace, whatever was armed before the handoff.
+ */
+export function mayReceiveDemoReply(s: Pick<SessionShape, "demoMode">): boolean {
+  return s.demoMode;
+}
+
+/**
  * The public homepage's "Interactive demo" phone widget renders only in
  * demoMode. A signed-in operator who client-side navigates back to `/` keeps
  * their real store state, `demoMode: false` included - so `enquiries` here is

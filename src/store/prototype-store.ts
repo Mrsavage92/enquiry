@@ -41,6 +41,7 @@ import {
 } from "@/domain/commercial";
 import { shouldReleaseFollowUp } from "@/domain/working-hours";
 import { DEMO_ACCEPT_REPLY, detectClientIntent } from "@/domain/client-intent";
+import { mayReceiveDemoReply } from "@/domain/live-demo-isolation";
 import { bookingDraftFromEnquiry } from "@/domain/calendar";
 import { toast } from "sonner";
 
@@ -298,6 +299,13 @@ function bump(list: Enquiry[], next: Enquiry): Enquiry[] {
 let arriveTimer: ReturnType<typeof setTimeout> | null = null;
 let replyTimer: ReturnType<typeof setTimeout> | null = null;
 
+function clearReplyTimer() {
+  if (replyTimer) {
+    clearTimeout(replyTimer);
+    replyTimer = null;
+  }
+}
+
 export const usePrototype = create<PrototypeState & Actions>()(
   persist(
     (set, get) => ({
@@ -313,7 +321,8 @@ export const usePrototype = create<PrototypeState & Actions>()(
         }
         set({ ...seed(), onboarded: get().onboarded });
       },
-      hydrateFromServer: ({ businesses, enquiries, bookings, audit }) =>
+      hydrateFromServer: ({ businesses, enquiries, bookings, audit }) => {
+        clearReplyTimer();
         set((s) => ({
           businesses,
           enquiries,
@@ -379,11 +388,13 @@ export const usePrototype = create<PrototypeState & Actions>()(
           offline: false,
           offlineSimulated: false,
           networkOffline: false,
-        })),
+        }));
+      },
 
       // NOTE: the exact patch below is mirrored in src/store/live-handoff.test.ts,
       // which proves it satisfies the live/demo isolation rule. Change both.
       markOnboardedLocally: () => {
+        clearReplyTimer();
         set({
           onboarded: true,
           // Explicitly NOT demo: gates the sample arrival and sample sends.
@@ -1188,6 +1199,7 @@ export const usePrototype = create<PrototypeState & Actions>()(
       },
       receiveClientReply: (enquiryId, body) => {
         const s = get();
+        if (!mayReceiveDemoReply(s)) return;
         const enquiry = s.enquiries.find((e) => e.id === enquiryId);
         if (!enquiry) return;
         if (enquiry.state.decision !== "WAITING_ON_CLIENT") return;

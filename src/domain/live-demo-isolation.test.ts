@@ -8,6 +8,7 @@ import {
   mayShowFixtureContent,
 } from "./live-demo-isolation.ts";
 import type { LiveHandoffState } from "./live-demo-isolation.ts";
+import { mayReceiveDemoReply } from "./live-demo-isolation.ts";
 
 const live = { demoMode: false, onboarded: true, arrivalPlayed: false, framed: false };
 const demo = { demoMode: true, onboarded: true, arrivalPlayed: false, framed: false };
@@ -167,6 +168,11 @@ test("the demo phone widget returns nothing for a live session, even when enquir
 test("the demo phone widget returns the fixture in demo mode", () => {
   const enquiries = [{ id: "f01" }, { id: "f02" }];
   assert.deepEqual(demoPhoneEnquiry({ demoMode: true, enquiries }, "f02"), { id: "f02" });
+});
+
+test("the scripted demo reply cannot land in a live workspace when its timer fires", () => {
+  assert.equal(mayReceiveDemoReply({ demoMode: false }), false);
+  assert.equal(mayReceiveDemoReply({ demoMode: true }), true);
 });
 
 test("the demo phone widget never falls back to enquiries[0] for an unknown id", () => {
