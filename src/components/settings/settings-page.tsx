@@ -5,12 +5,12 @@ import { usePrototype } from "@/store/prototype-store";
 import { toast } from "sonner";
 import { InstallAppBlock } from "@/components/shell/install-app";
 import { useNarrow } from "@/lib/use-narrow";
+import { useLiveTrustMutations } from "@/lib/workspace/live-mutations";
 
 export function SettingsPage() {
   const businesses = usePrototype((s) => s.businesses);
   const filter = usePrototype((s) => s.businessFilter);
-  const pause = usePrototype((s) => s.pause);
-  const resume = usePrototype((s) => s.resume);
+  const trust = useLiveTrustMutations();
   const reset = usePrototype((s) => s.reset);
   const demoMode = usePrototype((s) => s.demoMode);
   const startSetup = usePrototype((s) => s.startSetup);
@@ -48,8 +48,8 @@ export function SettingsPage() {
                 variant={paused ? "secondary" : "warn"}
                 onClick={() => {
                   if (!id) return;
-                  if (paused) resume(id);
-                  else pause(id, "outbound");
+                  if (paused) void trust.resumeBusiness(id, (m) => toast.error(m));
+                  else void trust.pauseBusiness(id, "outbound", (m) => toast.error(m));
                 }}
               >
                 {paused ? "Resume Enquiry" : "Pause outbound"}

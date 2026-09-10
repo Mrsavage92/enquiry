@@ -175,6 +175,15 @@ type Actions = {
   setActionPolicy: (businessId: string, action: string, mode: ActionPolicyMode) => void;
   pause: (businessId: string, level: "outbound" | "all") => void;
   resume: (businessId: string) => void;
+  /**
+   * Restore one business to an earlier value, byte-identical.
+   *
+   * Backs the live write-through rollback in `live-mutations.ts`: pause,
+   * resume, action-policy and trust-mode changes apply optimistically, and a
+   * failed server write needs to land back on exactly the snapshot taken
+   * before the local update, not a recomputed approximation of it.
+   */
+  restoreBusiness: (business: Business) => void;
   reconnect: (enquiryId: string) => void;
   continueWithoutAvailability: (enquiryId: string) => void;
   resolvePrice: (enquiryId: string, amount: number) => void;
@@ -938,6 +947,10 @@ export const usePrototype = create<PrototypeState & Actions>()(
           businesses: s.businesses.map((b) =>
             b.id === businessId ? { ...b, paused: false, pauseLevel: "none" } : b,
           ),
+        })),
+      restoreBusiness: (business) =>
+        set((s) => ({
+          businesses: s.businesses.map((b) => (b.id === business.id ? business : b)),
         })),
       reconnect: (enquiryId) => {
         const s = get();

@@ -8,7 +8,7 @@ import {
   setTrustMode as setTrustModeServer,
 } from "@/lib/server/workspace";
 import type { ActionPolicyMode, TrustMode } from "@/domain/types";
-import { writeThrough } from "./write-through";
+import { writeThrough, writeThroughWithRollback } from "./write-through";
 
 /**
  * Trust and business mutations that must survive a reload.
@@ -32,7 +32,29 @@ export function useLiveTrustMutations() {
   const resume = usePrototype((s) => s.resume);
   const setPolicyLocal = usePrototype((s) => s.setActionPolicy);
   const setModeLocal = usePrototype((s) => s.setTrustMode);
+  const restoreBusiness = usePrototype((s) => s.restoreBusiness);
   const live = liveMode(demoMode);
+
+  /**
+   * Snapshot the business before `applyLocal` runs it optimistically, then
+   * write through. On failure the business is put back to that exact
+   * snapshot rather than left showing a change the server never recorded -
+   * see `writeThroughWithRollback` for why a snapshot beats a recomputed
+   * undo.
+   */
+  const guardedBusinessWrite = async (
+    businessId: string,
+    label: string,
+    applyLocal: () => void,
+    run: () => Promise<unknown>,
+    onFailure: (m: string) => void,
+  ): Promise<boolean> => {
+    const before = usePrototype.getState().businesses.find((b) => b.id === businessId);
+    applyLocal();
+    if (!live) return true;
+    if (!before) return writeThrough(label, run, onFailure);
+    return writeThroughWithRollback(label, before, run, restoreBusiness, onFailure);
+  };
 
   return {
     live,
@@ -43,58 +65,51 @@ export function useLiveTrustMutations() {
      * gate. The boolean is returned for consistency with `writeThrough` and
      * for any future caller that does need to chain on it.
      */
-    pauseBusiness: async (
+    pauseBusiness: (
       businessId: string,
       level: "outbound" | "all",
       onFailure: (m: string) => void,
-    ): Promise<boolean> => {
-      pause(businessId, level);
-      if (!live) return true;
-      return writeThrough(
+    ): Promise<boolean> =>
+      guardedBusinessWrite(
+        businessId,
         "Pause",
+        () => pause(businessId, level),
         () => setBusinessPause({ data: { businessId, level } }),
         onFailure,
-      );
-    },
-    resumeBusiness: async (
-      businessId: string,
-      onFailure: (m: string) => void,
-    ): Promise<boolean> => {
-      resume(businessId);
-      if (!live) return true;
-      return writeThrough(
+      ),
+    resumeBusiness: (businessId: string, onFailure: (m: string) => void): Promise<boolean> =>
+      guardedBusinessWrite(
+        businessId,
         "Resume",
+        () => resume(businessId),
         () => setBusinessPause({ data: { businessId, level: "none" } }),
         onFailure,
-      );
-    },
-    setActionPolicy: async (
+      ),
+    setActionPolicy: (
       businessId: string,
       action: string,
       mode: ActionPolicyMode,
       onFailure: (m: string) => void,
-    ): Promise<boolean> => {
-      setPolicyLocal(businessId, action as never, mode);
-      if (!live) return true;
-      return writeThrough(
+    ): Promise<boolean> =>
+      guardedBusinessWrite(
+        businessId,
         "Autonomy change",
+        () => setPolicyLocal(businessId, action as never, mode),
         () => setActionPolicyMode({ data: { businessId, action, mode } }),
         onFailure,
-      );
-    },
-    setTrustMode: async (
+      ),
+    setTrustMode: (
       businessId: string,
       mode: TrustMode,
       onFailure: (m: string) => void,
-    ): Promise<boolean> => {
-      setModeLocal(businessId, mode);
-      if (!live) return true;
-      return writeThrough(
+    ): Promise<boolean> =>
+      guardedBusinessWrite(
+        businessId,
         "Trust mode",
+        () => setModeLocal(businessId, mode),
         () => setTrustModeServer({ data: { businessId, mode } }),
         onFailure,
-      );
-    },
+      ),
   };
 }
 

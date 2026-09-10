@@ -31,3 +31,24 @@ export async function writeThrough(
     return false;
   }
 }
+
+/**
+ * `writeThrough`, plus a revert on failure.
+ *
+ * Callers that apply an optimistic local update before the server call needs
+ * a way back to exactly what was there before - not a recomputed "undo" that
+ * could drift from the pre-write value. `snapshot` is the value captured
+ * before the local update ran, so `restore` always lands on that same
+ * reference rather than a re-derived approximation of it.
+ */
+export async function writeThroughWithRollback<T>(
+  label: string,
+  snapshot: T,
+  run: () => Promise<unknown>,
+  restore: (snapshot: T) => void,
+  onFailure: (message: string) => void,
+): Promise<boolean> {
+  const ok = await writeThrough(label, run, onFailure);
+  if (!ok) restore(snapshot);
+  return ok;
+}

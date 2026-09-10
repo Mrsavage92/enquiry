@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { writeThrough } from "./write-through.ts";
+import { writeThrough, writeThroughWithRollback } from "./write-through.ts";
 
 /**
  * `writeThrough` used to resolve normally on a caught failure - it reported
@@ -52,4 +52,45 @@ test("an Error with an empty message falls back to the generic message", async (
   );
   assert.equal(ok, false);
   assert.deepEqual(failures, ["Note was not saved. Please try again."]);
+});
+
+/**
+ * `writeThroughWithRollback` backs the pause/resume/policy/trust-mode
+ * mutations, which apply an optimistic local update before the server call.
+ * These prove the business is restored to the exact pre-update snapshot on
+ * failure, left alone on success, and the failure toast fires exactly once
+ * either way.
+ */
+
+test("writeThroughWithRollback restores the snapshot on failure, once", async () => {
+  const failures: string[] = [];
+  const restored: unknown[] = [];
+  const before = { id: "b1", paused: false };
+  const ok = await writeThroughWithRollback(
+    "Pause",
+    before,
+    () => Promise.reject(new Error("network down")),
+    (snapshot) => restored.push(snapshot),
+    (m) => failures.push(m),
+  );
+  assert.equal(ok, false);
+  assert.deepEqual(failures, ["Pause was not saved: network down"]);
+  assert.equal(restored.length, 1);
+  assert.equal(restored[0], before);
+});
+
+test("writeThroughWithRollback leaves the update in place on success", async () => {
+  const failures: string[] = [];
+  const restored: unknown[] = [];
+  const before = { id: "b1", paused: false };
+  const ok = await writeThroughWithRollback(
+    "Pause",
+    before,
+    () => Promise.resolve(),
+    (snapshot) => restored.push(snapshot),
+    (m) => failures.push(m),
+  );
+  assert.equal(ok, true);
+  assert.deepEqual(failures, []);
+  assert.equal(restored.length, 0);
 });
