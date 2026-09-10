@@ -98,7 +98,7 @@ function JobDetail({
   return (
     <div className="space-y-5">
       <div>
-        <p className="font-serif text-2xl tabular-nums tracking-tight commercial-exact">
+        <p className="text-2xl font-semibold tabular-nums commercial-exact">
           {formatTimeRange(booking.when, end)}
         </p>
         <p className="mt-1 text-sm text-ink-2">{formatDayHeading(booking.when)}</p>
@@ -113,7 +113,7 @@ function JobDetail({
         <p className="mt-1 text-sm text-stone">{business?.name}</p>
         <div className="mt-3 flex flex-wrap items-center gap-2">
           {booking.value ? (
-            <p className="font-serif text-xl tabular-nums tracking-tight commercial-exact">
+            <p className="text-xl font-semibold tabular-nums commercial-exact">
               {formatAud(booking.value.amount)}
             </p>
           ) : null}
@@ -152,7 +152,7 @@ function JobDetail({
           </Button>
         ) : null}
         {enquiry ? (
-          <Button size="md" variant="secondary" className="min-h-11 w-full" asChild>
+              <Button size="md" variant="secondary" className="min-h-11 w-full" asChild>
             <Link to="/enquiries/$enquiryId" params={{ enquiryId: enquiry.id }}>
               Open enquiry
             </Link>
@@ -238,7 +238,7 @@ function MoveForm({
               onClick={() => setDuration(mins)}
               className={cn(
                 "min-h-11 rounded-md px-3 text-sm font-medium",
-                duration === mins ? "bg-ink text-paper" : "bg-paper-2 text-ink-2 hover:text-ink",
+                duration === mins ? "bg-mark text-mark-fg" : "bg-paper-2 text-ink-2 hover:text-ink",
               )}
             >
               {formatDuration(mins)}
@@ -246,7 +246,7 @@ function MoveForm({
           ))}
         </div>
       </div>
-      <p className="font-serif text-xl tabular-nums tracking-tight">
+      <p className="text-xl font-semibold tabular-nums">
         {formatTime(when)}–{formatTime(end)}
       </p>
       <p className="text-sm text-stone">{formatDuration(duration)}</p>

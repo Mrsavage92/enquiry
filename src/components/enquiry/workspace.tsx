@@ -179,26 +179,34 @@ export function EnquiryWorkspace({ enquiryId }: { enquiryId?: string }) {
   }
 
   return (
-    // xl: hard minimums 18.5rem + 20rem + 24.5rem = 296 + 320 + 392 = 1008px,
-    // against a container measured live at ~1030px at the 1280px xl: breakpoint
-    // (240px app-shell sidebar reserved outside this component). Padding added
-    // to <main> in app-shell.tsx, or a non-overlay scrollbar, reopens 4e05616.
-    <div className="grid h-full min-h-full grid-cols-1 overflow-hidden lg:grid-cols-[18.5rem_minmax(0,1fr)] xl:grid-cols-[18.5rem_minmax(20rem,36rem)_minmax(24.5rem,40rem)]">
-      <Queue activeId={enquiry?.id} />
+    <div className="flex h-full min-h-0 flex-col overflow-hidden bg-paper">
       {enquiry ? (
         <>
-          {/*
-            Hidden below `xl` purely by this media query, matching the grid's
-            own `xl:` column - a JS-computed threshold here previously drifted
-            from the CSS breakpoint (1100 vs 1280), so between those two widths
-            this column was never hidden while the grid still only had two
-            explicit tracks, and three children fought over two columns.
-          */}
-          <div key={`${enquiry.id}-conversation`} className="hidden min-h-0 xl:block">
-            <Conversation enquiry={enquiry} />
-          </div>
-          <div key={`${enquiry.id}-intelligence`} className="min-h-0">
-            <Intelligence enquiry={enquiry} />
+          <header className="shrink-0 border-b border-line bg-raised px-5 py-4">
+            <Button asChild variant="ghost" size="sm" className="px-0 text-stone">
+              <Link to="/today">Back to Today</Link>
+            </Button>
+            <div className="mt-3 flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+              <div>
+                <h1 className="text-3xl font-semibold leading-tight">{enquiry.customerName}</h1>
+                <p className="mt-2 text-sm text-ink-2">
+                  {enquiry.serviceLabel}
+                  {enquiry.dateLabel ? ` · ${enquiry.dateLabel}` : ""}
+                  {enquiry.locationLabel ? ` · ${enquiry.locationLabel}` : ""}
+                </p>
+              </div>
+              <Button asChild variant="secondary" size="sm">
+                <Link to="/enquiries">All enquiries</Link>
+              </Button>
+            </div>
+          </header>
+          <div className="grid min-h-0 flex-1 overflow-hidden xl:grid-cols-[minmax(0,1fr)_minmax(24rem,30rem)]">
+            <div key={`${enquiry.id}-conversation`} className="hidden min-h-0 xl:block">
+              <Conversation enquiry={enquiry} />
+            </div>
+            <div key={`${enquiry.id}-intelligence`} className="min-h-0">
+              <Intelligence enquiry={enquiry} />
+            </div>
           </div>
         </>
       ) : (

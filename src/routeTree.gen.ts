@@ -22,13 +22,18 @@ import { Route as RoadmapRouteImport } from './routes/roadmap'
 import { Route as SignupRouteImport } from './routes/signup'
 import { Route as TermsRouteImport } from './routes/terms'
 import { Route as UpdatesRouteImport } from './routes/updates'
+import { Route as AppAccountRouteImport } from './routes/_app/account'
 import { Route as AppBookingsRouteImport } from './routes/_app/bookings'
 import { Route as AppBusinessRouteImport } from './routes/_app/business'
 import { Route as AppEnquiriesRouteRouteImport } from './routes/_app/enquiries/route'
 import { Route as AppInsightsRouteImport } from './routes/_app/insights'
 import { Route as AppLabRouteImport } from './routes/_app/lab'
+import { Route as AppReferRouteImport } from './routes/_app/refer'
 import { Route as AppSettingsRouteImport } from './routes/_app/settings'
+import { Route as AppSupportRouteImport } from './routes/_app/support'
+import { Route as AppTodayRouteImport } from './routes/_app/today'
 import { Route as AppTrustRouteRouteImport } from './routes/_app/trust/route'
+import { Route as AppUsageRouteImport } from './routes/_app/usage'
 import { Route as AuthCompleteRouteImport } from './routes/auth.complete'
 import { Route as BookBookingIdRouteImport } from './routes/book/$bookingId'
 import { Route as QEnquiryIdRouteImport } from './routes/q/$enquiryId'
@@ -103,6 +108,11 @@ const UpdatesRoute = UpdatesRouteImport.update({
   path: '/updates',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AppAccountRoute = AppAccountRouteImport.update({
+  id: '/account',
+  path: '/account',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppBookingsRoute = AppBookingsRouteImport.update({
   id: '/bookings',
   path: '/bookings',
@@ -128,14 +138,34 @@ const AppLabRoute = AppLabRouteImport.update({
   path: '/lab',
   getParentRoute: () => AppRoute,
 } as any)
+const AppReferRoute = AppReferRouteImport.update({
+  id: '/refer',
+  path: '/refer',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppSettingsRoute = AppSettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
   getParentRoute: () => AppRoute,
 } as any)
+const AppSupportRoute = AppSupportRouteImport.update({
+  id: '/support',
+  path: '/support',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppTodayRoute = AppTodayRouteImport.update({
+  id: '/today',
+  path: '/today',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppTrustRouteRoute = AppTrustRouteRouteImport.update({
   id: '/trust',
   path: '/trust',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppUsageRoute = AppUsageRouteImport.update({
+  id: '/usage',
+  path: '/usage',
   getParentRoute: () => AppRoute,
 } as any)
 const AuthCompleteRoute = AuthCompleteRouteImport.update({
@@ -199,11 +229,16 @@ export interface FileRoutesByFullPath {
   '/updates': typeof UpdatesRoute
   '/enquiries': typeof AppEnquiriesRouteRouteWithChildren
   '/trust': typeof AppTrustRouteRouteWithChildren
+  '/account': typeof AppAccountRoute
   '/bookings': typeof AppBookingsRoute
   '/business': typeof AppBusinessRoute
   '/insights': typeof AppInsightsRoute
   '/lab': typeof AppLabRoute
+  '/refer': typeof AppReferRoute
   '/settings': typeof AppSettingsRoute
+  '/support': typeof AppSupportRoute
+  '/today': typeof AppTodayRoute
+  '/usage': typeof AppUsageRoute
   '/auth/complete': typeof AuthCompleteRoute
   '/book/$bookingId': typeof BookBookingIdRoute
   '/q/$enquiryId': typeof QEnquiryIdRoute
@@ -227,11 +262,16 @@ export interface FileRoutesByTo {
   '/signup': typeof SignupRoute
   '/terms': typeof TermsRoute
   '/updates': typeof UpdatesRoute
+  '/account': typeof AppAccountRoute
   '/bookings': typeof AppBookingsRoute
   '/business': typeof AppBusinessRoute
   '/insights': typeof AppInsightsRoute
   '/lab': typeof AppLabRoute
+  '/refer': typeof AppReferRoute
   '/settings': typeof AppSettingsRoute
+  '/support': typeof AppSupportRoute
+  '/today': typeof AppTodayRoute
+  '/usage': typeof AppUsageRoute
   '/auth/complete': typeof AuthCompleteRoute
   '/book/$bookingId': typeof BookBookingIdRoute
   '/q/$enquiryId': typeof QEnquiryIdRoute
@@ -259,11 +299,16 @@ export interface FileRoutesById {
   '/updates': typeof UpdatesRoute
   '/_app/enquiries': typeof AppEnquiriesRouteRouteWithChildren
   '/_app/trust': typeof AppTrustRouteRouteWithChildren
+  '/_app/account': typeof AppAccountRoute
   '/_app/bookings': typeof AppBookingsRoute
   '/_app/business': typeof AppBusinessRoute
   '/_app/insights': typeof AppInsightsRoute
   '/_app/lab': typeof AppLabRoute
+  '/_app/refer': typeof AppReferRoute
   '/_app/settings': typeof AppSettingsRoute
+  '/_app/support': typeof AppSupportRoute
+  '/_app/today': typeof AppTodayRoute
+  '/_app/usage': typeof AppUsageRoute
   '/auth/complete': typeof AuthCompleteRoute
   '/book/$bookingId': typeof BookBookingIdRoute
   '/q/$enquiryId': typeof QEnquiryIdRoute
@@ -291,11 +336,16 @@ export interface FileRouteTypes {
     | '/updates'
     | '/enquiries'
     | '/trust'
+    | '/account'
     | '/bookings'
     | '/business'
     | '/insights'
     | '/lab'
+    | '/refer'
     | '/settings'
+    | '/support'
+    | '/today'
+    | '/usage'
     | '/auth/complete'
     | '/book/$bookingId'
     | '/q/$enquiryId'
@@ -319,11 +369,16 @@ export interface FileRouteTypes {
     | '/signup'
     | '/terms'
     | '/updates'
+    | '/account'
     | '/bookings'
     | '/business'
     | '/insights'
     | '/lab'
+    | '/refer'
     | '/settings'
+    | '/support'
+    | '/today'
+    | '/usage'
     | '/auth/complete'
     | '/book/$bookingId'
     | '/q/$enquiryId'
@@ -350,11 +405,16 @@ export interface FileRouteTypes {
     | '/updates'
     | '/_app/enquiries'
     | '/_app/trust'
+    | '/_app/account'
     | '/_app/bookings'
     | '/_app/business'
     | '/_app/insights'
     | '/_app/lab'
+    | '/_app/refer'
     | '/_app/settings'
+    | '/_app/support'
+    | '/_app/today'
+    | '/_app/usage'
     | '/auth/complete'
     | '/book/$bookingId'
     | '/q/$enquiryId'
@@ -478,6 +538,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof UpdatesRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_app/account': {
+      id: '/_app/account'
+      path: '/account'
+      fullPath: '/account'
+      preLoaderRoute: typeof AppAccountRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/bookings': {
       id: '/_app/bookings'
       path: '/bookings'
@@ -513,6 +580,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppLabRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/refer': {
+      id: '/_app/refer'
+      path: '/refer'
+      fullPath: '/refer'
+      preLoaderRoute: typeof AppReferRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/settings': {
       id: '/_app/settings'
       path: '/settings'
@@ -520,11 +594,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppSettingsRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/support': {
+      id: '/_app/support'
+      path: '/support'
+      fullPath: '/support'
+      preLoaderRoute: typeof AppSupportRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/today': {
+      id: '/_app/today'
+      path: '/today'
+      fullPath: '/today'
+      preLoaderRoute: typeof AppTodayRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/trust': {
       id: '/_app/trust'
       path: '/trust'
       fullPath: '/trust'
       preLoaderRoute: typeof AppTrustRouteRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/usage': {
+      id: '/_app/usage'
+      path: '/usage'
+      fullPath: '/usage'
+      preLoaderRoute: typeof AppUsageRouteImport
       parentRoute: typeof AppRoute
     }
     '/auth/complete': {
@@ -627,21 +722,31 @@ const AppTrustRouteRouteWithChildren = AppTrustRouteRoute._addFileChildren(
 interface AppRouteChildren {
   AppEnquiriesRouteRoute: typeof AppEnquiriesRouteRouteWithChildren
   AppTrustRouteRoute: typeof AppTrustRouteRouteWithChildren
+  AppAccountRoute: typeof AppAccountRoute
   AppBookingsRoute: typeof AppBookingsRoute
   AppBusinessRoute: typeof AppBusinessRoute
   AppInsightsRoute: typeof AppInsightsRoute
   AppLabRoute: typeof AppLabRoute
+  AppReferRoute: typeof AppReferRoute
   AppSettingsRoute: typeof AppSettingsRoute
+  AppSupportRoute: typeof AppSupportRoute
+  AppTodayRoute: typeof AppTodayRoute
+  AppUsageRoute: typeof AppUsageRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
   AppEnquiriesRouteRoute: AppEnquiriesRouteRouteWithChildren,
   AppTrustRouteRoute: AppTrustRouteRouteWithChildren,
+  AppAccountRoute: AppAccountRoute,
   AppBookingsRoute: AppBookingsRoute,
   AppBusinessRoute: AppBusinessRoute,
   AppInsightsRoute: AppInsightsRoute,
   AppLabRoute: AppLabRoute,
+  AppReferRoute: AppReferRoute,
   AppSettingsRoute: AppSettingsRoute,
+  AppSupportRoute: AppSupportRoute,
+  AppTodayRoute: AppTodayRoute,
+  AppUsageRoute: AppUsageRoute,
 }
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)

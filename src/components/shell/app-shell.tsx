@@ -1,5 +1,17 @@
 import { Link, Outlet, useRouterState, useNavigate } from "@tanstack/react-router";
-import { BookMarked, Brain, Inbox, LineChart, MoreHorizontal, Pause, Shield } from "lucide-react";
+import {
+  BookMarked,
+  BriefcaseBusiness,
+  CircleHelp,
+  Gift,
+  Inbox,
+  LineChart,
+  MoreHorizontal,
+  Pause,
+  Settings,
+  Sparkle,
+  SunMedium,
+} from "lucide-react";
 import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 import { Wordmark } from "@/components/ui/wordmark";
@@ -16,21 +28,23 @@ import { MoreSheet } from "./more-sheet";
 import { toast } from "sonner";
 
 const NAV = [
+  { to: "/today", label: "Today", icon: SunMedium },
   { to: "/enquiries", label: "Enquiries", icon: Inbox },
-  { to: "/bookings", label: "Bookings", icon: BookMarked },
+  { to: "/bookings", label: "Booked", icon: BookMarked },
+  { to: "/business", label: "Business", icon: BriefcaseBusiness },
   { to: "/insights", label: "Insights", icon: LineChart },
-  { to: "/business", label: "Business", icon: Brain },
-  { to: "/trust", label: "Trust", icon: Shield },
 ] as const;
 
 const PHONE_NAV = [
-  { to: "/enquiries", label: "Today", icon: Inbox },
+  { to: "/today", label: "Today", icon: SunMedium },
+  { to: "/enquiries", label: "Enquiries", icon: Inbox },
   { to: "/bookings", label: "Booked", icon: BookMarked },
+  { to: "/business", label: "Business", icon: BriefcaseBusiness },
 ] as const;
 
 export function AppShell() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
-  const narrow = useNarrow(860);
+  const narrow = useNarrow(860) !== false;
   const [jump, setJump] = useState(false);
   const [keys, setKeys] = useState(false);
   const [more, setMore] = useState(false);
@@ -134,10 +148,10 @@ export function AppShell() {
         setGoChord(false);
         const key = e.key.toLowerCase();
         e.preventDefault();
+        if (key === "t") void navigate({ to: "/today" });
         if (key === "e") void navigate({ to: "/enquiries" });
         if (key === "b") void navigate({ to: "/bookings" });
         if (key === "i") void navigate({ to: "/insights" });
-        if (key === "t") void navigate({ to: "/trust" });
         if (key === "s") void navigate({ to: "/settings" });
         if (key === "n") void navigate({ to: "/business" });
         return;
@@ -152,18 +166,28 @@ export function AppShell() {
   }, [goChord, navigate, undoLast]);
 
   useEffect(() => {
-    const title = pathname.startsWith("/enquiries")
+    const title = pathname.startsWith("/today")
       ? "Today · Enquiry"
+      : pathname.startsWith("/enquiries")
+        ? "Enquiries · Enquiry"
       : pathname.startsWith("/bookings")
         ? "Booked · Enquiry"
         : pathname.startsWith("/insights")
           ? "Insights · Enquiry"
           : pathname.startsWith("/business")
-            ? "Business Brain · Enquiry"
+            ? "Business · Enquiry"
             : pathname.startsWith("/trust")
               ? "Trust · Enquiry"
               : pathname.startsWith("/settings")
                 ? "Settings · Enquiry"
+                : pathname.startsWith("/usage")
+                  ? "Plan & usage · Enquiry"
+                  : pathname.startsWith("/refer")
+                    ? "Refer a friend · Enquiry"
+                    : pathname.startsWith("/support")
+                      ? "Help & support · Enquiry"
+                      : pathname.startsWith("/account")
+                        ? "Account · Enquiry"
                 : pathname.startsWith("/lab")
                   ? "Lab · Enquiry"
                   : "Enquiry";
@@ -180,13 +204,13 @@ export function AppShell() {
             key={item.to}
             to={item.to}
             className={cn(
-              "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium min-h-11 transition-[background-color,color] duration-150 ease-out",
+              "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium min-h-11 transition-[background-color,color,box-shadow] duration-150 ease-out",
               inverse
                 ? active
-                  ? "bg-sidebar-fg/10 text-sidebar-fg shadow-[inset_2px_0_0_var(--color-mark)]"
-                  : "text-sidebar-muted hover:bg-sidebar-fg/5 hover:text-sidebar-fg"
+                  ? "bg-white text-sidebar-fg shadow-border"
+                  : "text-sidebar-muted hover:bg-white/70 hover:text-sidebar-fg"
                 : active
-                  ? "bg-ink text-paper"
+                  ? "bg-mark text-mark-fg"
                   : "text-ink-2 hover:bg-paper-2 hover:text-ink",
             )}
             aria-current={active ? "page" : undefined}
@@ -199,7 +223,7 @@ export function AppShell() {
                   "ml-auto tabular-nums text-2xs",
                   inverse
                     ? active
-                      ? "text-sidebar-fg/60"
+                      ? "text-sidebar-muted"
                       : "text-sidebar-muted"
                     : active
                       ? "text-paper/70"
@@ -217,7 +241,6 @@ export function AppShell() {
 
   const moreActive =
     more ||
-    pathname.startsWith("/business") ||
     pathname.startsWith("/trust") ||
     pathname.startsWith("/insights") ||
     pathname.startsWith("/settings") ||
@@ -249,7 +272,7 @@ export function AppShell() {
             <Outlet />
           </main>
           {enquiryOpen ? null : (
-            <nav aria-label="App" className="app-nav shrink-0 flex border-t border-line bg-raised">
+            <nav aria-label="App" className="app-nav shrink-0 flex border-t border-line bg-raised/95 backdrop-blur">
               {PHONE_NAV.map((item) => {
                 const active = pathname === item.to || pathname.startsWith(item.to + "/");
                 const Icon = item.icon;
@@ -295,9 +318,9 @@ export function AppShell() {
           )}
         </div>
       ) : (
-        <div className="grid min-h-0 flex-1 grid-cols-[15rem_1fr] overflow-hidden">
-          <aside className="flex min-h-0 flex-col bg-sidebar px-3 py-5 text-sidebar-fg">
-            <Link to="/enquiries" className="mb-8 px-2">
+        <div className="grid min-h-0 flex-1 grid-cols-[16rem_1fr] overflow-hidden">
+          <aside className="flex min-h-0 flex-col border-r border-line bg-sidebar px-4 py-5 text-sidebar-fg">
+            <Link to="/today" className="mb-8 px-2">
               <Wordmark inverse />
             </Link>
             <div className="flex-1">
@@ -311,8 +334,40 @@ export function AppShell() {
                 <Pause className="size-3" aria-hidden /> Paused
               </p>
             ) : null}
-            <div className="border-t border-white/10 pt-3">
-              <div className="mb-1 flex justify-end px-1">
+            <div className="space-y-3 border-t border-line pt-3">
+              <Link to="/usage" className="block rounded-xl bg-white p-3 shadow-border">
+                <div className="flex items-center gap-2 text-sm font-medium">
+                  <Sparkle className="size-4 text-mark" aria-hidden />
+                  Plan & usage
+                </div>
+                <p className="mt-1 text-xs leading-relaxed text-sidebar-muted">
+                  Usage limits are not configured yet. This area is reserved for the real plan.
+                </p>
+              </Link>
+              <nav aria-label="Account and support" className="grid gap-1">
+                <Link
+                  to="/refer"
+                  className="flex min-h-10 items-center gap-2 rounded-lg px-2 text-sm text-sidebar-muted hover:bg-white/70 hover:text-sidebar-fg"
+                >
+                  <Gift className="size-4" aria-hidden />
+                  Refer a friend
+                </Link>
+                <Link
+                  to="/support"
+                  className="flex min-h-10 items-center gap-2 rounded-lg px-2 text-sm text-sidebar-muted hover:bg-white/70 hover:text-sidebar-fg"
+                >
+                  <CircleHelp className="size-4" aria-hidden />
+                  Help & support
+                </Link>
+                <Link
+                  to="/settings"
+                  className="flex min-h-10 items-center gap-2 rounded-lg px-2 text-sm text-sidebar-muted hover:bg-white/70 hover:text-sidebar-fg"
+                >
+                  <Settings className="size-4" aria-hidden />
+                  Settings
+                </Link>
+              </nav>
+              <div className="flex justify-end px-1">
                 <Notices inverse />
               </div>
               <AccountMenu inverse />

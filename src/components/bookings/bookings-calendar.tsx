@@ -103,13 +103,13 @@ export function BookingsCalendar({
     <div className={cn("mx-auto px-4 py-5 pb-8 sm:py-8", wide)}>
       {phone ? (
         <header className="px-1 pb-1">
-          <p className="text-3xl font-semibold leading-tight tracking-tight">Booked</p>
+          <p className="text-3xl font-semibold leading-tight">Booked</p>
           <p className="mt-1 text-sm text-stone">{summary}</p>
         </header>
       ) : (
         <PageHeader
-          title="Bookings"
-          description="Committed work from accepted quotes. Enquiry is not a dispatch board."
+          title="Booked"
+          description="Upcoming and past work from accepted quotes. Open decisions stay in Today."
         >
           <p className="mt-3 text-sm text-stone">{summary}</p>
         </PageHeader>
@@ -240,8 +240,8 @@ function WeekStrip({
               aria-current={selectedDay ? "date" : undefined}
               aria-label={`${formatDayHeading(key)}${jobs.length ? `, ${jobs.length} job${jobs.length === 1 ? "" : "s"}` : ""}`}
               className={cn(
-                "flex h-16 min-w-0 flex-1 flex-col items-center justify-center rounded-md pt-1",
-                selectedDay && "bg-ink text-paper",
+                "flex h-16 min-w-0 flex-1 flex-col items-center justify-center rounded-lg pt-1",
+                selectedDay && "bg-mark text-mark-fg",
                 !selectedDay && isToday && "text-ink",
                 !selectedDay && past && "text-stone",
                 !selectedDay && !past && !isToday && "text-ink-2",
@@ -292,7 +292,7 @@ function DayAgenda({
 }) {
   return (
     <div className="mt-6">
-      <p className="text-sm font-medium tracking-tight text-ink">{formatDayHeading(dayKey)}</p>
+      <p className="text-sm font-medium text-ink">{formatDayHeading(dayKey)}</p>
       {jobs.length === 0 ? (
         <div className="mt-6 border-t border-line pt-6">
           <p className="font-medium">Clear</p>
@@ -360,7 +360,7 @@ function AgendaRow({
         type="button"
         onClick={() => onOpen(job.id)}
         className={cn(
-          "flex w-full min-h-11 gap-3 rounded-lg bg-raised px-3 py-3 text-left shadow-border",
+              "flex w-full min-h-11 gap-3 rounded-xl bg-raised px-3 py-3 text-left shadow-border",
           now && "job-now",
           holdDue && "job-hold",
         )}
@@ -373,7 +373,7 @@ function AgendaRow({
           <div className="flex items-baseline justify-between gap-3">
             <p className="min-w-0 truncate font-medium">{job.customerName}</p>
             {job.value ? (
-              <p className="shrink-0 font-serif text-sm tabular-nums commercial-exact">
+              <p className="shrink-0 text-sm tabular-nums commercial-exact">
                 {formatAud(job.value.amount)}
               </p>
             ) : null}
@@ -474,7 +474,7 @@ function PhoneWeek({
                 {formatWeekdayMed(d)} {d.getDate()}
               </p>
               {jobs.length > 0 && dayTotal > 0 ? (
-                <p className="font-serif text-sm tabular-nums text-ink-2">{formatAud(dayTotal)}</p>
+                <p className="text-sm tabular-nums text-ink-2">{formatAud(dayTotal)}</p>
               ) : null}
             </button>
             {jobs.map((job) => (
@@ -491,7 +491,7 @@ function PhoneWeek({
                   {happeningNow(job) ? <span className="ml-1.5 text-sm text-ok">Now</span> : null}
                 </span>
                 {job.value && jobs.length > 1 ? (
-                  <span className="shrink-0 font-serif text-sm tabular-nums commercial-exact">
+                  <span className="shrink-0 text-sm tabular-nums commercial-exact">
                     {formatAud(job.value.amount)}
                   </span>
                 ) : null}
@@ -546,7 +546,7 @@ function WeekGrid({
               onClick={() => onSelectDay(key)}
               className={cn(
                 "flex flex-col items-center rounded-md py-2 text-center",
-                selected && "bg-ink text-paper",
+                selected && "bg-mark text-mark-fg",
                 !selected && isToday && "text-ink",
                 !selected && !isToday && "text-ink-2",
               )}

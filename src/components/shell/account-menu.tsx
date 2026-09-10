@@ -90,6 +90,15 @@ export function AccountMenu({ compact, inverse }: { compact?: boolean; inverse?:
           </Dropdown.Item>
           <Dropdown.Item asChild>
             <Link
+              to="/account"
+              className="flex items-center gap-2 rounded-md px-2 py-2 text-sm outline-none data-[highlighted]:bg-paper-2 data-[highlighted]:shadow-[var(--shadow-mark-focus)]"
+            >
+              <UserRound className="size-4" aria-hidden />
+              Account
+            </Link>
+          </Dropdown.Item>
+          <Dropdown.Item asChild>
+            <Link
               to="/settings"
               className="flex items-center gap-2 rounded-md px-2 py-2 text-sm outline-none data-[highlighted]:bg-paper-2 data-[highlighted]:shadow-[var(--shadow-mark-focus)]"
             >
@@ -103,7 +112,7 @@ export function AccountMenu({ compact, inverse }: { compact?: boolean; inverse?:
               onClick={() => startSetup()}
               className="flex items-center gap-2 rounded-md px-2 py-2 text-sm outline-none data-[highlighted]:bg-paper-2 data-[highlighted]:shadow-[var(--shadow-mark-focus)]"
             >
-              Set up Business Brain
+              Set up business
             </Link>
           </Dropdown.Item>
           <Dropdown.Item
