@@ -2021,7 +2021,12 @@ html[data-site="marketing"] .mk-entry-rule {
   position: absolute;
   left: 9px;
   top: 9px;
-  bottom: 0;
+  /*
+    The reference's dateBar overshoots its group by exactly the 9px its top is
+    inset, so the rule never breaks between consecutive groups. `bottom: 0`
+    would leave a 9px gap - measured on /roadmap and /updates.
+  */
+  bottom: -9px;
   width: 1px;
   background: var(--mk-border);
 }
@@ -2067,6 +2072,14 @@ html[data-site="marketing"] .mk-entry-title[data-featured="true"] {
   }
   html[data-site="marketing"] .mk-entry-aside {
     padding-left: 0;
+    /*
+      Above 640 the grid supplies row-gap: 32px between the aside and the
+      body; display: block below 640 drops it, so the rail would sit flush
+      against the title. The reference keeps that spacing when it stacks -
+      added back here as padding so every .mk-entry consumer gets it, not
+      just the one that discovered it.
+    */
+    padding-bottom: 32px;
   }
   html[data-site="marketing"] .mk-entry-rule,
   html[data-site="marketing"] .mk-entry-marker {
