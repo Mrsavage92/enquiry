@@ -25,13 +25,15 @@ function ratio(foreground: string, background: string) {
 }
 
 test("UI1 working text and navigation meet AA using the shipped CSS tokens", () => {
-  for (const background of ["paper", "raised", "paper-2"]) {
+  for (const background of ["paper", "raised", "paper-2", "work", "reply"]) {
     for (const foreground of ["ink", "ink-2", "stone"]) {
       assert.ok(ratio(foreground, background) >= 4.5, `${foreground} on ${background}`);
     }
   }
   assert.ok(ratio("sidebar-muted", "sidebar") >= 4.5);
   assert.ok(ratio("mark-fg", "mark") >= 4.5);
+  assert.ok(ratio("mark", "reply") >= 4.5);
+  assert.ok(ratio("nav-active-fg", "nav-active") >= 4.5);
   for (const semantic of ["warn", "ok", "danger"]) {
     assert.ok(ratio(semantic, `${semantic}-bg`) >= 4.5, `${semantic} chip`);
   }

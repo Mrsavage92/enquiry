@@ -4,7 +4,9 @@ Updated: 2026-09-10 (Australia/Brisbane).
 
 ## Active slice: UI1 - Core experience redesign
 
-**Status: UI1 CORE VISUAL REFINEMENT ACCEPTED BY THE ORIGINAL DESIGN REVIEW CHAT. Release approval remains separate.**
+**Status: UI1 VISUAL FIDELITY CORRECTION IN PROGRESS. The product owner rejected the previous visual match after the original chat's review. Release approval remains separate.**
+
+The owner's latest instruction, "keep going this isnt what you had in the gpt images", supersedes the review-chat acceptance below. Compare the four original handover bitmaps directly with rendered screens. Review-chat approval and passing tests are not a substitute for the owner's visual acceptance. Continue on `codex/ui1-visual-refinement`; do not merge or deploy to production.
 
 PR #19 was merged and deployed, then rejected by the product owner and original design reviewer as an incomplete visual redesign. The corrective implementation is on `codex/ui1-visual-refinement`, based on main commit `47a8d29`. It has not been merged or deployed to production.
 

@@ -347,7 +347,7 @@ function DayAgenda({
   onOpen: (id: string) => void;
 }) {
   return (
-    <div className="mt-6">
+    <div className="booking-day mt-6">
       <p className="text-sm font-medium text-ink">{formatDayHeading(dayKey)}</p>
       {jobs.length === 0 ? (
         <div className="mt-6 border-t border-line pt-6">
@@ -427,11 +427,18 @@ function AgendaRow({
             <p className="mt-0.5 text-2xs tabular-nums text-stone">{formatTime(end)}</p>
           ) : null}
         </div>
+        <span className="customer-avatar" aria-hidden>
+          {job.customerName
+            .split(/\s+/)
+            .map((name) => name[0])
+            .slice(0, 2)
+            .join("")}
+        </span>
         <div className="min-w-0 flex-1">
           <div className="flex items-baseline justify-between gap-3">
             <p className="min-w-0 truncate font-medium">{job.customerName}</p>
             {job.value ? (
-              <p className="shrink-0 text-sm tabular-nums commercial-exact">
+              <p className="shrink-0 text-sm tabular-nums font-medium">
                 {formatAud(job.value.amount)}
               </p>
             ) : null}

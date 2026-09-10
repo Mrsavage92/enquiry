@@ -2,27 +2,42 @@ import { Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { useNarrow } from "@/lib/use-narrow";
 import { Segmented } from "@/components/ui/segmented";
+import { MoreSheet } from "@/components/shell/more-sheet";
 import {
   ArrowRight,
   CalendarDays,
   CheckCheck,
+  ChevronLeft,
   ChevronRight,
   Clock3,
   Inbox,
+  Menu,
   Search,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { activeBookings, sortedOnDay } from "@/domain/calendar";
+import { activeBookings, sortedOnDay, weekDays as calendarWeekDays } from "@/domain/calendar";
 import { derivedLabel, queueSection, queueSummary } from "@/domain/labels";
-import { formatDayHeading, formatTime, todayKey as todayKeyInZone } from "@/domain/format";
+import {
+  addCalendarDays,
+  dateFromDayKey,
+  dayKeyFromDate,
+  formatDayHeading,
+  formatRelative,
+  formatTime,
+  formatWeekdayMed,
+  todayKey as todayKeyInZone,
+  wallNow,
+} from "@/domain/format";
 import { statusTone } from "@/domain/status-tone";
 import { usePrototype } from "@/store/prototype-store";
 
 export function TodayPage() {
   const phone = useNarrow(860) !== false;
   const [view, setView] = useState("needs_you");
+  const [moreOpen, setMoreOpen] = useState(false);
   const enquiries = usePrototype((s) => s.enquiries);
   const bookings = usePrototype((s) => s.bookings);
+  const businesses = usePrototype((s) => s.businesses);
   const filter = usePrototype((s) => s.businessFilter);
   const setQueueFilter = usePrototype((s) => s.setQueueFilter);
   const tz = usePrototype((s) => s.prefs.timezone) || "Australia/Brisbane";
@@ -30,20 +45,44 @@ export function TodayPage() {
   const summary = queueSummary(visible);
   const needsYou = visible
     .filter((e) => queueSection(e) === (phone && view === "waiting" ? "waiting" : "needs_you"))
-    .slice(0, phone ? 20 : 5);
+    .slice(0, phone ? 5 : 3);
   const todayKey = todayKeyInZone(new Date(), tz);
-  const todayBookings = sortedOnDay(
-    activeBookings(bookings.filter((b) => filter === "all" || b.businessId === filter)),
-    todayKey,
+  const [selectedDay, setSelectedDay] = useState<string | null>(null);
+  const day = selectedDay ?? todayKey;
+  const scopedBookings = activeBookings(
+    bookings.filter((b) => filter === "all" || b.businessId === filter),
   );
+  const todayBookings = sortedOnDay(scopedBookings, todayKey);
+  const dayBookings = sortedOnDay(scopedBookings, day);
+  const weekAnchor = dateFromDayKey(day);
+  const weekDays = calendarWeekDays(weekAnchor);
+  const business =
+    businesses.find((b) => b.id === filter) ??
+    (businesses.length === 1 ? businesses[0] : undefined);
+  const hour = wallNow(new Date(), tz).getHours();
+  const greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
 
   return (
     <div className="ui-page-scroll">
       <div className={`ui-page today-page ${phone ? "today-phone" : ""}`}>
         <header className="ui-page-header">
+          {phone ? (
+            <button
+              type="button"
+              className="today-menu"
+              aria-label="More destinations"
+              title="More destinations"
+              onClick={() => setMoreOpen(true)}
+            >
+              <Menu size={19} />
+            </button>
+          ) : null}
           <div>
-            <p className="ui-date">{formatDayHeading(todayKey)}</p>
-            <h1>Today</h1>
+            <h1>
+              {phone
+                ? "Today"
+                : `${greeting}${business?.ownerFirstName ? `, ${business.ownerFirstName}` : ""}`}
+            </h1>
             <p className="ui-page-description">
               {summary.needsYou
                 ? `${summary.needsYou} ${summary.needsYou === 1 ? "enquiry needs" : "enquiries need"} your attention.`
@@ -164,15 +203,17 @@ export function TodayPage() {
                                 {derivedLabel(enquiry.state, enquiry)}
                               </Badge>
                             </span>
-                            <span className="today-row-meta">
-                              {enquiry.serviceLabel}
-                              {enquiry.dateLabel ? ` · ${enquiry.dateLabel}` : ""}
-                            </span>
+                            <span className="today-row-meta">{enquiry.serviceLabel}</span>
                             {lastMessage ? (
                               <span className="today-row-preview">{lastMessage.body}</span>
                             ) : null}
                           </span>
-                          <ChevronRight size={17} className="text-stone" aria-hidden />
+                          <span className="today-row-update">
+                            <time dateTime={enquiry.updatedAt} title={enquiry.updatedAt}>
+                              {formatRelative(enquiry.updatedAt)}
+                            </time>
+                            <ChevronRight size={16} aria-hidden />
+                          </span>
                         </Link>
                       </li>
                     );
@@ -200,20 +241,70 @@ export function TodayPage() {
           {phone && view !== "booked" ? null : (
             <aside className="today-schedule" aria-labelledby="schedule-title">
               <div className="ui-section-heading">
-                <h2 id="schedule-title">Your day</h2>
+                <h2 id="schedule-title">{formatDayHeading(day)}</h2>
                 <Link to="/bookings" aria-label="View booked calendar" title="View calendar">
                   <CalendarDays size={19} />
                 </Link>
               </div>
-              <p className="text-sm text-stone">{formatDayHeading(todayKey)}</p>
-              {todayBookings.length ? (
+              <div className="today-week-controls">
+                <button
+                  type="button"
+                  aria-label="Previous week"
+                  title="Previous week"
+                  onClick={() => setSelectedDay(dayKeyFromDate(addCalendarDays(weekAnchor, -7)))}
+                >
+                  <ChevronLeft size={16} />
+                </button>
+                <button
+                  type="button"
+                  className="today-reset-date"
+                  onClick={() => setSelectedDay(null)}
+                >
+                  Today
+                </button>
+                <button
+                  type="button"
+                  aria-label="Next week"
+                  title="Next week"
+                  onClick={() => setSelectedDay(dayKeyFromDate(addCalendarDays(weekAnchor, 7)))}
+                >
+                  <ChevronRight size={16} />
+                </button>
+              </div>
+              <div className="today-week" role="group" aria-label="Booking day">
+                {weekDays.map((date) => {
+                  const key = dayKeyFromDate(date);
+                  return (
+                    <button
+                      type="button"
+                      key={key}
+                      aria-label={formatDayHeading(key)}
+                      aria-pressed={key === day}
+                      aria-current={key === todayKey ? "date" : undefined}
+                      onClick={() => setSelectedDay(key)}
+                    >
+                      <span>{formatWeekdayMed(date)}</span>
+                      <strong>{date.getDate()}</strong>
+                      <i
+                        className={sortedOnDay(scopedBookings, key).length ? "has-bookings" : ""}
+                        aria-hidden
+                      />
+                    </button>
+                  );
+                })}
+              </div>
+              {dayBookings.length ? (
                 <ul className="today-bookings">
-                  {todayBookings.map((booking) => (
+                  {dayBookings.map((booking) => (
                     <li key={booking.id}>
                       <span className="today-time">{formatTime(booking.when)}</span>
                       <span>
                         <strong>{booking.customerName}</strong>
                         <span>{booking.serviceLabel}</span>
+                        {booking.status === "pending" ? <Badge tone="warn">On hold</Badge> : null}
+                        {booking.status === "external_pending" ? (
+                          <Badge tone="warn">Awaiting confirmation</Badge>
+                        ) : null}
                       </span>
                     </li>
                   ))}
@@ -222,7 +313,7 @@ export function TodayPage() {
                 <div className="schedule-empty">
                   <CalendarDays size={30} strokeWidth={1.4} aria-hidden />
                   <h3>A little breathing room</h3>
-                  <p>No bookings today.</p>
+                  <p>{day === todayKey ? "No bookings today." : "No bookings on this day."}</p>
                   <Link to="/bookings" className="ui-text-link">
                     View upcoming <ArrowRight size={15} aria-hidden />
                   </Link>
@@ -244,6 +335,7 @@ export function TodayPage() {
           )}
         </div>
       </div>
+      <MoreSheet open={moreOpen} onOpenChange={setMoreOpen} />
     </div>
   );
 }

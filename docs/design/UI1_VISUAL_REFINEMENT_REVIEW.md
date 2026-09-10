@@ -4,6 +4,26 @@ Date: 2026-09-10 (Australia/Brisbane)
 Branch: `codex/ui1-visual-refinement`
 Baseline: main `47a8d29` / PR #19
 
+## Owner Rejection And Direct Reference Correction
+
+**Current visual acceptance: OPEN.** After the review below, Adam rejected the visual match: "keep going this isnt what you had in the gpt images". The earlier AI review is historical, not owner acceptance. Codex notified the original conversation that its verdict is superseded.
+
+The original four bitmaps are now stored in `docs/design/ui1-references/`, without unrelated ChatGPT chrome. Comparing the actual files exposed differences that the previous review had accepted too loosely: a flat summary strip instead of separate tiles, over-wide unframed rows, a missing week strip, a weak wordmark, and a mobile reply preview competing with its action.
+
+The follow-up correction on the same branch:
+
+- Uses the original composition more closely: pale lilac work background, white summary tiles, lightly outlined individual rows, bolder wordmark and clearer violet active navigation.
+- Makes Today a focused preview of the attention queue, with the full list one click away; preserves the at-risk link and real counts. The greeting uses the selected business's actual owner name only when available.
+- Adds a working Monday-first week selector using the existing calendar/date helpers. Day selection, previous/next week and return to Today are functional. Booking holds and pending external confirmations stay qualified.
+- Restores distinct service/date/status/update columns on desktop Enquiries, with compact phone rows and working search/filter controls.
+- Gives Business and Booked the reference's repeated-row treatment, with booking amounts, hold and overlap states retained. Customer markers use initials, never invented customer photos.
+- Brings More's destinations forward, with the business switcher and device/sample controls behind disclosure. Removes the old stacked-paper empty-state illustration in favour of a neutral, restrained icon treatment.
+- Uses a compact lavender next-step surface on phones. Full reply editing remains in its sheet, while price drift and material blockers stay outside the disclosure. Frozen review, copying and external-send recording are unchanged.
+
+Verification for this correction: 73 targeted calendar/date/labels/review/keyboard/demo-isolation/contrast tests pass; typecheck, lint and production build pass. Browser checks cover 1440x960, 1024x768, 768x1024 and 390x844, plus the full reply editor at 390x400. Search matches/empty results, keyboard tab selection, actual dated sample booking selection and return to Today were exercised. No document horizontal overflow was found at the checked widths. See the `fidelity-*.png` screenshots in `docs/evidence/ui1-review/`.
+
+The earlier full 725-test run below belongs to the previous correction, not a newly repeated full-suite result. Physical phone keyboard/safe-area checks remain unverified. This correction does not claim pixel identity, owner acceptance, or production release approval.
+
 ## Original Design Review
 
 At Adam's request, Codex contacted the original design conversation directly in his signed-in ChatGPT browser. No manual relay was required. The reviewer inspected the previous implementation and the four approved handover boards, then reviewed before/after screenshots of the actual local application.

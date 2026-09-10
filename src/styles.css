@@ -10,6 +10,10 @@
   --color-paper: #fafafc;
   --color-paper-2: #f0eef4;
   --color-raised: #ffffff;
+  --color-work: #fcfbfe;
+  --color-reply: #f3efff;
+  --color-nav-active: #eae4fc;
+  --color-nav-active-fg: #6146c6;
   --color-ink: #1c1b1f;
   --color-ink-2: #4f4b55;
   /*
@@ -50,8 +54,8 @@
   --color-sidebar: #f4f1fa;
   --color-sidebar-fg: #1c1b1f;
   --color-sidebar-muted: #68656d;
-  --color-mark: #6c55c7;
-  --color-mark-hover: #5943b6;
+  --color-mark: #6848d6;
+  --color-mark-hover: #583ac0;
   --color-mark-fg: #ffffff;
   /*
     A small, deliberately narrow set of moments (landing hero CTA, onboarding

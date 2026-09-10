@@ -7,6 +7,7 @@ import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Segmented } from "@/components/ui/segmented";
 import { channelLabel } from "@/domain/channel";
+import { formatRelative } from "@/domain/format";
 import { derivedLabel, filteredEnquiries, queueSummary } from "@/domain/labels";
 import { statusTone } from "@/domain/status-tone";
 import { usePrototype, type QueueFilter } from "@/store/prototype-store";
@@ -71,29 +72,29 @@ export function EnquiriesListPage() {
               {scoped.length} {scoped.length === 1 ? "enquiry" : "enquiries"}
             </p>
           </div>
-          {!demoMode && activeBusiness ? (
-            <Button
-              size="icon"
-              aria-label="Add an enquiry"
-              title="Add an enquiry"
-              onClick={() => setCreateOpen(true)}
-            >
-              <Plus size={19} />
-            </Button>
-          ) : null}
+          <div className="enquiries-header-actions">
+            <label className="relative block">
+              <span className="sr-only">Search enquiries</span>
+              <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-stone" />
+              <input
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder="Search enquiries"
+                className="field h-11 pl-9"
+              />
+            </label>
+            {!demoMode && activeBusiness ? (
+              <Button
+                size="icon"
+                aria-label="Add an enquiry"
+                title="Add an enquiry"
+                onClick={() => setCreateOpen(true)}
+              >
+                <Plus size={19} />
+              </Button>
+            ) : null}
+          </div>
         </header>
-        <div className="enquiries-toolbar">
-          <label className="relative block lg:w-80">
-            <span className="sr-only">Search enquiries</span>
-            <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-stone" />
-            <input
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder="Search name, service or place"
-              className="field h-11 pl-9"
-            />
-          </label>
-        </div>
 
         <div className="mt-6 overflow-x-auto">
           <Segmented
@@ -109,9 +110,11 @@ export function EnquiriesListPage() {
 
         <div className="mt-5">
           <div className="enquiries-column-head" aria-hidden>
-            <span>Customer & service</span>
-            <span>Channel</span>
+            <span>Customer</span>
+            <span>Service</span>
+            <span>Date</span>
             <span>Status</span>
+            <span className="enquiries-updated">Updated</span>
             <span />
           </div>
           {listed.length === 0 ? (
@@ -144,19 +147,38 @@ export function EnquiriesListPage() {
                               {enquiry.customerName}
                             </p>
                           </div>
-                          <p className="mt-1 truncate text-sm text-ink-2">
+                          <p className="enquiries-customer-service mt-1 truncate text-sm text-ink-2">
                             {enquiry.serviceLabel}
-                            {enquiry.dateLabel ? ` · ${enquiry.dateLabel}` : ""}
                           </p>
+                          {businessFilter === "all" && business?.name ? (
+                            <p className="enquiries-customer-business mt-1 truncate text-xs text-stone">
+                              {business.name}
+                            </p>
+                          ) : null}
                         </div>
                       </div>
-                      <p className="min-w-0 truncate text-sm text-ink-2">
-                        {businessFilter === "all" && business?.name ? `${business.name} · ` : ""}
-                        {channelLabel(enquiry.source)}
+                      <p
+                        className="enquiries-service min-w-0 truncate text-sm text-ink-2"
+                        title={enquiry.serviceLabel}
+                      >
+                        {enquiry.serviceLabel}
+                      </p>
+                      <p className="enquiries-date min-w-0 text-sm text-ink-2">
+                        {enquiry.dateLabel || "Not set"}
+                        <span className="mt-1 block text-xs text-stone">
+                          {channelLabel(enquiry.source)}
+                        </span>
                       </p>
                       <Badge tone={statusTone(enquiry)}>
                         {derivedLabel(enquiry.state, enquiry)}
                       </Badge>
+                      <time
+                        dateTime={enquiry.updatedAt}
+                        className="enquiries-updated text-xs text-stone"
+                        title={enquiry.updatedAt}
+                      >
+                        {formatRelative(enquiry.updatedAt)}
+                      </time>
                       <ChevronRight size={16} className="text-stone" aria-hidden />
                     </Link>
                   </li>

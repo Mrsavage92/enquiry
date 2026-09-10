@@ -68,7 +68,14 @@ export function PhoneDesk({ enquiry }: { enquiry: Enquiry }) {
             <ChevronLeft className="size-5" aria-hidden />
           </Link>
         )}
-        <div className="min-w-0 flex-1">
+        <span className="customer-avatar phone-customer-avatar" aria-hidden>
+          {enquiry.customerName
+            .split(/\s+/)
+            .map((name) => name[0])
+            .slice(0, 2)
+            .join("")}
+        </span>
+        <div className="min-w-0 flex-1 pl-2">
           <p className="truncate text-base font-semibold leading-tight">{enquiry.customerName}</p>
           <p className="truncate text-2xs text-stone">
             {enquiry.state.lifecycle === "BOOKED"

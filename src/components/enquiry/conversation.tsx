@@ -132,7 +132,7 @@ function MessageBlock({
 
   return (
     <li ref={endRef} className={cn(spaced && "mt-10")}>
-      <div className="flex items-baseline justify-between gap-3">
+      <div className="message-meta flex items-baseline justify-between gap-3">
         <p className="text-sm font-medium">{m.from}</p>
         <p className="shrink-0 text-2xs tabular-nums text-stone">{formatWhen(m.at)}</p>
       </div>
@@ -166,18 +166,22 @@ function MessageBlock({
         </blockquote>
       ) : (
         <>
-          {m.subject ? (
-            <p className="mt-4 font-serif text-xl font-medium leading-snug tracking-tight">
-              {m.subject}
-            </p>
-          ) : null}
-          {outbound ? (
-            <div className="mt-4 rounded-lg bg-raised px-5 py-4 shadow-border">
-              <p className="letter-body whitespace-pre-wrap text-ink-2">{m.body}</p>
-            </div>
-          ) : (
-            <p className="letter-body mt-4 whitespace-pre-wrap">{m.body}</p>
-          )}
+          <div
+            className={cn("message-letter", outbound ? "message-letter-out" : "message-letter-in")}
+          >
+            {m.subject ? (
+              <p className="message-subject mt-4 font-serif text-xl font-medium leading-snug tracking-tight">
+                {m.subject}
+              </p>
+            ) : null}
+            {outbound ? (
+              <div className="mt-4 rounded-lg bg-raised px-5 py-4 shadow-border">
+                <p className="letter-body whitespace-pre-wrap text-ink-2">{m.body}</p>
+              </div>
+            ) : (
+              <p className="letter-body mt-4 whitespace-pre-wrap">{m.body}</p>
+            )}
+          </div>
         </>
       )}
 

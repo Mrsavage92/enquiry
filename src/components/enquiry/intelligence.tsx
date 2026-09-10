@@ -592,15 +592,23 @@ export function Intelligence({
                     onClick={() => setDraftOpen(true)}
                     aria-label="Edit reply"
                   >
-                    <p className="eyebrow">Prepared reply</p>
-                    <p
-                      className={cn(
-                        "letter-body mt-3 whitespace-pre-wrap",
-                        short ? "font-sans" : "font-serif",
-                      )}
-                    >
-                      {draftBody || "No message prepared."}
-                    </p>
+                    {inline ? (
+                      <span className="flex min-h-11 items-center justify-between text-sm font-medium text-mark">
+                        Read & edit reply <ChevronDown size={16} aria-hidden />
+                      </span>
+                    ) : (
+                      <p className="eyebrow">Prepared reply</p>
+                    )}
+                    {inline ? null : (
+                      <p
+                        className={cn(
+                          "letter-body mt-3 whitespace-pre-wrap",
+                          short ? "font-sans" : "font-serif",
+                        )}
+                      >
+                        {draftBody || "No message prepared."}
+                      </p>
+                    )}
                   </button>
                   {priceDrift ? (
                     <p className="mt-3 text-sm text-warn">

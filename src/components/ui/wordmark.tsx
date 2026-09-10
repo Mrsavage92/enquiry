@@ -5,8 +5,8 @@ export function Wordmark({ size = "md", inverse }: { size?: "sm" | "md"; inverse
     <span className="inline-flex items-baseline gap-0.5">
       <span
         className={cn(
-          "font-sans font-semibold tracking-normal",
-          size === "sm" ? "text-lg" : "text-xl",
+          "font-sans font-bold tracking-normal",
+          size === "sm" ? "text-lg" : "text-2xl",
           inverse ? "text-sidebar-fg" : "text-ink",
         )}
       >
