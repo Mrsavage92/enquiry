@@ -1,165 +1,341 @@
 import { Link } from "@tanstack/react-router";
-import { ArrowRight, CalendarDays, Inbox, Search } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { useState } from "react";
+import { useNarrow } from "@/lib/use-narrow";
+import { Segmented } from "@/components/ui/segmented";
+import { MoreSheet } from "@/components/shell/more-sheet";
+import {
+  ArrowRight,
+  CalendarDays,
+  CheckCheck,
+  ChevronLeft,
+  ChevronRight,
+  Clock3,
+  Inbox,
+  Menu,
+  Search,
+} from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { activeBookings, sortedOnDay } from "@/domain/calendar";
-import { channelLabel } from "@/domain/channel";
+import { activeBookings, sortedOnDay, weekDays as calendarWeekDays } from "@/domain/calendar";
+import { derivedLabel, queueSection, queueSummary } from "@/domain/labels";
 import {
-  commercialValue,
-  derivedLabel,
-  formatAud,
-  queueHeadline,
-  queueSection,
-  queueSummary,
-} from "@/domain/labels";
-import {
+  addCalendarDays,
+  dateFromDayKey,
+  dayKeyFromDate,
   formatDayHeading,
+  formatRelative,
   formatTime,
+  formatWeekdayMed,
   todayKey as todayKeyInZone,
+  wallNow,
 } from "@/domain/format";
 import { statusTone } from "@/domain/status-tone";
 import { usePrototype } from "@/store/prototype-store";
 
 export function TodayPage() {
+  const phone = useNarrow(860) !== false;
+  const [view, setView] = useState("needs_you");
+  const [moreOpen, setMoreOpen] = useState(false);
   const enquiries = usePrototype((s) => s.enquiries);
   const bookings = usePrototype((s) => s.bookings);
   const businesses = usePrototype((s) => s.businesses);
   const filter = usePrototype((s) => s.businessFilter);
+  const setQueueFilter = usePrototype((s) => s.setQueueFilter);
   const tz = usePrototype((s) => s.prefs.timezone) || "Australia/Brisbane";
-  const visibleEnquiries =
-    filter === "all" ? enquiries : enquiries.filter((enquiry) => enquiry.businessId === filter);
-  const summary = queueSummary(visibleEnquiries);
-  const needsYou = visibleEnquiries
-    .filter((enquiry) => queueSection(enquiry) === "needs_you")
-    .slice(0, 5);
-  const scopedBookings =
-    filter === "all" ? bookings : bookings.filter((booking) => booking.businessId === filter);
+  const visible = enquiries.filter((e) => filter === "all" || e.businessId === filter);
+  const summary = queueSummary(visible);
+  const needsYou = visible
+    .filter((e) => queueSection(e) === (phone && view === "waiting" ? "waiting" : "needs_you"))
+    .slice(0, phone ? 5 : 3);
   const todayKey = todayKeyInZone(new Date(), tz);
-  const todayBookings = sortedOnDay(activeBookings(scopedBookings), todayKey).slice(0, 4);
-  const businessName =
-    filter === "all"
-      ? "All workspaces"
-      : (businesses.find((business) => business.id === filter)?.name ?? "Workspace");
-  const exactOpen = visibleEnquiries.filter((enquiry) => commercialValue(enquiry).kind === "exact");
+  const [selectedDay, setSelectedDay] = useState<string | null>(null);
+  const day = selectedDay ?? todayKey;
+  const scopedBookings = activeBookings(
+    bookings.filter((b) => filter === "all" || b.businessId === filter),
+  );
+  const todayBookings = sortedOnDay(scopedBookings, todayKey);
+  const dayBookings = sortedOnDay(scopedBookings, day);
+  const weekAnchor = dateFromDayKey(day);
+  const weekDays = calendarWeekDays(weekAnchor);
+  const business =
+    businesses.find((b) => b.id === filter) ??
+    (businesses.length === 1 ? businesses[0] : undefined);
+  const hour = wallNow(new Date(), tz).getHours();
+  const greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
 
   return (
-    <div className="h-full overflow-y-auto">
-      <div className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-4 py-5 pb-10 sm:px-6 sm:py-8">
-        <header className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
+    <div className="ui-page-scroll">
+      <div className={`ui-page today-page ${phone ? "today-phone" : ""}`}>
+        <header className="ui-page-header">
+          {phone ? (
+            <button
+              type="button"
+              className="today-menu"
+              aria-label="More destinations"
+              title="More destinations"
+              onClick={() => setMoreOpen(true)}
+            >
+              <Menu size={19} />
+            </button>
+          ) : null}
           <div>
-            <p className="text-sm text-stone">{businessName}</p>
-            <h1 className="mt-2 text-4xl font-semibold leading-tight sm:text-5xl">Today</h1>
-            <p className="mt-3 max-w-2xl text-base leading-relaxed text-ink-2">
-              {summary.needsYou > 0
-                ? "The next work is ready. Everything else can stay quiet for a moment."
-                : "No owner action is waiting right now."}
+            <h1>
+              {phone
+                ? "Today"
+                : `${greeting}${business?.ownerFirstName ? `, ${business.ownerFirstName}` : ""}`}
+            </h1>
+            <p className="ui-page-description">
+              {summary.needsYou
+                ? `${summary.needsYou} ${summary.needsYou === 1 ? "enquiry needs" : "enquiries need"} your attention.`
+                : summary.atRisk
+                  ? "An enquiry needs a closer look."
+                  : "You're all caught up."}
             </p>
           </div>
-          <Button asChild variant="secondary">
-            <Link to="/enquiries">
-              <Search className="size-4" aria-hidden />
-              Search enquiries
-            </Link>
-          </Button>
+          <Link
+            to="/enquiries"
+            onClick={() => setQueueFilter("all")}
+            className="ui-search-link"
+            aria-label="Search enquiries"
+          >
+            <Search size={17} aria-hidden />
+            <span>Search enquiries</span>
+            <ArrowRight size={16} aria-hidden />
+          </Link>
         </header>
 
-        <section className="rounded-2xl bg-raised p-5 shadow-border sm:p-6">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-            <div>
-              <p className="text-sm text-stone">Needs attention</p>
-              <h2 className="mt-1 text-3xl font-semibold leading-tight">{queueHeadline(summary)}</h2>
-            </div>
-            <div className="flex flex-wrap gap-2 text-sm text-ink-2">
-              <span>{summary.waiting} waiting</span>
-              {summary.atRisk ? <span>{summary.atRisk} at risk</span> : null}
-              {exactOpen.length ? <span>{formatAud(summary.exactValue)} open quoted value</span> : null}
-            </div>
+        {phone ? (
+          <div className="today-phone-tabs">
+            <Segmented
+              ariaLabel="Today view"
+              value={view}
+              onChange={setView}
+              options={[
+                { id: "needs_you", label: "Needs you", count: summary.needsYou },
+                { id: "waiting", label: "Awaiting", count: summary.waiting },
+                { id: "booked", label: "Booked", count: todayBookings.length },
+              ]}
+            />
           </div>
+        ) : (
+          <div className="today-summary" aria-label="Today's summary">
+            <Link
+              to="/enquiries"
+              onClick={() => setQueueFilter("needs_you")}
+              className="today-stat"
+            >
+              <span className="ui-icon-tile tone-violet">
+                <Inbox size={19} />
+              </span>
+              <span>
+                <strong>{summary.needsYou}</strong>
+                <span>Need your attention</span>
+              </span>
+              <ChevronRight size={16} className="text-stone" />
+            </Link>
+            <Link to="/enquiries" onClick={() => setQueueFilter("waiting")} className="today-stat">
+              <span className="ui-icon-tile tone-amber">
+                <Clock3 size={19} />
+              </span>
+              <span>
+                <strong>{summary.waiting}</strong>
+                <span>Waiting on a reply</span>
+              </span>
+              <ChevronRight size={16} className="text-stone" />
+            </Link>
+            <Link to="/bookings" search={{ on: todayKey }} className="today-stat">
+              <span className="ui-icon-tile tone-green">
+                <CalendarDays size={19} />
+              </span>
+              <span>
+                <strong>{todayBookings.length}</strong>
+                <span>Booked today</span>
+              </span>
+              <ChevronRight size={16} className="text-stone" />
+            </Link>
+          </div>
+        )}
 
-          {needsYou.length === 0 ? (
-            <div className="mt-8 rounded-xl bg-paper-2 px-4 py-6">
-              <p className="font-medium">You are caught up.</p>
-              <p className="mt-1 text-sm text-ink-2">
-                Waiting enquiries and booked work are still available from the main navigation.
-              </p>
-            </div>
-          ) : (
-            <ul className="mt-5 divide-y divide-line">
-              {needsYou.map((enquiry) => (
-                <li key={enquiry.id}>
-                  <Link
-                    to="/enquiries/$enquiryId"
-                    params={{ enquiryId: enquiry.id }}
-                    className="group grid min-h-20 gap-2 py-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center"
-                  >
-                    <div className="min-w-0">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <p className="truncate text-lg font-semibold">{enquiry.customerName}</p>
-                        <Badge tone={statusTone(enquiry)}>{derivedLabel(enquiry.state, enquiry)}</Badge>
-                      </div>
-                      <p className="mt-1 truncate text-sm text-ink-2">
-                        {enquiry.serviceLabel}
-                        {enquiry.dateLabel ? ` · ${enquiry.dateLabel}` : ""}
-                        <span className="text-stone">
-                          {" · "}
-                          {channelLabel(enquiry.source)}
-                        </span>
-                      </p>
-                    </div>
-                    <span className="inline-flex items-center gap-2 text-sm font-medium text-mark group-hover:text-mark-hover">
-                      Open
-                      <ArrowRight className="size-4" aria-hidden />
-                    </span>
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
-
-        <section className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_20rem]">
-          <div className="rounded-2xl bg-raised p-5 shadow-border sm:p-6">
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <p className="text-sm text-stone">Booked today</p>
-                <h2 className="mt-1 text-2xl font-semibold">{formatDayHeading(todayKey)}</h2>
+        <div className="today-work-grid">
+          {phone && view === "needs_you" && summary.atRisk > 0 ? (
+            <Link
+              to="/enquiries"
+              onClick={() => setQueueFilter("at_risk")}
+              className="today-risk-link"
+            >
+              <Clock3 size={16} aria-hidden />
+              <span>
+                {summary.atRisk} {summary.atRisk === 1 ? "enquiry needs" : "enquiries need"} a
+                closer look
+              </span>
+              <ChevronRight size={16} aria-hidden />
+            </Link>
+          ) : null}
+          {phone && view === "booked" ? null : (
+            <section className="today-attention" aria-labelledby="attention-title">
+              <div className="ui-section-heading">
+                <h2 id="attention-title">Needs your attention</h2>
+                <span className="ui-count">{summary.needsYou}</span>
               </div>
-              <CalendarDays className="size-5 text-mark" aria-hidden />
-            </div>
-            {todayBookings.length === 0 ? (
-              <p className="mt-5 text-sm text-ink-2">No confirmed booking is scheduled today.</p>
-            ) : (
-              <ul className="mt-5 divide-y divide-line">
-                {todayBookings.map((booking) => (
-                  <li key={booking.id} className="flex items-baseline justify-between gap-3 py-3">
-                    <div className="min-w-0">
-                      <p className="truncate font-medium">{booking.customerName}</p>
-                      <p className="mt-1 truncate text-sm text-ink-2">{booking.serviceLabel}</p>
-                    </div>
-                    <span className="shrink-0 text-sm tabular-nums text-stone">
-                      {formatTime(booking.when)}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            )}
-            <Button asChild variant="ghost" className="mt-4 px-0">
-              <Link to="/bookings">Open booked work</Link>
-            </Button>
-          </div>
+              {needsYou.length ? (
+                <ul className="today-enquiries">
+                  {needsYou.map((enquiry) => {
+                    const lastMessage = enquiry.conversation
+                      .filter((m) => m.direction === "inbound")
+                      .at(-1);
+                    return (
+                      <li key={enquiry.id}>
+                        <Link
+                          to="/enquiries/$enquiryId"
+                          params={{ enquiryId: enquiry.id }}
+                          className="today-enquiry-row"
+                        >
+                          <span className="customer-avatar" aria-hidden>
+                            {enquiry.customerName
+                              .split(/\s+/)
+                              .map((n) => n[0])
+                              .slice(0, 2)
+                              .join("")}
+                          </span>
+                          <span className="today-row-content">
+                            <span className="today-row-title">
+                              <strong>{enquiry.customerName}</strong>
+                              <Badge tone={statusTone(enquiry)}>
+                                {derivedLabel(enquiry.state, enquiry)}
+                              </Badge>
+                            </span>
+                            <span className="today-row-meta">{enquiry.serviceLabel}</span>
+                            {lastMessage ? (
+                              <span className="today-row-preview">{lastMessage.body}</span>
+                            ) : null}
+                          </span>
+                          <span className="today-row-update">
+                            <time dateTime={enquiry.updatedAt} title={enquiry.updatedAt}>
+                              {formatRelative(enquiry.updatedAt)}
+                            </time>
+                            <ChevronRight size={16} aria-hidden />
+                          </span>
+                        </Link>
+                      </li>
+                    );
+                  })}
+                </ul>
+              ) : (
+                <div className="ui-empty">
+                  <CheckCheck size={28} className="text-ok" aria-hidden />
+                  <h3>
+                    {view === "waiting" ? "No replies pending" : "Nothing needs you right now"}
+                  </h3>
+                  <p>
+                    {view === "waiting"
+                      ? "Enquiries awaiting a customer reply will appear here."
+                      : "New enquiries will appear here."}
+                  </p>
+                </div>
+              )}
+              <Link to="/enquiries" onClick={() => setQueueFilter("all")} className="ui-text-link">
+                View all enquiries <ArrowRight size={16} aria-hidden />
+              </Link>
+            </section>
+          )}
 
-          <div className="rounded-2xl bg-paper-2 p-5 sm:p-6">
-            <Inbox className="size-5 text-mark" aria-hidden />
-            <h2 className="mt-4 text-xl font-semibold">All enquiries stay available.</h2>
-            <p className="mt-2 text-sm leading-relaxed text-ink-2">
-              Today keeps the next work calm. The full searchable list is still one tap away.
-            </p>
-            <Button asChild className="mt-5 w-full">
-              <Link to="/enquiries">Open enquiries</Link>
-            </Button>
-          </div>
-        </section>
+          {phone && view !== "booked" ? null : (
+            <aside className="today-schedule" aria-labelledby="schedule-title">
+              <div className="ui-section-heading">
+                <h2 id="schedule-title">{formatDayHeading(day)}</h2>
+                <Link to="/bookings" aria-label="View booked calendar" title="View calendar">
+                  <CalendarDays size={19} />
+                </Link>
+              </div>
+              <div className="today-week-controls">
+                <button
+                  type="button"
+                  aria-label="Previous week"
+                  title="Previous week"
+                  onClick={() => setSelectedDay(dayKeyFromDate(addCalendarDays(weekAnchor, -7)))}
+                >
+                  <ChevronLeft size={16} />
+                </button>
+                <button
+                  type="button"
+                  className="today-reset-date"
+                  onClick={() => setSelectedDay(null)}
+                >
+                  Today
+                </button>
+                <button
+                  type="button"
+                  aria-label="Next week"
+                  title="Next week"
+                  onClick={() => setSelectedDay(dayKeyFromDate(addCalendarDays(weekAnchor, 7)))}
+                >
+                  <ChevronRight size={16} />
+                </button>
+              </div>
+              <div className="today-week" role="group" aria-label="Booking day">
+                {weekDays.map((date) => {
+                  const key = dayKeyFromDate(date);
+                  return (
+                    <button
+                      type="button"
+                      key={key}
+                      aria-label={formatDayHeading(key)}
+                      aria-pressed={key === day}
+                      aria-current={key === todayKey ? "date" : undefined}
+                      onClick={() => setSelectedDay(key)}
+                    >
+                      <span>{formatWeekdayMed(date)}</span>
+                      <strong>{date.getDate()}</strong>
+                      <i
+                        className={sortedOnDay(scopedBookings, key).length ? "has-bookings" : ""}
+                        aria-hidden
+                      />
+                    </button>
+                  );
+                })}
+              </div>
+              {dayBookings.length ? (
+                <ul className="today-bookings">
+                  {dayBookings.map((booking) => (
+                    <li key={booking.id}>
+                      <span className="today-time">{formatTime(booking.when)}</span>
+                      <span>
+                        <strong>{booking.customerName}</strong>
+                        <span>{booking.serviceLabel}</span>
+                        {booking.status === "pending" ? <Badge tone="warn">On hold</Badge> : null}
+                        {booking.status === "external_pending" ? (
+                          <Badge tone="warn">Awaiting confirmation</Badge>
+                        ) : null}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <div className="schedule-empty">
+                  <CalendarDays size={30} strokeWidth={1.4} aria-hidden />
+                  <h3>A little breathing room</h3>
+                  <p>{day === todayKey ? "No bookings today." : "No bookings on this day."}</p>
+                  <Link to="/bookings" className="ui-text-link">
+                    View upcoming <ArrowRight size={15} aria-hidden />
+                  </Link>
+                </div>
+              )}
+              {summary.atRisk > 0 ? (
+                <div className="today-risk">
+                  <Clock3 size={17} aria-hidden />
+                  <p>
+                    {summary.atRisk} {summary.atRisk === 1 ? "enquiry needs" : "enquiries need"} a
+                    closer look.
+                    <Link to="/enquiries" onClick={() => setQueueFilter("at_risk")}>
+                      Review enquiries <ArrowRight size={14} aria-hidden />
+                    </Link>
+                  </p>
+                </div>
+              ) : null}
+            </aside>
+          )}
+        </div>
       </div>
+      <MoreSheet open={moreOpen} onOpenChange={setMoreOpen} />
     </div>
   );
 }

@@ -20,7 +20,7 @@ function BookingsPage() {
   const phone = useNarrow(860) ?? true;
   const search = Route.useSearch();
   return (
-    <div className="h-full overflow-y-auto">
+    <div className="ui-page-scroll">
       <BookingsCalendar phone={phone} initialDay={search.on} initialJob={search.job} />
     </div>
   );

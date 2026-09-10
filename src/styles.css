@@ -1,13 +1,19 @@
 @import "tailwindcss";
+@import "@fontsource-variable/inter";
+@import "./ui1.css";
 
 @theme {
-  --font-sans: Inter, "SF Pro Text", "Segoe UI", ui-sans-serif, system-ui, sans-serif;
-  --font-serif: Inter, "SF Pro Text", "Segoe UI", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Inter Variable", Inter, ui-sans-serif, system-ui, sans-serif;
+  --font-serif: "Inter Variable", Inter, ui-sans-serif, system-ui, sans-serif;
   --font-mono: "SF Mono", "Cascadia Code", ui-monospace, monospace;
 
-  --color-paper: #f6f5f3;
+  --color-paper: #fafafc;
   --color-paper-2: #f0eef4;
   --color-raised: #ffffff;
+  --color-work: #fcfbfe;
+  --color-reply: #f3efff;
+  --color-nav-active: #eae4fc;
+  --color-nav-active-fg: #6146c6;
   --color-ink: #1c1b1f;
   --color-ink-2: #4f4b55;
   /*
@@ -30,7 +36,7 @@
     value used everywhere else.
   */
   --color-stone-on-paper-2: #625d68;
-  --color-line: #e7e4ea;
+  --color-line: #eceaf0;
   --color-line-strong: #cbc5d3;
   /*
     --color-line (1.26:1 on raised) and --color-line-strong (1.61:1 on
@@ -45,11 +51,11 @@
   */
   --color-line-control: #8a8491;
   --color-line-control-hover: color-mix(in oklab, var(--color-line-control) 78%, black);
-  --color-sidebar: #f0eef4;
+  --color-sidebar: #f4f1fa;
   --color-sidebar-fg: #1c1b1f;
   --color-sidebar-muted: #68656d;
-  --color-mark: #6c55c7;
-  --color-mark-hover: #5943b6;
+  --color-mark: #6848d6;
+  --color-mark-hover: #583ac0;
   --color-mark-fg: #ffffff;
   /*
     A small, deliberately narrow set of moments (landing hero CTA, onboarding
@@ -162,7 +168,7 @@
      on a bg-paper-2 container - every one was already migrated to the
      dedicated -on-paper-2 token.
 */
-html[data-palette="b"] {
+html[data-palette="b"]:not(:has(.app-root)) {
   --color-paper: #f5f6f3;
   --color-raised: #ffffff;
   --color-paper-2: #dfe1de;

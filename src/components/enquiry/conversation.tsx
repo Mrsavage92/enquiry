@@ -17,14 +17,17 @@ import { QuoteSheet } from "./quote-sheet";
 export function Conversation({
   enquiry,
   compact = false,
+  embedded = false,
 }: {
   enquiry: Enquiry;
   compact?: boolean;
+  embedded?: boolean;
 }) {
   const endRef = useRef<HTMLLIElement>(null);
   const channel = enquiry.source;
 
   useEffect(() => {
+    if (embedded && enquiry.conversation.length <= 1) return;
     const el = endRef.current;
     if (!el) return;
     let pane: HTMLElement | null = el.parentElement;
@@ -36,11 +39,17 @@ export function Conversation({
       }
       pane = pane.parentElement;
     }
-  }, [enquiry.conversation.length, compact]);
+  }, [enquiry.conversation.length, compact, embedded]);
 
   return (
-    <div className={cn("flex min-h-0 flex-col bg-paper", compact ? "" : "h-full")}>
-      {compact ? null : (
+    <div
+      className={cn(
+        "flex min-h-0 flex-col",
+        embedded ? "conversation-embedded" : "bg-paper",
+        compact || embedded ? "" : "h-full",
+      )}
+    >
+      {compact || embedded ? null : (
         <header className="border-b border-line bg-raised px-6 py-4">
           <p className="eyebrow">{threadLabel(channel)}</p>
           <h2 className="mt-1 text-lg font-semibold tracking-tight">{enquiry.customerName}</h2>
@@ -53,7 +62,11 @@ export function Conversation({
       <ol
         className={cn(
           "mx-auto w-full max-w-xl",
-          compact ? "px-4 py-4" : "min-h-0 flex-1 overflow-y-auto px-6 py-7",
+          embedded
+            ? "px-6 py-6"
+            : compact
+              ? "px-4 py-4"
+              : "min-h-0 flex-1 overflow-y-auto px-6 py-7",
         )}
       >
         {enquiry.conversation.map((m, i) => (
@@ -119,7 +132,7 @@ function MessageBlock({
 
   return (
     <li ref={endRef} className={cn(spaced && "mt-10")}>
-      <div className="flex items-baseline justify-between gap-3">
+      <div className="message-meta flex items-baseline justify-between gap-3">
         <p className="text-sm font-medium">{m.from}</p>
         <p className="shrink-0 text-2xs tabular-nums text-stone">{formatWhen(m.at)}</p>
       </div>
@@ -153,18 +166,22 @@ function MessageBlock({
         </blockquote>
       ) : (
         <>
-          {m.subject ? (
-            <p className="mt-4 font-serif text-xl font-medium leading-snug tracking-tight">
-              {m.subject}
-            </p>
-          ) : null}
-          {outbound ? (
-            <div className="mt-4 rounded-lg bg-raised px-5 py-4 shadow-border">
-              <p className="letter-body whitespace-pre-wrap text-ink-2">{m.body}</p>
-            </div>
-          ) : (
-            <p className="letter-body mt-4 whitespace-pre-wrap">{m.body}</p>
-          )}
+          <div
+            className={cn("message-letter", outbound ? "message-letter-out" : "message-letter-in")}
+          >
+            {m.subject ? (
+              <p className="message-subject mt-4 font-serif text-xl font-medium leading-snug tracking-tight">
+                {m.subject}
+              </p>
+            ) : null}
+            {outbound ? (
+              <div className="mt-4 rounded-lg bg-raised px-5 py-4 shadow-border">
+                <p className="letter-body whitespace-pre-wrap text-ink-2">{m.body}</p>
+              </div>
+            ) : (
+              <p className="letter-body mt-4 whitespace-pre-wrap">{m.body}</p>
+            )}
+          </div>
         </>
       )}
 

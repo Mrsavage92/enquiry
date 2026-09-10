@@ -20,12 +20,16 @@ import type { Business } from "@/domain/types";
 export function AddEnquiry({
   business,
   onCreated,
+  initiallyOpen = false,
+  onCancel,
 }: {
   business: Business;
   onCreated?: (enquiryId: string) => void;
+  initiallyOpen?: boolean;
+  onCancel?: () => void;
 }) {
   const actions = useFirstBetaActions();
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(initiallyOpen);
   const [body, setBody] = useState("");
   const [customerName, setCustomerName] = useState("");
   const [customerEmail, setCustomerEmail] = useState("");
@@ -76,7 +80,7 @@ export function AddEnquiry({
   }
 
   return (
-    <div className="rounded-md bg-raised p-5 shadow-border">
+    <div className={initiallyOpen ? "" : "rounded-md bg-raised p-5 shadow-border"}>
       <p className="eyebrow">New enquiry</p>
       <p className="mt-2 text-sm leading-relaxed text-ink-2">
         Paste what they sent, or type what they said on the phone. Enquiry works from their words.
@@ -145,7 +149,14 @@ export function AddEnquiry({
         <Button className="min-h-11" disabled={saving} onClick={() => void submit()}>
           {saving ? "Adding…" : "Add enquiry"}
         </Button>
-        <Button variant="secondary" className="min-h-11" onClick={() => setOpen(false)}>
+        <Button
+          variant="secondary"
+          className="min-h-11"
+          onClick={() => {
+            setOpen(false);
+            onCancel?.();
+          }}
+        >
           Cancel
         </Button>
       </div>

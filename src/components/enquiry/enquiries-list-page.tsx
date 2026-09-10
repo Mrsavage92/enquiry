@@ -1,16 +1,14 @@
-import { Link } from "@tanstack/react-router";
-import { Search } from "lucide-react";
+import { Link, useNavigate } from "@tanstack/react-router";
+import { ChevronRight, Plus, Search } from "lucide-react";
+import { AddEnquiry } from "./add-enquiry";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Segmented } from "@/components/ui/segmented";
 import { channelLabel } from "@/domain/channel";
-import {
-  commercialValue,
-  derivedLabel,
-  filteredEnquiries,
-  queueSummary,
-  queueSection,
-} from "@/domain/labels";
+import { formatRelative } from "@/domain/format";
+import { derivedLabel, filteredEnquiries, queueSummary } from "@/domain/labels";
 import { statusTone } from "@/domain/status-tone";
 import { usePrototype, type QueueFilter } from "@/store/prototype-store";
 
@@ -23,9 +21,15 @@ const FILTERS: { id: QueueFilter; label: string }[] = [
 ];
 
 export function EnquiriesListPage() {
+  const navigate = useNavigate();
+  const [createOpen, setCreateOpen] = useState(false);
+  const demoMode = usePrototype((s) => s.demoMode);
   const enquiries = usePrototype((s) => s.enquiries);
   const businesses = usePrototype((s) => s.businesses);
   const businessFilter = usePrototype((s) => s.businessFilter);
+  const activeBusiness =
+    businesses.find((b) => b.id === businessFilter) ??
+    (businesses.length === 1 ? businesses[0] : undefined);
   const queueFilter = usePrototype((s) => s.queueFilter);
   const setQueueFilter = usePrototype((s) => s.setQueueFilter);
   const [query, setQuery] = useState("");
@@ -33,8 +37,9 @@ export function EnquiriesListPage() {
     (enquiry) => businessFilter === "all" || enquiry.businessId === businessFilter,
   );
   const q = query.trim().toLowerCase();
+  const filtered = filteredEnquiries(enquiries, businessFilter, queueFilter);
   const listed = q
-    ? scoped.filter((enquiry) =>
+    ? filtered.filter((enquiry) =>
         [
           enquiry.customerName,
           enquiry.serviceLabel,
@@ -47,7 +52,7 @@ export function EnquiriesListPage() {
           .toLowerCase()
           .includes(q),
       )
-    : filteredEnquiries(enquiries, businessFilter, queueFilter);
+    : filtered;
   const summary = queueSummary(scoped);
   const counts = {
     all: scoped.length,
@@ -58,26 +63,37 @@ export function EnquiriesListPage() {
   };
 
   return (
-    <div className="h-full overflow-y-auto">
-      <div className="mx-auto w-full max-w-5xl px-4 py-5 pb-10 sm:px-6 sm:py-8">
-        <header className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+    <div className="ui-page-scroll">
+      <div className="ui-page enquiry-list-page">
+        <header className="ui-page-header">
           <div>
-            <h1 className="text-4xl font-semibold leading-tight">Enquiries</h1>
-            <p className="mt-3 max-w-2xl text-base leading-relaxed text-ink-2">
-              The complete list, kept searchable. Open one when you need the conversation,
-              reply or evidence.
+            <h1>Enquiries</h1>
+            <p className="ui-page-description">
+              {scoped.length} {scoped.length === 1 ? "enquiry" : "enquiries"}
             </p>
           </div>
-          <label className="relative block lg:w-80">
-            <span className="sr-only">Search enquiries</span>
-            <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-stone" />
-            <input
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder="Search name, service or place"
-              className="field h-11 pl-9"
-            />
-          </label>
+          <div className="enquiries-header-actions">
+            <label className="relative block">
+              <span className="sr-only">Search enquiries</span>
+              <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-stone" />
+              <input
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder="Search enquiries"
+                className="field h-11 pl-9"
+              />
+            </label>
+            {!demoMode && activeBusiness ? (
+              <Button
+                size="icon"
+                aria-label="Add an enquiry"
+                title="Add an enquiry"
+                onClick={() => setCreateOpen(true)}
+              >
+                <Plus size={19} />
+              </Button>
+            ) : null}
+          </div>
         </header>
 
         <div className="mt-6 overflow-x-auto">
@@ -92,7 +108,15 @@ export function EnquiriesListPage() {
           />
         </div>
 
-        <div className="mt-5 overflow-hidden rounded-2xl bg-raised shadow-border">
+        <div className="mt-5">
+          <div className="enquiries-column-head" aria-hidden>
+            <span>Customer</span>
+            <span>Service</span>
+            <span>Date</span>
+            <span>Status</span>
+            <span className="enquiries-updated">Updated</span>
+            <span />
+          </div>
           {listed.length === 0 ? (
             <div className="px-5 py-12 text-center">
               <p className="font-medium">No enquiries match.</p>
@@ -102,31 +126,60 @@ export function EnquiriesListPage() {
             <ul className="divide-y divide-line">
               {listed.map((enquiry) => {
                 const business = businesses.find((b) => b.id === enquiry.businessId);
-                const value = commercialValue(enquiry);
                 return (
                   <li key={enquiry.id}>
                     <Link
                       to="/enquiries/$enquiryId"
                       params={{ enquiryId: enquiry.id }}
-                      className="grid gap-3 px-4 py-4 transition-colors hover:bg-paper-2 sm:grid-cols-[minmax(0,1fr)_13rem_8rem] sm:items-center sm:px-5"
+                      className="enquiries-list-row"
                     >
-                      <div className="min-w-0">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <p className="truncate text-base font-semibold">{enquiry.customerName}</p>
-                          <Badge tone={statusTone(enquiry)}>{derivedLabel(enquiry.state, enquiry)}</Badge>
+                      <div className="flex min-w-0 items-center gap-3">
+                        <span className="customer-avatar" aria-hidden>
+                          {enquiry.customerName
+                            .split(/\s+/)
+                            .map((n) => n[0])
+                            .slice(0, 2)
+                            .join("")}
+                        </span>
+                        <div className="min-w-0">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <p className="truncate text-base font-semibold">
+                              {enquiry.customerName}
+                            </p>
+                          </div>
+                          <p className="enquiries-customer-service mt-1 truncate text-sm text-ink-2">
+                            {enquiry.serviceLabel}
+                          </p>
+                          {businessFilter === "all" && business?.name ? (
+                            <p className="enquiries-customer-business mt-1 truncate text-xs text-stone">
+                              {business.name}
+                            </p>
+                          ) : null}
                         </div>
-                        <p className="mt-1 truncate text-sm text-ink-2">
-                          {enquiry.serviceLabel}
-                          {enquiry.dateLabel ? ` · ${enquiry.dateLabel}` : ""}
-                        </p>
                       </div>
-                      <p className="min-w-0 truncate text-sm text-ink-2">
-                        {businessFilter === "all" && business?.name ? `${business.name} · ` : ""}
-                        {channelLabel(enquiry.source)}
+                      <p
+                        className="enquiries-service min-w-0 truncate text-sm text-ink-2"
+                        title={enquiry.serviceLabel}
+                      >
+                        {enquiry.serviceLabel}
                       </p>
-                      <p className="text-sm text-stone sm:text-right">
-                        {value.kind === "not_applicable" ? queueSection(enquiry).replace("_", " ") : value.amountLabel}
+                      <p className="enquiries-date min-w-0 text-sm text-ink-2">
+                        {enquiry.dateLabel || "Not set"}
+                        <span className="mt-1 block text-xs text-stone">
+                          {channelLabel(enquiry.source)}
+                        </span>
                       </p>
+                      <Badge tone={statusTone(enquiry)}>
+                        {derivedLabel(enquiry.state, enquiry)}
+                      </Badge>
+                      <time
+                        dateTime={enquiry.updatedAt}
+                        className="enquiries-updated text-xs text-stone"
+                        title={enquiry.updatedAt}
+                      >
+                        {formatRelative(enquiry.updatedAt)}
+                      </time>
+                      <ChevronRight size={16} className="text-stone" aria-hidden />
                     </Link>
                   </li>
                 );
@@ -135,6 +188,21 @@ export function EnquiriesListPage() {
           )}
         </div>
       </div>
+      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+        <DialogContent title="Add an enquiry" className="max-h-[90dvh] overflow-y-auto">
+          {activeBusiness && !demoMode ? (
+            <AddEnquiry
+              initiallyOpen
+              business={activeBusiness}
+              onCancel={() => setCreateOpen(false)}
+              onCreated={(id) => {
+                setCreateOpen(false);
+                void navigate({ to: "/enquiries/$enquiryId", params: { enquiryId: id } });
+              }}
+            />
+          ) : null}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

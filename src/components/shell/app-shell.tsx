@@ -1,6 +1,7 @@
 import { Link, Outlet, useRouterState, useNavigate } from "@tanstack/react-router";
 import {
-  BookMarked,
+  CalendarCheck2,
+  CalendarDays,
   BriefcaseBusiness,
   CircleHelp,
   Gift,
@@ -10,7 +11,6 @@ import {
   Pause,
   Settings,
   Sparkle,
-  SunMedium,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
@@ -28,17 +28,17 @@ import { MoreSheet } from "./more-sheet";
 import { toast } from "sonner";
 
 const NAV = [
-  { to: "/today", label: "Today", icon: SunMedium },
+  { to: "/today", label: "Today", icon: CalendarDays },
   { to: "/enquiries", label: "Enquiries", icon: Inbox },
-  { to: "/bookings", label: "Booked", icon: BookMarked },
+  { to: "/bookings", label: "Booked", icon: CalendarCheck2 },
   { to: "/business", label: "Business", icon: BriefcaseBusiness },
   { to: "/insights", label: "Insights", icon: LineChart },
 ] as const;
 
 const PHONE_NAV = [
-  { to: "/today", label: "Today", icon: SunMedium },
+  { to: "/today", label: "Today", icon: CalendarDays },
   { to: "/enquiries", label: "Enquiries", icon: Inbox },
-  { to: "/bookings", label: "Booked", icon: BookMarked },
+  { to: "/bookings", label: "Booked", icon: CalendarCheck2 },
   { to: "/business", label: "Business", icon: BriefcaseBusiness },
 ] as const;
 
@@ -153,7 +153,10 @@ export function AppShell() {
         if (key === "b") void navigate({ to: "/bookings" });
         if (key === "i") void navigate({ to: "/insights" });
         if (key === "s") void navigate({ to: "/settings" });
-        if (key === "n") void navigate({ to: "/business" });
+        if (key === "n") {
+          usePrototype.getState().setBrainTab("home");
+          void navigate({ to: "/business" });
+        }
         return;
       }
       if (e.key.toLowerCase() === "g" && !e.metaKey && !e.ctrlKey) {
@@ -170,27 +173,27 @@ export function AppShell() {
       ? "Today · Enquiry"
       : pathname.startsWith("/enquiries")
         ? "Enquiries · Enquiry"
-      : pathname.startsWith("/bookings")
-        ? "Booked · Enquiry"
-        : pathname.startsWith("/insights")
-          ? "Insights · Enquiry"
-          : pathname.startsWith("/business")
-            ? "Business · Enquiry"
-            : pathname.startsWith("/trust")
-              ? "Trust · Enquiry"
-              : pathname.startsWith("/settings")
-                ? "Settings · Enquiry"
-                : pathname.startsWith("/usage")
-                  ? "Plan & usage · Enquiry"
-                  : pathname.startsWith("/refer")
-                    ? "Refer a friend · Enquiry"
-                    : pathname.startsWith("/support")
-                      ? "Help & support · Enquiry"
-                      : pathname.startsWith("/account")
-                        ? "Account · Enquiry"
-                : pathname.startsWith("/lab")
-                  ? "Lab · Enquiry"
-                  : "Enquiry";
+        : pathname.startsWith("/bookings")
+          ? "Booked · Enquiry"
+          : pathname.startsWith("/insights")
+            ? "Insights · Enquiry"
+            : pathname.startsWith("/business")
+              ? "Business · Enquiry"
+              : pathname.startsWith("/trust")
+                ? "Trust · Enquiry"
+                : pathname.startsWith("/settings")
+                  ? "Settings · Enquiry"
+                  : pathname.startsWith("/usage")
+                    ? "Plan & usage · Enquiry"
+                    : pathname.startsWith("/refer")
+                      ? "Refer a friend · Enquiry"
+                      : pathname.startsWith("/support")
+                        ? "Help & support · Enquiry"
+                        : pathname.startsWith("/account")
+                          ? "Account · Enquiry"
+                          : pathname.startsWith("/lab")
+                            ? "Lab · Enquiry"
+                            : "Enquiry";
     document.title = title;
   }, [pathname]);
 
@@ -203,11 +206,14 @@ export function AppShell() {
           <Link
             key={item.to}
             to={item.to}
+            onClick={() => {
+              if (item.to === "/business") usePrototype.getState().setBrainTab("home");
+            }}
             className={cn(
               "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium min-h-11 transition-[background-color,color,box-shadow] duration-150 ease-out",
               inverse
                 ? active
-                  ? "bg-white text-sidebar-fg shadow-border"
+                  ? "bg-[#ede7fa] text-mark-strong"
                   : "text-sidebar-muted hover:bg-white/70 hover:text-sidebar-fg"
                 : active
                   ? "bg-mark text-mark-fg"
@@ -217,10 +223,10 @@ export function AppShell() {
           >
             <Icon className="size-4 shrink-0" aria-hidden />
             {item.label}
-            {item.to === "/enquiries" && openCount > 0 ? (
+            {item.to === "/today" && openCount > 0 ? (
               <span
                 className={cn(
-                  "ml-auto tabular-nums text-2xs",
+                  "nav-count ml-auto tabular-nums text-2xs",
                   inverse
                     ? active
                       ? "text-sidebar-muted"
@@ -244,6 +250,10 @@ export function AppShell() {
     pathname.startsWith("/trust") ||
     pathname.startsWith("/insights") ||
     pathname.startsWith("/settings") ||
+    pathname.startsWith("/usage") ||
+    pathname.startsWith("/refer") ||
+    pathname.startsWith("/support") ||
+    pathname.startsWith("/account") ||
     pathname.startsWith("/lab");
   const enquiryOpen = pathname.startsWith("/enquiries/") && pathname !== "/enquiries";
 
@@ -272,7 +282,10 @@ export function AppShell() {
             <Outlet />
           </main>
           {enquiryOpen ? null : (
-            <nav aria-label="App" className="app-nav shrink-0 flex border-t border-line bg-raised/95 backdrop-blur">
+            <nav
+              aria-label="App"
+              className="app-nav shrink-0 flex border-t border-line bg-raised/95 backdrop-blur"
+            >
               {PHONE_NAV.map((item) => {
                 const active = pathname === item.to || pathname.startsWith(item.to + "/");
                 const Icon = item.icon;
@@ -280,15 +293,18 @@ export function AppShell() {
                   <Link
                     key={item.to}
                     to={item.to}
+                    onClick={() => {
+                      if (item.to === "/business") usePrototype.getState().setBrainTab("home");
+                    }}
                     className={cn(
                       "relative flex flex-1 flex-col items-center gap-0.5 py-2 text-2xs font-medium min-h-14 transition-colors duration-150",
-                      active ? "text-ink" : "text-stone",
+                      active ? "text-mark" : "text-stone",
                     )}
+                    aria-current={active ? "page" : undefined}
                   >
-                    {active ? (
-                      <span className="absolute top-0 h-0.5 w-6 rounded-full bg-mark" aria-hidden />
-                    ) : null}
-                    <span className="relative">
+                    <span
+                      className={cn("phone-nav-icon relative", active && "phone-nav-icon-active")}
+                    >
                       <Icon className="size-5" aria-hidden />
                       {item.to === "/enquiries" && openCount > 0 ? (
                         <span className="absolute -right-2.5 -top-1 min-w-4 rounded-full bg-ink px-1 text-center text-[10px] leading-4 text-paper">
@@ -305,22 +321,21 @@ export function AppShell() {
                 onClick={() => setMore(true)}
                 className={cn(
                   "relative flex flex-1 flex-col items-center gap-0.5 py-2 text-2xs font-medium min-h-14",
-                  moreActive ? "text-ink" : "text-stone",
+                  moreActive ? "text-mark" : "text-stone",
                 )}
               >
-                {moreActive ? (
-                  <span className="absolute top-0 h-0.5 w-6 rounded-full bg-ink" aria-hidden />
-                ) : null}
-                <MoreHorizontal className="size-5" aria-hidden />
+                <span className={cn("phone-nav-icon", moreActive && "phone-nav-icon-active")}>
+                  <MoreHorizontal className="size-5" aria-hidden />
+                </span>
                 More
               </button>
             </nav>
           )}
         </div>
       ) : (
-        <div className="grid min-h-0 flex-1 grid-cols-[16rem_1fr] overflow-hidden">
-          <aside className="flex min-h-0 flex-col border-r border-line bg-sidebar px-4 py-5 text-sidebar-fg">
-            <Link to="/today" className="mb-8 px-2">
+        <div className="grid min-h-0 flex-1 grid-cols-[13.5rem_minmax(0,1fr)] overflow-hidden">
+          <aside className="app-sidebar flex min-h-0 flex-col border-r border-line bg-sidebar px-3 py-6 text-sidebar-fg">
+            <Link to="/today" className="mb-6 px-3">
               <Wordmark inverse />
             </Link>
             <div className="flex-1">
@@ -330,19 +345,19 @@ export function AppShell() {
               </div>
             </div>
             {pauseAny ? (
-              <p className="mb-3 flex items-center gap-2 px-3 text-xs text-warn-bg">
+              <p className="mb-3 flex items-center gap-2 px-3 text-xs text-warn">
                 <Pause className="size-3" aria-hidden /> Paused
               </p>
             ) : null}
             <div className="space-y-3 border-t border-line pt-3">
-              <Link to="/usage" className="block rounded-xl bg-white p-3 shadow-border">
+              <Link
+                to="/usage"
+                className="block rounded-lg px-2 py-2 text-sidebar-muted hover:bg-white/70"
+              >
                 <div className="flex items-center gap-2 text-sm font-medium">
                   <Sparkle className="size-4 text-mark" aria-hidden />
                   Plan & usage
                 </div>
-                <p className="mt-1 text-xs leading-relaxed text-sidebar-muted">
-                  Usage limits are not configured yet. This area is reserved for the real plan.
-                </p>
               </Link>
               <nav aria-label="Account and support" className="grid gap-1">
                 <Link
@@ -373,7 +388,7 @@ export function AppShell() {
               <AccountMenu inverse />
             </div>
           </aside>
-          <main id="main" className="min-h-0 min-w-0 overflow-y-auto bg-paper">
+          <main id="main" className="min-h-0 min-w-0 overflow-y-auto bg-raised">
             <Outlet />
           </main>
         </div>

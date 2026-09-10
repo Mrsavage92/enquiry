@@ -1,5 +1,15 @@
 import { Link } from "@tanstack/react-router";
-import { CircleHelp, Gift, Globe, LineChart, Settings, Sparkle, UserRound } from "lucide-react";
+import {
+  ChevronDown,
+  ChevronRight,
+  CircleHelp,
+  Gauge,
+  Gift,
+  Globe,
+  LineChart,
+  Settings,
+  UserRound,
+} from "lucide-react";
 import { Dialog as DialogRoot } from "@/components/ui/dialog";
 import { SheetContent } from "@/components/ui/sheet";
 import { usePrototype } from "@/store/prototype-store";
@@ -29,71 +39,81 @@ export function MoreSheet({
   // "glow" id meant a real workspace vanished from its own selector the
   // moment it had a real uuid.
   const visible = visibleBusinesses(businesses, { demoMode, fixtures: BUSINESSES });
+  const current =
+    visible.find((business) => business.id === filter) ??
+    (visible.length === 1 ? visible[0] : undefined);
 
   return (
     <DialogRoot open={open} onOpenChange={onOpenChange}>
-      <SheetContent title="More">
-        <p className="eyebrow">Working as</p>
-        <ul className="mt-1">
-          {demoMode ? (
-            <li>
-              <button
-                type="button"
-                className={cn(
-                  "flex min-h-12 w-full items-center rounded-lg px-2 text-left text-sm",
-                  filter === "all" ? "font-medium text-ink" : "text-ink-2",
-                )}
-                onClick={() => {
-                  setFilter("all");
-                  close();
-                }}
-              >
-                All businesses
-              </button>
-            </li>
-          ) : null}
-          {visible.map((b) => (
-            <li key={b.id}>
-              <button
-                type="button"
-                className={cn(
-                  "flex min-h-12 w-full items-center rounded-lg px-2 text-left text-sm",
-                  filter === b.id ? "font-medium text-ink" : "text-ink-2",
-                )}
-                onClick={() => {
-                  setFilter(b.id);
-                  close();
-                }}
-              >
-                {b.name}
-              </button>
-            </li>
-          ))}
-        </ul>
-        <Link to="/usage" onClick={close} className="mt-4 block rounded-xl bg-paper-2 p-3">
-          <div className="flex items-center gap-2 text-sm font-medium">
-            <Sparkle className="size-4 text-mark" aria-hidden />
-            Plan & usage
-          </div>
-          <p className="mt-1 text-xs leading-relaxed text-ink-2">
-            Usage limits are not configured yet. This will show the real plan when pricing is set.
-          </p>
-        </Link>
+      <SheetContent title="More" className="more-sheet">
+        <details className="more-workspace">
+          <summary>
+            <span className="customer-avatar" aria-hidden>
+              <UserRound size={18} />
+            </span>
+            <span className="min-w-0 flex-1">
+              <strong>
+                {current?.ownerName || (demoMode ? "Sample workspace" : "Your workspace")}
+              </strong>
+              <small>{current?.name || "All businesses"}</small>
+            </span>
+            <ChevronDown size={16} aria-hidden />
+          </summary>
+          <p className="sr-only">Switch business</p>
+          <ul className="mt-1">
+            {demoMode ? (
+              <li>
+                <button
+                  type="button"
+                  className={cn(
+                    "flex min-h-12 w-full items-center rounded-lg px-2 text-left text-sm",
+                    filter === "all" ? "font-medium text-ink" : "text-ink-2",
+                  )}
+                  onClick={() => {
+                    setFilter("all");
+                    close();
+                  }}
+                >
+                  All businesses
+                </button>
+              </li>
+            ) : null}
+            {visible.map((b) => (
+              <li key={b.id}>
+                <button
+                  type="button"
+                  className={cn(
+                    "flex min-h-12 w-full items-center rounded-lg px-2 text-left text-sm",
+                    filter === b.id ? "font-medium text-ink" : "text-ink-2",
+                  )}
+                  onClick={() => {
+                    setFilter(b.id);
+                    close();
+                  }}
+                >
+                  {b.name}
+                </button>
+              </li>
+            ))}
+          </ul>
+        </details>
         <ul className="mt-3 grid gap-1">
-          {embed ? null : <MoreLink to="/" onClick={close} icon={Globe} label="Website" />}
-          <MoreLink to="/insights" onClick={close} icon={LineChart} label="Insights" />
+          <MoreLink to="/usage" onClick={close} icon={Gauge} label="Plan & usage" />
           <MoreLink to="/refer" onClick={close} icon={Gift} label="Refer a friend" />
           <MoreLink to="/support" onClick={close} icon={CircleHelp} label="Help & support" />
           <MoreLink to="/settings" onClick={close} icon={Settings} label="Settings" />
           <MoreLink to="/account" onClick={close} icon={UserRound} label="Account" />
+          <MoreLink to="/insights" onClick={close} icon={LineChart} label="Insights" />
+          {embed ? null : <MoreLink to="/" onClick={close} icon={Globe} label="Website" />}
         </ul>
         {embed ? null : (
-          <div className="mt-5 border-t border-line pt-4">
-            <p className="eyebrow">This phone</p>
+          <details className="more-secondary mt-5 border-t border-line">
+            <summary>On this device</summary>
             <InstallAppRow onDone={close} />
-          </div>
+          </details>
         )}
-        <div className="mt-4 border-t border-line pt-4">
+        <details className="more-secondary border-t border-line">
+          <summary>{demoMode ? "Sample workspace" : "Workspace setup"}</summary>
           <div className="flex flex-col gap-2">
             {/*
               enterSample() overwrites the workspace arrays with fixtures. That
@@ -130,7 +150,7 @@ export function MoreSheet({
               </Link>
             </Button>
           </div>
-        </div>
+        </details>
       </SheetContent>
     </DialogRoot>
   );
@@ -154,8 +174,9 @@ function MoreLink({
         onClick={onClick}
         className="flex min-h-12 items-center gap-3 rounded-lg px-2 py-1.5 active:bg-paper-2"
       >
-        <Icon className="size-5 text-stone" aria-hidden />
-        <span className="text-sm font-medium">{label}</span>
+        <Icon className="size-[18px] text-mark-strong" aria-hidden />
+        <span className="flex-1 text-sm font-medium">{label}</span>
+        <ChevronRight className="size-4 text-stone" aria-hidden />
       </Link>
     </li>
   );
