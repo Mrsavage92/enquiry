@@ -68,6 +68,17 @@ export function activeRules(business: {
   return out;
 }
 
+/** Active pricing knowledge with no machine-usable rule: it reads as a price but cannot compute one. */
+export function unpriceableActivePricing<
+  K extends RuleBearingKnowledge & { section?: string },
+>(business: { knowledge?: ReadonlyArray<K> | null }): K[] {
+  return (business.knowledge ?? []).filter((item) => {
+    if (item.state !== "Active" || item.section !== "pricing") return false;
+    const payload = item.rulePayload;
+    return payload === undefined || payload === null || !parseBusinessRule(payload).ok;
+  });
+}
+
 /**
  * The compiler only trusts confirmed facts, so hand it exactly what it needs.
  *

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { activeRules, decideEnquiry } from "./decide.ts";
+import { activeRules, decideEnquiry, unpriceableActivePricing } from "./decide.ts";
 
 const rule = {
   kind: "per_unit",
@@ -115,6 +115,23 @@ test("a superseded unconfirmed service fact does not carry forward - toCompilerF
   );
   assert.equal(d.action, "SEND_QUOTE");
   assert.equal(d.price.kind, "EXACT");
+});
+
+test("active pricing without a usable rule is named as unpriceable, not silently dropped", () => {
+  type Item = { id: string; state?: string | null; section?: string; rulePayload?: unknown };
+  const usable = knowledge("Active") as Item;
+  const textOnly = { ...(knowledge("Active", null) as Item), id: "k2" };
+  const malformed = {
+    ...(knowledge("Active", { kind: "per_unit", amount: "lots" }) as Item),
+    id: "k3",
+  };
+  const proposed = { ...(knowledge("Proposed", null) as Item), id: "k4" };
+  const business = { knowledge: [usable, textOnly, malformed, proposed] };
+  assert.deepEqual(
+    unpriceableActivePricing(business).map((k) => k.id),
+    ["k2", "k3"],
+  );
+  assert.equal(activeRules(business).length, 1);
 });
 
 test("a superseded quantity fact ordered before the live one prices from the live quantity", () => {

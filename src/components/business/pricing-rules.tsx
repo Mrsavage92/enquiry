@@ -3,7 +3,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { usePrototype } from "@/store/prototype-store";
 import { useFirstBetaActions } from "@/lib/workspace/live-mutations";
-import { activeRules } from "@/domain/decide";
+import { activeRules, unpriceableActivePricing } from "@/domain/decide";
 import { describeRule } from "@/domain/business-rule";
 import type { Business } from "@/domain/types";
 
@@ -23,6 +23,7 @@ export function PricingRules({ business }: { business: Business }) {
   const demoMode = usePrototype((s) => s.demoMode);
   const actions = useFirstBetaActions();
   const rules = activeRules(business);
+  const textOnly = unpriceableActivePricing(business);
 
   const [open, setOpen] = useState(false);
   const [kind, setKind] = useState<"fixed_price" | "per_unit">("per_unit");
@@ -102,8 +103,11 @@ export function PricingRules({ business }: { business: Business }) {
 
       {rules.length === 0 && !open ? (
         <p className="site-lede mt-4">
-          Enquiry cannot price anything yet. Add what you charge and it will work out totals from
-          real enquiries - and tell you what it still needs when it cannot.
+          {textOnly.length
+            ? `Enquiry cannot price anything yet. Your active pricing is written as text only (${textOnly
+                .map((k) => k.title)
+                .join(", ")}), so it cannot work out a total from it. Add the price as a rule here.`
+            : "Enquiry cannot price anything yet. Add what you charge and it will work out totals from real enquiries - and tell you what it still needs when it cannot."}
         </p>
       ) : null}
 
