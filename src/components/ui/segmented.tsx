@@ -1,5 +1,6 @@
 import { cn } from "@/lib/utils";
 import { useRef } from "react";
+import { SelectionTrack } from "./selection-track";
 
 export function Segmented<T extends string>({
   value,
@@ -16,9 +17,10 @@ export function Segmented<T extends string>({
 }) {
   const buttons = useRef<(HTMLButtonElement | null)[]>([]);
   return (
-    <div
+    <SelectionTrack
+      activeKey={value}
       role="tablist"
-      aria-label={ariaLabel}
+      label={ariaLabel}
       className={cn(
         "flex w-max min-w-full flex-nowrap gap-0.5 rounded-md bg-paper-2 p-1",
         fullWidth && "w-full",
@@ -32,6 +34,7 @@ export function Segmented<T extends string>({
             type="button"
             role="tab"
             aria-selected={selected}
+            data-motion-selected={selected}
             tabIndex={selected ? 0 : -1}
             ref={(element) => {
               buttons.current[index] = element;
@@ -73,6 +76,6 @@ export function Segmented<T extends string>({
           </button>
         );
       })}
-    </div>
+    </SelectionTrack>
   );
 }

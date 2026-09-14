@@ -15,6 +15,7 @@ import {
 import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 import { Wordmark } from "@/components/ui/wordmark";
+import { SelectionTrack } from "@/components/ui/selection-track";
 import { useNarrow } from "@/lib/use-narrow";
 import { usePrototype } from "@/store/prototype-store";
 import { queueSection } from "@/domain/labels";
@@ -198,7 +199,12 @@ export function AppShell() {
   }, [pathname]);
 
   const nav = (inverse: boolean) => (
-    <nav aria-label="Primary" className="flex flex-col gap-0.5">
+    <SelectionTrack
+      as="nav"
+      label="Primary"
+      activeKey={pathname}
+      className="primary-selection flex flex-col gap-0.5"
+    >
       {NAV.map((item) => {
         const active = pathname === item.to || pathname.startsWith(item.to + "/");
         const Icon = item.icon;
@@ -220,6 +226,7 @@ export function AppShell() {
                   : "text-ink-2 hover:bg-paper-2 hover:text-ink",
             )}
             aria-current={active ? "page" : undefined}
+            data-motion-selected={active}
           >
             <Icon className="size-4 shrink-0" aria-hidden />
             {item.label}
@@ -242,7 +249,7 @@ export function AppShell() {
           </Link>
         );
       })}
-    </nav>
+    </SelectionTrack>
   );
 
   const moreActive =
@@ -281,8 +288,10 @@ export function AppShell() {
             <Outlet />
           </main>
           {enquiryOpen ? null : (
-            <nav
-              aria-label="App"
+            <SelectionTrack
+              as="nav"
+              activeKey={pathname}
+              label="App"
               className="app-nav shrink-0 flex border-t border-line bg-raised/95 backdrop-blur"
             >
               {PHONE_NAV.map((item) => {
@@ -303,6 +312,7 @@ export function AppShell() {
                   >
                     <span
                       className={cn("phone-nav-icon relative", active && "phone-nav-icon-active")}
+                      data-motion-selected={active}
                     >
                       <Icon className="size-5" aria-hidden />
                       {item.to === "/enquiries" && openCount > 0 ? (
@@ -323,12 +333,15 @@ export function AppShell() {
                   moreActive ? "text-mark" : "text-stone",
                 )}
               >
-                <span className={cn("phone-nav-icon", moreActive && "phone-nav-icon-active")}>
+                <span
+                  className={cn("phone-nav-icon", moreActive && "phone-nav-icon-active")}
+                  data-motion-selected={moreActive}
+                >
                   <MoreHorizontal className="size-5" aria-hidden />
                 </span>
                 More
               </Link>
-            </nav>
+            </SelectionTrack>
           )}
         </div>
       ) : (

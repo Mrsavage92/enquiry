@@ -168,10 +168,18 @@ export function TodayPage() {
             </Link>
           ) : null}
           {phone && view === "booked" ? null : (
-            <section className="today-attention" aria-labelledby="attention-title">
+            <section
+              key={phone ? view : "attention"}
+              className="today-attention"
+              aria-labelledby="attention-title"
+            >
               <div className="ui-section-heading">
-                <h2 id="attention-title">Needs your attention</h2>
-                <span className="ui-count">{summary.needsYou}</span>
+                <h2 id="attention-title">
+                  {phone && view === "waiting" ? "Awaiting a reply" : "Needs your attention"}
+                </h2>
+                <span className="ui-count">
+                  {phone && view === "waiting" ? summary.waiting : summary.needsYou}
+                </span>
               </div>
               {needsYou.length ? (
                 <ul className="today-enquiries">

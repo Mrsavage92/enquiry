@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ChevronDown, CircleHelp, Pencil } from "lucide-react";
+import { Check, ChevronDown, CircleHelp, Pencil } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
@@ -785,7 +785,10 @@ export function Intelligence({
           <p className="text-sm text-stone">Wait until Enquiry finishes reading.</p>
         ) : awaitingInformation ? (
           <section className="reply-waiting" aria-label="Waiting for customer" role="status">
-            <div>
+            <span className="reply-recorded-mark" aria-hidden>
+              <Check size={20} />
+            </span>
+            <div className="reply-waiting-copy">
               <p>Waiting on {enquiry.customerName.split(" ")[0]}</p>
               <p>Your reply is on record. Waiting for their response.</p>
             </div>

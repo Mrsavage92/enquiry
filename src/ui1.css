@@ -1,4 +1,161 @@
 /* Quiet Signal: a lilac shell, white work, and lightly separated repeated items. */
+.app-root {
+  --motion-quick: 160ms;
+  --motion-settle: 220ms;
+  --ease-settle: cubic-bezier(0.22, 1, 0.36, 1);
+}
+.selection-track {
+  position: relative;
+  isolation: isolate;
+}
+.selection-track > :not(.selection-track-indicator) {
+  position: relative;
+  z-index: 1;
+}
+.selection-track-indicator {
+  position: absolute;
+  inset: 0 auto auto 0;
+  z-index: 0;
+  pointer-events: none;
+  border-radius: 6px;
+  background: #e9e2f8;
+  transition:
+    transform 220ms cubic-bezier(0.22, 1, 0.36, 1),
+    width 220ms cubic-bezier(0.22, 1, 0.36, 1),
+    height 220ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.selection-track[data-indicator="ready"] [data-motion-selected="true"] {
+  background-color: transparent;
+}
+.app-sidebar .primary-selection[data-indicator="ready"] [aria-current="page"] {
+  background: transparent;
+}
+.primary-selection .selection-track-indicator {
+  border-radius: 8px;
+  background: var(--color-nav-active);
+}
+.app-nav .selection-track-indicator {
+  border-radius: 7px;
+  background: #eee8fc;
+}
+.primary-selection [aria-current="page"] > svg,
+.app-nav [aria-current="page"] .phone-nav-icon > svg {
+  animation: signal-icon-arrive 220ms ease-out;
+}
+@keyframes signal-icon-arrive {
+  from {
+    transform: translateY(2px) scale(0.9);
+  }
+  to {
+    transform: translateY(0) scale(1);
+  }
+}
+.today-stat,
+.today-enquiry-row {
+  transition:
+    background-color var(--motion-quick) ease,
+    border-color var(--motion-quick) ease,
+    box-shadow var(--motion-quick) ease;
+}
+.today-stat:hover,
+.today-stat:focus-visible {
+  border-color: #d5c8ef;
+  box-shadow: 0 3px 12px #241b3d08;
+}
+.today-stat .ui-icon-tile svg,
+.today-row-update > svg,
+.ui-text-link > svg:last-child,
+.business-destination > svg:last-child {
+  transition: transform var(--motion-settle) var(--ease-settle);
+}
+.today-stat:is(:hover, :focus-visible) .ui-icon-tile svg {
+  transform: translateY(-2px) rotate(-5deg);
+}
+.today-enquiry-row:is(:hover, :focus-visible) .today-row-update > svg,
+.ui-text-link:is(:hover, :focus-visible) > svg:last-child,
+.business-destination:is(:hover, :focus-visible) > svg:last-child {
+  transform: translateX(3px);
+}
+.today-attention,
+.today-schedule {
+  animation: signal-content-arrive 220ms ease-out;
+}
+@keyframes signal-content-arrive {
+  from {
+    opacity: 0.85;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.reply-copy-icon {
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+.reply-copy-button[data-copy-state="copied"] {
+  border-color: var(--color-ok);
+  color: var(--color-ok);
+  background: var(--color-ok-bg);
+}
+.reply-copy-button[data-copy-state="copied"] .reply-copy-icon,
+.reply-recorded-mark svg {
+  animation: signal-check-arrive 220ms ease-out;
+}
+@keyframes signal-check-arrive {
+  from {
+    opacity: 0.5;
+    transform: scale(0.75);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+.reply-copy-feedback {
+  min-height: 3em;
+  line-height: 1.5;
+}
+.reply-recorded-mark {
+  display: grid;
+  place-items: center;
+  height: 40px;
+  width: 40px;
+  flex-shrink: 0;
+  background: var(--color-ok-bg);
+  color: var(--color-ok);
+  border-radius: 50%;
+}
+.reply-waiting-copy {
+  flex: 1 1 220px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .selection-track-indicator,
+  .today-stat .ui-icon-tile svg,
+  .today-row-update > svg,
+  .ui-text-link > svg:last-child,
+  .business-destination > svg:last-child {
+    transition: none;
+  }
+  .primary-selection [aria-current="page"] > svg,
+  .app-nav [aria-current="page"] .phone-nav-icon > svg,
+  .today-attention,
+  .today-schedule,
+  .reply-copy-button .reply-copy-icon,
+  .reply-recorded-mark svg {
+    animation: none;
+  }
+  .today-stat:is(:hover, :focus-visible) .ui-icon-tile svg,
+  .today-enquiry-row:is(:hover, :focus-visible) .today-row-update > svg,
+  .ui-text-link:is(:hover, :focus-visible) > svg:last-child,
+  .business-destination:is(:hover, :focus-visible) > svg:last-child {
+    transform: none;
+  }
+}
 .app-sidebar {
   background: #f3f0fa;
 }
@@ -740,16 +897,16 @@ li:nth-child(3n + 3) .customer-avatar {
 }
 .today-phone-tabs > * {
   width: 100%;
-  background: transparent;
-  padding: 0;
-  gap: 6px;
+  background: #f1eef7;
+  padding: 4px;
+  gap: 2px;
 }
 .today-phone-tabs [role="tab"] {
   min-width: 0;
   flex: 1;
   padding-inline: 8px;
   font-size: 12px;
-  background: #f1eef7;
+  background: transparent;
 }
 .today-phone-tabs [aria-selected="true"] {
   background: #eae3fc;
