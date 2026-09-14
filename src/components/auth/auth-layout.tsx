@@ -2,10 +2,12 @@ import type { ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
 import { ArrowLeft } from "lucide-react";
 import { Wordmark } from "@/components/ui/wordmark";
+import { AuroraBackground } from "@/components/ui/aurora-background";
 
 export function AuthLayout({ children }: { children: ReactNode }) {
   return (
     <div className="auth-page">
+      <AuroraBackground />
       <header className="auth-header">
         <Link to="/" aria-label="Enquiry home" className="auth-brand">
           <Wordmark />
