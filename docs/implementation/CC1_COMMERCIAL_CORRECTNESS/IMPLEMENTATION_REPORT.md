@@ -1,6 +1,8 @@
 # CC1 implementation report
 
-Implemented by Claude on 2026-09-07 (Australia/Brisbane). **Not signed off.**
+Implemented by Claude on 2026-09-07 (Australia/Brisbane). Landed on `main` through PR #16 on 2026-09-09. **Not a phase or beta sign-off.**
+
+This report describes the CC1 tested revisions and their evidence. Later release and authority state is maintained in [CURRENT_PHASE.md](../../CURRENT_PHASE.md) and [PHASE_REGISTRY.md](../../PHASE_REGISTRY.md). Historical statements about the pre-release branch remain historical.
 Independent review, not the implementer, decides whether CC1 passes.
 
 ## Revision and status
