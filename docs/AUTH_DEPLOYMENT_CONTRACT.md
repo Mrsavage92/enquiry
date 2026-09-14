@@ -28,7 +28,7 @@ Production is `import.meta.env.PROD`. With no value set, sign-in throws
 `VITE_PUBLIC_APP_ORIGIN is not set, so this deployment has no public origin to
 send confirmation links back to.` rather than mailing an unreachable link.
 
-### Set on Vercel (done)
+### Set on Vercel (reported, production effect unverified)
 
 ```
 VITE_PUBLIC_APP_ORIGIN = https://enquiry-ashy.vercel.app     (Production)
