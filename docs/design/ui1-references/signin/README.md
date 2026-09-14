@@ -1,5 +1,11 @@
 # Sign-in Reference
 
+## Current Direction: Product-Led
+
+Adam rejected the envelope/stationery direction on 2026-09-14 as generic and dated. It is superseded by `gpt-signin-product-reference.png`, also generated with the built-in GPT image generator. The current implementation uses a native read-only preview sourced directly from `UI1_PAINTING`, with an explicit sample label and no live customer data. The right-hand product preview disappears on phones so sign-in stays primary. The envelope asset is removed from the public build. The original reference below is retained only as rejected design history.
+
+Product-generation prompt: Create a modern digital-product sign-in screen for Enquiry using the actual application screenshot as reference. White unframed sign-in form on the left, pale-lilac sample workspace on the right. Show Maya Chen's real authored painting example, customer request, suggested extra-crew option, and a prepared reply preserving unconfirmed availability and price. Explicitly label sample data. No physical objects, stationery, envelopes, stock photos, mascots, blobs, gradients, invented metrics or fake successful actions. Preserve the exact existing magic-link form, violet identity, modern sans typography, and one primary sign-in action.
+
 Generated with the built-in GPT image generator on 2026-09-14 at Adam's explicit request, then implemented as HTML/CSS with a generated bitmap asset. No fallback API or new image library was used.
 
 - `gpt-signin-reference.png`: original desktop design reference.

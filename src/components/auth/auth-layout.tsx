@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
 import { Wordmark } from "@/components/ui/wordmark";
+import { AuthProductPreview } from "./auth-product-preview";
 
 export function AuthLayout({ children }: { children: ReactNode }) {
   return (
@@ -17,9 +18,7 @@ export function AuthLayout({ children }: { children: ReactNode }) {
           <Link to="/terms">Terms</Link>
         </footer>
       </div>
-      <div className="auth-artwork" aria-hidden="true">
-        <img src="/images/auth/enquiry-envelope.png" alt="" width="1086" height="1448" />
-      </div>
+      <AuthProductPreview />
     </main>
   );
 }
