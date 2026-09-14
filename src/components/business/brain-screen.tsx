@@ -4,6 +4,7 @@ import {
   ArrowRight,
   BriefcaseBusiness,
   CalendarDays,
+  ChevronDown,
   ChevronRight,
   CircleDollarSign,
   ClipboardList,
@@ -13,6 +14,7 @@ import {
   Plus,
   Plug,
   ShieldCheck,
+  Store,
 } from "lucide-react";
 import { useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
@@ -25,6 +27,10 @@ import { BUSINESSES } from "@/fixtures";
 import { usePrototype } from "@/store/prototype-store";
 import { WorkspaceSettingUp } from "@/components/shell/workspace-setting-up";
 import { PricingRules } from "@/components/business/pricing-rules";
+import {
+  businessSectionPreview,
+  visibleBusinessServices,
+} from "@/components/business/section-preview";
 import { visibleBusinesses } from "@/lib/workspace/resolve-business";
 import type { KnowledgeItem } from "@/domain/types";
 import { cn } from "@/lib/utils";
@@ -93,6 +99,7 @@ export function BrainScreen() {
   // "glow" studio and render its Brain/trust state as this tenant's own.
   const id = filter === "all" ? businesses[0]?.id : filter;
   const business = businesses.find((b) => b.id === id) ?? businesses[0];
+  const serviceCatalogue = visibleBusinessServices(business, query);
   // Undefined-safe rather than guarded here: the early return has to sit below
   // every hook, so nothing between this line and the render may assume a
   // business exists.
@@ -100,7 +107,6 @@ export function BrainScreen() {
   // invalidate the useMemo below it on each pass.
   const items = useMemo(() => business?.knowledge ?? [], [business?.knowledge]);
   const needsReview = items.filter((k) => k.state === "Needs review");
-  const active = items.filter((k) => k.state === "Active");
   const pendingLearn = (business?.learningSuggestions ?? []).filter((l) => l.status === "pending");
   const phone = useNarrow(860) !== false;
   const tabs = SECTIONS;
@@ -207,14 +213,42 @@ export function BrainScreen() {
     return (
       <div className="ui-page-scroll">
         <div className="ui-page business-overview">
-          <header className="ui-page-header">
-            <div>
-              <h1>Business</h1>
-              <p className="ui-page-description">
-                {business.name} · {business.baseLocation}
-              </p>
-            </div>
+          <header className="ui-page-header business-heading">
+            <h1>Business</h1>
+            <Button
+              onClick={() => {
+                setTab("all");
+                setDetailOpen(true);
+                setComposerOpen(true);
+              }}
+            >
+              <Plus size={17} aria-hidden /> Add a detail
+            </Button>
           </header>
+          <div className="business-identity">
+            <span className="business-identity-icon">
+              <Store size={22} aria-hidden />
+            </span>
+            <div>
+              <div className="business-picker">
+                <select
+                  aria-label="Business to manage"
+                  value={business.id}
+                  onChange={(event) => setFilter(event.target.value)}
+                >
+                  {visibleBusinesses(businesses, { demoMode, fixtures: BUSINESSES }).map(
+                    (entry) => (
+                      <option key={entry.id} value={entry.id}>
+                        {entry.name}
+                      </option>
+                    ),
+                  )}
+                </select>
+                <ChevronDown size={15} aria-hidden />
+              </div>
+              <p>{business.baseLocation}</p>
+            </div>
+          </div>
           {needsReview.length + pendingLearn.length > 0 ? (
             <button
               className="business-review"
@@ -232,52 +266,74 @@ export function BrainScreen() {
               <ChevronRight size={17} aria-hidden />
             </button>
           ) : null}
-          <div className="business-destinations">
-            {destinations.map(({ id: section, label, description, icon: Icon, tone }) => (
-              <button
-                key={section}
-                className="business-destination"
-                onClick={() => {
-                  setTab(section);
-                  setDetailOpen(true);
-                }}
+          <div className="business-groups">
+            {[
+              { title: "Your offer & bookings", entries: destinations.slice(0, 4) },
+              { title: "Customer experience", entries: destinations.slice(4) },
+            ].map(({ title, entries }, groupIndex) => (
+              <section
+                className="business-group"
+                key={title}
+                aria-labelledby={`business-group-${groupIndex}`}
               >
-                <span className={`ui-icon-tile ${tone}`}>
-                  <Icon size={20} aria-hidden />
-                </span>
-                <span>
-                  <strong>{label}</strong>
-                  <small>{description}</small>
-                </span>
-                <ChevronRight size={18} className="text-stone" aria-hidden />
-              </button>
+                <h2 id={`business-group-${groupIndex}`}>{title}</h2>
+                <div className="business-destinations">
+                  {entries.map(({ id: section, label, icon: Icon, tone }) => {
+                    const summary =
+                      section === "voice"
+                        ? {
+                            preview:
+                              [business.voice.warmth, business.voice.formality]
+                                .filter(Boolean)
+                                .join(" · ") || "No tone saved",
+                            needsReview: 0,
+                          }
+                        : businessSectionPreview(business, section);
+                    return (
+                      <button
+                        key={section}
+                        className="business-destination"
+                        onClick={() => {
+                          setTab(section);
+                          setDetailOpen(true);
+                        }}
+                      >
+                        <span className={`ui-icon-tile ${tone}`}>
+                          <Icon size={20} aria-hidden />
+                        </span>
+                        <span>
+                          <strong>{label}</strong>
+                          <small>{summary.preview}</small>
+                          {summary.needsReview > 0 ? (
+                            <span className="business-row-review">
+                              {summary.needsReview} need review
+                            </span>
+                          ) : null}
+                        </span>
+                        <ChevronRight size={18} className="text-stone" aria-hidden />
+                      </button>
+                    );
+                  })}
+                  {groupIndex === 1 ? (
+                    <button
+                      className="business-destination"
+                      onClick={() => void navigate({ to: "/trust/access" })}
+                    >
+                      <span className="ui-icon-tile tone-neutral">
+                        <Plug size={20} aria-hidden />
+                      </span>
+                      <span>
+                        <strong>Connections</strong>
+                        <small>Channels and reply permissions</small>
+                      </span>
+                      <ChevronRight size={18} className="text-stone" aria-hidden />
+                    </button>
+                  ) : null}
+                </div>
+              </section>
             ))}
-            <button
-              className="business-destination"
-              onClick={() => void navigate({ to: "/trust/access" })}
-            >
-              <span className="ui-icon-tile tone-neutral">
-                <Plug size={20} aria-hidden />
-              </span>
-              <span>
-                <strong>Connections</strong>
-                <small>Channels and reply permissions</small>
-              </span>
-              <ChevronRight size={18} className="text-stone" aria-hidden />
-            </button>
           </div>
-          <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
-            <button
-              className="ui-text-link"
-              onClick={() => {
-                setTab("all");
-                setDetailOpen(true);
-                setComposerOpen(true);
-              }}
-            >
-              <Plus size={17} aria-hidden />
-              Add a business detail
-            </button>
+          <div className="business-footer">
             <button
               className="ui-text-link"
               onClick={() => {
@@ -316,11 +372,7 @@ export function BrainScreen() {
                 ? "Business details"
                 : SECTIONS.find((s) => s.id === tabValue)?.label}
             </h1>
-            {phone ? null : (
-              <>
-                <p className="mt-3 max-w-xl text-sm leading-relaxed text-ink-2">{business.name}</p>
-              </>
-            )}
+            <p className="mt-3 max-w-xl text-sm leading-relaxed text-ink-2">{business.name}</p>
           </div>
           {phone ? null : (
             <label className="block text-sm sm:w-56">
@@ -344,20 +396,6 @@ export function BrainScreen() {
             </label>
           )}
         </header>
-
-        <p className="mt-6 text-sm text-ink-2">
-          <span className="tabular-nums text-ink">{business.services.length}</span>
-          <span className="text-stone"> services</span>
-          <span className="mx-2 text-line-strong">·</span>
-          <span className="tabular-nums text-ink">{active.length}</span>
-          <span className="text-stone"> confirmed</span>
-          <span className="mx-2 text-line-strong">·</span>
-          <span className="tabular-nums text-ink">{needsReview.length}</span>
-          <span className="text-stone"> need review</span>
-          <span className="mx-2 text-line-strong">·</span>
-          <span className="tabular-nums text-ink">{pendingLearn.length}</span>
-          <span className="text-stone"> learning</span>
-        </p>
 
         {tabValue === "pricing" ? <PricingRules business={business} /> : null}
 
@@ -413,7 +451,7 @@ export function BrainScreen() {
             className="overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
           >
             <Segmented
-              ariaLabel="Knowledge sections"
+              ariaLabel="Business sections"
               value={tabValue}
               onChange={setTab}
               options={tabs.map((s) => ({
@@ -431,17 +469,50 @@ export function BrainScreen() {
           <ScrollFade edges={tabFade} />
         </div>
 
-        {tabValue !== "voice" && tabValue !== "learning" && !phone ? (
+        {tabValue !== "voice" && tabValue !== "learning" ? (
           <label className="mt-4 block">
             <span className="sr-only">Find in business info</span>
             <input
               name="brain-search"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Find a price, policy or source"
+              placeholder={
+                tabValue === "service"
+                  ? "Find a service or supporting detail"
+                  : "Find a price, policy or source"
+              }
               className="field h-11"
             />
           </label>
+        ) : null}
+
+        {tabValue === "service" && serviceCatalogue.length > 0 ? (
+          <section className="business-service-catalog" aria-label="Service catalogue">
+            <ul>
+              {serviceCatalogue.map((service) => (
+                <li key={service.id}>
+                  <span className="ui-icon-tile tone-violet">
+                    <BriefcaseBusiness size={20} aria-hidden />
+                  </span>
+                  <div>
+                    <h2>{service.customerLabel}</h2>
+                    <p>
+                      {[
+                        service.category,
+                        service.durationMinutes ? `${service.durationMinutes} min` : null,
+                        ...service.locationModes,
+                      ]
+                        .filter(Boolean)
+                        .join(" · ")}
+                    </p>
+                  </div>
+                  <Badge tone={service.state === "Needs review" ? "warn" : "neutral"}>
+                    {service.state}
+                  </Badge>
+                </li>
+              ))}
+            </ul>
+          </section>
         ) : null}
 
         {tabValue === "voice" ? (
@@ -488,9 +559,13 @@ export function BrainScreen() {
         ) : (
           <div className="mt-2 space-y-8">
             {groups.length === 0 ? (
-              <p className="border-t border-line py-10 text-sm text-stone">
-                {query.trim() ? "Nothing in this brain matches." : "Nothing in this section yet."}
-              </p>
+              tabValue === "service" && serviceCatalogue.length ? null : (
+                <p className="border-t border-line py-10 text-sm text-stone">
+                  {query.trim()
+                    ? "No business details match your search."
+                    : "Nothing in this section yet."}
+                </p>
+              )
             ) : (
               groups.map((group) => (
                 <section key={group.title ?? tab}>
