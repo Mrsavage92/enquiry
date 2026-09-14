@@ -1754,32 +1754,47 @@ html[data-site="marketing"] .mk-media-plain {
   light and already contrast-verified. The reference's own product visual is
   its dark app; Enquiry's is light, so the app palette is re-asserted inside
   the frame and only the frame around it is mirrored. Recorded in diff.md.
+
+  Values below are a duplicate of the app's own @theme tokens at the top of
+  this file, not a derivation - they exist only because the marketing scope
+  remaps the same custom-property names to dark values for its own tree, so
+  this frame has to re-assert the real ones. Updated 2026-09-14 for the UI1
+  quiet-signal palette merged from main (lilac shell / white surface / violet
+  accent); the previous values here were the pre-UI1 warm-paper/forest-green
+  set and had gone stale relative to the real signed-in app.
 */
 html[data-site="marketing"] .mk-app-surface {
-  --color-paper: #f3eee6;
-  --color-paper-2: #e7dfd3;
-  --color-raised: #faf7f1;
-  --color-notebook: #f3eee6;
-  --color-ink: #1a1814;
-  --color-ink-2: #4f4a42;
-  --color-stone: #716b61;
-  --color-stone-on-paper-2: #686259;
-  --color-line: #e6ddd2;
-  --color-line-strong: #cfc4b4;
-  --color-line-control: #8e867a;
-  --color-line-control-hover: color-mix(in oklab, #8e867a 78%, black);
-  --color-mark: #2f4a3c;
-  --color-mark-hover: #263c31;
-  --color-mark-strong: color-mix(in oklab, #2f4a3c 82%, black);
-  --color-mark-fg: #f6f2eb;
-  --color-sidebar: #141210;
-  --color-sidebar-fg: #f3eee6;
-  --color-sidebar-muted: #a3988a;
-  --font-sans: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
-  --font-serif: "IBM Plex Serif", ui-serif, Georgia, "Times New Roman", serif;
-  --font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", monospace;
-  --shadow-border: 0px 0px 0px 1px #1a181414, 0px 1px 2px #1a18140a;
-  --shadow-border-hover: 0px 0px 0px 1px #1a18141f, 0px 1px 3px #1a18140f;
+  --color-paper: #f6f5f3;
+  --color-paper-2: #f0eef4;
+  --color-raised: #ffffff;
+  --color-notebook: #f6f5f3;
+  --color-ink: #1c1b1f;
+  --color-ink-2: #4f4b55;
+  --color-stone: #68656d;
+  --color-stone-on-paper-2: #625d68;
+  --color-line: #e7e4ea;
+  --color-line-strong: #cbc5d3;
+  --color-line-control: #8a8491;
+  --color-line-control-hover: color-mix(in oklab, #8a8491 78%, black);
+  --color-mark: #6c55c7;
+  --color-mark-hover: #5943b6;
+  --color-mark-strong: #49378e;
+  --color-mark-fg: #ffffff;
+  --color-sidebar: #f0eef4;
+  --color-sidebar-fg: #1c1b1f;
+  --color-sidebar-muted: #68656d;
+  --color-warn: #8b5e00;
+  --color-warn-on-paper-2: #835800;
+  --color-warn-bg: #fff2d8;
+  --color-danger: #b42318;
+  --color-danger-bg: #fff0ed;
+  --color-ok: #24724f;
+  --color-ok-bg: #e8f4ee;
+  --font-sans: Inter, "SF Pro Text", "Segoe UI", ui-sans-serif, system-ui, sans-serif;
+  --font-serif: Inter, "SF Pro Text", "Segoe UI", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "SF Mono", "Cascadia Code", ui-monospace, monospace;
+  --shadow-border: 0px 0px 0px 1px #1c1b1f12, 0px 1px 2px #1c1b1f0a;
+  --shadow-border-hover: 0px 0px 0px 1px #1c1b1f1f, 0px 4px 12px #1c1b1f0d;
   color-scheme: light;
   color: var(--color-ink);
   background: var(--color-paper);
@@ -1788,8 +1803,8 @@ html[data-site="marketing"] .mk-app-surface {
 html[data-site="marketing"] .mk-app-surface .eyebrow {
   font-family: var(--font-sans);
   font-size: 0.6875rem;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  letter-spacing: 0;
+  text-transform: none;
   color: var(--color-stone);
   font-weight: 600;
   line-height: 1.3;
