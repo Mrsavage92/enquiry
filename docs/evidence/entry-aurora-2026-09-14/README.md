@@ -9,7 +9,9 @@ no-gradient direction, not a change to the operator app's visual system.
 - Shared AuthLayout adds a decorative, pointer-transparent background.
 - Supplied repeating-gradient ribbons adapted to existing CSS and UI1 colours.
 - White forms remain opaque; navigation and footer edges fade to the shell.
-- A single 4.5-second transform/opacity entrance settles without an infinite loop.
+- Owner follow-up replaces the settling entrance with continuous movement:
+  two transform-only layers drift on alternating 24- and 32-second cycles.
+- A labelled pause/resume icon in the footer stops both layers in place.
 - Reduced motion disables animation; forced colours removes the decoration.
 - No Framer Motion dependency, Tailwind reconfiguration or auth behaviour changes.
 
@@ -24,6 +26,9 @@ no-gradient direction, not a change to the operator app's visual system.
   runtime redirects into demo mode because this checkout has no Supabase env
   configuration; those two screens were not independently browser-verified.
 - Reduced-motion handling is source-tested, not OS-emulated in this browser.
+- Continuous-flow follow-up: browser computed transforms change over time,
+  both layers report paused after the pause action, the paused transform stays
+  identical across checks, and both return to running after resume.
 - This background has not been deployed to production.
 
 Local preview: http://localhost:8084/early-access. This is visual verification,

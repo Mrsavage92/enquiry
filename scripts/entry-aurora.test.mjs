@@ -13,13 +13,24 @@ test("entry aurora is decorative and cannot intercept form interaction", () => {
   assert.match(css, /\.auth-page\s*\{[^}]*isolation: isolate/);
 });
 
-test("entry aurora settles within five seconds and respects reduced motion", () => {
-  assert.match(css, /animation: entry-aurora-arrive 4\.5s ease-out both/);
+test("entry aurora flows continuously with pause and reduced-motion safeguards", () => {
+  assert.match(css, /animation: entry-aurora-flow 24s ease-in-out infinite alternate/);
+  assert.match(css, /animation: entry-aurora-counterflow 32s ease-in-out -12s infinite alternate/);
   assert.match(
     css,
-    /@media \(prefers-reduced-motion: reduce\)\s*\{\s*\.entry-aurora-ribbons\s*\{\s*animation: none/,
+    /@media \(prefers-reduced-motion: reduce\)\s*\{\s*\.entry-aurora-ribbons,\s*\.entry-aurora-ribbons::after\s*\{\s*animation: none/,
   );
-  assert.match(css, /@media \(forced-colors: active\)[\s\S]*?\.entry-aurora\s*\{\s*display: none/);
+  assert.match(
+    css,
+    /@media \(forced-colors: active\)[\s\S]*?\.auth-motion-toggle\s*\{\s*display: none/,
+  );
+  assert.match(
+    css,
+    /\[data-aurora-paused="true"\][^{]*::after\s*\{\s*animation-play-state: paused/,
+  );
+  const layout = read("src/components/auth/auth-layout.tsx");
+  assert.match(layout, /aria-label=\{motionLabel\}/);
+  assert.match(layout, /setMotionPaused\(\(paused\) => !paused\)/);
   assert.doesNotMatch(component, /framer-motion|useEffect|requestAnimationFrame/);
 });
 
