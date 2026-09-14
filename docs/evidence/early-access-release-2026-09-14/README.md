@@ -46,10 +46,11 @@ https://www.oaic.gov.au/privacy/privacy-guidance-for-organisations-and-governmen
 
 ## Verification
 
-- `npm test -- --test-concurrency=1`: 753 existing tests passed, zero skipped, approximately 373 seconds.
+- Final `npm test -- --test-concurrency=1` at UI commit `157a525`: 759 tests passed, zero failures/skips,
+  approximately 328 seconds. The earlier baseline run passed 753 tests before the six new checks were added.
 - `node --test scripts/public-site.test.mjs`: five new source/asset guardrail tests passed.
 - Public-site text/action AA contrast test added; all four UI1/entry/public contrast tests passed.
-- Typecheck, lint and production build passed during implementation; repeat after final edits before commit.
+- Final typecheck, lint and production build passed.
 - Browser: homepage at 390x844, 1440x960 and 1920x1080; How at 390x844 and 820x1180.
 - Mobile Roadmap, Updates and interactive Demo: no horizontal page overflow observed.
 - Privacy and Terms at tablet width: resolve correctly with one main H1 and no horizontal overflow.
@@ -63,6 +64,20 @@ https://www.oaic.gov.au/privacy/privacy-guidance-for-organisations-and-governmen
   browser connection; do not claim independent runtime validation of those preferences.
 - The 8084 local preview has no configured Supabase auth, so login/signup redirect to its sample workspace.
   Do not treat that local redirect as a production sign-in test.
+- GitHub/Vercel reported a successful preview deployment for `157a525`. The homepage and early-access page
+  were opened in the owner's signed-in Chrome session. The entry background pause/resume control works,
+  and no horizontal overflow was observed at that browser's 3185px viewport.
+- The Vercel preview also redirects Sign in to a labelled sample workspace. It is a visual preview with
+  auth disabled or unconfigured, not a production-auth verification environment. Correct preview configuration
+  is required before using that deployment to verify login or operator access.
+- Vercel preview protection requires the owner's Vercel session. The in-app browser was not signed in;
+  the local website remains available at `http://localhost:8084/` without that preview-provider login.
+- PR #28 is the single release candidate. PRs #26 and #27 were closed as superseded, not merged.
+  Production `main` was confirmed unchanged at `1a855babcd518cf95f339359d56485e9e812bd7f`.
+
+Preview: https://enquiry-git-codex-ui1-early-access-release-mrsavage92s-projects.vercel.app
+
+Release review: https://github.com/Mrsavage92/enquiry/pull/28
 
 ## External Launch Gates Still Open
 
