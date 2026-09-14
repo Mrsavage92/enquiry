@@ -39,3 +39,7 @@ This is peer design feedback, not new authority or owner acceptance. The origina
 - No additional app-wide redesign, marketing work, repository changes by the GPT reviewer, merge or deployment was requested or authorised.
 
 This review-only turn changes documentation, not runtime source. The next implementation remains owned by Codex.
+
+## Implemented Follow-Up
+
+The subsequent user-authorised refinement was implemented at `fe0d0d7` / `8b6b79e`. The original GPT conversation reviewed new desktop, phone and recorded-state captures and found the three requested visual deltas resolved, without declaring whole-app owner acceptance. Verification and residual limits: `docs/evidence/ui1-review/open-enquiry-polish-2026-09-14/VERIFICATION.md`.

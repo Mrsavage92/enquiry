@@ -53,8 +53,8 @@ Design for interrupted, busy, admin-averse owners, including people who may have
 - Cross-screen exact-head verification must distinguish tests, browser checks and physical-device checks. Earlier 73/725-test claims cannot be reused as current results.
 - Physical iPhone/Android keyboard and nonzero safe-area behaviour remains unverified.
 - Settings still contains legacy wording such as "Pause outbound", "Live" and "Business Brain". Review its sample/live capability copy before claiming UI1 complete (`src/components/settings/settings-page.tsx`).
-- After demo recording, the queue correctly moves the enquiry to Waiting, but the open enquiry can still show the previous suggested next step. This needs a focused post-action presentation pass; do not change the decision engine to conceal it.
-- The review dialog initially focuses the external-send attestation. Review that focus choice for accidental keyboard confirmation risk; no live send was exercised here.
+- The information-request post-recording mismatch was corrected in `fe0d0d7`: a read-only presentation predicate shows waiting, with six regression cases. Full reply evidence remains accessible after recording (`8b6b79e`). Broader quote/booked workflows remain unchanged.
+- The review dialog now initially focuses the message rather than external-send attestation. Enter and copy were checked without recording a send; no live send was exercised.
 - Claude reports Supabase redirect configuration and SMTP blockers. Hosted settings have not been independently inspected or changed during this recovery. Default Supabase SMTP is not public customer email delivery. No production auth, credential, database or provider configuration change is authorised here.
 - Real-provider interpretation quality, two-tenant HTTP isolation, PostgreSQL contention and beta/public traffic gates remain separate from UI1 visual work.
 - Do not activate broad evaluator, integration, CRM, marketing or launch-film work merely because it appears in an earlier handover.
@@ -64,6 +64,7 @@ Design for interrupted, busy, admin-averse owners, including people who may have
 Adam requested a fresh review in the original GPT conversation after recovery. See `UI1_GPT_REVIEW_2026-09-14.md`: Today/Business/More are close; the next visual slice is compact change context, a lighter evidence rail and a tighter desktop reply surface. This does not close the behavioural or release gaps above.
 
 New screenshots: `docs/evidence/ui1-review/recovery-2026-09-14/`.
+Open-enquiry refinement and follow-up evidence: `docs/evidence/ui1-review/open-enquiry-polish-2026-09-14/VERIFICATION.md`.
 The adjacent `VERIFICATION.md` records checks actually completed and unresolved checks. Neither file signs off UI1, beta, public traffic or production release.
 
 State vocabulary: **implemented** means code exists; **tested** names a run; **visually reviewed** means a rendered capture was inspected; **owner-approved** requires Adam's approval; **deployed** requires verified deployment evidence. They are not interchangeable.
