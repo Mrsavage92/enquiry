@@ -32,8 +32,8 @@ function LoginPage() {
       // Returning owner. Must NOT create an account for a mistyped address.
       intent="signin"
       destination={redirect ?? DEFAULT_RETURN_PATH}
-      heading="Welcome back."
-      lede="Sign in to Enquiry."
+      heading="Sign in to Enquiry"
+      lede="Welcome back. Continue with your email."
       cta="Email me a sign-in link"
       footer={
         <>

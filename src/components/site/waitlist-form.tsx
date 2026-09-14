@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { ArrowRight, CheckCircle2, LoaderCircle } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
 import { joinWaitlist, qualifyWaitlist, trackLaunchEvent } from "@/lib/launch/api";
@@ -23,13 +24,18 @@ export function WaitlistForm({
   compact = false,
   ctaVariant = "primary",
   ctaLabel = "Join early access",
+  appearance = "default",
 }: {
   compact?: boolean;
   /** "primary-strong" is reserved for the landing hero - see button.tsx. */
   ctaVariant?: "primary" | "primary-strong";
   /** Same action everywhere - label can differ so two different-weight CTAs never read as identical asks. */
   ctaLabel?: string;
+  appearance?: "default" | "entry";
 }) {
+  const entry = appearance === "entry";
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  const inFlight = useRef(false);
   const [email, setEmail] = useState("");
   const [website, setWebsite] = useState("");
   const [step, setStep] = useState<"email" | "qualify" | "done">("email");
@@ -43,6 +49,10 @@ export function WaitlistForm({
   const [pain, setPain] = useState("");
   const [channels, setChannels] = useState<string[]>([]);
   const [beta, setBeta] = useState("");
+
+  useEffect(() => {
+    if (step !== "email") headingRef.current?.focus();
+  }, [step]);
 
   useEffect(() => {
     captureAttribution();
@@ -61,6 +71,8 @@ export function WaitlistForm({
   const path = typeof window === "undefined" ? "/" : window.location.pathname;
 
   const submitEmail = async () => {
+    if (inFlight.current) return;
+    inFlight.current = true;
     setError("");
     setBusy(true);
     const latest = currentTouch();
@@ -124,12 +136,14 @@ export function WaitlistForm({
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not join just then.");
     } finally {
+      inFlight.current = false;
       setBusy(false);
     }
   };
 
   const submitQualify = async () => {
-    if (!waitlistId) return;
+    if (!waitlistId || inFlight.current) return;
+    inFlight.current = true;
     setBusy(true);
     setError("");
     try {
@@ -150,24 +164,35 @@ export function WaitlistForm({
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not save that.");
     } finally {
+      inFlight.current = false;
       setBusy(false);
     }
   };
 
   if (step === "done") {
     return (
-      <div className="rounded-xl bg-raised px-5 py-6 shadow-border">
-        <p className="text-lg font-semibold tracking-tight">
-          {already
-            ? "You’re already on the Enquiry early-access list."
-            : "You’re on the Enquiry early-access list."}
+      <div className={entry ? "entry-waitlist" : "rounded-xl bg-raised px-5 py-6 shadow-border"}>
+        {entry ? (
+          <>
+            <div className="auth-state-icon auth-state-icon--success">
+              <CheckCircle2 size={24} aria-hidden="true" />
+            </div>
+            <h1 className="auth-title" ref={headingRef} tabIndex={-1}>
+              {already ? "You're already on the list" : "You're on the list"}
+            </h1>
+          </>
+        ) : (
+          <p className="text-lg font-semibold tracking-tight">
+            {already
+              ? "You’re already on the Enquiry early-access list."
+              : "You’re on the Enquiry early-access list."}
+          </p>
+        )}
+        <p className={entry ? "auth-description" : "mt-2 text-sm leading-relaxed text-ink-2"}>
+          We'll email you when we're ready to invite your business. Joining the list does not create
+          an account or start a subscription.
         </p>
-        <p className="mt-2 text-sm leading-relaxed text-ink-2">
-          Enquiry learns how your business works, understands what every customer is asking for, and
-          works out what needs to happen next. Access opens gradually so we can work closely with
-          the first businesses.
-        </p>
-        <div className="mt-5 flex flex-col gap-2 sm:flex-row">
+        <div className={entry ? "auth-actions" : "mt-5 flex flex-col gap-2 sm:flex-row"}>
           {compact && !storedQualified() ? (
             <Button asChild className="min-h-12">
               <Link to="/early-access">A few optional questions</Link>
@@ -188,16 +213,23 @@ export function WaitlistForm({
   if (step === "qualify") {
     return (
       <form
-        className="space-y-5"
+        className={entry ? "entry-waitlist" : "space-y-5"}
+        aria-busy={busy}
         onSubmit={(e) => {
           e.preventDefault();
           void submitQualify();
         }}
       >
         <div>
-          <p className="text-lg font-semibold tracking-tight">You’re on the list.</p>
-          <p className="mt-1 text-sm text-ink-2">
-            Optional. What should we know before we invite you?
+          {entry ? (
+            <h1 className="auth-title" ref={headingRef} tabIndex={-1}>
+              A little about your business
+            </h1>
+          ) : (
+            <p className="text-lg font-semibold tracking-tight">You’re on the list.</p>
+          )}
+          <p className={entry ? "auth-description" : "mt-1 text-sm text-ink-2"}>
+            You're on the list. These questions are optional and help us understand what you need.
           </p>
         </div>
         <label className="block text-sm">
@@ -209,45 +241,33 @@ export function WaitlistForm({
             placeholder="Painting, photography, cleaning, studio…"
           />
         </label>
-        <fieldset>
-          <legend className="mb-2 text-sm text-stone">Enquiries a month</legend>
-          <div className="flex flex-wrap gap-2">
+        <label className="block text-sm">
+          <span className="mb-2 block text-stone">Enquiries a month</span>
+          <select className="field h-12" value={volume} onChange={(e) => setVolume(e.target.value)}>
+            <option value="">Select a range</option>
             {VOLUMES.map((v) => (
-              <button
-                key={v}
-                type="button"
-                className={
-                  volume === v
-                    ? "min-h-11 rounded-md bg-ink px-3 text-sm text-paper"
-                    : "min-h-11 rounded-md bg-raised px-3 text-sm shadow-border"
-                }
-                onClick={() => setVolume(v)}
-              >
+              <option key={v} value={v}>
                 {v}
-              </button>
+              </option>
             ))}
-          </div>
-        </fieldset>
+          </select>
+        </label>
         <fieldset>
           <legend className="mb-2 text-sm text-stone">How work arrives</legend>
-          <div className="flex flex-wrap gap-2">
+          <div className="waitlist-choices">
             {CHANNELS.map((c) => {
               const on = channels.includes(c);
               return (
-                <button
-                  key={c}
-                  type="button"
-                  className={
-                    on
-                      ? "min-h-11 rounded-md bg-ink px-3 text-sm text-paper"
-                      : "min-h-11 rounded-md bg-raised px-3 text-sm shadow-border"
-                  }
-                  onClick={() =>
-                    setChannels((prev) => (on ? prev.filter((x) => x !== c) : [...prev, c]))
-                  }
-                >
+                <label key={c} className="waitlist-choice">
+                  <input
+                    type="checkbox"
+                    checked={on}
+                    onChange={() =>
+                      setChannels((prev) => (on ? prev.filter((x) => x !== c) : [...prev, c]))
+                    }
+                  />
                   {c}
-                </button>
+                </label>
               );
             })}
           </div>
@@ -266,32 +286,35 @@ export function WaitlistForm({
           <legend className="mb-2 text-sm text-stone">
             Want to test Enquiry before public release?
           </legend>
-          <div className="flex gap-2">
+          <div className="waitlist-choices">
             {["Yes", "Maybe later"].map((v) => (
-              <button
-                key={v}
-                type="button"
-                className={
-                  beta === v
-                    ? "min-h-11 rounded-md bg-ink px-4 text-sm text-paper"
-                    : "min-h-11 rounded-md bg-raised px-4 text-sm shadow-border"
-                }
-                onClick={() => setBeta(v)}
-              >
+              <label key={v} className="waitlist-choice">
+                <input
+                  type="radio"
+                  name="beta-interest"
+                  value={v}
+                  checked={beta === v}
+                  onChange={() => setBeta(v)}
+                />
                 {v}
-              </button>
+              </label>
             ))}
           </div>
         </fieldset>
-        {error ? <p className="text-sm text-danger">{error}</p> : null}
-        <div className="flex flex-col gap-2 sm:flex-row">
+        {error ? (
+          <p role="alert" className="auth-error">
+            {error}
+          </p>
+        ) : null}
+        <div className={entry ? "auth-actions" : "flex flex-col gap-2 sm:flex-row"}>
           <Button type="submit" className="min-h-12" disabled={busy}>
-            {busy ? "Saving…" : "Save this"}
+            {busy ? "Saving…" : "Save details"}
           </Button>
           <Button
             type="button"
             variant="ghost"
             className="min-h-12"
+            disabled={busy}
             onClick={() => {
               storeWaitlistSkipped();
               setStep("done");
@@ -307,22 +330,35 @@ export function WaitlistForm({
   return (
     <form
       className={
-        compact ? "relative flex flex-col gap-2 sm:flex-row sm:flex-wrap" : "relative space-y-3"
+        entry
+          ? "relative entry-waitlist"
+          : compact
+            ? "relative flex flex-col gap-2 sm:flex-row sm:flex-wrap"
+            : "relative space-y-3"
       }
+      aria-busy={busy}
       onSubmit={(e) => {
         e.preventDefault();
         void submitEmail();
       }}
     >
+      {entry ? (
+        <div className="auth-form-heading">
+          <h1 className="auth-title">Join early access</h1>
+          <p className="auth-description">
+            For service businesses. Invitations open in small groups.
+          </p>
+        </div>
+      ) : null}
       <label className={compact ? "block flex-1" : "block"}>
-        <span className="sr-only">Email</span>
+        <span className={entry ? "auth-label" : "sr-only"}>Email address</span>
         <input
           type="email"
           required
           autoComplete="email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          placeholder="you@yourstudio.com"
+          placeholder="you@yourbusiness.com"
           className="field h-12"
         />
       </label>
@@ -343,11 +379,31 @@ export function WaitlistForm({
           />
         </label>
       </div>
-      {error ? <p className="w-full text-sm text-danger">{error}</p> : null}
-      <Button type="submit" variant={ctaVariant} className="min-h-12 px-6" disabled={busy}>
+      {error ? (
+        <p role="alert" className="w-full text-sm text-danger">
+          {error}
+        </p>
+      ) : null}
+      <Button
+        type="submit"
+        variant={ctaVariant}
+        className={entry ? "auth-submit" : "min-h-12 px-6"}
+        disabled={busy}
+      >
         {busy ? "Joining…" : ctaLabel}
+        {entry ? (
+          busy ? (
+            <LoaderCircle size={17} className="auth-spinner" aria-hidden="true" />
+          ) : (
+            <ArrowRight size={17} aria-hidden="true" />
+          )
+        ) : null}
       </Button>
-      <p className={compact ? "w-full text-xs text-stone" : "text-xs text-stone"}>
+      <p
+        className={
+          entry ? "auth-privacy" : compact ? "w-full text-xs text-stone" : "text-xs text-stone"
+        }
+      >
         We’ll only email about Enquiry access.{" "}
         <Link to="/privacy" className="underline-offset-4 hover:underline">
           Privacy

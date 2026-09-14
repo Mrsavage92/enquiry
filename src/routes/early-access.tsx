@@ -1,6 +1,7 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { Link, createFileRoute } from "@tanstack/react-router";
+import { ChevronDown } from "lucide-react";
 import { socialHead } from "@/lib/site/head";
-import { SiteShell } from "@/components/site/site-shell";
+import { AuthLayout } from "@/components/auth/auth-layout";
 import { WaitlistForm } from "@/components/site/waitlist-form";
 
 export const Route = createFileRoute("/early-access")({
@@ -35,46 +36,36 @@ const PROMISES = [
 
 function EarlyAccess() {
   return (
-    <SiteShell>
-      <article className="mx-auto max-w-5xl px-5 py-10 sm:py-20">
-        <div className="max-w-xl">
-          <p className="eyebrow">Early access</p>
-          <h1 className="site-display-proof mt-3">
-            Be one of the first businesses to use Enquiry.
-          </h1>
-          <p className="mt-4 text-lg leading-relaxed text-ink-2">
-            We’re opening Enquiry gradually so we can work closely with the first service businesses
-            and improve the product before wider release.
-          </p>
-          <p className="mt-4 text-sm font-medium leading-relaxed text-ink">
-            Join before public release and get 30% off your first 12 months if you become a paying
-            customer.
-          </p>
-          <div className="mt-10">
-            <WaitlistForm />
-          </div>
-
-          <h2 className="mt-14 text-lg font-semibold tracking-tight">What joining means</h2>
-          <ul className="mt-4 text-sm leading-relaxed text-ink-2">
+    <AuthLayout>
+      <WaitlistForm appearance="entry" />
+      <div className="auth-offer">
+        <p>
+          <strong>For the first businesses.</strong> Join before public release and get 30% off your
+          first 12 months if you become a paying customer.
+        </p>
+        <details>
+          <summary>
+            How early access works
+            <ChevronDown size={16} aria-hidden="true" />
+          </summary>
+          <ul>
             {PROMISES.map((item) => (
-              <li key={item.t} className="border-t border-line py-4 last:border-b">
-                <p className="font-medium text-ink">{item.t}</p>
-                <p className="mt-1">{item.b}</p>
+              <li key={item.t}>
+                <p>{item.t}</p>
+                <p>{item.b}</p>
               </li>
             ))}
           </ul>
-
-          <aside className="mt-10 rounded-lg border border-line bg-raised px-5 py-5">
-            <p className="text-xs uppercase tracking-wider text-stone">
-              Why not open it to everyone?
-            </p>
-            <p className="mt-3 text-sm leading-relaxed text-ink-2">
-              Enquiry is making business decisions, not just drafting text. We’d rather expand
-              carefully and make those decisions trustworthy than chase a big signup number.
-            </p>
-          </aside>
-        </div>
-      </article>
-    </SiteShell>
+        </details>
+      </div>
+      <div className="auth-invitation">
+        <p>
+          Already have an account? <Link to="/login">Sign in</Link>
+        </p>
+        <p>
+          Have an invitation? <Link to="/signup">Set up your account</Link>
+        </p>
+      </div>
+    </AuthLayout>
   );
 }

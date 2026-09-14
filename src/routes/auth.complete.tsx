@@ -10,7 +10,8 @@ import {
 import { safeReturnPath } from "@/lib/auth/return-path";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
 import { Button } from "@/components/ui/button";
-import { Wordmark } from "@/components/ui/wordmark";
+import { AuthLayout } from "@/components/auth/auth-layout";
+import { LoaderCircle } from "lucide-react";
 
 type CompleteSearch = { redirect?: string };
 
@@ -78,78 +79,77 @@ function AuthCompletePage() {
   if (view.phase === "redirect") return <Navigate to={view.to} replace />;
 
   return (
-    <main className="mx-auto flex min-h-dvh max-w-md flex-col justify-center px-5 py-16">
-      <Link to="/" className="mb-10 inline-block">
-        <Wordmark />
-      </Link>
-
+    <AuthLayout>
       {view.phase === "confirming" || view.phase === "resolving" ? (
         <>
-          <h1 className="site-display">
+          <div className="auth-state-icon">
+            <LoaderCircle size={24} className="auth-spinner" aria-hidden="true" />
+          </div>
+          <h1 className="auth-title">
             {view.phase === "confirming" ? "Confirming your email" : "Opening your workspace"}
           </h1>
-          <p className="site-lede mt-4" aria-live="polite">
+          <p className="auth-description" role="status">
             One moment.
           </p>
         </>
       ) : view.phase === "link-expired" ? (
         <>
-          <h1 className="site-display">That link has expired</h1>
-          <p className="site-lede mt-4">
-            Confirmation links are short-lived, and each one can only be used once. Ask for a fresh
-            one and it will work.
+          <h1 className="auth-title">That link has expired</h1>
+          <p className="auth-description">
+            Confirmation links are short-lived, and each one can only be used once. Request a new
+            link to try again.
           </p>
-          <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-            <Link to="/login">
-              <Button className="min-h-11">Send a new link</Button>
-            </Link>
+          <div className="auth-sent-actions">
+            <Button asChild className="auth-submit">
+              <Link to="/login">Request a new link</Link>
+            </Button>
             <Link
               to="/signup"
               className="min-h-11 self-center text-sm text-stone underline-offset-4 hover:text-ink hover:underline"
             >
-              Set up a new workspace
+              Set up an invited account
             </Link>
           </div>
         </>
       ) : view.phase === "link-invalid" ? (
         <>
-          <h1 className="site-display">That link did not work</h1>
-          <p className="site-lede mt-4">
+          <h1 className="auth-title">That link did not work</h1>
+          <p className="auth-description">
             {view.detail ?? "The link could not be used. Requesting a new one usually fixes it."}
           </p>
-          <div className="mt-8">
-            <Link to="/login">
-              <Button className="min-h-11">Send a new link</Button>
-            </Link>
+          <div className="auth-sent-actions">
+            <Button asChild className="auth-submit">
+              <Link to="/login">Request a new link</Link>
+            </Button>
           </div>
         </>
       ) : view.phase === "no-session" ? (
         <>
-          <h1 className="site-display">You are not signed in yet</h1>
-          <p className="site-lede mt-4">
+          <h1 className="auth-title">You are not signed in yet</h1>
+          <p className="auth-description">
             The link did not produce a session. That usually means it was already used, or it was
             opened in a different browser from the one that asked for it.
           </p>
-          <div className="mt-8">
-            <Link to="/login">
-              <Button className="min-h-11">Send a new link</Button>
-            </Link>
+          <div className="auth-sent-actions">
+            <Button asChild className="auth-submit">
+              <Link to="/login">Request a new link</Link>
+            </Button>
           </div>
         </>
       ) : (
         <>
-          <h1 className="site-display">Could not open your workspace</h1>
-          <p className="site-lede mt-4">
+          <h1 className="auth-title">Could not open your workspace</h1>
+          <p className="auth-description">
             You are signed in, but we could not load your workspace just now. Nothing has been
             changed.
           </p>
-          <div className="mt-8">
-            <Button className="min-h-11" onClick={() => setAttempt((n) => n + 1)}>
+          <div className="auth-sent-actions">
+            <Button className="auth-submit" onClick={() => setAttempt((n) => n + 1)}>
               Try again
             </Button>
           </div>
         </>
       )}
-    </main>
+    </AuthLayout>
   );
 }
