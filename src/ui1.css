@@ -988,9 +988,6 @@ li:nth-child(3n + 3) .customer-avatar {
   text-underline-offset: 3px;
 }
 .inline-reply > div:last-of-type {
-  position: sticky;
-  bottom: 0;
-  z-index: 2;
   background: var(--color-reply);
 }
 .phone-conversation-scroll {
