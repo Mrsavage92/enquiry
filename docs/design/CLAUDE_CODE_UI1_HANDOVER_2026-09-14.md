@@ -61,6 +61,8 @@ Design for interrupted, busy, admin-averse owners, including people who may have
 
 ## Evidence Ledger
 
+Adam requested a fresh review in the original GPT conversation after recovery. See `UI1_GPT_REVIEW_2026-09-14.md`: Today/Business/More are close; the next visual slice is compact change context, a lighter evidence rail and a tighter desktop reply surface. This does not close the behavioural or release gaps above.
+
 New screenshots: `docs/evidence/ui1-review/recovery-2026-09-14/`.
 The adjacent `VERIFICATION.md` records checks actually completed and unresolved checks. Neither file signs off UI1, beta, public traffic or production release.
 
