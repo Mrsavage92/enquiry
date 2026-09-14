@@ -1,8 +1,14 @@
 # Sign-in Reference
 
-## Current Direction: Product-Led
+## Current Direction: Researched Entry Forms
 
-Adam rejected the envelope/stationery direction on 2026-09-14 as generic and dated. It is superseded by `gpt-signin-product-reference.png`, also generated with the built-in GPT image generator. The current implementation uses a native read-only preview sourced directly from `UI1_PAINTING`, with an explicit sample label and no live customer data. The right-hand product preview disappears on phones so sign-in stays primary. The envelope asset is removed from the public build. The original reference below is retained only as rejected design history.
+Both generated directions below were rejected by Adam on 2026-09-14. The envelope was generic and dated; the sample-product composition was not a truthful view of his product. Neither is a current implementation reference. The sample preview component has been removed.
+
+The current direction is a focused, native form experience researched against the rendered Linear, Tally, Vercel and Stripe entry pages. It uses a white form surface, pale lilac shell, Enquiry wordmark, restrained violet controls and no decorative or fabricated product imagery. See [research and decisions](../../UI1_AUTH_RESEARCH_2026-09-14.md).
+
+## Rejected Direction: Product-Led
+
+The subsequently rejected `gpt-signin-product-reference.png` was also generated with the built-in GPT image generator. The previous implementation used a native read-only preview sourced from `UI1_PAINTING`, with a sample label and no live customer data. This was not an actual authenticated workspace. Both references are retained only as rejected design history.
 
 Product-generation prompt: Create a modern digital-product sign-in screen for Enquiry using the actual application screenshot as reference. White unframed sign-in form on the left, pale-lilac sample workspace on the right. Show Maya Chen's real authored painting example, customer request, suggested extra-crew option, and a prepared reply preserving unconfirmed availability and price. Explicitly label sample data. No physical objects, stationery, envelopes, stock photos, mascots, blobs, gradients, invented metrics or fake successful actions. Preserve the exact existing magic-link form, violet identity, modern sans typography, and one primary sign-in action.
 

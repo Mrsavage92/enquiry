@@ -44,3 +44,15 @@ test("UI1 input boundaries remain distinguishable on working surfaces", () => {
     assert.ok(ratio("line-control", surface) >= 3, `Input boundary on ${surface}`);
   }
 });
+
+test("Entry-page supporting text meets AA on both the shell and form", () => {
+  const authCss = readFileSync(new URL("../auth.css", import.meta.url), "utf8");
+  const root = authCss.match(/\.auth-page\s*\{([\s\S]*?)\}/)?.[1] ?? "";
+  const muted = root.match(/--auth-muted:\s*(#[\da-f]{6});/i)?.[1];
+  const shell = root.match(/background:\s*(#[\da-f]{6});/i)?.[1];
+  assert.ok(muted && shell, "Read the actual entry-page colours");
+  for (const background of [shell, tokens.get("raised")!]) {
+    const values = [luminance(muted), luminance(background)].sort((a, b) => b - a);
+    assert.ok((values[0]! + 0.05) / (values[1]! + 0.05) >= 4.5);
+  }
+});
