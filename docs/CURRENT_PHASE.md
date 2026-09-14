@@ -1,22 +1,16 @@
 # Enquiry - Current Implementation Phase
 
-Updated: 2026-09-10 (Australia/Brisbane).
+Updated: 2026-09-14 (Australia/Brisbane).
 
 ## Active slice: UI1 - Core experience redesign
 
-**Status: UI1 VISUAL FIDELITY CORRECTION IN PROGRESS. The product owner rejected the previous visual match after the original chat's review. Release approval remains separate.**
-
-The owner's latest instruction, "keep going this isnt what you had in the gpt images", supersedes the review-chat acceptance below. Compare the four original handover bitmaps directly with rendered screens. Review-chat approval and passing tests are not a substitute for the owner's visual acceptance. Continue on `codex/ui1-visual-refinement`; do not merge or deploy to production.
-
-PR #19 was merged and deployed, then rejected by the product owner and original design reviewer as an incomplete visual redesign. The corrective implementation is on `codex/ui1-visual-refinement`, based on main commit `47a8d29`. It has not been merged or deployed to production.
-
-The original ChatGPT design conversation reviewed actual before/after screenshots directly on 2026-09-10. Its final verdict was "UI1 core visual redesign: ACCEPTED", subject to checking the mobile reply tray. Browser viewport checks subsequently verified the reply action and complete editable text at reduced heights. Physical iOS/Android keyboard and safe-area testing is still a release QA limitation, not a claimed result.
-
-After reviewing the compact-editor and supporting-screen evidence, the original design chat closed its review: **"Design review: CLOSED / PASS."** No further design round was requested. Physical-device keyboard testing remains an outstanding release-QA item.
-
-See `docs/design/UI1_VISUAL_REFINEMENT_REVIEW.md` for scope, evidence, verification and limitations. This visual acceptance does not close beta readiness, production traffic, integration or correctness gates.
+**Status: IMPLEMENTATION LANDED ON `main`; NOT INDEPENDENTLY SIGNED OFF.**
 
 Product-owner instruction on 2026-09-10: implement the UI1 core-experience redesign end-to-end on the dedicated `design/ui1-quiet-signal` branch. This is an authorised presentation and interaction-architecture reset, not a cosmetic spacing pass.
+
+## Current release state
+
+UI1 was merged to `main` in [47a8d29](https://github.com/Mrsavage92/enquiry/commit/47a8d29ba66f19d6280cd2c2ead4b9bc5a360be7) after the owner authorised implementation. Vercel reports a successful status for that commit, but production content and the complete exact-head verification ledger remain independently unverified here. [PR #20](https://github.com/Mrsavage92/enquiry/pull/20) is an open visual refinement with owner acceptance still open. Treat UI1 as landed work awaiting independent review, not as a phase sign-off or beta release.
 
 Start here:
 
@@ -57,7 +51,7 @@ Material uncertainty, blockers, unsupported decisions, price conflicts, availabi
 
 ## Not authorised by UI1
 
-No production mailbox/social/SMS/payment/calendar/booking integration programme; no new broad evaluator family, generic rules engine or CRM; no model upgrade; no unrelated backend refactor; no automatic legacy financial-data rewrite; no production data mutation; no credential rotation; no production deploy; no merge to `main` without explicit approval.
+No production mailbox/social/SMS/payment/calendar/booking integration programme; no new broad evaluator family, generic rules engine or CRM; no model upgrade; no unrelated backend refactor; no automatic legacy financial-data rewrite; no production data mutation; no credential rotation; no further production deploy or merge to `main` without explicit approval.
 
 ## Completion and release gates
 
