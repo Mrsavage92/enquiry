@@ -224,6 +224,7 @@ export function Intelligence({
     if (demoMode) {
       approve(enquiry.id);
       toastUndo("Recorded as sent (demo). Nothing left this browser.");
+      setSendConfirm(false);
       return;
     }
     if (!reviewedSendId) {
