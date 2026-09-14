@@ -1,25 +1,21 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { type ReactNode, useEffect, useState } from "react";
+import { type ReactNode, useEffect, useRef, useState } from "react";
+import { Menu, X } from "lucide-react";
 import { Wordmark } from "@/components/ui/wordmark";
-import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
 import { captureAttribution, currentTouch, launchSessionId } from "@/lib/launch/session";
 import { trackLaunchEvent } from "@/lib/launch/api";
-import { PaperField } from "@/components/site/paper-field";
-import { useNarrow } from "@/lib/use-narrow";
 
 const NAV = [
-  { to: "/", label: "Home" },
   { to: "/how", label: "How it works" },
+  { to: "/demo", label: "Demo" },
   { to: "/roadmap", label: "Roadmap" },
   { to: "/updates", label: "Updates" },
-  { to: "/early-access", label: "Early access" },
 ] as const;
 
-export function SiteShell({ children, notebook }: { children: ReactNode; notebook?: boolean }) {
+export function SiteShell({ children }: { children: ReactNode }) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const [open, setOpen] = useState(false);
-  const phone = useNarrow(860) !== false;
+  const menuButton = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     captureAttribution();
@@ -42,7 +38,6 @@ export function SiteShell({ children, notebook }: { children: ReactNode; noteboo
   useEffect(() => {
     setOpen(false);
   }, [pathname]);
-
   useEffect(() => {
     const prev = history.scrollRestoration;
     history.scrollRestoration = "manual";
@@ -51,159 +46,121 @@ export function SiteShell({ children, notebook }: { children: ReactNode; noteboo
     };
   }, []);
 
+  function trackJoin() {
+    const touch = currentTouch();
+    void trackLaunchEvent({
+      data: {
+        sessionId: launchSessionId(),
+        event_name: "hero_cta_click",
+        landing_path: pathname,
+        utm_source: touch.utm_source,
+        utm_medium: touch.utm_medium,
+        utm_campaign: touch.utm_campaign,
+        utm_content: touch.utm_content,
+        referrer: touch.referrer,
+        feature_id: "",
+      },
+    }).catch(() => undefined);
+  }
+
   return (
-    <div className={cn("relative min-h-dvh bg-paper text-ink", notebook && "notebook")}>
-      {notebook || phone ? null : <PaperField />}
+    <div className="public-site">
+      <a className="public-skip" href="#site-main">
+        Skip to content
+      </a>
       <header
-        className={cn(
-          "site-nav z-30 border-b border-line bg-paper",
-          phone ? "relative" : "sticky top-0 bg-paper/95 backdrop-blur-sm",
-        )}
+        className="public-nav"
+        onKeyDown={(event) => {
+          if (event.key === "Escape" && open) {
+            setOpen(false);
+            menuButton.current?.focus();
+          }
+        }}
       >
-        <div className="mx-auto flex max-w-5xl items-center justify-between gap-3 px-5 py-3">
-          {/*
-            Logo and links are one group so the nav reads as anchored to the
-            wordmark. Previously logo, nav and CTAs were three children of a
-            justify-between row, which pushed the links into the middle and left
-            an accidental-looking hole before the buttons.
-          */}
-          <div className="flex items-center gap-6">
-            <Link to="/" aria-label="Enquiry home" className="inline-flex min-h-11 items-center">
-              <Wordmark size="sm" />
-            </Link>
-            <nav className="hidden items-center gap-1 md:flex" aria-label="Site">
-              {NAV.map((item) => {
-                const active = item.to === "/" ? pathname === "/" : pathname.startsWith(item.to);
-                return (
-                  <Link
-                    key={item.to}
-                    to={item.to}
-                    className={cn(
-                      "rounded-md px-3 py-2 text-sm min-h-11 inline-flex items-center",
-                      active ? "text-ink font-medium" : "text-ink-2 hover:text-ink",
-                    )}
-                  >
-                    {item.label}
-                  </Link>
-                );
-              })}
-            </nav>
-          </div>
-          <div className="flex items-center gap-2">
-            {/*
-              Always "secondary" (bg-raised), not the page's own primary
-              action - "primary-strong" is reserved for the landing hero and
-              onboarding submit (button.tsx), and persistent chrome should
-              stay a step under whatever real primary action is on the page
-              (hero form, "Send quote", etc.) so it never competes with it.
-              Previously this swapped to "primary" (bg-mark) on every route
-              except "/", making the nav CTA louder than the page's own CTA.
-            */}
-            <Button size="sm" className="min-h-11" variant="secondary" asChild>
-              <Link
-                to="/early-access"
-                onClick={() => {
-                  const touch = currentTouch();
-                  void trackLaunchEvent({
-                    data: {
-                      sessionId: launchSessionId(),
-                      event_name: "hero_cta_click",
-                      landing_path: pathname,
-                      utm_source: touch.utm_source,
-                      utm_medium: touch.utm_medium,
-                      utm_campaign: touch.utm_campaign,
-                      utm_content: touch.utm_content,
-                      referrer: touch.referrer,
-                      feature_id: "",
-                    },
-                  }).catch(() => undefined);
-                }}
-              >
-                <span className="sm:hidden">Join</span>
-                <span className="hidden sm:inline">Join early access</span>
+        <div className="public-container public-nav-inner">
+          <Link to="/" aria-label="Enquiry home" className="public-wordmark">
+            <Wordmark size="sm" />
+          </Link>
+          <nav className="public-desktop-links" aria-label="Site">
+            {NAV.map(({ to, label }) => (
+              <Link key={to} to={to} aria-current={pathname === to ? "page" : undefined}>
+                {label}
               </Link>
-            </Button>
-            <span className="hidden sm:inline-flex">
-              <Button size="sm" variant="secondary" className="min-h-11" asChild>
-                <Link to="/demo">See demo</Link>
-              </Button>
-            </span>
+            ))}
+          </nav>
+          <div className="public-nav-actions">
+            <Link to="/login" className="public-signin">
+              Sign in
+            </Link>
+            <Link to="/early-access" className="public-nav-join" onClick={trackJoin}>
+              Join early access
+            </Link>
             <button
+              ref={menuButton}
               type="button"
-              className="min-h-11 min-w-11 md:hidden text-sm font-medium"
-              onClick={() => setOpen((v) => !v)}
+              className="public-menu-toggle"
+              aria-label={open ? "Close navigation" : "Open navigation"}
+              title={open ? "Close navigation" : "Open navigation"}
               aria-expanded={open}
               aria-controls="site-menu"
+              onClick={() => setOpen(!open)}
             >
-              Menu
+              {open ? <X size={22} aria-hidden="true" /> : <Menu size={22} aria-hidden="true" />}
             </button>
           </div>
         </div>
-        {open ? (
-          <nav id="site-menu" className="border-t border-line px-5 py-3 md:hidden" aria-label="Site">
-            {NAV.map((item) => (
-              <Link
-                key={item.to}
-                to={item.to}
-                onClick={() => setOpen(false)}
-                className="flex min-h-12 items-center text-sm"
-              >
-                {item.label}
-              </Link>
-            ))}
+        <nav id="site-menu" className="public-mobile-menu" aria-label="Mobile site" hidden={!open}>
+          <Link to="/" onClick={() => setOpen(false)}>
+            Home
+          </Link>
+          {NAV.map(({ to, label }) => (
             <Link
-              to="/demo"
+              key={to}
+              to={to}
+              aria-current={pathname === to ? "page" : undefined}
               onClick={() => setOpen(false)}
-              className="flex min-h-12 items-center text-sm font-medium"
             >
-              See demo
+              {label}
             </Link>
-            <Link
-              to="/login"
-              onClick={() => setOpen(false)}
-              className="flex min-h-12 items-center text-sm"
-            >
-              Sign in
-            </Link>
-          </nav>
-        ) : null}
+          ))}
+          <Link to="/login" onClick={() => setOpen(false)}>
+            Sign in
+          </Link>
+        </nav>
       </header>
-      <main className="relative z-10">{children}</main>
-      <footer className="relative z-10 border-t border-line">
-        <div className="mx-auto flex max-w-5xl flex-col gap-6 px-5 py-10 sm:flex-row sm:items-end sm:justify-between">
+      <main id="site-main" tabIndex={-1}>
+        {children}
+      </main>
+      <footer className="public-footer">
+        <div className="public-container public-footer-main">
           <div>
-            <Wordmark />
-            <p className="mt-3 max-w-sm text-sm leading-relaxed text-ink-2">
-              Enquiry puts the request together and prepares the next action. The app is the desk.
-              The website is how you get in.
+            <Link to="/" className="public-wordmark" aria-label="Enquiry home">
+              <Wordmark />
+            </Link>
+            <p>
+              For the person behind the business.
+              <br />A clearer next step, every day.
             </p>
           </div>
-          <div className="flex flex-wrap gap-x-5 gap-y-2 text-sm">
-            <Link to="/how" className="min-h-11 inline-flex items-center text-ink-2 hover:text-ink">
-              How it works
-            </Link>
-            <Link to="/roadmap" className="min-h-11 inline-flex items-center text-ink-2 hover:text-ink">
-              Roadmap
-            </Link>
-            <Link to="/updates" className="min-h-11 inline-flex items-center text-ink-2 hover:text-ink">
-              Updates
-            </Link>
-            <Link to="/early-access" className="min-h-11 inline-flex items-center text-ink-2 hover:text-ink">
-              Early access
-            </Link>
-            <Link to="/demo" className="min-h-11 inline-flex items-center text-ink-2 hover:text-ink">
-              Demo
-            </Link>
-            <Link to="/login" className="min-h-11 inline-flex items-center text-ink-2 hover:text-ink">
-              Sign in
-            </Link>
-            <Link to="/privacy" className="min-h-11 inline-flex items-center text-ink-2 hover:text-ink">
-              Privacy
-            </Link>
-            <Link to="/terms" className="min-h-11 inline-flex items-center text-ink-2 hover:text-ink">
-              Terms
-            </Link>
-          </div>
+          <nav aria-label="Explore">
+            <h2>Explore</h2>
+            {NAV.map(({ to, label }) => (
+              <Link key={to} to={to}>
+                {label}
+              </Link>
+            ))}
+          </nav>
+          <nav aria-label="Get started">
+            <h2>Get started</h2>
+            <Link to="/early-access">Join early access</Link>
+            <Link to="/login">Sign in</Link>
+            <Link to="/privacy">Privacy</Link>
+            <Link to="/terms">Terms</Link>
+          </nav>
+        </div>
+        <div className="public-container public-footer-bottom">
+          <span>Enquiry</span>
+          <span>Built with small service businesses in mind.</span>
         </div>
       </footer>
     </div>

@@ -8,7 +8,8 @@ export const Route = createFileRoute("/terms")({
     socialHead({
       path: "/terms",
       title: "Terms · Enquiry",
-      description: "Terms for the Enquiry website, waitlist, and in-browser prototype.",
+      description:
+        "Terms for the Enquiry website, waitlist, sample demo and early-access workspaces.",
     }),
 });
 
@@ -19,23 +20,33 @@ function Terms() {
         <div className="max-w-xl">
           <p className="eyebrow">Legal</p>
           <h1 className="site-display-proof mt-3">Terms</h1>
-          <p className="mt-4 text-sm text-stone">Last updated 25 August 2026</p>
+          <p className="mt-4 text-sm text-stone">Last updated 14 September 2026</p>
           <div className="mt-10 space-y-6 text-sm leading-relaxed text-ink-2">
             <p>
-              These terms cover this website, the early-access list, and the in-browser Enquiry
-              prototype. They are not a customer contract for a finished product.
+              These terms cover this website, the early-access list, the sample demo and invited
+              early-access use of Enquiry. Some capabilities are still being developed.
             </p>
             <h2 className="text-lg font-semibold tracking-tight text-ink">The waitlist</h2>
             <p>
               Joining early access is a request, not a purchase and not a guarantee of a place. We
               invite businesses in small groups as the product is ready. Enquiry is intended to
-              become a paid product; pricing is not promised in advance.
+              become a paid product. The founding offer is 30% off the first 12 months once billing
+              begins; final plan prices have not been announced. Joining the list does not create a
+              paid subscription.
             </p>
-            <h2 className="text-lg font-semibold tracking-tight text-ink">The prototype</h2>
+            <h2 className="text-lg font-semibold tracking-tight text-ink">
+              The demo and your workspace
+            </h2>
             <p>
-              “Open the app” is a working demonstration with sample jobs. It does not send real
-              email, texts, or Instagram messages. Do not use it as the system of record for a live
-              customer. Anything you type there can be reset.
+              The public demo uses sample enquiries and does not send messages to real customers. It
+              is separate from a signed-in business workspace, where information is stored on the
+              server. Do not put real customer information into a sample workspace.
+            </p>
+            <p>
+              In your workspace, review prepared replies, prices and booking details before taking
+              action. Copying a reply or recording an action is not proof of delivery. You are
+              responsible for the information you provide and for the messages you actually send.
+              Keep independent records of important commitments during early access.
             </p>
             <h2 className="text-lg font-semibold tracking-tight text-ink">
               The product will change

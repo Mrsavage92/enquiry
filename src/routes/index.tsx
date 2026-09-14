@@ -1,386 +1,189 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import {
+  ArrowRight,
+  CalendarDays,
+  Check,
+  ChevronDown,
+  Inbox,
+  MessageSquareText,
+  Settings2,
+} from "lucide-react";
 import { socialHead } from "@/lib/site/head";
 import { SiteShell } from "@/components/site/site-shell";
-import { WaitlistForm } from "@/components/site/waitlist-form";
-import { LivePhone } from "@/components/site/live-phone";
-import { CrossChannelDecisionDemo } from "@/components/site/cross-channel-decision-demo";
-import { Button } from "@/components/ui/button";
-import { ROADMAP_PREVIEW } from "@/lib/launch/roadmap";
-import { HeroIn, Reveal, SiteVideo } from "@/components/site/motion";
-import { BrowserFrame, PhoneFrame } from "@/components/site/device-frame";
-import { useNarrow } from "@/lib/use-narrow";
+import { ProductShowcase } from "@/components/site/product-showcase";
+import { EarlyAccessInvite } from "@/components/site/early-access-invite";
 
 export const Route = createFileRoute("/")({
   component: Home,
   head: () =>
     socialHead({
       path: "/",
-      title: "Enquiry - stop managing enquiries",
+      title: "Enquiry - a clearer next step for your business",
       description:
-        "However the enquiry arrives, Enquiry puts the request together, understands what matters for this business, and prepares the next action.",
+        "Keep customer enquiries moving. Bring the conversation together, prepare the next reply and stay in control. Join Enquiry early access.",
     }),
 });
 
-function Home() {
-  const preview = ROADMAP_PREVIEW;
-  const narrowState = useNarrow(640);
-  const desk = narrowState === false;
-  const mounted = narrowState !== null;
+const QUESTIONS = [
+  [
+    "Who is Enquiry for?",
+    "Owner-run service businesses: the people answering customers, organising the work and making the final call. Early access is opening in small groups so we can learn from real workflows.",
+  ],
+  [
+    "Will it connect to my email and messages?",
+    "Early access starts with you bringing the enquiry and new messages into Enquiry. Connected channels are on the roadmap. The demo shows a sample conversation, not a live connection to your inbox.",
+  ],
+  [
+    "Does Enquiry send replies for me?",
+    "You review the prepared reply. Copying a reply is not sending it, and recording an action is not delivery. Enquiry keeps those states separate; it does not silently send a message on your behalf.",
+  ],
+  [
+    "What if a price or date is uncertain?",
+    "The uncertainty stays visible. Enquiry can prepare a question or flag a detail for you to check instead of presenting an unsupported price or availability as confirmed.",
+  ],
+  [
+    "What does joining early access mean?",
+    "It puts you on the list for an invitation, not into a paid subscription. The founding offer is 30% off your first 12 months once billing begins. Final plan prices and access timing are not yet announced.",
+  ],
+] as const;
 
+function Home() {
   return (
     <SiteShell>
-      <section className="mx-auto max-w-5xl px-5 pb-12 pt-10 sm:pb-20 sm:pt-20">
-        <HeroIn>
-          <p className="eyebrow">The app</p>
-          <span className="page-rule" aria-hidden />
-        </HeroIn>
-        <HeroIn delay={80}>
-          <h1 className="site-hero mt-6 max-w-4xl">Stop managing enquiries.</h1>
-        </HeroIn>
-        <HeroIn delay={160}>
-          <p className="site-lede mt-6 sm:mt-8 sm:text-xl sm:leading-relaxed">
-            However the enquiry arrives, Enquiry puts the request together, understands what matters
-            for this business, works out what can safely be decided now, and prepares the next
-            action.
+      <section className="public-hero" aria-labelledby="home-title">
+        <div className="public-hero-copy">
+          <h1 id="home-title">
+            Enquiry<span>.</span>
+          </h1>
+          <p>
+            A clearer next step.
+            <br className="public-mobile-break" /> A little more room in your day.
           </p>
-        </HeroIn>
-        <HeroIn delay={240}>
-          <div className="site-well mt-8 max-w-xl sm:mt-12">
-            <WaitlistForm compact ctaVariant="primary-strong" />
-          </div>
-          <p className="mt-4 flex flex-wrap items-center gap-x-2 gap-y-1 px-1 text-sm text-stone">
-            Built for service businesses.
-            <Link
-              to="/demo"
-              className="inline-flex min-h-11 items-center font-medium text-ink underline-offset-4 hover:underline"
-            >
-              See demo
+          <div className="public-actions">
+            <Link to="/early-access" className="public-button">
+              Join early access <ArrowRight size={17} aria-hidden="true" />
             </Link>
-          </p>
-        </HeroIn>
-      </section>
-
-      <section className="border-t border-line bg-raised/60">
-        <div className="mx-auto max-w-5xl px-5 py-14 sm:py-24">
-          <CrossChannelDecisionDemo />
-        </div>
-      </section>
-
-      <section className="border-t border-line">
-        <div className="mx-auto max-w-5xl px-5 py-12 sm:py-20">
-          {/*
-            The phone used to float at 304px in the middle of a 984px plate with
-            black voids either side. It is now framed as a handset and paired
-            with the claim it is evidence for, so the plate carries a product
-            shot and an argument instead of one small rectangle.
-          */}
-          <div className="site-plate px-5 py-10 sm:px-10 sm:py-14">
-            <div className="grid items-center gap-10 lg:grid-cols-[minmax(0,25rem)_1fr] lg:gap-16">
-              <PhoneFrame className="pointer-events-none mx-auto w-full max-w-[19rem] lg:mx-0 lg:max-w-none">
-                <SiteVideo
-                  className="block aspect-[9/16] w-full object-cover"
-                  src="/product/send-phone.mp4?v=16"
-                  poster="/product/poster-phone.jpg"
-                  label="Enquiry on a phone. A new enquiry is already understood, and the reply is ready to send."
-                />
-              </PhoneFrame>
-
-              <div className="text-center lg:text-left">
-                <p className="eyebrow text-paper/55">On the phone</p>
-                <p className="site-caption mt-3 text-paper">
-                  New enquiry. Request understood. Next action prepared.
-                </p>
-                <ul className="mx-auto mt-7 max-w-sm lg:mx-0 lg:max-w-none">
-                  {[
-                    "It reads what the customer actually wrote.",
-                    "It checks the things this business always checks.",
-                    "You read it, and you send it.",
-                  ].map((line) => (
-                    <li
-                      key={line}
-                      className="border-t border-white/10 py-3.5 text-sm text-paper/75 last:border-b"
-                    >
-                      {line}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            </div>
+            <Link to="/demo" className="public-text-link">
+              Try the demo <ArrowRight size={16} aria-hidden="true" />
+            </Link>
           </div>
         </div>
+        <ProductShowcase />
       </section>
-
-      <section className="border-t border-line">
-        <div className="mx-auto max-w-5xl px-5 py-12 sm:py-20">
-          <Reveal>
-            <p className="eyebrow">Try it</p>
-            <h2 className="site-display mt-3 max-w-2xl">
-              The enquiry you just watched. Now you drive it.
-            </h2>
-            <p className="mt-3 max-w-xl text-sm leading-relaxed text-ink-2">
-              That was a recording. This is the interactive product demo - open the thread, read the
-              case file, and work the prepared reply yourself.
-            </p>
-          </Reveal>
-          {mounted ? (
-            <Reveal delay={80} className="mt-8 sm:mt-10">
-              <LivePhone caption="Interactive demo. Work the reply and review the next action." />
-            </Reveal>
-          ) : (
-            <div className="mt-8 sm:hidden">
-              <Link
-                to="/demo"
-                className="flex min-h-16 items-center justify-between gap-4 rounded-xl bg-raised px-4 py-4 shadow-border"
-              >
-                <div className="min-w-0">
-                  <p className="commercial-exact font-serif text-2xl tabular-nums tracking-tight">
-                    $625
-                  </p>
-                  <p className="mt-1 truncate text-sm text-ink-2">
-                    Priya Shah · Group mobile makeup
-                  </p>
-                </div>
-                <span className="shrink-0 text-sm font-medium text-mark">Open demo</span>
-              </Link>
-              <p className="mt-3 text-sm text-stone">Interactive demo. Next action already prepared.</p>
-            </div>
-          )}
-        </div>
-      </section>
-
-      <section className="mx-auto max-w-5xl px-5 py-12 sm:py-20">
-        <Reveal>
-          <p className="eyebrow">The problem</p>
-          <h2 className="site-display mt-3 max-w-2xl">
-            Messy inbound. Then you reconstruct the job from memory.
+      <section className="public-section public-container" aria-labelledby="work-title">
+        <div className="public-section-heading">
+          <p className="public-kicker">For the person who runs the business</p>
+          <h2 id="work-title">
+            Less piecing it together.
+            <br />
+            More moving it forward.
           </h2>
-        </Reveal>
-        <ol className="mt-8 max-w-xl space-y-0">
+          <p>
+            From the first question to the booked job, keep the conversation, the important details
+            and the next step together.
+          </p>
+        </div>
+        <div className="public-benefits">
           {[
-            "A customer writes in - form, text, Instagram, or mail.",
-            "You reconstruct what they want, what matters for this job, and whether you can do it.",
-            "You reply. Then you remember to follow up.",
-          ].map((line, i) => (
-            <Reveal key={line} delay={i * 60}>
-              <li className="flex gap-4 border-t border-line py-4 last:border-b">
-                <span className="w-6 shrink-0 font-mono text-xs tabular-nums text-stone">
-                  {String(i + 1).padStart(2, "0")}
-                </span>
-                <span className="text-sm leading-relaxed">{line}</span>
-              </li>
-            </Reveal>
+            {
+              icon: Inbox,
+              title: "Know what needs you",
+              body: "A focused daily view of enquiries needing attention and the bookings ahead.",
+              tone: "violet",
+            },
+            {
+              icon: MessageSquareText,
+              title: "Start with a prepared reply",
+              body: "Review a useful next step, with missing details and anything uncertain made clear.",
+              tone: "rose",
+            },
+            {
+              icon: Settings2,
+              title: "Keep it true to your business",
+              body: "Your services, pricing, policies and voice give each enquiry its context.",
+              tone: "green",
+            },
+          ].map(({ icon: Icon, title, body, tone }) => (
+            <article key={title} className="public-benefit">
+              <span className={`public-icon public-icon-${tone}`}>
+                <Icon size={23} strokeWidth={1.7} aria-hidden="true" />
+              </span>
+              <h3>{title}</h3>
+              <p>{body}</p>
+            </article>
           ))}
-        </ol>
-      </section>
-
-      <section className="border-t border-line">
-        {/*
-          lg:grid puts the trade list beside the heading instead of stacked
-          below it - the previous stacked layout left the right third of the
-          1440 container empty (agent-runs/2026-09-04/17 E7). Below lg it
-          stays a single column, unchanged from before.
-        */}
-        <div className="mx-auto max-w-5xl px-5 py-12 sm:py-20 lg:grid lg:grid-cols-[minmax(0,1fr)_16rem] lg:items-start lg:gap-16">
-          <Reveal>
-            <p className="eyebrow">Who it’s for</p>
-            <h2 className="site-display mt-3 max-w-2xl">If customers ask before they book.</h2>
-            <p className="mt-3 max-w-xl text-sm leading-relaxed text-ink-2">
-              Makeup, photography, painting, consulting - the trade changes. The problem does not: a
-              messy request, a decision that depends on how you work, and a next step that should
-              not wait.
-            </p>
-          </Reveal>
-          <ul className="mt-10 max-w-xl lg:mt-0 lg:max-w-none">
-            {["Makeup", "Photography", "Painting", "Consulting"].map((t, i) => (
-              <Reveal key={t} delay={i * 50}>
-                <li className="border-t border-line py-4 text-sm last:border-b">{t}</li>
-              </Reveal>
-            ))}
-          </ul>
         </div>
       </section>
-
-      <section className="border-t border-line">
-        <div className="mx-auto max-w-5xl px-5 py-12 sm:py-20">
-          <Reveal>
-            <p className="eyebrow">What Enquiry does instead</p>
-            <h2 className="site-display mt-3 max-w-2xl">
-              It learns the business. Then every enquiry arrives understood.
-            </h2>
-          </Reveal>
-          <ul className="mt-10 grid gap-8 sm:grid-cols-2">
-            {[
-              {
-                title: "Business Brain",
-                body: "Services, rules, voice, and prices where they apply - learned from how you actually work. A correction can fix this job, or teach Enquiry the business.",
-              },
-              {
-                title: "The case file",
-                body: "Known facts, missing facts, the checks that matter for this request, the next action, and why. Ambiguity stays visible. Enquiry does not guess to fill the gaps.",
-              },
-              {
-                title: "Only the checks that matter",
-                body: "Price when price matters. Availability when the date matters. If a check does not apply, it does not appear. Unknown is a valid answer.",
-              },
-              {
-                title: "Prepared, not automatic",
-                body: "Enquiry knows the next action and why. Nothing goes out unless that kind of action is allowed. Early access is review-first.",
-              },
-            ].map((f, i) => (
-              <Reveal key={f.title} delay={i * 60}>
-                <li className="border-t border-line pt-5">
-                  <h3 className="font-serif text-xl font-semibold tracking-tight">{f.title}</h3>
-                  <p className="mt-2 text-sm leading-relaxed text-ink-2">{f.body}</p>
-                </li>
-              </Reveal>
-            ))}
-          </ul>
-        </div>
-      </section>
-
-      {desk ? (
-        <section className="border-t border-line">
-          {/*
-          Wider than the rest of the page on purpose. This capture is the full
-          operator desk, and at the 1024px measure the page uses for prose it
-          rendered the app at about half scale - every label and line of the
-          case file too small to read, which defeats the only thing the shot is
-          there to show.
-        */}
-          <div className="mx-auto max-w-[84rem] px-5 py-12 sm:py-20">
-            <Reveal>
-              <p className="eyebrow">At the desk</p>
-              <p className="mt-3 max-w-xl text-sm leading-relaxed text-ink-2">
-                Same sample job. Full case file. The website is here if you sit down.
-              </p>
-            </Reveal>
-            <Reveal>
-              <BrowserFrame className="mt-8" url="enquiry.app/enquiries">
-                <SiteVideo
-                  className="block aspect-video w-full object-cover"
-                  src="/product/send.mp4?v=18"
-                  poster="/product/poster-desk.jpg"
-                  label="The same sample case on a laptop - full case file and drafted reply ready for review."
-                />
-              </BrowserFrame>
-            </Reveal>
+      <section className="public-workflow-band">
+        <div className="public-container public-section">
+          <div className="public-section-heading public-heading-row">
+            <div>
+              <p className="public-kicker">A conversation, not a pipeline</p>
+              <h2>
+                The details change.
+                <br />
+                The next step should too.
+              </h2>
+            </div>
+            <Link to="/how" className="public-text-link">
+              How it works <ArrowRight size={17} aria-hidden="true" />
+            </Link>
           </div>
-        </section>
-      ) : null}
-
-      <section className="border-t border-line bg-raised">
-        <div className="mx-auto max-w-5xl px-5 py-12 sm:py-20">
-          <Reveal>
-            <p className="eyebrow">What it does not require</p>
-          </Reveal>
-          <ul className="mt-6 max-w-xl">
+          <ol className="public-process">
             {[
-              "A CRM migration",
-              "A workflow you have to build",
-              "Manual pipeline hygiene",
-              "A mailbox, if work arrives as a form or a DM",
-            ].map((line, i) => (
-              <Reveal key={line} delay={i * 40}>
-                <li className="border-t border-line py-4 text-sm last:border-b">{line}</li>
-              </Reveal>
-            ))}
-          </ul>
-        </div>
-      </section>
-
-      {/*
-        lg:grid puts the three steps beside the heading instead of stacked
-        below it, for the same reason as the "Who it's for" section above -
-        it also breaks up the vertical eyebrow+display+lede rhythm repeated
-        through the rest of the page (agent-runs/2026-09-04/17 E7/E10).
-      */}
-      <section className="mx-auto max-w-5xl px-5 py-12 sm:py-20 lg:grid lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start lg:gap-16">
-        <Reveal>
-          <p className="eyebrow">Early access</p>
-          <h2 className="site-display mt-3 max-w-2xl">We’re starting small.</h2>
-          <p className="mt-3 max-w-xl text-sm text-ink-2">
-            Access opens gradually so we can work closely with the first businesses and make Enquiry
-            trustworthy before opening it more widely.
-          </p>
-          <p className="mt-3 max-w-xl text-sm font-medium text-ink">
-            Join before public release and get 30% off your first 12 months if you become a paying customer.
-          </p>
-        </Reveal>
-        <ol className="mt-8 max-w-xl lg:mt-0 lg:max-w-none">
-          {[
-            {
-              t: "Join with an email",
-              b: "Optional questions help us invite the right businesses first.",
-            },
-            {
-              t: "We invite in small groups",
-              b: "As the product is ready - not as a countdown or a queue position.",
-            },
-            {
-              t: "You decide whether to continue",
-              b: "Review the next action yourself. We’ll share full pricing before any paid access begins, and founding users keep the 30% first-year discount.",
-            },
-          ].map((s, i) => (
-            <Reveal key={s.t} delay={i * 60}>
-              <li className="flex gap-4 border-t border-line py-5 last:border-b">
-                <span className="w-6 shrink-0 font-mono text-xs tabular-nums text-stone">
-                  {String(i + 1).padStart(2, "0")}
-                </span>
-                <div>
-                  <p className="font-medium">{s.t}</p>
-                  <p className="mt-1 text-sm leading-relaxed text-ink-2">{s.b}</p>
-                </div>
+              [
+                "01",
+                "Bring the enquiry in",
+                "Add the customer's request and any follow-up messages. Start with what you have.",
+              ],
+              [
+                "02",
+                "See what matters",
+                "Review the prepared next step, the business details behind it and anything still unresolved.",
+              ],
+              [
+                "03",
+                "Make the final call",
+                "Edit the reply, send it through your channel and accurately record what happened.",
+              ],
+            ].map(([number, title, body]) => (
+              <li key={number}>
+                <span>{number}</span>
+                <h3>{title}</h3>
+                <p>{body}</p>
               </li>
-            </Reveal>
-          ))}
-        </ol>
-      </section>
-
-      <section className="border-t border-line">
-        <div className="mx-auto max-w-5xl px-5 py-12 sm:py-20">
-          <Reveal>
-            <div className="flex items-end justify-between gap-4">
-              <div>
-                <p className="eyebrow">Roadmap</p>
-                <h2 className="site-display mt-3">What’s in motion</h2>
-              </div>
-              <Button variant="secondary" asChild>
-                <Link to="/roadmap">Full roadmap</Link>
-              </Button>
-            </div>
-          </Reveal>
-          <ul className="mt-8 divide-y divide-line border-y border-line">
-            {preview.map((item, i) => (
-              <Reveal key={item.id} delay={i * 50}>
-                <li className="py-5">
-                  <p className="text-xs uppercase tracking-wider text-stone">{item.statusLabel}</p>
-                  <p className="mt-1 font-medium">{item.title}</p>
-                  <p className="mt-1 text-sm text-ink-2">{item.lede}</p>
-                </li>
-              </Reveal>
             ))}
-          </ul>
+          </ol>
+          <div className="public-review-note">
+            <Check size={18} aria-hidden="true" />
+            <p>Prepared does not mean sent. You stay in control of the customer conversation.</p>
+          </div>
         </div>
       </section>
-
-      <section className="border-t border-line">
-        <div className="mx-auto max-w-5xl px-5 py-12 sm:py-20">
-          <Reveal>
-            <h2 className="site-display max-w-2xl">
-              The enquiries aren’t going to decide themselves.
-            </h2>
-            <p className="mt-3 max-w-xl text-sm leading-relaxed text-ink-2">
-              Join early access. See the demo to open the product case file. We’re building for
-              service businesses - makeup, photography, painting, consulting - because someone
-              interested still has to become booked, or lost, without you reconstructing every job
-              by hand.
-            </p>
-            <div className="site-well mt-8 max-w-xl">
-              <WaitlistForm compact ctaLabel="Request early access" />
-            </div>
-          </Reveal>
+      <section
+        className="public-container public-section public-faq"
+        aria-labelledby="questions-title"
+      >
+        <div className="public-section-heading">
+          <span className="public-icon public-icon-violet">
+            <CalendarDays size={23} aria-hidden="true" />
+          </span>
+          <h2 id="questions-title">Before you join.</h2>
+          <p>A few things worth knowing about early access.</p>
+        </div>
+        <div>
+          {QUESTIONS.map(([question, answer]) => (
+            <details key={question}>
+              <summary>
+                {question}
+                <ChevronDown size={19} aria-hidden="true" />
+              </summary>
+              <p>{answer}</p>
+            </details>
+          ))}
         </div>
       </section>
+      <EarlyAccessInvite />
     </SiteShell>
   );
 }

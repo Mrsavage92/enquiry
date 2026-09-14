@@ -90,7 +90,7 @@ export function WaitlistForm({
           referrer: latest.referrer,
           feature_id: "",
         },
-      });
+      }).catch(() => undefined);
       const result = await joinWaitlist({
         data: {
           email,
@@ -126,7 +126,7 @@ export function WaitlistForm({
           referrer: latest.referrer,
           feature_id: "",
         },
-      });
+      }).catch(() => undefined);
       if (result.already || compact) {
         storeWaitlistSkipped();
         setStep("done");

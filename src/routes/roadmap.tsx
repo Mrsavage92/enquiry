@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button";
 import { ROADMAP_ACCESS, ROADMAP_PHASE, ROADMAP_WRITTEN } from "@/lib/launch/roadmap";
 import { trackLaunchEvent } from "@/lib/launch/api";
 import { currentTouch, launchSessionId } from "@/lib/launch/session";
-import { HeroIn } from "@/components/site/motion";
 
 export const Route = createFileRoute("/roadmap")({
   component: RoadmapPage,
@@ -21,80 +20,48 @@ export const Route = createFileRoute("/roadmap")({
 
 function RoadmapPage() {
   return (
-    <SiteShell notebook>
-      <article className="mx-auto max-w-5xl px-5 pb-12 pt-10 sm:pb-16 sm:pt-20">
-        {/*
-          Opaque paper backing behind the hero copy only - the .notebook ruled
-          lines that give /roadmap its identity tile across the whole page
-          (site-shell.tsx), including straight through this text. .text-halo's
-          blur softens the lines near glyph edges but does not fully hide them.
-          bg-paper is the same token as body's own background (styles.css),
-          so this reads as a clean sheet sitting on the ruled page rather than
-          a visible box. No horizontal padding, so the h1's left edge stays at
-          228px (matching the rest of the page, fixed in 75f7502).
-        */}
-        <div className="bg-paper py-4 sm:py-6">
-          <HeroIn>
-            <p className="eyebrow">Roadmap · Built in public</p>
-          </HeroIn>
-          <HeroIn delay={80}>
-            <h1 className="site-hero text-halo mt-4 max-w-2xl">
-              We’re building Enquiry
-              <span className="block">in the open.</span>
-            </h1>
-          </HeroIn>
-          <HeroIn delay={160}>
-            <p className="text-halo mt-6 max-w-lg text-lg leading-relaxed text-ink-2 sm:text-xl">
-              Some of this works today. Some of it is being built. Some of it still needs to earn
-              its place.
-            </p>
-          </HeroIn>
-          <HeroIn delay={220}>
-            <p className="mt-4 max-w-lg text-base leading-relaxed text-ink-2">
-              Rather than pretend otherwise, this is where Enquiry is going - and what has to be
-              true for us to get there.
-            </p>
-          </HeroIn>
-          <HeroIn delay={280}>
-            <p className="mt-6 text-xs uppercase tracking-wider text-stone">
-              Last updated {ROADMAP_WRITTEN}
-              <span className="mx-2 text-line-strong">·</span>
-              {ROADMAP_PHASE}
-              <span className="mx-2 text-line-strong">·</span>
-              {ROADMAP_ACCESS}
-            </p>
-          </HeroIn>
+    <SiteShell>
+      <article className="public-container public-page-heading">
+        <h1>Roadmap</h1>
+        <p>
+          What works, what we are building and what comes next. Direction, not a promise of delivery
+          dates.
+        </p>
+        <p className="mt-6 text-sm text-stone">
+          Last updated {ROADMAP_WRITTEN}
+          <span className="mx-2 text-line-strong">·</span>
+          {ROADMAP_PHASE}
+          <span className="mx-2 text-line-strong">·</span>
+          {ROADMAP_ACCESS}
+        </p>
+        <div className="mt-8 flex flex-col items-start gap-3 sm:flex-row sm:flex-wrap">
+          <Button asChild className="min-h-12 shrink-0 sm:min-h-10">
+            <Link
+              to="/early-access"
+              onClick={() => {
+                const touch = currentTouch();
+                void trackLaunchEvent({
+                  data: {
+                    sessionId: launchSessionId(),
+                    event_name: "roadmap_waitlist_click",
+                    landing_path: "/roadmap",
+                    utm_source: touch.utm_source,
+                    utm_medium: touch.utm_medium,
+                    utm_campaign: touch.utm_campaign,
+                    utm_content: touch.utm_content,
+                    referrer: touch.referrer,
+                    feature_id: "hero",
+                  },
+                }).catch(() => undefined);
+              }}
+            >
+              Join early access
+            </Link>
+          </Button>
+          <Button variant="secondary" asChild className="min-h-12 shrink-0 sm:min-h-10">
+            <a href="#stage-understand">See where we are now</a>
+          </Button>
         </div>
-        <HeroIn delay={340}>
-          <div className="mt-8 flex flex-col items-start gap-3 sm:flex-row sm:flex-wrap">
-            <Button asChild className="min-h-12 shrink-0 sm:min-h-10">
-              <Link
-                to="/early-access"
-                onClick={() => {
-                  const touch = currentTouch();
-                  void trackLaunchEvent({
-                    data: {
-                      sessionId: launchSessionId(),
-                      event_name: "roadmap_waitlist_click",
-                      landing_path: "/roadmap",
-                      utm_source: touch.utm_source,
-                      utm_medium: touch.utm_medium,
-                      utm_campaign: touch.utm_campaign,
-                      utm_content: touch.utm_content,
-                      referrer: touch.referrer,
-                      feature_id: "hero",
-                    },
-                  }).catch(() => undefined);
-                }}
-              >
-                Join early access
-              </Link>
-            </Button>
-            <Button variant="secondary" asChild className="min-h-12 shrink-0 sm:min-h-10">
-              <a href="#stage-understand">See where we are now</a>
-            </Button>
-          </div>
-        </HeroIn>
       </article>
       <RoadmapBoard />
     </SiteShell>

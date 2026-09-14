@@ -10,6 +10,14 @@ Product-owner instruction on 2026-09-10: implement the UI1 core-experience redes
 
 ## Current release state
 
+### UI1 public-site release candidate (14 September 2026)
+
+The owner has authorised finishing the public website for early access. Active work is isolated on
+`codex/ui1-early-access-release`: accepted entry-page aurora, branded auth-email source, current-product
+imagery and a light public-site rebuild. Claude's `visual/mirror-integrate` is not included.
+See `docs/evidence/early-access-release-2026-09-14/README.md` for scope, verification and remaining
+external launch gates. This work does not independently sign off UI1, public traffic or operator beta.
+
 UI1 was merged to `main` in [47a8d29](https://github.com/Mrsavage92/enquiry/commit/47a8d29ba66f19d6280cd2c2ead4b9bc5a360be7) after the owner authorised implementation. Vercel reports a successful status for that commit, but production content and the complete exact-head verification ledger remain independently unverified here. [PR #20](https://github.com/Mrsavage92/enquiry/pull/20) is an open visual refinement with owner acceptance still open. Treat UI1 as landed work awaiting independent review, not as a phase sign-off or beta release.
 
 Start here:

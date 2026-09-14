@@ -20,23 +20,24 @@ inbox full of localhost links is not.
 
 ## Environment variables
 
-| Variable | Production | Development |
-|---|---|---|
+| Variable                 | Production                                                                     | Development                                                                        |
+| ------------------------ | ------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------- |
 | `VITE_PUBLIC_APP_ORIGIN` | **Required.** Bare HTTPS origin, no path/query/fragment. Rejected if loopback. | Optional. Falls back to `window.location.origin`; loopback and plain HTTP allowed. |
 
 Production is `import.meta.env.PROD`. With no value set, sign-in throws
 `VITE_PUBLIC_APP_ORIGIN is not set, so this deployment has no public origin to
 send confirmation links back to.` rather than mailing an unreachable link.
 
-### Set on Vercel (reported, production effect unverified)
+### Production origin
 
 ```
 VITE_PUBLIC_APP_ORIGIN = https://enquiry-ashy.vercel.app     (Production)
 ```
 
-Set 2026-09-02. **No deployment was made** - the value is staged for whichever
-deploy product management authorises next. Until that deploy, production still
-runs the previous browser-derived behaviour.
+The application has since been deployed through PR #25 (merge `1a855ba`).
+On 2026-09-14, the production login accepted a fresh sign-in email request
+after the hosted Supabase correction below. This is not evidence of inbox
+delivery or a completed authenticated session; those require the fresh email.
 
 If the public URL changes, this variable and the Supabase allow list below must
 change together, in that order.
@@ -55,19 +56,19 @@ honestly report whether the link worked. The `redirect` value is re-validated by
 `safeReturnPath` as it becomes a real URL, so a poisoned `?redirect=` cannot
 move the host.
 
-## Hosted Supabase changes still required
+## Hosted Supabase configuration
 
-**Not applied.** The brief forbids altering hosted Supabase settings in this
-lane, so these are stated for product management to apply.
+**Applied and reloaded for verification on 2026-09-14**, under the owner's
+explicit production-login repair instruction. Before the repair, the live
+Site URL was `http://localhost:3000` and the redirect allow-list was empty.
+That explains the reported localhost fallback despite a deployed application.
 
 Project `qzzvxfbitixpmfuirvhq` (growlocal) → Authentication → URL Configuration:
 
-| Setting | Value |
-|---|---|
-| Site URL | `https://enquiry-ashy.vercel.app` |
+| Setting      | Value                                           |
+| ------------ | ----------------------------------------------- |
+| Site URL     | `https://enquiry-ashy.vercel.app`               |
 | Redirect URL | `https://enquiry-ashy.vercel.app/auth/complete` |
-| Redirect URL (dev only) | `http://localhost:8080/auth/complete` |
-| Redirect URL (dev only) | `http://127.0.0.1:8080/auth/complete` |
 
 Rules for that list:
 
@@ -78,12 +79,26 @@ Rules for that list:
   hostname, so allow-listing them means a wildcard, and the wildcard is the
   thing worth refusing. Previews should point `VITE_PUBLIC_APP_ORIGIN` at the
   production origin, or accept that sign-in does not work in a preview.
-- The local entries exist only so a developer can complete their own sign-in.
-  They are safe because they are exact and loopback-only.
+- No local development entries were added during this production repair.
+  Development authentication needs separately approved, exact callback entries.
 
-**This is unverified.** The allow list is not readable through the management
-API available here, so the current values were not inspected. Confirm them in
-the dashboard before trusting sign-in on a new deploy.
+The Site URL and exact callback entry were verified in the signed-in dashboard
+after reload. Supabase also accepts redirects matching the Site URL's hostname,
+scheme and port, so the application's validated `?redirect=` query is supported.
+See [Supabase redirect validation](https://github.com/supabase/auth/blob/master/internal/utilities/request.go)
+and [saved configuration evidence](evidence/auth-email-repair-2026-09-14/supabase-url-configuration.png).
+Verify hosted settings again whenever the production origin changes.
+
+## Magic-link email
+
+The hosted magic-link template was saved and verified after reload on
+2026-09-14. Subject: **Your Enquiry sign-in link**. The body is versioned in
+[`emails/magic-link.html`](../emails/magic-link.html); deployment instructions
+and verification limits are in [`emails/README.md`](../emails/README.md).
+
+Both actions retain Supabase's `{{ .ConfirmationURL }}`. The template does not
+change token verification, expiry, session handling or account access controls.
+Changing this file or deploying Vercel alone does not update hosted Supabase.
 
 ## Email delivery
 
@@ -92,6 +107,15 @@ limited to a couple of messages per hour. Custom SMTP with a dedicated
 authentication sender, SPF, DKIM and DMARC, and provider link tracking disabled,
 is required before public beta. That is Slice 3's external dependency and is
 **not** done.
+
+The branded template does not replace the default sender or guarantee removal
+of a provider-appended footer. No SMTP credentials, DNS records or rate limits
+were changed. See [Supabase's SMTP requirements](https://supabase.com/docs/guides/auth/auth-smtp).
+
+The owner's reported 30-60 second delay remains unverified after the repair.
+The screenshot showed Outlook Safe Links, but that alone does not establish
+the cause. Do not disable mail security or declare latency fixed without a
+fresh completed sign-in.
 
 ## Verification
 

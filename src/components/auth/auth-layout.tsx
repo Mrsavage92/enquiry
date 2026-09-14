@@ -1,11 +1,16 @@
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Pause, Play } from "lucide-react";
 import { Wordmark } from "@/components/ui/wordmark";
+import { AuroraBackground } from "@/components/ui/aurora-background";
 
 export function AuthLayout({ children }: { children: ReactNode }) {
+  const [motionPaused, setMotionPaused] = useState(false);
+  const motionLabel = motionPaused ? "Resume background animation" : "Pause background animation";
+
   return (
-    <div className="auth-page">
+    <div className="auth-page" data-aurora-paused={motionPaused || undefined}>
+      <AuroraBackground />
       <header className="auth-header">
         <Link to="/" aria-label="Enquiry home" className="auth-brand">
           <Wordmark />
@@ -19,7 +24,22 @@ export function AuthLayout({ children }: { children: ReactNode }) {
         <div className="auth-content">{children}</div>
       </main>
       <footer className="auth-footer">
-        <span>Enquiry</span>
+        <div className="auth-footer-brand">
+          <span>Enquiry</span>
+          <button
+            type="button"
+            className="auth-motion-toggle"
+            aria-label={motionLabel}
+            title={motionLabel}
+            onClick={() => setMotionPaused((paused) => !paused)}
+          >
+            {motionPaused ? (
+              <Play size={14} aria-hidden="true" />
+            ) : (
+              <Pause size={14} aria-hidden="true" />
+            )}
+          </button>
+        </div>
         <nav aria-label="Legal">
           <Link to="/privacy">Privacy</Link>
           <Link to="/terms">Terms</Link>

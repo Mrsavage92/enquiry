@@ -56,3 +56,22 @@ test("Entry-page supporting text meets AA on both the shell and form", () => {
     assert.ok((values[0]! + 0.05) / (values[1]! + 0.05) >= 4.5);
   }
 });
+
+test("Public-site body text and primary action meet AA on their shipped surfaces", () => {
+  const publicCss = readFileSync(new URL("../public-site.css", import.meta.url), "utf8");
+  const foregrounds = ["#1c1b1f", "#68656d", "#69519d", "#543aab"];
+  const backgrounds = ["#fff", "#f4f1f8", "#f8f8fa", "#f1edf7"];
+  for (const color of [...foregrounds, ...backgrounds, "#654ac2"]) {
+    assert.ok(publicCss.includes(color), `The checked colour must exist in public CSS: ${color}`);
+  }
+  for (const foreground of foregrounds) {
+    for (const background of backgrounds) {
+      const values = [
+        luminance(foreground),
+        luminance(background === "#fff" ? "#ffffff" : background),
+      ].sort((a, b) => b - a);
+      assert.ok((values[0]! + 0.05) / (values[1]! + 0.05) >= 4.5, `${foreground} on ${background}`);
+    }
+  }
+  assert.ok((luminance("#ffffff") + 0.05) / (luminance("#654ac2") + 0.05) >= 4.5);
+});
