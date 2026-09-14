@@ -39,10 +39,7 @@ export function TrustOverview() {
   return (
     <div className="mx-auto h-full max-w-3xl overflow-y-auto px-4 py-5 pb-8 sm:py-8">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-        <PageHeader
-          eyebrow={phone ? undefined : "Trust Centre"}
-          title={phone ? "Trust" : "What Enquiry can see and do"}
-        />
+        <PageHeader title="Reply settings" />
         {phone ? null : (
           <label className="block text-sm sm:w-56">
             <span className="mb-1.5 block text-stone">Workspace</span>
@@ -197,16 +194,10 @@ export function TrustAccess() {
       ),
   );
   const phone = useNarrow(860) !== false;
+  if (!business) return <WorkspaceSettingUp />;
   return (
     <div className="mx-auto h-full max-w-3xl overflow-y-auto px-4 py-5 pb-8 sm:py-8">
-      <PageHeader
-        title="Access"
-        description={
-          phone
-            ? undefined
-            : "Technical provider permission is not the same as what Enquiry chooses to use."
-        }
-      />
+      <PageHeader title="Connections" description={phone ? undefined : business.name} />
       <ul className="ledger mt-6">
         {business.integrations.map((i) => (
           <li key={i.id}>
@@ -219,49 +210,54 @@ export function TrustAccess() {
                 {integrationStatusLabel(i.status)}
               </Badge>
             </div>
-            <div className="mt-4 grid gap-4 sm:grid-cols-2">
-              <div>
-                <p className="eyebrow">Provider granted</p>
-                <ul className="mt-1.5 space-y-0.5 text-sm text-ink-2">
-                  {i.technicalScopes.map((s) => (
-                    <li key={s}>{s}</li>
-                  ))}
-                </ul>
+            <details className="mt-4">
+              <summary className="min-h-11 cursor-pointer py-3 text-sm text-stone">
+                Access details
+              </summary>
+              <div className="mt-2 grid gap-4 sm:grid-cols-2">
+                <div>
+                  <p className="eyebrow">Provider granted</p>
+                  <ul className="mt-1.5 space-y-0.5 text-sm text-ink-2">
+                    {i.technicalScopes.map((s) => (
+                      <li key={s}>{s}</li>
+                    ))}
+                  </ul>
+                </div>
+                <div>
+                  <p className="eyebrow">Enquiry uses</p>
+                  <ul className="mt-1.5 space-y-0.5 text-sm text-ink-2">
+                    {i.enquiryUsage.map((s) => (
+                      <li key={s}>{s}</li>
+                    ))}
+                  </ul>
+                </div>
               </div>
-              <div>
-                <p className="eyebrow">Enquiry uses</p>
-                <ul className="mt-1.5 space-y-0.5 text-sm text-ink-2">
-                  {i.enquiryUsage.map((s) => (
-                    <li key={s}>{s}</li>
-                  ))}
-                </ul>
-              </div>
-            </div>
-            {i.kind === "calendar" ? (
-              <p className="mt-3 text-sm text-ink-2">
-                Why free/busy? To check whether another commitment overlaps the requested job.
-                Enquiry does not need event titles for this.
-              </p>
-            ) : null}
-            {i.kind === "sms" ? (
-              <p className="mt-3 text-sm text-ink-2">
-                Texts arrive as case files. Reply on the same number. Sending stays off until
-                Assist.
-              </p>
-            ) : null}
-            {i.kind === "social" ? (
-              <p className="mt-3 text-sm text-ink-2">
-                DMs become case files. Public comments are not quotes - invite them to message, or
-                ignore.
-              </p>
-            ) : null}
-            {i.kind === "form" ? (
-              <p className="mt-3 text-sm text-ink-2">
-                A website form that emails you is still a form. Structured fields, fewer invented
-                facts.
-              </p>
-            ) : null}
-            {i.status !== "connected" && i.kind !== "calendar" ? (
+              {i.kind === "calendar" ? (
+                <p className="mt-3 text-sm text-ink-2">
+                  Why free/busy? To check whether another commitment overlaps the requested job.
+                  Enquiry does not need event titles for this.
+                </p>
+              ) : null}
+              {i.kind === "sms" ? (
+                <p className="mt-3 text-sm text-ink-2">
+                  Texts arrive as case files. Reply on the same number. Sending stays off until
+                  Assist.
+                </p>
+              ) : null}
+              {i.kind === "social" ? (
+                <p className="mt-3 text-sm text-ink-2">
+                  DMs become case files. Public comments are not quotes - invite them to message, or
+                  ignore.
+                </p>
+              ) : null}
+              {i.kind === "form" ? (
+                <p className="mt-3 text-sm text-ink-2">
+                  A website form that emails you is still a form. Structured fields, fewer invented
+                  facts.
+                </p>
+              ) : null}
+            </details>
+            {demoMode && i.status !== "connected" && i.kind !== "calendar" ? (
               <Button
                 className="mt-3"
                 size="sm"
@@ -274,7 +270,7 @@ export function TrustAccess() {
             {i.status !== "connected" && !demoMode ? (
               <p className="mt-2 text-xs text-stone">Not connected yet</p>
             ) : null}
-            {i.status === "connected" && i.kind !== "calendar" ? (
+            {demoMode && i.status === "connected" && i.kind !== "calendar" ? (
               <div className="mt-3">
                 <p className="text-xs text-stone">
                   Enquiry stored: message text and the return address. Not your {i.provider}{" "}
@@ -296,12 +292,13 @@ export function TrustAccess() {
                   Enquiry cannot verify availability on an open job.
                 </p>
                 <p className="mt-1 text-sm text-ink-2">
-                  Unknown is not busy, and it is not free. Reconnect, then Enquiry will re-read the
-                  diary.
+                  Availability is unknown until the calendar can be checked.
                 </p>
-                <Button className="mt-3" size="sm" onClick={() => reconnectBusiness(business.id)}>
-                  Reconnect calendar
-                </Button>
+                {demoMode ? (
+                  <Button className="mt-3" size="sm" onClick={() => reconnectBusiness(business.id)}>
+                    Reconnect calendar
+                  </Button>
+                ) : null}
               </div>
             ) : null}
           </li>
@@ -323,11 +320,12 @@ export function TrustAutomation() {
   // this tenant's own.
   const id = filter === "all" ? businesses[0]?.id : filter;
   const business = businesses.find((b) => b.id === id) ?? businesses[0];
+  if (!business) return <WorkspaceSettingUp />;
   const missing = business.actionPolicies.find((p) => p.action === "REQUEST_INFORMATION");
   return (
     <div className="mx-auto h-full max-w-3xl overflow-y-auto px-4 py-5 pb-8 sm:py-8">
       <PageHeader
-        title="Autopilot by action"
+        title="Reply permissions"
         description="Automatic is necessary but never sufficient. Runtime still checks facts, risk, integrations and permissions."
       />
       {/*

@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { Inbox } from "lucide-react";
 
 export function EmptyState({
   title,
@@ -10,20 +11,15 @@ export function EmptyState({
   action?: ReactNode;
 }) {
   return (
-    <div className="border-t border-line py-12">
-      <svg
-        viewBox="0 0 72 48"
-        className="h-10 w-auto text-line-strong"
+    <div className="py-12 text-center">
+      <span
+        className="mx-auto grid size-12 place-items-center rounded-full bg-paper-2 text-mark"
         aria-hidden
       >
-        <rect x="8" y="10" width="44" height="32" rx="2" fill="currentColor" opacity="0.35" />
-        <rect x="16" y="6" width="44" height="32" rx="2" fill="currentColor" opacity="0.55" />
-        <rect x="20" y="12" width="20" height="2" fill="var(--color-paper)" />
-        <rect x="20" y="18" width="28" height="2" fill="var(--color-paper)" />
-        <rect x="20" y="24" width="16" height="2" fill="var(--color-paper)" />
-      </svg>
+        <Inbox size={24} strokeWidth={1.5} />
+      </span>
       <p className="mt-4 font-medium">{title}</p>
-      <p className="mt-1 max-w-md text-sm leading-relaxed text-stone">{body}</p>
+      <p className="mx-auto mt-2 max-w-sm text-sm leading-relaxed text-stone">{body}</p>
       {action ? <div className="mt-4">{action}</div> : null}
     </div>
   );

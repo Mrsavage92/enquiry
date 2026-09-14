@@ -4,6 +4,7 @@ import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { SheetContent } from "@/components/ui/sheet";
 import type { SendPreviewData } from "@/domain/send-preview";
 import { cn } from "@/lib/utils";
+import { Check, Copy, ClipboardCheck } from "lucide-react";
 
 /**
  * The approval preview every commercial send goes through, shared by the main
@@ -62,7 +63,6 @@ export function SendPreview({
   onConfirmStale?: () => void;
 }) {
   const [copyState, setCopyState] = useState<SendPreviewCopyState>("idle");
-  const confirmButtonRef = useRef<HTMLButtonElement>(null);
   const bodyRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -93,7 +93,7 @@ export function SendPreview({
         className={compact ? undefined : "max-h-[85vh] overflow-y-auto"}
         onOpenAutoFocus={(event) => {
           event.preventDefault();
-          confirmButtonRef.current?.focus();
+          bodyRef.current?.focus();
         }}
       >
         <div className="space-y-4">
@@ -115,6 +115,8 @@ export function SendPreview({
             <p className="eyebrow">Message</p>
             <div
               ref={bodyRef}
+              tabIndex={-1}
+              aria-label="Message to review"
               className="field mt-1 max-h-64 overflow-y-auto whitespace-pre-wrap text-sm leading-relaxed"
             >
               {preview.body || "No message prepared."}
@@ -152,7 +154,8 @@ export function SendPreview({
               and reports truthfully whether the clipboard actually took it. */}
           <Button
             variant="secondary"
-            className="min-h-11 w-full"
+            className="reply-copy-button min-h-11 w-full"
+            data-copy-state={copyState}
             disabled={pending || !preview.body}
             onClick={() => {
               void onCopy().then((state) => {
@@ -161,24 +164,33 @@ export function SendPreview({
               });
             }}
           >
+            <span className="reply-copy-icon" aria-hidden>
+              {copyState === "copied" ? (
+                <Check key="copied" size={18} />
+              ) : (
+                <Copy key="copy" size={18} />
+              )}
+            </span>
             {copyState === "copied" ? "Copied" : "Copy the message"}
           </Button>
-          {copyState === "copied" ? (
-            <p className="text-xs text-stone">
-              Copied to your clipboard. Nothing has been sent or recorded yet.
-            </p>
-          ) : null}
-          {copyState === "failed" ? (
-            <p className="text-xs text-warn">
-              Enquiry could not reach your clipboard. The message above is selected - copy it by
-              hand. Nothing has been sent or recorded.
-            </p>
-          ) : null}
+          <p
+            className={cn(
+              "reply-copy-feedback text-xs",
+              copyState === "failed" ? "text-warn" : "text-stone",
+            )}
+            role="status"
+            aria-live="polite"
+          >
+            {copyState === "copied"
+              ? "Copied to your clipboard. Nothing has been sent or recorded yet."
+              : copyState === "failed"
+                ? "Enquiry could not reach your clipboard. The message above is selected - copy it by hand. Nothing has been sent or recorded."
+                : "Copy the message, then send it from your own inbox or phone."}
+          </p>
 
           {/* Step two, and the only thing that records anything. */}
           {staleMessage && onConfirmStale ? (
             <Button
-              ref={confirmButtonRef}
               variant="secondary"
               className="min-h-12 w-full"
               disabled={pending}
@@ -188,11 +200,11 @@ export function SendPreview({
             </Button>
           ) : (
             <Button
-              ref={confirmButtonRef}
               className="min-h-12 w-full"
               disabled={pending || Boolean(blockedReason)}
               onClick={onConfirm}
             >
+              <ClipboardCheck size={18} aria-hidden />
               {pending
                 ? "Recording…"
                 : demoMode
