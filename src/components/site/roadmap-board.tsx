@@ -1,32 +1,22 @@
 import { useEffect, useRef, useState } from "react";
+import { Link } from "@tanstack/react-router";
+import { ArrowRight, ChevronDown, LoaderCircle, MessageSquare, ThumbsUp } from "lucide-react";
 import {
   ROADMAP_LEGEND,
   ROADMAP_WRITTEN,
   NON_GOALS,
   STAGES,
-  statusLabel,
   type RoadmapStage,
   type RoadmapStatus,
 } from "@/lib/launch/roadmap";
 import {
-  joinWaitlist,
   listMyRoadmapNeeds,
   saveRoadmapFeedback,
   toggleRoadmapNeed,
   trackLaunchEvent,
 } from "@/lib/launch/api";
-import {
-  currentTouch,
-  firstTouch,
-  launchSessionId,
-  storedWaitlistId,
-  storeWaitlistId,
-} from "@/lib/launch/session";
-import { cn } from "@/lib/utils";
-import { WaitlistForm } from "@/components/site/waitlist-form";
-import { RoadmapVisual } from "@/components/site/roadmap-visuals";
-import { Reveal } from "@/components/site/motion";
-import { Button } from "@/components/ui/button";
+import { currentTouch, launchSessionId, storedWaitlistId } from "@/lib/launch/session";
+import { PocketConcept, RoadmapIcon } from "@/components/site/roadmap-visuals";
 
 function touchFields() {
   const touch = currentTouch();
@@ -51,245 +41,120 @@ function track(name: string, feature = "") {
   }).catch(() => undefined);
 }
 
-function StatusPills({ status }: { status: RoadmapStatus[] }) {
-  return (
-    <ul className="flex flex-wrap gap-2">
-      {status.map((id) => {
-        const meta = ROADMAP_LEGEND.find((s) => s.id === id);
-        if (!meta) return null;
-        return (
-          <li
-            key={id}
-            className="public-roadmap-status inline-flex items-center gap-1.5 text-xs text-stone"
-          >
-            <span aria-hidden className="font-mono text-[0.7rem] text-ink">
-              {meta.mark}
-            </span>
-            {meta.label}
-          </li>
-        );
-      })}
-    </ul>
-  );
-}
-
 function Feedback({
-  id,
+  stage,
   needed,
   busy,
   onNeed,
 }: {
-  id: string;
+  stage: RoadmapStage;
   needed: boolean;
   busy: boolean;
-  onNeed: (id: string, waitlistId?: string) => Promise<boolean>;
+  onNeed: (id: string) => Promise<void>;
 }) {
-  const known = Boolean(storedWaitlistId());
   const [open, setOpen] = useState(false);
-  const [whyOpen, setWhyOpen] = useState(false);
-  const [whySaved, setWhySaved] = useState(false);
-  const [email, setEmail] = useState("");
   const [problem, setProblem] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
   const [error, setError] = useState("");
-  const [joining, setJoining] = useState(false);
+  const submitting = useRef(false);
 
-  const saveWhy = async (waitlistId?: string) => {
-    const text = problem.trim();
-    if (!text) return false;
-    const result = await saveRoadmapFeedback({
-      data: {
-        feature_id: id,
-        sessionId: launchSessionId(),
-        waitlist_id: waitlistId || storedWaitlistId() || "",
-        problem_text: text,
-        ...touchFields(),
-      },
-    });
-    return result.saved;
-  };
-
-  if (needed) {
-    return (
-      <div className="mt-6 space-y-3">
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
-          <button
-            type="button"
-            disabled={busy}
-            onClick={() => void onNeed(id)}
-            className="min-h-11 text-sm font-medium text-ink underline-offset-4 hover:underline"
-          >
-            I’m interested
-          </button>
-          {whySaved ? (
-            <p className="text-sm text-stone">Thanks - that helps us decide what to build next.</p>
-          ) : (
-            <button
-              type="button"
-              onClick={() => {
-                track("roadmap_feedback_click", id);
-                setWhyOpen((v) => !v);
-              }}
-              className="min-h-11 text-sm text-stone underline-offset-4 transition-colors duration-150 hover:text-ink hover:underline"
-            >
-              Tell us why
-            </button>
-          )}
-        </div>
-        {whyOpen && !whySaved ? (
-          <form
-            className="max-w-sm space-y-3"
-            onSubmit={(e) => {
-              e.preventDefault();
-              setError("");
-              void saveWhy()
-                .then((saved) => {
-                  if (saved) {
-                    setWhySaved(true);
-                    setWhyOpen(false);
-                    setProblem("");
-                  } else {
-                    setWhyOpen(false);
-                  }
-                })
-                .catch((err) => {
-                  setError(err instanceof Error ? err.message : "Could not save that.");
-                });
-            }}
-          >
-            <label className="block text-sm">
-              <span className="mb-1 block text-stone">
-                What problem would this solve for your business?
-              </span>
-              <textarea
-                className="field min-h-20"
-                rows={2}
-                value={problem}
-                onChange={(e) => setProblem(e.target.value)}
-                placeholder="Optional."
-              />
-            </label>
-            {error ? <p className="text-sm text-danger">{error}</p> : null}
-            <div className="flex flex-wrap gap-2">
-              <Button type="submit" size="sm" className="min-h-11">
-                Send
-              </Button>
-              <Button
-                type="button"
-                size="sm"
-                variant="ghost"
-                className="min-h-11"
-                onClick={() => setWhyOpen(false)}
-              >
-                Cancel
-              </Button>
-            </div>
-          </form>
-        ) : null}
-      </div>
-    );
-  }
-
-  const submit = async () => {
+  async function save() {
+    if (!problem.trim() || submitting.current) return;
+    submitting.current = true;
+    setSaving(true);
     setError("");
-    setJoining(true);
     try {
-      const touch = currentTouch();
-      const first = firstTouch();
-      const result = await joinWaitlist({
+      const result = await saveRoadmapFeedback({
         data: {
-          email,
+          feature_id: stage.id,
           sessionId: launchSessionId(),
-          utm_source: first.utm_source || touch.utm_source,
-          utm_medium: first.utm_medium || touch.utm_medium,
-          utm_campaign: first.utm_campaign || touch.utm_campaign,
-          utm_content: first.utm_content || touch.utm_content,
-          referrer: first.referrer || touch.referrer,
-          linkedin_post_id: first.linkedin_post_id || touch.linkedin_post_id,
-          first_touch: JSON.stringify(first.utm_source ? first : touch),
-          latest_touch: JSON.stringify(touch),
-          landing_path: "/roadmap",
+          waitlist_id: storedWaitlistId() || "",
+          problem_text: problem.trim(),
+          ...touchFields(),
         },
       });
-      storeWaitlistId(result.id);
-      track("roadmap_waitlist_signup", id);
-      await onNeed(id, result.id);
-      if (problem.trim()) {
-        const saved = await saveWhy(result.id);
-        if (saved) setWhySaved(true);
-      }
+      if (!result.saved) throw new Error("Your feedback was not saved. Please try again.");
+      setSaved(true);
+      setProblem("");
       setOpen(false);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not save that.");
+    } catch {
+      setError("Your feedback was not saved. Please try again.");
     } finally {
-      setJoining(false);
+      submitting.current = false;
+      setSaving(false);
     }
-  };
+  }
 
   return (
-    <div className="mt-6">
-      <button
-        type="button"
-        disabled={busy || joining}
-        onClick={() => {
-          if (known) onNeed(id);
-          else {
-            track("roadmap_feedback_click", id);
-            setOpen(true);
-          }
-        }}
-        className="min-h-11 text-sm text-stone underline-offset-4 transition-colors duration-150 hover:text-ink hover:underline"
-      >
-        I need this
-      </button>
-      {open ? (
-        <form
-          className="mt-4 max-w-sm space-y-3"
-          onSubmit={(e) => {
-            e.preventDefault();
-            void submit();
-          }}
+    <div className="roadmap-feedback">
+      <div className="roadmap-feedback-actions">
+        <button
+          type="button"
+          className="roadmap-interest"
+          aria-pressed={needed}
+          disabled={busy}
+          onClick={() => void onNeed(stage.id)}
         >
-          <label className="block text-sm">
-            <span className="mb-1 block text-stone">Email</span>
-            <input
-              className="field h-12"
-              type="email"
-              required
-              autoComplete="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="you@studio.com"
-            />
-          </label>
-          <label className="block text-sm">
-            <span className="mb-1 block text-stone">
-              What problem would this solve for your business?
-            </span>
-            <textarea
-              className="field min-h-20"
-              rows={2}
-              value={problem}
-              onChange={(e) => setProblem(e.target.value)}
-              placeholder="Optional."
-            />
-          </label>
-          {error ? <p className="text-sm text-danger">{error}</p> : null}
-          <div className="flex flex-wrap gap-2">
-            <Button type="submit" size="sm" disabled={joining} className="min-h-11">
-              {joining ? "Saving…" : "Add my interest"}
-            </Button>
-            <Button
-              type="button"
-              size="sm"
-              variant="ghost"
-              className="min-h-11"
-              onClick={() => setOpen(false)}
-            >
-              Cancel
-            </Button>
-          </div>
-        </form>
-      ) : null}
+          <ThumbsUp size={15} aria-hidden="true" /> {needed ? "Interest saved" : "I need this"}
+        </button>
+        {!saved && (
+          <button
+            type="button"
+            className="roadmap-text-action"
+            aria-expanded={open}
+            aria-controls={`feedback-${stage.id}`}
+            onClick={() => {
+              setOpen(!open);
+              track("roadmap_feedback_click", stage.id);
+            }}
+          >
+            <MessageSquare size={15} aria-hidden="true" /> Tell us why
+          </button>
+        )}
+      </div>
+      {saved && <p role="status">Thanks. Your feedback has been saved.</p>}
+      <form
+        id={`feedback-${stage.id}`}
+        hidden={!open}
+        onSubmit={(event) => {
+          event.preventDefault();
+          void save();
+        }}
+      >
+        <label htmlFor={`problem-${stage.id}`}>What would this change for your business?</label>
+        <textarea
+          id={`problem-${stage.id}`}
+          rows={3}
+          required
+          maxLength={800}
+          value={problem}
+          onChange={(event) => setProblem(event.target.value)}
+        />
+        {error && (
+          <p role="alert" className="roadmap-error">
+            {error}
+          </p>
+        )}
+        <div className="roadmap-feedback-actions">
+          <button className="roadmap-send" disabled={saving || !problem.trim()} type="submit">
+            {saving ? (
+              <LoaderCircle size={15} aria-hidden="true" />
+            ) : (
+              <ArrowRight size={15} aria-hidden="true" />
+            )}
+            {saving ? "Saving..." : "Send feedback"}
+          </button>
+          <button
+            className="roadmap-text-action"
+            type="button"
+            disabled={saving}
+            onClick={() => setOpen(false)}
+          >
+            Cancel
+          </button>
+        </div>
+      </form>
     </div>
   );
 }
@@ -299,126 +164,57 @@ function StageBlock({
   needed,
   busy,
   onNeed,
+  error,
 }: {
   stage: RoadmapStage;
-  needed: Set<string>;
-  busy: string | null;
-  onNeed: (id: string, waitlistId?: string) => Promise<boolean>;
+  needed: boolean;
+  busy: boolean;
+  onNeed: (id: string) => Promise<void>;
+  error: string;
 }) {
-  const endgame = stage.visual === "endgame";
-  const later = !stage.current && stage.status.every((s) => s === "later");
   return (
-    <article
-      id={`stage-${stage.id}`}
-      data-stage={stage.id}
-      data-horizon={later ? "later" : stage.current ? "now" : "next"}
-      className={cn("roadmap-stage relative", endgame && "roadmap-endgame")}
-    >
-      <div className="roadmap-marker" aria-hidden>
-        <span className={cn("roadmap-dot", stage.current && "is-now")}>{stage.number}</span>
-      </div>
-      <div
-        className={cn(
-          endgame
-            ? "max-w-3xl lg:max-w-none"
-            : "max-w-xl lg:grid lg:max-w-none lg:grid-cols-[minmax(0,28rem)_minmax(0,1fr)] lg:items-start lg:gap-12",
-        )}
+    <article className="roadmap-item" id={`stage-${stage.id}`} data-stage={stage.id}>
+      <details
+        // Native open state can be restored or toggled before hydration.
+        suppressHydrationWarning
+        onToggle={(event) => {
+          if (event.currentTarget.open) track("roadmap_stage_engaged", stage.id);
+        }}
       >
-        <div>
-          <Reveal>
-            {stage.current ? <p className="eyebrow mb-3">Where we are</p> : null}
-            <StatusPills status={stage.status} />
-            <h2
-              className={cn(
-                "text-halo mt-3 font-serif font-semibold tracking-tight",
-                endgame
-                  ? "max-w-xl text-4xl sm:text-6xl md:text-[4.45rem]"
-                  : "text-4xl sm:text-5xl md:text-[3.25rem]",
-              )}
-            >
-              {stage.title}
-            </h2>
-            <p
-              className={cn(
-                "text-halo mt-5 max-w-lg font-serif leading-snug text-ink",
-                endgame ? "text-2xl sm:text-3xl" : "text-xl sm:text-2xl",
-              )}
-            >
-              {stage.goal}
-            </p>
-            <p className="mt-5 max-w-lg text-base leading-relaxed text-ink-2">{stage.narrative}</p>
-          </Reveal>
-
-          {stage.outcomes.map((group) => (
-            <Reveal key={group.id} delay={40}>
-              <div className="mt-8">
-                <h3 className="text-sm font-medium">{group.title}</h3>
-                <ul className="mt-3">
-                  {group.items.map((item) => (
-                    <li
-                      key={item}
-                      className="border-t border-line py-3 text-sm leading-relaxed text-ink-2 last:border-b"
-                    >
-                      {item}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            </Reveal>
+        <summary>
+          <span className="roadmap-feature-icon">
+            <RoadmapIcon id={stage.id} />
+          </span>
+          <span className="roadmap-item-heading">
+            <h3>{stage.title}</h3>
+            <span className="roadmap-summary">{stage.summary}</span>
+            <span className="roadmap-detail-label">
+              <span className="roadmap-show-label">View details</span>
+              <span className="roadmap-hide-label">Close details</span>
+              <ChevronDown size={15} aria-hidden="true" />
+            </span>
+          </span>
+        </summary>
+        <div className="roadmap-detail">
+          {stage.details.map((detail) => (
+            <p key={detail}>{detail}</p>
           ))}
-
-          {stage.notClaiming ? (
-            <Reveal delay={60}>
-              <aside className="mt-8 rounded-lg border border-line bg-raised px-5 py-5">
-                <p className="text-xs uppercase tracking-wider text-stone">
-                  We’re not claiming this yet
-                </p>
-                <ul className="mt-3">
-                  {stage.notClaiming.map((item) => (
-                    <li
-                      key={item}
-                      className="border-t border-line py-2 text-sm text-ink-2 first:border-t-0 first:pt-0"
-                    >
-                      {item}
-                    </li>
-                  ))}
-                </ul>
-              </aside>
-            </Reveal>
-          ) : null}
-
-          {stage.promise ? (
-            <Reveal delay={80}>
-              <p className="mt-8 max-w-lg font-serif text-lg leading-snug">{stage.promise}</p>
-            </Reveal>
-          ) : null}
-
-          {stage.caveat ? <p className="mt-3 max-w-lg text-sm text-stone">{stage.caveat}</p> : null}
-
-          {endgame ? (
-            <Reveal delay={100}>
-              <div className="mt-10">
-                <RoadmapVisual type={stage.visual} />
-              </div>
-            </Reveal>
-          ) : null}
+          <p className="roadmap-boundary">{stage.boundary}</p>
+          {stage.status === "now" ? (
+            <Link to="/demo" className="roadmap-text-action">
+              See the sample demo <ArrowRight size={15} aria-hidden="true" />
+            </Link>
+          ) : (
+            <Feedback stage={stage} needed={needed} busy={busy} onNeed={onNeed} />
+          )}
+          {error && (
+            <p className="roadmap-error" role="alert">
+              {error}
+            </p>
+          )}
         </div>
-
-        {endgame ? null : (
-          <Reveal delay={120} className="mt-8 lg:mt-12">
-            <RoadmapVisual type={stage.visual} />
-          </Reveal>
-        )}
-      </div>
-
-      {stage.feedbackEnabled ? (
-        <Feedback
-          id={stage.id}
-          needed={needed.has(stage.id)}
-          busy={busy === stage.id}
-          onNeed={onNeed}
-        />
-      ) : null}
+      </details>
+      {stage.id === "native-apps" && <PocketConcept />}
     </article>
   );
 }
@@ -426,265 +222,181 @@ function StageBlock({
 export function RoadmapBoard() {
   const [needed, setNeeded] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState<string | null>(null);
-  const [error, setError] = useState("");
-  const [active, setActive] = useState(STAGES[0]?.id ?? "understand");
-  const [fill, setFill] = useState(0);
-  const rail = useRef<HTMLDivElement>(null);
-  const seen = useRef(new Set<string>());
+  const [error, setError] = useState<{ id: string; text: string } | null>(null);
+  const [loadFailed, setLoadFailed] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [active, setActive] = useState<RoadmapStatus>("now");
+  const voting = useRef(false);
+
+  async function loadInterest() {
+    setLoading(true);
+    setLoadFailed(false);
+    try {
+      const result = await listMyRoadmapNeeds({ data: { sessionId: launchSessionId() } });
+      setNeeded(new Set(result.ids));
+    } catch {
+      setLoadFailed(true);
+    } finally {
+      setLoading(false);
+    }
+  }
 
   useEffect(() => {
     track("roadmap_view");
-    void listMyRoadmapNeeds({ data: { sessionId: launchSessionId() } })
-      .then((r) => setNeeded(new Set(r.ids)))
-      .catch(() => undefined);
-  }, []);
-
-  useEffect(() => {
-    const nodes = STAGES.map((s) => document.getElementById(`stage-${s.id}`)).filter(
-      (n): n is HTMLElement => Boolean(n),
-    );
-    if (nodes.length === 0) return;
-    const io = new IntersectionObserver(
+    void loadInterest();
+    const seen = new Set<string>();
+    const observer = new IntersectionObserver(
       (entries) => {
-        const visible = entries
-          .filter((e) => e.isIntersecting)
-          .sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
-        const id = visible?.target.getAttribute("data-stage");
-        if (id) {
-          setActive(id);
-          if (!seen.current.has(id)) {
-            seen.current.add(id);
-            track(id === "endgame" ? "roadmap_endgame_view" : "roadmap_stage_view", id);
+        for (const entry of entries) {
+          if (!entry.isIntersecting) continue;
+          const stageId = entry.target.getAttribute("data-stage");
+          if (stageId && !seen.has(stageId)) {
+            seen.add(stageId);
+            track(stageId === "endgame" ? "roadmap_endgame_view" : "roadmap_stage_view", stageId);
           }
         }
+        const firstVisible = Array.from(
+          document.querySelectorAll<HTMLElement>(".customer-roadmap [data-horizon]"),
+        ).find((node) => node.getBoundingClientRect().bottom > 71);
+        if (firstVisible) setActive(firstVisible.dataset.horizon as RoadmapStatus);
       },
-      { rootMargin: "-28% 0px -50% 0px", threshold: [0.15, 0.35, 0.6] },
+      { rootMargin: "-70px 0px -65% 0px", threshold: 0 },
     );
-    for (const n of nodes) io.observe(n);
-    return () => io.disconnect();
+    document
+      .querySelectorAll(".customer-roadmap [data-stage], .customer-roadmap [data-horizon]")
+      .forEach((node) => observer.observe(node));
+    return () => observer.disconnect();
   }, []);
 
-  useEffect(() => {
-    const el = rail.current;
-    if (!el) return;
-    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    const onScroll = () => {
-      const rect = el.getBoundingClientRect();
-      const start = rect.top + window.scrollY - window.innerHeight * 0.35;
-      const span = Math.max(1, el.offsetHeight - window.innerHeight * 0.3);
-      const p = (window.scrollY - start) / span;
-      setFill(Math.min(1, Math.max(0, p)));
-    };
-    onScroll();
-    if (reduce) {
-      window.addEventListener("scroll", onScroll, { passive: true });
-      return () => window.removeEventListener("scroll", onScroll);
-    }
-    let frame = 0;
-    const tick = () => {
-      onScroll();
-      frame = 0;
-    };
-    const onRaf = () => {
-      if (frame) return;
-      frame = requestAnimationFrame(tick);
-    };
-    window.addEventListener("scroll", onRaf, { passive: true });
-    window.addEventListener("resize", onRaf);
-    return () => {
-      window.removeEventListener("scroll", onRaf);
-      window.removeEventListener("resize", onRaf);
-      if (frame) cancelAnimationFrame(frame);
-    };
-  }, []);
-
-  const onNeed = async (id: string, waitlistId?: string) => {
-    setError("");
+  async function onNeed(id: string) {
+    if (voting.current || loading || loadFailed) return;
+    voting.current = true;
     setBusy(id);
-    track("roadmap_feedback_click", id);
+    setError(null);
     try {
       const result = await toggleRoadmapNeed({
         data: {
           feature_id: id,
           sessionId: launchSessionId(),
-          waitlist_id: waitlistId || storedWaitlistId() || "",
+          waitlist_id: storedWaitlistId() || "",
           ...touchFields(),
         },
       });
-      setNeeded((prev) => {
-        const next = new Set(prev);
+      setNeeded((previous) => {
+        const next = new Set(previous);
         if (result.needed) next.add(id);
         else next.delete(id);
         return next;
       });
-      return result.needed;
     } catch {
-      setError("Your interest could not be saved. Please try again.");
-      return false;
+      setError({ id, text: "Your interest was not saved. Please try again." });
     } finally {
+      voting.current = false;
       setBusy(null);
     }
-  };
-
-  const jump = (id: string) => {
-    const el = document.getElementById(`stage-${id}`);
-    if (!el) return;
-    const nav = document.querySelector('[aria-label="Roadmap stages"]');
-    const offset = (nav instanceof HTMLElement ? nav.getBoundingClientRect().height : 48) + 12;
-    window.scrollTo({
-      top: el.getBoundingClientRect().top + window.scrollY - offset,
-      behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches
-        ? "instant"
-        : "smooth",
-    });
-  };
+  }
 
   return (
-    <div>
-      <section className="public-container pb-8" aria-label="Roadmap statuses">
-        <ul className="public-roadmap-legend">
-          {ROADMAP_LEGEND.map((s) => (
-            <li key={s.id} className="max-w-[14rem]">
-              <p className="text-sm">
-                <span className="mr-1.5 font-mono text-xs text-ink" aria-hidden>
-                  {s.mark}
-                </span>
-                {s.label}
-              </p>
-              <p className="mt-0.5 pl-5 text-xs leading-snug text-stone">{s.hint}</p>
-            </li>
+    <div className="customer-roadmap">
+      <nav className="roadmap-horizon-nav" aria-label="Roadmap horizons">
+        <div className="public-container">
+          {ROADMAP_LEGEND.map((horizon) => (
+            <a
+              key={horizon.id}
+              href={`#horizon-${horizon.id}`}
+              data-tone={horizon.id}
+              aria-current={active === horizon.id ? "location" : undefined}
+            >
+              <span aria-hidden="true" />
+              {horizon.label}
+            </a>
           ))}
-        </ul>
-      </section>
-
-      <nav className="sticky top-0 z-20 border-y border-line bg-white" aria-label="Roadmap stages">
-        <div className="mx-auto flex max-w-5xl gap-1 overflow-x-auto px-5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          {STAGES.map((s) => {
-            const isActive = active === s.id;
-            const status = s.status[0];
-            return (
-              <button
-                key={s.id}
-                type="button"
-                onClick={() => jump(s.id)}
-                aria-current={isActive ? "true" : undefined}
-                className={cn(
-                  "min-h-12 shrink-0 border-b-2 px-2.5 py-1.5 text-sm transition-colors duration-150",
-                  isActive ? "border-ink font-medium text-ink" : "border-transparent text-stone",
-                )}
-              >
-                <span>
-                  <span className="mr-1.5 font-mono text-2xs tabular-nums">{s.number}</span>
-                  <span className="py-1">{s.short}</span>
-                </span>
-                <span
-                  className={cn(
-                    "mt-0.5 text-2xs font-semibold uppercase tracking-[0.08em]",
-                    isActive ? "block" : "hidden sm:block",
-                    status === "working" ? "text-mark" : "text-stone",
-                  )}
-                >
-                  {statusLabel(status)}
-                </span>
-              </button>
-            );
-          })}
+          <span className="roadmap-updated">Updated {ROADMAP_WRITTEN}</span>
         </div>
-        {error ? (
-          <p role="alert" className="public-container py-3 text-sm text-danger">
-            {error}
-          </p>
-        ) : null}
       </nav>
-
-      <div ref={rail} className="roadmap-rail mx-auto max-w-5xl px-5 py-16 sm:py-24">
-        <div className="roadmap-spine" aria-hidden>
-          <div className="roadmap-spine-fill" style={{ transform: `scaleY(${fill})` }} />
+      {loadFailed && (
+        <div className="public-container roadmap-load-error" role="alert">
+          We could not load your saved interests.{" "}
+          <button type="button" onClick={() => void loadInterest()}>
+            Try again
+          </button>
         </div>
-        <div className="flex flex-col gap-24 sm:gap-32">
-          {STAGES.map((stage) => (
-            <StageBlock key={stage.id} stage={stage} needed={needed} busy={busy} onNeed={onNeed} />
-          ))}
-        </div>
-      </div>
-
-      <section className="border-t border-line">
-        <div className="mx-auto max-w-3xl px-5 py-16 sm:py-24">
-          <Reveal>
-            <p className="eyebrow">Restraint</p>
-            <h2 className="text-halo mt-3 font-serif text-4xl font-semibold tracking-tight sm:text-5xl">
-              What we’re not building.
-            </h2>
-            <ul className="mt-8">
-              {NON_GOALS.map((item) => (
-                <li key={item} className="border-t border-line py-4 text-base last:border-b">
-                  {item}
-                </li>
+      )}
+      {ROADMAP_LEGEND.map((horizon) => (
+        <section
+          key={horizon.id}
+          id={`horizon-${horizon.id}`}
+          className="roadmap-horizon"
+          data-horizon={horizon.id}
+          data-tone={horizon.id}
+          aria-labelledby={`title-${horizon.id}`}
+        >
+          <div className="public-container roadmap-horizon-inner">
+            <header className="roadmap-horizon-heading">
+              <span className="roadmap-horizon-icon">
+                <RoadmapIcon id={horizon.id} />
+              </span>
+              <div>
+                <h2 id={`title-${horizon.id}`}>{horizon.label}</h2>
+                <p className="roadmap-hint">{horizon.hint}</p>
+                <p className="roadmap-purpose">{horizon.purpose}</p>
+              </div>
+            </header>
+            <div className="roadmap-outcomes">
+              {STAGES.filter((stage) => stage.status === horizon.id).map((stage) => (
+                <StageBlock
+                  key={stage.id}
+                  stage={stage}
+                  needed={needed.has(stage.id)}
+                  busy={busy !== null || loading || loadFailed}
+                  onNeed={onNeed}
+                  error={error?.id === stage.id ? error.text : ""}
+                />
               ))}
-            </ul>
-            <p className="mt-8 max-w-lg font-serif text-xl leading-snug">
-              The boundary stays powerful because it stays clear: first enquiry → booked or lost.
-            </p>
-          </Reveal>
-        </div>
-      </section>
-
-      <section className="border-t border-line">
-        <div className="mx-auto max-w-3xl px-5 py-16 sm:py-20">
-          <Reveal>
-            <p className="eyebrow">Evidence</p>
-            <h2 className="text-halo mt-3 font-serif text-4xl font-semibold tracking-tight">
-              Shipped
-            </h2>
-            <p className="mt-5 max-w-lg text-base leading-relaxed text-ink-2">
-              Nothing to manufacture here yet. When something genuinely ships, this is where we’ll
-              put it - with the date and proof.
-            </p>
-          </Reveal>
-        </div>
-      </section>
-
-      <section className="border-t border-line bg-raised">
-        <div className="mx-auto max-w-3xl px-5 py-16 sm:py-24">
-          <Reveal>
-            <h2 className="text-halo font-serif text-4xl font-semibold tracking-tight sm:text-5xl">
-              Roadmaps change.
-            </h2>
-            <p className="mt-6 max-w-lg text-base leading-relaxed text-ink-2">
-              This is our direction, not a contract with the future.
-            </p>
-            <p className="mt-4 max-w-lg text-base leading-relaxed text-ink-2">
-              Customer evidence can change the order, the implementation, or occasionally whether
-              something gets built at all. If that happens, we’ll update this page rather than
-              quietly leave an old promise here.
-            </p>
-            <p className="mt-4 max-w-lg text-sm text-stone">
-              We would rather change our mind publicly than ship the wrong thing privately.
-            </p>
-          </Reveal>
-        </div>
-      </section>
-
-      <section className="border-t border-line">
-        <div className="mx-auto max-w-md px-5 py-16 text-left sm:py-20">
-          <h2 className="text-halo font-serif text-3xl font-semibold tracking-tight sm:text-4xl">
-            Want to help shape what gets built?
-          </h2>
-          <p className="mt-4 text-sm leading-relaxed text-ink-2">
-            Join early access. We’ll invite businesses gradually as Enquiry is ready for real-world
-            use.
-          </p>
-          <div className="mt-8">
-            <WaitlistForm compact />
+            </div>
           </div>
-          <p className="mt-4 text-xs text-stone">
-            We’ll email when there’s something worth showing you.
+        </section>
+      ))}
+      <section
+        className="public-container roadmap-direction"
+        aria-labelledby="roadmap-direction-title"
+      >
+        <div>
+          <h2 id="roadmap-direction-title">More capable. Still Enquiry.</h2>
+          <p>
+            From first enquiry to booked or lost. The ambition is less admin around that journey,
+            not another system to manage.
           </p>
         </div>
+        <details suppressHydrationWarning>
+          <summary>
+            What stays out of scope <ChevronDown size={16} aria-hidden="true" />
+          </summary>
+          <ul>
+            {NON_GOALS.map((item) => (
+              <li key={item}>{item}</li>
+            ))}
+          </ul>
+        </details>
       </section>
-
-      <p className="mx-auto max-w-3xl px-5 pb-6 text-xs text-stone">
-        Last written {ROADMAP_WRITTEN}.
+      <section className="roadmap-invite">
+        <div className="public-container">
+          <div>
+            <h2>Help shape what comes next.</h2>
+            <p>Join early access. Tell us what would make a difference to your day.</p>
+          </div>
+          <Link
+            to="/early-access"
+            className="public-button"
+            onClick={() => track("roadmap_waitlist_click")}
+          >
+            Join early access <ArrowRight size={17} aria-hidden="true" />
+          </Link>
+        </div>
+      </section>
+      <p className="public-container roadmap-footnote">
+        Future items are direction, not delivery promises. Priorities may change as we learn from
+        customer feedback. No dates are committed.
       </p>
     </div>
   );

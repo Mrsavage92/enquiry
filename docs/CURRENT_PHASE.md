@@ -1,6 +1,6 @@
 # Enquiry - Current Implementation Phase
 
-Updated: 2026-09-14 (Australia/Brisbane).
+Updated: 2026-09-15 (Australia/Brisbane).
 
 ## Active slice: UI1 - Core experience redesign
 
@@ -9,6 +9,19 @@ Updated: 2026-09-14 (Australia/Brisbane).
 Product-owner instruction on 2026-09-10: implement the UI1 core-experience redesign end-to-end on the dedicated `design/ui1-quiet-signal` branch. This is an authorised presentation and interaction-architecture reset, not a cosmetic spacing pass.
 
 ## Current release state
+
+### Customer roadmap slice (15 September 2026)
+
+Owner-authorised outcome: ask the original GPT design chat to review the public roadmap,
+generate and critique a visual reference, then implement and publish the customer/investor-facing
+roadmap. Work is isolated on `codex/ui1-customer-roadmap`, based on `b44bb24` (PR #28).
+The scope is roadmap copy, presentation, existing feedback controls and verification. Native
+iPhone/Android apps and other future outcomes are published as direction, not implemented by
+this slice. No auth, commercial engine, tenant isolation or external integration changes.
+
+The owner explicitly authorises this roadmap's production release after verification.
+This does not close beta, email-delivery or public-traffic readiness gates. See
+`docs/design/roadmap-2026-09-15/README.md` and `docs/evidence/roadmap-2026-09-15/README.md`.
 
 ### UI1 public-site release candidate (14 September 2026)
 
