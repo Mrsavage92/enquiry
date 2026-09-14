@@ -789,8 +789,8 @@ export function Intelligence({
               <p>Waiting on {enquiry.customerName.split(" ")[0]}</p>
               <p>Your reply is on record. Waiting for their response.</p>
             </div>
-            <button type="button" className="ui-text-link" onClick={() => setEvidenceOpen(true)}>
-              View details
+            <button type="button" className="ui-text-link" onClick={() => setWhyOpen(true)}>
+              Why this reply?
             </button>
           </section>
         ) : awaitingOutcome ? (
