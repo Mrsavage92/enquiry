@@ -1,14 +1,14 @@
 # Enquiry - Implementation Phase Registry
 
-Updated: 2026-09-07 (Australia/Brisbane).
+Updated: 2026-09-14 (Australia/Brisbane).
 
 **Execution authority: [CURRENT_PHASE.md](./CURRENT_PHASE.md).** A prepared phase, a commit label or an existing implementation is not a sign-off.
 
 ## Current decision
 
-**CC1 - Commercial correctness and truthful action recording is the only active implementation slice.** The product owner requested a Claude implementation package for the 2026-09-07 commercial review. Read [the package](./implementation/CC1_COMMERCIAL_CORRECTNESS/README.md).
+**UI1 - Core experience redesign is the current implementation slice.** The product owner authorised UI1 on 2026-09-10. It landed on `main` at [47a8d29](https://github.com/Mrsavage92/enquiry/commit/47a8d29ba66f19d6280cd2c2ead4b9bc5a360be7), but independent UI1 review and owner visual acceptance remain open. [PR #20](https://github.com/Mrsavage92/enquiry/pull/20) is an open refinement and is not merged.
 
-CC1 corrects review P1-01 through P1-05 and the directly necessary P2-01 transaction/revision safeguards. It does not authorise the rest of R2E/R2F, broad integrations, visual redesign or external release. The previous internally inconsistent registry is preserved byte-for-byte in [history](./history/2026-09-07_PHASE_REGISTRY_PRE_CC1.md); its claims that R2A is still active and interpretation is absent are not current status.
+CC1 landed in the release merge [PR #16](https://github.com/Mrsavage92/enquiry/pull/16) on 2026-09-09. Its commercial safeguards are part of the current baseline, but CC1 landing did not pass the first-beta or public-traffic gates. The older CC1-only status below is historical and no longer defines the active slice.
 
 ## Operating rule
 
@@ -46,8 +46,8 @@ Earlier completion labels below preserve recorded management decisions; this pac
 | R2D | Existing implementation; full phase sign-off not established by CC1 | Enquiry mutations; CC1 fixes only relevant consistency paths |
 | R2E | Bounded interpreter source exists; full phase/provider gate not signed off here | Existing interpreter maintenance for CC1 only |
 | R2F | Manual review/recording source exists; full phase/telemetry gate not signed off here | CC1 repairs truthful action semantics only |
-| CC1 | **Authorised for implementation; not yet implemented/signed off** | Five commercial defects plus necessary transaction/version safeguards |
-| 9B | Prepared, not active | Remaining public-surface polish |
+| CC1 | Landed on `main` via PR #16; independent phase/beta sign-off not recorded | Five commercial defects plus necessary transaction/version safeguards |
+| UI1 | Landed on `main` at `47a8d29`; independent review and owner visual acceptance open; PR #20 not merged | Core operator experience redesign |
 | 10A | Prepared, not active | PWA installability and branding |
 | 10B | Prepared, not active | Installed mobile shell polish |
 
@@ -55,13 +55,13 @@ The live decision path remains narrower than the full cross-industry product con
 
 ## Current sequence
 
-**CC1 implement -> independent diff/evidence review -> explicit next R2 slice -> complete first-beta engineering gate -> subsequent public/mobile phases when authorised.**
+**UI1 owner acceptance and independent review -> exact-head verification -> explicit next product slice -> complete first-beta engineering gate -> subsequent public/mobile phases when authorised.**
 
 Do not mechanically restart or complete R2B-R2F from old instructions. Review existing implementation and remaining acceptance gaps when product management chooses the next slice. No percentage-complete estimate or completion-by-commit-count is implied.
 
 ## Detailed references
 
-- Active: [CC1 README](./implementation/CC1_COMMERCIAL_CORRECTNESS/README.md), [acceptance](./implementation/CC1_COMMERCIAL_CORRECTNESS/ACCEPTANCE.md), [review](./reviews/2026-09-07_COMMERCIAL_CORRECTNESS_REVIEW.md).
+- Active: [CURRENT_PHASE.md](./CURRENT_PHASE.md), [UI1 working direction](./design/UI1_QUIET_SIGNAL_WORKING_DIRECTION.md), [UI1 visual direction](./design/UI1_VISUAL_DIRECTION_V2.md), and open [PR #20](https://github.com/Mrsavage92/enquiry/pull/20). CC1 evidence remains at [the implementation report](./implementation/CC1_COMMERCIAL_CORRECTNESS/IMPLEMENTATION_REPORT.md) and [commercial review](./reviews/2026-09-07_COMMERCIAL_CORRECTNESS_REVIEW.md).
 - Product contract: `AGENTS.project.md`; original programme: `docs/PRODUCT_CHANGE_PLAN.md`.
 - R2 parent: `docs/phases/PHASE_R2_PERSISTED_OPERATOR_CUTOVER.md`.
 - R2A: `docs/phases/PHASE_R2A_REAL_WORKSPACE_ONBOARDING.md`.
@@ -76,7 +76,7 @@ Do not mechanically restart or complete R2B-R2F from old instructions. Review ex
 - Phase 10: `docs/phases/PHASE_10_INSTALLABLE_PWA_MOBILE.md`; pre-audit: `docs/PHASE_10_PWA_PRE_AUDIT.md`.
 - R1: `docs/phases/PHASE_R1_RELEASE_BLOCKER_STABILISATION.md`, `docs/phases/PHASE_R1_FINAL_STABILISATION_GATE.md`, `docs/phases/R1_FINAL_GATE_RESULT.md`.
 
-These briefs remain historical/design references unless the current authority activates their scope. Their older sequencing text does not override CC1. Preserve existing safety requirements; do not use this index to waive a beta/public gate.
+These briefs remain historical/design references unless the current authority activates their scope. Their older sequencing text does not override the current UI1 authority. Preserve existing safety requirements; do not use this index to waive a beta/public gate.
 
 ## Cross-cutting gates
 
