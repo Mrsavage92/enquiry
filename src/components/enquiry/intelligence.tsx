@@ -406,7 +406,7 @@ export function Intelligence({
                         !awaitingService &&
                         !rec.blockedReason &&
                         !blocked
-                          ? "Your reply is ready"
+                          ? rec.label
                           : rec.label}
                       </p>
                       {recReasonIsMissingReason ? null : (

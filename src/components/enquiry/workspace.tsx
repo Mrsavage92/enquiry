@@ -5,6 +5,7 @@ import { useNarrow } from "@/lib/use-narrow";
 import { usePrototype } from "@/store/prototype-store";
 import { Button } from "@/components/ui/button";
 import { Conversation } from "./conversation";
+import { ReturnContext } from "./return-context";
 import { Intelligence } from "./intelligence";
 import { Queue } from "./queue";
 import { TeachDialog } from "./teach-dialog";
@@ -226,6 +227,7 @@ export function EnquiryWorkspace({ enquiryId }: { enquiryId?: string }) {
           </header>
           <div className="enquiry-work-grid">
             <div className="enquiry-conversation-scroll" key={enquiry.id}>
+              <ReturnContext enquiry={enquiry} />
               <Conversation enquiry={enquiry} embedded />
               <Intelligence
                 enquiry={enquiry}

@@ -11,6 +11,7 @@ import { usePrototype } from "@/store/prototype-store";
 import { useLiveEnquiryMutations } from "@/lib/workspace/live-mutations";
 import { toastUndo } from "@/lib/toast-undo";
 import { Conversation } from "./conversation";
+import { ReturnContext } from "./return-context";
 import { DeclineConfirm } from "./decline-confirm";
 import { Intelligence } from "./intelligence";
 import { TeachDialog } from "./teach-dialog";
@@ -95,6 +96,7 @@ export function PhoneDesk({ enquiry }: { enquiry: Enquiry }) {
         </button>
       </header>
       <div className="phone-conversation-scroll">
+        <ReturnContext enquiry={enquiry} />
         <Conversation enquiry={enquiry} compact embedded />
         <Intelligence
           enquiry={enquiry}

@@ -849,6 +849,78 @@ li:nth-child(3n + 3) .customer-avatar {
   overflow: clip;
   background: var(--color-reply);
 }
+.enquiry-return-context {
+  max-width: 712px;
+  margin: 0 auto;
+  padding: 10px 0 0;
+}
+.return-context-status {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 8px;
+  color: var(--color-stone);
+  font-size: 12px;
+}
+.return-context-changes {
+  margin-top: 8px;
+  padding: 10px 16px;
+  border-left: 3px solid var(--color-mark);
+  background: var(--color-paper-2);
+}
+.return-context-changes h2 {
+  font-size: 14px;
+  font-weight: 600;
+}
+.return-context-changes dl {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 28px;
+  margin-top: 8px;
+  font-size: 13px;
+}
+.return-context-changes dt {
+  color: var(--color-stone);
+  font-size: 12px;
+}
+.return-context-changes dd {
+  margin-top: 3px;
+}
+.return-context-changes strong {
+  font-weight: 550;
+}
+.conversation-history summary {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--color-mark-strong);
+}
+.conversation-history summary::after {
+  content: "+";
+  margin-left: auto;
+}
+.conversation-history details[open] > summary::after {
+  content: "-";
+}
+.conversation-history details[open] > ol {
+  padding-bottom: 24px;
+}
+.enquiry-return-context + .conversation-embedded > ol {
+  padding-block: 10px 16px;
+}
+.enquiry-conversation-scroll .inline-reply section[aria-labelledby="rec-heading"] {
+  padding-top: 14px;
+}
+.enquiry-conversation-scroll .inline-reply > div:last-of-type {
+  background: white;
+}
+@media (max-width: 860px) {
+  .enquiry-return-context {
+    margin: 0 16px;
+  }
+}
 .inline-reply > div {
   background: transparent;
 }

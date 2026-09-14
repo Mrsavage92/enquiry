@@ -27,7 +27,7 @@ export function Conversation({
   const channel = enquiry.source;
 
   useEffect(() => {
-    if (embedded && enquiry.conversation.length <= 1) return;
+    if (embedded) return;
     const el = endRef.current;
     if (!el) return;
     let pane: HTMLElement | null = el.parentElement;
@@ -69,7 +69,25 @@ export function Conversation({
               : "min-h-0 flex-1 overflow-y-auto px-6 py-7",
         )}
       >
-        {enquiry.conversation.map((m, i) => (
+        {embedded && enquiry.conversation.length > 1 ? (
+          <li className="conversation-history">
+            <details>
+              <summary>Earlier messages ({enquiry.conversation.length - 1})</summary>
+              <ol>
+                {enquiry.conversation.slice(0, -1).map((message, index) => (
+                  <MessageBlock
+                    key={message.id}
+                    message={message}
+                    enquiry={enquiry}
+                    compact={compact}
+                    spaced={index > 0}
+                  />
+                ))}
+              </ol>
+            </details>
+          </li>
+        ) : null}
+        {(embedded ? enquiry.conversation.slice(-1) : enquiry.conversation).map((m, i) => (
           <MessageBlock
             key={m.id}
             message={m}

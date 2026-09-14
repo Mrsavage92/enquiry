@@ -2,6 +2,7 @@ import type { Enquiry } from "@/domain/types";
 import { ACTION_LABELS } from "@/domain/labels";
 import { evalr, fact, msg, na, src, why } from "./helpers";
 import { CHANNEL_ENQUIRIES } from "./channels";
+import { UI1_PAINTING } from "./ui1-painting";
 function rec(
   action: Enquiry["decision"]["recommendation"]["action"],
   reason: string,
@@ -2225,6 +2226,7 @@ export const ENQUIRIES: Enquiry[] = [
     },
   },
   ...CHANNEL_ENQUIRIES,
+  UI1_PAINTING,
 ];
 
 export const ENQUIRY_BY_ID = Object.fromEntries(ENQUIRIES.map((e) => [e.id, e])) as Record<string, Enquiry>;
