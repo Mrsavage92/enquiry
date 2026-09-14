@@ -51,6 +51,7 @@ import { toast } from "sonner";
 import { HearLetter } from "./hear-letter";
 import { SendPreview, type SendPreviewCopyState } from "./send-preview";
 import { DeclineConfirm } from "./decline-confirm";
+import { isWaitingForInformation } from "./reply-presentation";
 
 export function Intelligence({
   enquiry,
@@ -152,6 +153,7 @@ export function Intelligence({
       (enquiry.state.commercial === "QUOTED" ||
         enquiry.state.commercial === "ESTIMATED" ||
         enquiry.state.commercial === "ACCEPTED"));
+  const awaitingInformation = !awaitingOutcome && isWaitingForInformation(enquiry);
   const reply = replyChannel(enquiry);
   const firstBeta = useFirstBetaActions();
   const [sending, setSending] = useState(false);
@@ -387,7 +389,7 @@ export function Intelligence({
             </div>
           ) : null}
 
-          {!evaluating && !(inline && awaitingOutcome) ? (
+          {!evaluating && !awaitingInformation && !(inline && awaitingOutcome) ? (
             <>
               {compact && !inline ? null : (
                 <section className="border-b border-line px-5 py-5" aria-labelledby="rec-heading">
@@ -401,14 +403,7 @@ export function Intelligence({
                         {inline ? "Suggested next step" : "Recommendation"}
                       </p>
                       <p className="mt-2 text-xl font-semibold leading-snug tracking-tight">
-                        {inline &&
-                        sendable &&
-                        rec.primaryEnabled &&
-                        !awaitingService &&
-                        !rec.blockedReason &&
-                        !blocked
-                          ? rec.label
-                          : rec.label}
+                        {rec.label}
                       </p>
                       {recReasonIsMissingReason ? null : (
                         <p className="mt-2 text-sm leading-relaxed text-ink-2">{rec.reason}</p>
@@ -432,17 +427,19 @@ export function Intelligence({
                       <CircleHelp className="size-4" aria-hidden />
                       {inline ? "Why this reply?" : "Why?"}
                     </button>
-                    {compact && inline ? (
+                    {inline ? (
                       <button
                         type="button"
                         className="inline-flex min-h-11 items-center gap-1.5 text-sm font-medium text-mark"
-                        onClick={() => setDraftOpen(true)}
+                        onClick={() => setDraftOpen((open) => (compact ? true : !open))}
                         aria-label="Edit reply"
+                        aria-expanded={draftOpen}
                       >
                         <Pencil className="size-4" aria-hidden />
-                        Read & edit reply
+                        {draftOpen ? "Finish editing" : "Read & edit reply"}
                       </button>
                     ) : null}
+                    {inline && !compact ? <HearLetter text={draftBody} /> : null}
                     {!inline || enquiry.decision.confidence === "Low" ? (
                       <ConfidenceBadge confidence={enquiry.decision.confidence} />
                     ) : null}
@@ -672,29 +669,36 @@ export function Intelligence({
                 </section>
               ) : (
                 <section className="px-5 py-5" aria-labelledby="draft-heading">
-                  <div className="flex items-center justify-between gap-3">
-                    <button
-                      type="button"
-                      className="flex min-h-11 flex-1 items-center justify-between text-left"
-                      onClick={() => setDraftOpen((v) => !v)}
-                      aria-expanded={draftOpen}
-                    >
-                      <p id="draft-heading" className="eyebrow">
-                        {inline
-                          ? draftOpen
-                            ? "Finish editing"
-                            : "Read & edit reply"
-                          : `Prepared ${short ? "message" : "reply"}`}
-                      </p>
-                      <ChevronDown
-                        className={cn(
-                          "size-4 text-stone transition-transform duration-150 ease-out",
-                          draftOpen && "rotate-180",
-                        )}
-                      />
-                    </button>
-                    <HearLetter text={draftBody} />
-                  </div>
+                  {inline ? (
+                    <h3 id="draft-heading" className="sr-only">
+                      Prepared reply
+                    </h3>
+                  ) : null}
+                  {!inline ? (
+                    <div className="flex items-center justify-between gap-3">
+                      <button
+                        type="button"
+                        className="flex min-h-11 flex-1 items-center justify-between text-left"
+                        onClick={() => setDraftOpen((v) => !v)}
+                        aria-expanded={draftOpen}
+                      >
+                        <p id="draft-heading" className="eyebrow">
+                          {inline
+                            ? draftOpen
+                              ? "Finish editing"
+                              : "Read & edit reply"
+                            : `Prepared ${short ? "message" : "reply"}`}
+                        </p>
+                        <ChevronDown
+                          className={cn(
+                            "size-4 text-stone transition-transform duration-150 ease-out",
+                            draftOpen && "rotate-180",
+                          )}
+                        />
+                      </button>
+                      <HearLetter text={draftBody} />
+                    </div>
+                  ) : null}
                   {draftOpen ? (
                     <label className="mt-3 block">
                       <span className="sr-only">Draft message</span>
@@ -779,6 +783,16 @@ export function Intelligence({
       >
         {evaluating ? (
           <p className="text-sm text-stone">Wait until Enquiry finishes reading.</p>
+        ) : awaitingInformation ? (
+          <section className="reply-waiting" aria-label="Waiting for customer" role="status">
+            <div>
+              <p>Waiting on {enquiry.customerName.split(" ")[0]}</p>
+              <p>Your reply is on record. Waiting for their response.</p>
+            </div>
+            <button type="button" className="ui-text-link" onClick={() => setEvidenceOpen(true)}>
+              View details
+            </button>
+          </section>
         ) : awaitingOutcome ? (
           <WaitingDesk enquiry={enquiry} onDone={onDone} />
         ) : (

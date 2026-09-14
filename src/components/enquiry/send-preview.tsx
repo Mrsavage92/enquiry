@@ -62,7 +62,6 @@ export function SendPreview({
   onConfirmStale?: () => void;
 }) {
   const [copyState, setCopyState] = useState<SendPreviewCopyState>("idle");
-  const confirmButtonRef = useRef<HTMLButtonElement>(null);
   const bodyRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -93,7 +92,7 @@ export function SendPreview({
         className={compact ? undefined : "max-h-[85vh] overflow-y-auto"}
         onOpenAutoFocus={(event) => {
           event.preventDefault();
-          confirmButtonRef.current?.focus();
+          bodyRef.current?.focus();
         }}
       >
         <div className="space-y-4">
@@ -115,6 +114,8 @@ export function SendPreview({
             <p className="eyebrow">Message</p>
             <div
               ref={bodyRef}
+              tabIndex={-1}
+              aria-label="Message to review"
               className="field mt-1 max-h-64 overflow-y-auto whitespace-pre-wrap text-sm leading-relaxed"
             >
               {preview.body || "No message prepared."}
@@ -178,7 +179,6 @@ export function SendPreview({
           {/* Step two, and the only thing that records anything. */}
           {staleMessage && onConfirmStale ? (
             <Button
-              ref={confirmButtonRef}
               variant="secondary"
               className="min-h-12 w-full"
               disabled={pending}
@@ -188,7 +188,6 @@ export function SendPreview({
             </Button>
           ) : (
             <Button
-              ref={confirmButtonRef}
               className="min-h-12 w-full"
               disabled={pending || Boolean(blockedReason)}
               onClick={onConfirm}

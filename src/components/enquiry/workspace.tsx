@@ -244,8 +244,17 @@ export function EnquiryWorkspace({ enquiryId }: { enquiryId?: string }) {
               <ul className="context-reasons">
                 {enquiry.decision.why.slice(0, 3).map((reason) => (
                   <li key={reason.id}>
-                    <p>{reason.claim}</p>
-                    <span>{reason.evidence}</span>
+                    {reason.evidence.length > 200 ? (
+                      <details>
+                        <summary>{reason.claim}</summary>
+                        <span>{reason.evidence}</span>
+                      </details>
+                    ) : (
+                      <>
+                        <p>{reason.claim}</p>
+                        <span>{reason.evidence}</span>
+                      </>
+                    )}
                   </li>
                 ))}
               </ul>

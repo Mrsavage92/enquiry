@@ -1,4 +1,5 @@
 import type { Enquiry } from "@/domain/types";
+import { ChevronDown } from "lucide-react";
 import { usePrototype } from "@/store/prototype-store";
 
 export function ReturnContext({ enquiry }: { enquiry: Enquiry }) {
@@ -18,8 +19,15 @@ export function ReturnContext({ enquiry }: { enquiry: Enquiry }) {
         ) : null}
       </div>
       {changes.length ? (
-        <div className="return-context-changes">
-          <h2>What changed</h2>
+        <details className="return-context-changes">
+          <summary>
+            <span className="change-summary-copy">
+              <strong>Plan updated</strong>
+              <span>{changes.map((change) => change.to).join(" · ")}</span>
+            </span>
+            <span className="change-disclosure-label">View changes</span>
+            <ChevronDown size={16} aria-hidden />
+          </summary>
           <dl>
             {changes.map((change, index) => (
               <div key={`${change.factLabel}-${index}`}>
@@ -32,7 +40,7 @@ export function ReturnContext({ enquiry }: { enquiry: Enquiry }) {
               </div>
             ))}
           </dl>
-        </div>
+        </details>
       ) : null}
     </section>
   );
