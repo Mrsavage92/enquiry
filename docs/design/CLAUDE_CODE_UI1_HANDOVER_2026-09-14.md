@@ -44,12 +44,17 @@ Design for interrupted, busy, admin-averse owners, including people who may have
 - A synthetic Maya Chen painting fixture uses the existing Ridge crew-window rule, with five weekdays reduced to three and ceilings added. No calendar result, exact price or booking is fabricated. Contractor availability remains unconfirmed. This is an authored example, **not proof of a production crew evaluator**.
 - The example runs through the existing operator workspace, editor and review/copy/attestation controls. No duplicate mock sending workflow was introduced.
 - More is a protected app route with the existing workspace selector and secondary destinations; desktop Business uses divided rows. These interrupted changes are retained for verification.
+- Tablet review found the sticky reply footer covering material context. `335bbfc` returns it to normal flow; the recommendation and uncertainty stay readable, with scrolling where necessary.
+- Demo attestation left the review dialog open. `2541180` closes it after recording, matching the existing waiting-desk behaviour. Live recording logic is unchanged.
 
 ## Remaining Gaps And Limits
 
 - The open-enquiry prototype is implemented for review, not owner-approved. Long message and draft content still needs scrolling; do not equate a single screenshot with full workflow acceptance.
 - Cross-screen exact-head verification must distinguish tests, browser checks and physical-device checks. Earlier 73/725-test claims cannot be reused as current results.
 - Physical iPhone/Android keyboard and nonzero safe-area behaviour remains unverified.
+- Settings still contains legacy wording such as "Pause outbound", "Live" and "Business Brain". Review its sample/live capability copy before claiming UI1 complete (`src/components/settings/settings-page.tsx`).
+- After demo recording, the queue correctly moves the enquiry to Waiting, but the open enquiry can still show the previous suggested next step. This needs a focused post-action presentation pass; do not change the decision engine to conceal it.
+- The review dialog initially focuses the external-send attestation. Review that focus choice for accidental keyboard confirmation risk; no live send was exercised here.
 - Claude reports Supabase redirect configuration and SMTP blockers. Hosted settings have not been independently inspected or changed during this recovery. Default Supabase SMTP is not public customer email delivery. No production auth, credential, database or provider configuration change is authorised here.
 - Real-provider interpretation quality, two-tenant HTTP isolation, PostgreSQL contention and beta/public traffic gates remain separate from UI1 visual work.
 - Do not activate broad evaluator, integration, CRM, marketing or launch-film work merely because it appears in an earlier handover.
