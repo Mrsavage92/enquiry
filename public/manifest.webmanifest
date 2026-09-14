@@ -5,8 +5,8 @@
   "start_url": "/enquiries",
   "scope": "/",
   "display": "standalone",
-  "background_color": "#faf7f1",
-  "theme_color": "#faf7f1",
+  "background_color": "#ffffff",
+  "theme_color": "#f0eef4",
   "icons": [
     {
       "src": "/icon-192.png",

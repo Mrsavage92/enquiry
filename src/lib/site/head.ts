@@ -22,7 +22,7 @@ const SHARE_IMAGE_PATH = "/og.jpg";
  * per route either.
  */
 const SHARE_IMAGE_ALT =
-  "Enquiry's decision panel for a real enquiry: interior painting, 4 bedrooms plus living, New Farm. Next action: offer a site measure.";
+  "Enquiry's website and Today screen, showing the actual app with sample enquiries.";
 
 function parseOrigin(value: string): string | null {
   const trimmed = value.trim();

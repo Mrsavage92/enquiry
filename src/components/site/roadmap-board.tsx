@@ -60,7 +60,7 @@ function StatusPills({ status }: { status: RoadmapStatus[] }) {
         return (
           <li
             key={id}
-            className="inline-flex items-center gap-1.5 text-xs uppercase tracking-wider text-stone"
+            className="public-roadmap-status inline-flex items-center gap-1.5 text-xs text-stone"
           >
             <span aria-hidden className="font-mono text-[0.7rem] text-ink">
               {meta.mark}
@@ -426,6 +426,7 @@ function StageBlock({
 export function RoadmapBoard() {
   const [needed, setNeeded] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState<string | null>(null);
+  const [error, setError] = useState("");
   const [active, setActive] = useState(STAGES[0]?.id ?? "understand");
   const [fill, setFill] = useState(0);
   const rail = useRef<HTMLDivElement>(null);
@@ -498,6 +499,7 @@ export function RoadmapBoard() {
   }, []);
 
   const onNeed = async (id: string, waitlistId?: string) => {
+    setError("");
     setBusy(id);
     track("roadmap_feedback_click", id);
     try {
@@ -516,6 +518,9 @@ export function RoadmapBoard() {
         return next;
       });
       return result.needed;
+    } catch {
+      setError("Your interest could not be saved. Please try again.");
+      return false;
     } finally {
       setBusy(null);
     }
@@ -524,23 +529,20 @@ export function RoadmapBoard() {
   const jump = (id: string) => {
     const el = document.getElementById(`stage-${id}`);
     if (!el) return;
-    const header = document.querySelector("header");
     const nav = document.querySelector('[aria-label="Roadmap stages"]');
-    const offset =
-      (header instanceof HTMLElement ? header.getBoundingClientRect().height : 56) +
-      (nav instanceof HTMLElement ? nav.getBoundingClientRect().height : 48) +
-      12;
+    const offset = (nav instanceof HTMLElement ? nav.getBoundingClientRect().height : 48) + 12;
     window.scrollTo({
       top: el.getBoundingClientRect().top + window.scrollY - offset,
-      behavior: "smooth",
+      behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches
+        ? "instant"
+        : "smooth",
     });
   };
 
   return (
     <div>
-      <section className="mx-auto max-w-5xl px-5 pb-10">
-        <p className="eyebrow">Statuses</p>
-        <ul className="mt-4 flex flex-wrap gap-x-5 gap-y-3">
+      <section className="public-container pb-8" aria-label="Roadmap statuses">
+        <ul className="public-roadmap-legend">
           {ROADMAP_LEGEND.map((s) => (
             <li key={s.id} className="max-w-[14rem]">
               <p className="text-sm">
@@ -555,10 +557,7 @@ export function RoadmapBoard() {
         </ul>
       </section>
 
-      <nav
-        className="sticky top-0 z-20 border-y border-line bg-paper/90 backdrop-blur-sm md:top-[4.25rem]"
-        aria-label="Roadmap stages"
-      >
+      <nav className="sticky top-0 z-20 border-y border-line bg-white" aria-label="Roadmap stages">
         <div className="mx-auto flex max-w-5xl gap-1 overflow-x-auto px-5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {STAGES.map((s) => {
             const isActive = active === s.id;
@@ -591,6 +590,11 @@ export function RoadmapBoard() {
             );
           })}
         </div>
+        {error ? (
+          <p role="alert" className="public-container py-3 text-sm text-danger">
+            {error}
+          </p>
+        ) : null}
       </nav>
 
       <div ref={rail} className="roadmap-rail mx-auto max-w-5xl px-5 py-16 sm:py-24">

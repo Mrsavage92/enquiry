@@ -26,6 +26,11 @@ Repository deletion is not evidence of external revocation.
 
 # 2. Phase 9A visual runtime QA
 
+UI1 supersedes the old paper/ink acceptance direction below. For the current candidate use
+`docs/evidence/early-access-release-2026-09-14/README.md`: clean white surfaces, lilac shell,
+violet identity and actual UI1 sample-workspace captures. The historical checklist is not a
+requirement to restore the rejected visual identity.
+
 The visual direction is already source-reviewed and accepted.
 
 Still required with a real browser/human session:
@@ -36,7 +41,7 @@ Still required with a real browser/human session:
 - [ ] waitlist obvious and usable;
 - [ ] reduced-motion behaviour;
 - [ ] no overflow/clipped controls;
-- [ ] paper/ink identity still intact after R1 auth/security work.
+- [ ] approved UI1 identity consistent across the public website and entry pages.
 
 This does not block R2 backend engineering.
 

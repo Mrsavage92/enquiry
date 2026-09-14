@@ -1,12 +1,9 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { ArrowRight, Check } from "lucide-react";
 import { socialHead } from "@/lib/site/head";
 import { SiteShell } from "@/components/site/site-shell";
-import { ProofCase } from "@/components/site/proof-case";
 import { CrossChannelDecisionDemo } from "@/components/site/cross-channel-decision-demo";
-import { WaitlistForm } from "@/components/site/waitlist-form";
-import { Button } from "@/components/ui/button";
-import { Reveal } from "@/components/site/motion";
-import { SIGNATURE_DEMO } from "@/lib/site/signature-demo";
+import { EarlyAccessInvite } from "@/components/site/early-access-invite";
 
 export const Route = createFileRoute("/how")({
   component: How,
@@ -15,123 +12,82 @@ export const Route = createFileRoute("/how")({
       path: "/how",
       title: "How it works · Enquiry",
       description:
-        "Bring an enquiry into Enquiry, reconstruct the request, apply how your business works, and prepare the next action.",
+        "Bring in the customer conversation, review a prepared next step and keep the final call in your hands.",
     }),
 });
 
 function How() {
   return (
     <SiteShell>
-      <article className="mx-auto max-w-5xl px-5 py-10 sm:py-20">
-        <div className="max-w-3xl">
-          <p className="eyebrow">How it works</p>
-          <h1 className="site-display-proof mt-3">Work arrives. The next action is ready.</h1>
-          <p className="mt-4 text-lg leading-relaxed text-ink-2">
-            Enquiry reconstructs the request, applies how this business works, and works out what
-            can safely be decided now. You approve. You should mainly make judgement calls - not CRM
-            data entry.
-          </p>
+      <header className="public-container public-page-heading">
+        <h1>How Enquiry works</h1>
+        <p>
+          A customer asks. The details change. Enquiry helps you keep track of what matters and
+          prepare what comes next.
+        </p>
+        <div className="public-actions">
+          <Link to="/early-access" className="public-button">
+            Join early access <ArrowRight size={17} aria-hidden="true" />
+          </Link>
+          <Link to="/demo" className="public-text-link">
+            Try a sample enquiry <ArrowRight size={16} aria-hidden="true" />
+          </Link>
         </div>
-      </article>
-
-      <section className="border-t border-line bg-raised">
-        <div className="mx-auto max-w-5xl px-5 py-10 sm:py-16">
-          <Reveal>
-            <p className="eyebrow">{SIGNATURE_DEMO.business}</p>
-            <h2 className="mt-3 max-w-2xl text-2xl font-semibold tracking-tight sm:text-3xl">
-              {SIGNATURE_DEMO.headline}
-            </h2>
-            <p className="mt-3 max-w-2xl text-sm leading-relaxed text-ink-2 sm:text-base">
-              {SIGNATURE_DEMO.supporting}
-            </p>
-          </Reveal>
-          <div className="mt-8">
-            <CrossChannelDecisionDemo compact />
-          </div>
-          <p className="mt-8 max-w-xl text-sm leading-relaxed text-ink-2">
-            {SIGNATURE_DEMO.takeaway}
-          </p>
-        </div>
-      </section>
-
-      <section className="mx-auto max-w-3xl px-5 py-10 sm:py-16">
-        <ol>
-          {[
-            {
-              t: "Bring the enquiry in",
-              b: "It might have started in a form, text, Instagram, Facebook, or email. Early access starts by bringing the enquiry into Enquiry yourself. Connected channels will roll out progressively.",
-            },
-            {
-              t: "Enquiry reconstructs the request",
-              b: "What they want. What’s known. What’s missing, ambiguous, or conflicting. Enquiry does not guess to fill the gaps.",
-            },
-            {
-              t: "Business Brain supplies the truth",
-              b: "Services, rules, voice, and prices where they apply. Customer-specific facts stay on that enquiry. A correction can teach the business, or stay on this job.",
-            },
-            {
-              t: "What can be decided now",
-              b: "Enquiry runs only the checks that matter for this request. What can be decided. What’s blocking the next decision. Why. Unknown is a valid answer.",
-            },
-            {
-              t: "You review, then you send",
-              b: "The next action is prepared - the reply, the hold, the question that unblocks the rest. Nothing goes out unless that kind of action is allowed. Early access is review-first.",
-            },
-            {
-              t: "The enquiry stays current",
-              b: "Add new customer information as the conversation changes. The case file stays current until the work is booked or lost. Connected-channel updates will roll out progressively.",
-            },
-          ].map((s, i) => (
-            <Reveal key={s.t}>
-              <li className="border-t border-line py-8 last:border-b">
-                <p className="font-mono text-xs tabular-nums text-stone">
-                  {String(i + 1).padStart(2, "0")}
-                </p>
-                <h2 className="mt-2 text-2xl font-semibold tracking-tight">{s.t}</h2>
-                <p className="mt-2 text-sm leading-relaxed text-ink-2">{s.b}</p>
+      </header>
+      <section className="public-workflow-band">
+        <div className="public-container public-section">
+          <h2 className="site-display">From a new request to a clear next step.</h2>
+          <ol className="public-process">
+            {[
+              [
+                "01",
+                "Bring the conversation together",
+                "Add the enquiry yourself, then bring in new messages as they arrive. Live channel connections are being developed; they are not required to try the sample demo.",
+              ],
+              [
+                "02",
+                "Put your business in the picture",
+                "Services, prices, policies and how you work give the request context. Missing information, conflicts and uncertain availability stay visible.",
+              ],
+              [
+                "03",
+                "Review and move it forward",
+                "Check the prepared reply and its reasoning. Edit it when needed, send through your channel and record the action accurately. A copied reply is not marked as sent.",
+              ],
+            ].map(([number, title, body]) => (
+              <li key={number}>
+                <span>{number}</span>
+                <h3>{title}</h3>
+                <p>{body}</p>
               </li>
-            </Reveal>
-          ))}
-        </ol>
-      </section>
-
-      <section className="border-t border-line bg-paper-2">
-        <div className="mx-auto max-w-5xl px-5 py-10 sm:py-16">
-          <Reveal>
-            <p className="eyebrow text-stone-on-paper-2">When the price can be decided</p>
-            <h2 className="mt-3 max-w-2xl text-2xl font-semibold tracking-tight sm:text-3xl">
-              A different job. Exact quote, ready to send.
-            </h2>
-            <p className="mt-3 max-w-xl text-sm leading-relaxed text-ink-2">
-              Some enquiries resolve to a number. That is still Enquiry - it is not the whole
-              product.
+            ))}
+          </ol>
+          <div className="public-review-note">
+            <Check size={18} aria-hidden="true" />
+            <p>
+              Your judgement stays part of the process. Enquiry does not fill uncertainty with a
+              confident guess.
             </p>
-          </Reveal>
-          <div className="mt-8">
-            <ProofCase />
           </div>
         </div>
       </section>
-
-      <section className="mx-auto max-w-3xl px-5 py-10 sm:py-16">
-        <div className="flex flex-col gap-3 sm:flex-row">
-          <Button asChild className="min-h-12">
-            <Link to="/early-access">Join early access</Link>
-          </Button>
-          <Button asChild variant="secondary" className="min-h-12">
-            <Link to="/demo">See demo</Link>
-          </Button>
+      <section className="public-container public-section" aria-labelledby="example-title">
+        <div className="public-section-heading">
+          <p className="public-kicker">A sample enquiry</p>
+          <h2 id="example-title">
+            One new message.
+            <br />A different next step.
+          </h2>
+          <p>
+            Maya changes the scope of a painting job. See what that changes before a reply is
+            prepared. This is a demonstration, not a connected inbox.
+          </p>
+        </div>
+        <div className="mt-8">
+          <CrossChannelDecisionDemo compact />
         </div>
       </section>
-      <section className="border-t border-line">
-        <div className="mx-auto max-w-xl px-5 py-16">
-          <h2 className="text-2xl font-semibold tracking-tight">Join early access</h2>
-          <p className="mt-2 text-sm text-ink-2">Email first. A few optional questions after.</p>
-          <div className="mt-6">
-            <WaitlistForm />
-          </div>
-        </div>
-      </section>
+      <EarlyAccessInvite />
     </SiteShell>
   );
 }

@@ -19,7 +19,7 @@ export const Route = createRootRoute({
         content:
           "Enquiry learns how a service business works and turns messy inbound enquiries into the correct next decision.",
       },
-      { name: "theme-color", content: "#faf7f1" },
+      { name: "theme-color", content: "#f0eef4" },
       { name: "apple-mobile-web-app-capable", content: "yes" },
       { name: "apple-mobile-web-app-title", content: APP_NAME },
       { name: "apple-mobile-web-app-status-bar-style", content: "black-translucent" },
@@ -30,10 +30,6 @@ export const Route = createRootRoute({
       { rel: "stylesheet", href: appCss },
       { rel: "manifest", href: "/manifest.webmanifest" },
       { rel: "apple-touch-icon", href: "/apple-touch-icon.png" },
-      {
-        rel: "stylesheet",
-        href: "https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Serif:wght@500;600&display=swap",
-      },
     ],
   }),
   component: () => (

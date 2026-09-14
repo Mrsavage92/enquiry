@@ -1,7 +1,8 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { socialHead } from "@/lib/site/head";
 import { SiteShell } from "@/components/site/site-shell";
-import { WaitlistForm } from "@/components/site/waitlist-form";
+import { EarlyAccessInvite } from "@/components/site/early-access-invite";
+import { ArrowRight } from "lucide-react";
 
 export const Route = createFileRoute("/updates")({
   component: Updates,
@@ -44,21 +45,29 @@ const POSTS = [
 function Updates() {
   return (
     <SiteShell>
-      <article className="mx-auto max-w-5xl px-5 pb-16 pt-10 sm:pb-20 sm:pt-20">
-        <div className="max-w-3xl">
-          <p className="eyebrow">In public</p>
-          <h1 className="site-display-proof mt-3">Updates</h1>
-          <p className="mt-4 max-w-xl text-lg leading-relaxed text-ink-2">
-            Meaningful notes from building Enquiry in public. Not a changelog - only progress that
-            changes what the product is, or how we think about it.
+      <article className="public-container pb-16">
+        <div className="public-page-heading">
+          <h1>Updates</h1>
+          <p>
+            Notes on what we are building, what we are learning and the decisions behind Enquiry.
           </p>
+          <div className="public-actions">
+            <Link to="/early-access" className="public-button">
+              Join early access <ArrowRight size={17} aria-hidden="true" />
+            </Link>
+            <Link to="/roadmap" className="public-text-link">
+              See the roadmap <ArrowRight size={16} aria-hidden="true" />
+            </Link>
+          </div>
         </div>
-        <ul className="mt-12 max-w-3xl">
+        <ul className="public-updates">
           {POSTS.map((p) => (
-            <li key={p.title} className="border-t border-line py-8 last:border-b">
-              <p className="text-xs uppercase tracking-wider text-stone">{p.date}</p>
-              <h2 className="mt-2 text-xl font-semibold tracking-tight">{p.title}</h2>
-              <p className="mt-2 text-sm leading-relaxed text-ink-2">{p.body}</p>
+            <li key={p.title}>
+              <time>{p.date}</time>
+              <div>
+                <h2>{p.title}</h2>
+                <p>{p.body}</p>
+              </div>
             </li>
           ))}
         </ul>
@@ -74,15 +83,7 @@ function Updates() {
           .
         </p>
       </article>
-      <section className="border-t border-line">
-        <div className="mx-auto max-w-xl px-5 py-16">
-          <h2 className="text-2xl font-semibold tracking-tight">Join early access</h2>
-          <p className="mt-2 text-sm text-ink-2">Email first. A few optional questions after.</p>
-          <div className="mt-6">
-            <WaitlistForm />
-          </div>
-        </div>
-      </section>
+      <EarlyAccessInvite />
     </SiteShell>
   );
 }
