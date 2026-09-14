@@ -28,6 +28,7 @@ import { Route as AppBusinessRouteImport } from './routes/_app/business'
 import { Route as AppEnquiriesRouteRouteImport } from './routes/_app/enquiries/route'
 import { Route as AppInsightsRouteImport } from './routes/_app/insights'
 import { Route as AppLabRouteImport } from './routes/_app/lab'
+import { Route as AppMoreRouteImport } from './routes/_app/more'
 import { Route as AppReferRouteImport } from './routes/_app/refer'
 import { Route as AppSettingsRouteImport } from './routes/_app/settings'
 import { Route as AppSupportRouteImport } from './routes/_app/support'
@@ -138,6 +139,11 @@ const AppLabRoute = AppLabRouteImport.update({
   path: '/lab',
   getParentRoute: () => AppRoute,
 } as any)
+const AppMoreRoute = AppMoreRouteImport.update({
+  id: '/more',
+  path: '/more',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppReferRoute = AppReferRouteImport.update({
   id: '/refer',
   path: '/refer',
@@ -234,6 +240,7 @@ export interface FileRoutesByFullPath {
   '/business': typeof AppBusinessRoute
   '/insights': typeof AppInsightsRoute
   '/lab': typeof AppLabRoute
+  '/more': typeof AppMoreRoute
   '/refer': typeof AppReferRoute
   '/settings': typeof AppSettingsRoute
   '/support': typeof AppSupportRoute
@@ -267,6 +274,7 @@ export interface FileRoutesByTo {
   '/business': typeof AppBusinessRoute
   '/insights': typeof AppInsightsRoute
   '/lab': typeof AppLabRoute
+  '/more': typeof AppMoreRoute
   '/refer': typeof AppReferRoute
   '/settings': typeof AppSettingsRoute
   '/support': typeof AppSupportRoute
@@ -304,6 +312,7 @@ export interface FileRoutesById {
   '/_app/business': typeof AppBusinessRoute
   '/_app/insights': typeof AppInsightsRoute
   '/_app/lab': typeof AppLabRoute
+  '/_app/more': typeof AppMoreRoute
   '/_app/refer': typeof AppReferRoute
   '/_app/settings': typeof AppSettingsRoute
   '/_app/support': typeof AppSupportRoute
@@ -341,6 +350,7 @@ export interface FileRouteTypes {
     | '/business'
     | '/insights'
     | '/lab'
+    | '/more'
     | '/refer'
     | '/settings'
     | '/support'
@@ -374,6 +384,7 @@ export interface FileRouteTypes {
     | '/business'
     | '/insights'
     | '/lab'
+    | '/more'
     | '/refer'
     | '/settings'
     | '/support'
@@ -410,6 +421,7 @@ export interface FileRouteTypes {
     | '/_app/business'
     | '/_app/insights'
     | '/_app/lab'
+    | '/_app/more'
     | '/_app/refer'
     | '/_app/settings'
     | '/_app/support'
@@ -580,6 +592,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppLabRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/more': {
+      id: '/_app/more'
+      path: '/more'
+      fullPath: '/more'
+      preLoaderRoute: typeof AppMoreRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/refer': {
       id: '/_app/refer'
       path: '/refer'
@@ -727,6 +746,7 @@ interface AppRouteChildren {
   AppBusinessRoute: typeof AppBusinessRoute
   AppInsightsRoute: typeof AppInsightsRoute
   AppLabRoute: typeof AppLabRoute
+  AppMoreRoute: typeof AppMoreRoute
   AppReferRoute: typeof AppReferRoute
   AppSettingsRoute: typeof AppSettingsRoute
   AppSupportRoute: typeof AppSupportRoute
@@ -742,6 +762,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppBusinessRoute: AppBusinessRoute,
   AppInsightsRoute: AppInsightsRoute,
   AppLabRoute: AppLabRoute,
+  AppMoreRoute: AppMoreRoute,
   AppReferRoute: AppReferRoute,
   AppSettingsRoute: AppSettingsRoute,
   AppSupportRoute: AppSupportRoute,

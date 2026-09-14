@@ -40,6 +40,27 @@
   border-bottom: 1px solid var(--color-line);
   padding-bottom: 10px;
 }
+.more-page {
+  max-width: 760px;
+}
+.more-page .more-workspace {
+  padding: 8px 14px;
+  border: 1px solid var(--color-line);
+  border-radius: 8px;
+  background: white;
+}
+.more-destinations {
+  margin-top: 20px;
+  background: white;
+}
+.more-destinations > li + li {
+  border-top: 1px solid var(--color-line);
+}
+.more-destinations a {
+  min-height: 56px;
+  padding-inline: 14px;
+  border-radius: 0;
+}
 .more-workspace > summary {
   display: flex;
   align-items: center;
@@ -536,6 +557,24 @@ li:nth-child(3n + 3) .customer-avatar {
 }
 .business-destination:hover {
   background: #f5f1fd;
+}
+@media (min-width: 861px) {
+  .business-destinations {
+    gap: 0;
+    background: white;
+  }
+  .business-destination {
+    min-height: 64px;
+    padding: 10px 14px;
+    border: 0;
+    border-radius: 0;
+  }
+  .business-destination + .business-destination {
+    border-top: 1px solid var(--color-line);
+  }
+  .business-destination small {
+    margin-top: 2px;
+  }
 }
 .business-destination > span:nth-child(2) {
   flex: 1;
@@ -1261,9 +1300,35 @@ li:nth-child(3n + 3) .customer-avatar {
     margin-bottom: 12px;
   }
   .inline-reply section[aria-labelledby="rec-heading"] {
-    padding-inline: 18px;
+    padding: 12px 16px 4px;
+  }
+  .inline-reply section[aria-labelledby="rec-heading"] > div {
+    column-gap: 18px;
+    row-gap: 0;
+    margin-top: 2px;
+  }
+  .inline-reply section[aria-labelledby="rec-heading"] button {
+    min-height: 44px;
+    font-size: 12px;
+    text-decoration: none;
+  }
+  .inline-reply section.inline-reply-notices {
+    padding: 0 16px 12px;
+  }
+  .inline-reply section.inline-reply-notices:empty {
+    display: none;
+  }
+  .inline-reply {
+    background: #f7f4fd;
   }
   .inline-reply > div:last-of-type {
-    padding-inline: 18px;
+    padding: 10px 16px;
+    background: #fff;
+  }
+  .more-page .ui-page-header {
+    margin-bottom: 20px;
+  }
+  .more-page .ui-page-header h1 {
+    font-size: 22px;
   }
 }

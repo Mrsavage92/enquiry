@@ -24,7 +24,6 @@ import { SystemBanners } from "./system-banners";
 import { Jump, JumpTrigger } from "./jump";
 import { KeysHelp } from "./keys";
 import { Notices } from "./notices";
-import { MoreSheet } from "./more-sheet";
 import { toast } from "sonner";
 
 const NAV = [
@@ -47,7 +46,6 @@ export function AppShell() {
   const narrow = useNarrow(860) !== false;
   const [jump, setJump] = useState(false);
   const [keys, setKeys] = useState(false);
-  const [more, setMore] = useState(false);
   const [goChord, setGoChord] = useState(false);
   const navigate = useNavigate();
   const undoLast = usePrototype((s) => s.undoLast);
@@ -169,31 +167,33 @@ export function AppShell() {
   }, [goChord, navigate, undoLast]);
 
   useEffect(() => {
-    const title = pathname.startsWith("/today")
-      ? "Today · Enquiry"
-      : pathname.startsWith("/enquiries")
-        ? "Enquiries · Enquiry"
-        : pathname.startsWith("/bookings")
-          ? "Booked · Enquiry"
-          : pathname.startsWith("/insights")
-            ? "Insights · Enquiry"
-            : pathname.startsWith("/business")
-              ? "Business · Enquiry"
-              : pathname.startsWith("/trust")
-                ? "Trust · Enquiry"
-                : pathname.startsWith("/settings")
-                  ? "Settings · Enquiry"
-                  : pathname.startsWith("/usage")
-                    ? "Plan & usage · Enquiry"
-                    : pathname.startsWith("/refer")
-                      ? "Refer a friend · Enquiry"
-                      : pathname.startsWith("/support")
-                        ? "Help & support · Enquiry"
-                        : pathname.startsWith("/account")
-                          ? "Account · Enquiry"
-                          : pathname.startsWith("/lab")
-                            ? "Lab · Enquiry"
-                            : "Enquiry";
+    const title = pathname.startsWith("/more")
+      ? "More · Enquiry"
+      : pathname.startsWith("/today")
+        ? "Today · Enquiry"
+        : pathname.startsWith("/enquiries")
+          ? "Enquiries · Enquiry"
+          : pathname.startsWith("/bookings")
+            ? "Booked · Enquiry"
+            : pathname.startsWith("/insights")
+              ? "Insights · Enquiry"
+              : pathname.startsWith("/business")
+                ? "Business · Enquiry"
+                : pathname.startsWith("/trust")
+                  ? "Trust · Enquiry"
+                  : pathname.startsWith("/settings")
+                    ? "Settings · Enquiry"
+                    : pathname.startsWith("/usage")
+                      ? "Plan & usage · Enquiry"
+                      : pathname.startsWith("/refer")
+                        ? "Refer a friend · Enquiry"
+                        : pathname.startsWith("/support")
+                          ? "Help & support · Enquiry"
+                          : pathname.startsWith("/account")
+                            ? "Account · Enquiry"
+                            : pathname.startsWith("/lab")
+                              ? "Lab · Enquiry"
+                              : "Enquiry";
     document.title = title;
   }, [pathname]);
 
@@ -246,7 +246,7 @@ export function AppShell() {
   );
 
   const moreActive =
-    more ||
+    pathname.startsWith("/more") ||
     pathname.startsWith("/trust") ||
     pathname.startsWith("/insights") ||
     pathname.startsWith("/settings") ||
@@ -269,7 +269,6 @@ export function AppShell() {
       <SystemBanners />
       <Jump open={jump} onOpenChange={setJump} />
       <KeysHelp open={keys} onOpenChange={setKeys} />
-      <MoreSheet open={more} onOpenChange={setMore} />
       {narrow ? (
         <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
           <main
@@ -316,9 +315,9 @@ export function AppShell() {
                   </Link>
                 );
               })}
-              <button
-                type="button"
-                onClick={() => setMore(true)}
+              <Link
+                to="/more"
+                aria-current={moreActive ? "page" : undefined}
                 className={cn(
                   "relative flex flex-1 flex-col items-center gap-0.5 py-2 text-2xs font-medium min-h-14",
                   moreActive ? "text-mark" : "text-stone",
@@ -328,7 +327,7 @@ export function AppShell() {
                   <MoreHorizontal className="size-5" aria-hidden />
                 </span>
                 More
-              </button>
+              </Link>
             </nav>
           )}
         </div>

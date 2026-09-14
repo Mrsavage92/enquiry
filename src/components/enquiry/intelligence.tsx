@@ -431,6 +431,17 @@ export function Intelligence({
                       <CircleHelp className="size-4" aria-hidden />
                       {inline ? "Why this reply?" : "Why?"}
                     </button>
+                    {compact && inline ? (
+                      <button
+                        type="button"
+                        className="inline-flex min-h-11 items-center gap-1.5 text-sm font-medium text-mark"
+                        onClick={() => setDraftOpen(true)}
+                        aria-label="Edit reply"
+                      >
+                        <Pencil className="size-4" aria-hidden />
+                        Read & edit reply
+                      </button>
+                    ) : null}
                     {!inline || enquiry.decision.confidence === "Low" ? (
                       <ConfidenceBadge confidence={enquiry.decision.confidence} />
                     ) : null}
@@ -581,35 +592,40 @@ export function Intelligence({
 
               {compact ? (
                 <section
-                  className={cn("px-5 pb-2 pt-1", !inline && "flex min-h-0 flex-1 flex-col")}
+                  className={cn(
+                    "px-5 pb-2 pt-1",
+                    inline ? "inline-reply-notices" : "flex min-h-0 flex-1 flex-col",
+                  )}
                 >
-                  <button
-                    type="button"
-                    className={cn(
-                      "w-full rounded-lg bg-raised px-4 py-4 text-left active:bg-paper",
-                      !inline && "min-h-32 flex-1 overflow-y-auto shadow-border",
-                    )}
-                    onClick={() => setDraftOpen(true)}
-                    aria-label="Edit reply"
-                  >
-                    {inline ? (
-                      <span className="flex min-h-11 items-center justify-between text-sm font-medium text-mark">
-                        Read & edit reply <ChevronDown size={16} aria-hidden />
-                      </span>
-                    ) : (
-                      <p className="eyebrow">Prepared reply</p>
-                    )}
-                    {inline ? null : (
-                      <p
-                        className={cn(
-                          "letter-body mt-3 whitespace-pre-wrap",
-                          short ? "font-sans" : "font-serif",
-                        )}
-                      >
-                        {draftBody || "No message prepared."}
-                      </p>
-                    )}
-                  </button>
+                  {!inline ? (
+                    <button
+                      type="button"
+                      className={cn(
+                        "w-full rounded-lg bg-raised px-4 py-4 text-left active:bg-paper",
+                        !inline && "min-h-32 flex-1 overflow-y-auto shadow-border",
+                      )}
+                      onClick={() => setDraftOpen(true)}
+                      aria-label="Edit reply"
+                    >
+                      {inline ? (
+                        <span className="flex min-h-11 items-center justify-between text-sm font-medium text-mark">
+                          Read & edit reply <ChevronDown size={16} aria-hidden />
+                        </span>
+                      ) : (
+                        <p className="eyebrow">Prepared reply</p>
+                      )}
+                      {inline ? null : (
+                        <p
+                          className={cn(
+                            "letter-body mt-3 whitespace-pre-wrap",
+                            short ? "font-sans" : "font-serif",
+                          )}
+                        >
+                          {draftBody || "No message prepared."}
+                        </p>
+                      )}
+                    </button>
+                  ) : null}
                   {priceDrift ? (
                     <p className="mt-3 text-sm text-warn">
                       The quote on file is still {priceDrift.from}. This letter now says{" "}

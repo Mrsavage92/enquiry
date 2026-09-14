@@ -2,7 +2,6 @@ import { Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { useNarrow } from "@/lib/use-narrow";
 import { Segmented } from "@/components/ui/segmented";
-import { MoreSheet } from "@/components/shell/more-sheet";
 import {
   ArrowRight,
   CalendarDays,
@@ -34,7 +33,6 @@ import { usePrototype } from "@/store/prototype-store";
 export function TodayPage() {
   const phone = useNarrow(860) !== false;
   const [view, setView] = useState("needs_you");
-  const [moreOpen, setMoreOpen] = useState(false);
   const enquiries = usePrototype((s) => s.enquiries);
   const bookings = usePrototype((s) => s.bookings);
   const businesses = usePrototype((s) => s.businesses);
@@ -67,15 +65,14 @@ export function TodayPage() {
       <div className={`ui-page today-page ${phone ? "today-phone" : ""}`}>
         <header className="ui-page-header">
           {phone ? (
-            <button
-              type="button"
+            <Link
+              to="/more"
               className="today-menu"
               aria-label="More destinations"
               title="More destinations"
-              onClick={() => setMoreOpen(true)}
             >
               <Menu size={19} />
-            </button>
+            </Link>
           ) : null}
           <div>
             <h1>
@@ -335,7 +332,6 @@ export function TodayPage() {
           )}
         </div>
       </div>
-      <MoreSheet open={moreOpen} onOpenChange={setMoreOpen} />
     </div>
   );
 }

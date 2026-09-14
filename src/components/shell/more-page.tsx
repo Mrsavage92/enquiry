@@ -1,4 +1,4 @@
-import { Link } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import {
   ChevronDown,
   ChevronRight,
@@ -10,8 +10,7 @@ import {
   Settings,
   UserRound,
 } from "lucide-react";
-import { Dialog as DialogRoot } from "@/components/ui/dialog";
-import { SheetContent } from "@/components/ui/sheet";
+import { PageHeader } from "@/components/ui/page-header";
 import { usePrototype } from "@/store/prototype-store";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -20,20 +19,15 @@ import { visibleBusinesses } from "@/lib/workspace/resolve-business";
 import { InstallAppRow } from "./install-app";
 import { useEmbed } from "@/lib/embed";
 
-export function MoreSheet({
-  open,
-  onOpenChange,
-}: {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-}) {
+export function MorePage() {
   const startSetup = usePrototype((s) => s.startSetup);
   const enterSample = usePrototype((s) => s.enterSample);
   const demoMode = usePrototype((s) => s.demoMode);
   const businesses = usePrototype((s) => s.businesses);
   const filter = usePrototype((s) => s.businessFilter);
   const setFilter = usePrototype((s) => s.setBusinessFilter);
-  const close = () => onOpenChange(false);
+  const navigate = useNavigate();
+  const showToday = () => void navigate({ to: "/today" });
   const embed = useEmbed();
   // Live mode shows the tenant's own businesses. Filtering to the fixture
   // "glow" id meant a real workspace vanished from its own selector the
@@ -44,8 +38,9 @@ export function MoreSheet({
     (visible.length === 1 ? visible[0] : undefined);
 
   return (
-    <DialogRoot open={open} onOpenChange={onOpenChange}>
-      <SheetContent title="More" className="more-sheet">
+    <div className="ui-page-scroll">
+      <div className="ui-page more-page">
+        <PageHeader title="More" />
         <details className="more-workspace">
           <summary>
             <span className="customer-avatar" aria-hidden>
@@ -71,7 +66,7 @@ export function MoreSheet({
                   )}
                   onClick={() => {
                     setFilter("all");
-                    close();
+                    showToday();
                   }}
                 >
                   All businesses
@@ -88,7 +83,7 @@ export function MoreSheet({
                   )}
                   onClick={() => {
                     setFilter(b.id);
-                    close();
+                    showToday();
                   }}
                 >
                   {b.name}
@@ -97,19 +92,19 @@ export function MoreSheet({
             ))}
           </ul>
         </details>
-        <ul className="mt-3 grid gap-1">
-          <MoreLink to="/usage" onClick={close} icon={Gauge} label="Plan & usage" />
-          <MoreLink to="/refer" onClick={close} icon={Gift} label="Refer a friend" />
-          <MoreLink to="/support" onClick={close} icon={CircleHelp} label="Help & support" />
-          <MoreLink to="/settings" onClick={close} icon={Settings} label="Settings" />
-          <MoreLink to="/account" onClick={close} icon={UserRound} label="Account" />
-          <MoreLink to="/insights" onClick={close} icon={LineChart} label="Insights" />
-          {embed ? null : <MoreLink to="/" onClick={close} icon={Globe} label="Website" />}
+        <ul className="more-destinations">
+          <MoreLink to="/usage" icon={Gauge} label="Plan & usage" />
+          <MoreLink to="/refer" icon={Gift} label="Refer a friend" />
+          <MoreLink to="/support" icon={CircleHelp} label="Help & support" />
+          <MoreLink to="/settings" icon={Settings} label="Settings" />
+          <MoreLink to="/account" icon={UserRound} label="Account" />
+          <MoreLink to="/insights" icon={LineChart} label="Insights" />
+          {embed ? null : <MoreLink to="/" icon={Globe} label="Website" />}
         </ul>
         {embed ? null : (
           <details className="more-secondary mt-5 border-t border-line">
             <summary>On this device</summary>
-            <InstallAppRow onDone={close} />
+            <InstallAppRow />
           </details>
         )}
         <details className="more-secondary border-t border-line">
@@ -126,16 +121,14 @@ export function MoreSheet({
                 className="min-h-12 w-full"
                 onClick={() => {
                   enterSample();
-                  close();
+                  showToday();
                 }}
               >
                 Open sample jobs
               </Button>
             ) : (
               <Button variant="secondary" className="min-h-12 w-full" asChild>
-                <Link to="/demo" onClick={close}>
-                  See a worked example
-                </Link>
+                <Link to="/demo">See a worked example</Link>
               </Button>
             )}
             <Button variant="ghost" className="min-h-11 w-full" asChild>
@@ -143,7 +136,6 @@ export function MoreSheet({
                 to="/onboarding"
                 onClick={() => {
                   startSetup();
-                  close();
                 }}
               >
                 Set up again
@@ -151,19 +143,17 @@ export function MoreSheet({
             </Button>
           </div>
         </details>
-      </SheetContent>
-    </DialogRoot>
+      </div>
+    </div>
   );
 }
 
 function MoreLink({
   to,
-  onClick,
   icon: Icon,
   label,
 }: {
   to: "/" | "/account" | "/business" | "/insights" | "/refer" | "/settings" | "/support" | "/usage";
-  onClick: () => void;
   icon: typeof Globe;
   label: string;
 }) {
@@ -171,7 +161,6 @@ function MoreLink({
     <li>
       <Link
         to={to}
-        onClick={onClick}
         className="flex min-h-12 items-center gap-3 rounded-lg px-2 py-1.5 active:bg-paper-2"
       >
         <Icon className="size-[18px] text-mark-strong" aria-hidden />
