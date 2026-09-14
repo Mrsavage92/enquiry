@@ -21,18 +21,18 @@ const SECTIONS = [
   { id: "all", label: "Overview" },
   { id: "service", label: "Services" },
   { id: "pricing", label: "Pricing" },
-  { id: "required_fact", label: "What I need to know" },
-  { id: "operating", label: "How you work" },
-  { id: "capacity", label: "Capacity" },
+  { id: "required_fact", label: "Details needed" },
+  { id: "capacity", label: "Availability" },
   { id: "policy", label: "Policies" },
-  { id: "learning", label: "Learning" },
-  { id: "voice", label: "Voice" },
+  { id: "operating", label: "How you work" },
+  { id: "voice", label: "Voice & tone" },
+  { id: "learning", label: "Suggested updates" },
 ] as const;
 
 const PHONE_SECTIONS = [
-  { id: "all", label: "Brain" },
-  { id: "learning", label: "Learning" },
+  { id: "all", label: "Business" },
   { id: "voice", label: "Voice" },
+  { id: "learning", label: "Updates" },
 ] as const;
 
 const SECTION_ORDER = [
@@ -48,9 +48,9 @@ const SECTION_ORDER = [
 const SECTION_TITLE: Record<string, string> = {
   pricing: "Pricing",
   service: "Services",
-  required_fact: "What I need to know",
+  required_fact: "Details needed",
   operating: "How you work",
-  capacity: "Capacity",
+  capacity: "Availability",
   policy: "Policies",
   alias: "Aliases",
 };
@@ -139,18 +139,16 @@ export function BrainScreen() {
     <div className="mx-auto h-full max-w-3xl overflow-y-auto px-4 py-5 pb-8 sm:py-8">
       <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          {phone ? null : <p className="eyebrow">Business Brain</p>}
-          <h1
-            className={cn("text-2xl font-semibold tracking-tight sm:text-3xl", !phone && "mt-1.5")}
-          >
+          {phone ? null : <p className="text-sm text-stone">Business</p>}
+          <h1 className={cn("text-2xl font-semibold sm:text-3xl", !phone && "mt-1.5")}>
             {business.name}
           </h1>
           {phone ? null : (
             <>
               <span className="page-rule" aria-hidden />
               <p className="mt-3 max-w-xl text-sm leading-relaxed text-ink-2">
-                {business.industry} · {business.baseLocation}. Customer-specific facts stay on the
-                enquiry.
+                {business.industry} · {business.baseLocation}. Services, pricing, availability,
+                policies and tone live here. Customer-specific details stay on the enquiry.
               </p>
             </>
           )}
@@ -179,16 +177,16 @@ export function BrainScreen() {
       </header>
 
       <p className="mt-6 text-sm text-ink-2">
-        <span className="font-serif tabular-nums text-ink">{business.services.length}</span>
+        <span className="tabular-nums text-ink">{business.services.length}</span>
         <span className="text-stone"> services</span>
         <span className="mx-2 text-line-strong">·</span>
-        <span className="font-serif tabular-nums text-ink">{active.length}</span>
+        <span className="tabular-nums text-ink">{active.length}</span>
         <span className="text-stone"> confirmed</span>
         <span className="mx-2 text-line-strong">·</span>
-        <span className="font-serif tabular-nums text-ink">{needsReview.length}</span>
+        <span className="tabular-nums text-ink">{needsReview.length}</span>
         <span className="text-stone"> need review</span>
         <span className="mx-2 text-line-strong">·</span>
-        <span className="font-serif tabular-nums text-ink">{pendingLearn.length}</span>
+        <span className="tabular-nums text-ink">{pendingLearn.length}</span>
         <span className="text-stone"> learning</span>
       </p>
 
@@ -202,7 +200,7 @@ export function BrainScreen() {
         }}
       >
         <label className="block" htmlFor="tell">
-          <span className="eyebrow">Tell Enquiry</span>
+          <span className="eyebrow">Add business detail</span>
           <textarea
             id="tell"
             ref={tellRef}
@@ -224,11 +222,11 @@ export function BrainScreen() {
         <div className="mt-2 flex flex-wrap items-center justify-between gap-3">
           {phone ? null : (
             <p className="text-xs text-stone">
-              Compiled into a preview. High-impact prices never activate silently.
+              Previewed before anything changes. High-impact prices never activate silently.
             </p>
           )}
           <Button type="submit" size="sm" className={phone ? "min-h-11 w-full" : undefined}>
-            Preview change
+            Preview
           </Button>
         </div>
       </form>
@@ -259,7 +257,7 @@ export function BrainScreen() {
 
       {tabValue !== "voice" && tabValue !== "learning" && !phone ? (
         <label className="mt-4 block">
-          <span className="sr-only">Find in Business Brain</span>
+          <span className="sr-only">Find in business info</span>
           <input
             name="brain-search"
             value={query}
@@ -276,7 +274,7 @@ export function BrainScreen() {
         <div className="mt-2">
           {pendingLearn.length === 0 ? (
             <p className="border-t border-line py-10 text-sm text-stone">
-              No pending learning. Correct a reusable interpretation on an enquiry to propose one.
+              No suggested updates. Correct a reusable interpretation on an enquiry to propose one.
             </p>
           ) : (
             <ul className="ledger stagger-in">
@@ -294,7 +292,7 @@ export function BrainScreen() {
                   ) : (
                     <div className="mt-3 flex gap-2">
                       <Button size="sm" onClick={() => confirmLearning(business.id, l.id)}>
-                        Add to Business Brain
+                        Add to business info
                       </Button>
                       <Button
                         size="sm"
@@ -340,7 +338,7 @@ export function BrainScreen() {
       )}
 
       <Dialog open={Boolean(preview)} onOpenChange={(o) => !o && cancel()}>
-        <DialogContent title="Proposed Business Brain change">
+        <DialogContent title="Proposed business change">
           {preview ? (
             <div className="space-y-3 text-sm">
               <p className="text-ink-2">{preview.input}</p>
@@ -399,7 +397,7 @@ export function BrainScreen() {
                         params: { enquiryId: hit.enquiryId },
                       });
                     } else {
-                      toast("Business Brain updated. No open quote used this rule.");
+                      toast("Business info updated. No open quote used this rule.");
                     }
                   }}
                 >
@@ -464,7 +462,7 @@ function KnowledgeRow({
         className="mt-1.5 inline-flex min-h-11 items-center text-xs font-medium text-ink-2 underline-offset-4 hover:text-ink hover:underline"
         onClick={() => setSrcOpen(true)}
       >
-        Provenance
+        Details
       </button>
       {item.state === "Needs review" && other ? (
         <div className="mt-3">
@@ -476,7 +474,7 @@ function KnowledgeRow({
         <p className="mt-2 text-sm text-warn">{item.conflictWith}</p>
       ) : null}
       <Dialog open={srcOpen} onOpenChange={setSrcOpen}>
-        <DialogContent title="Provenance">
+        <DialogContent title="Source details">
           <p className="text-sm">
             {item.source.label}
             {item.source.at ? ` · ${item.source.at}` : ""}
@@ -506,7 +504,7 @@ function VoiceCard({ businessId }: { businessId: string }) {
   const v = business.voice;
   return (
     <div className="mt-2 border-t border-line pt-6">
-      <h2 className="text-lg font-semibold tracking-tight">Your Voice</h2>
+      <h2 className="text-lg font-semibold">Voice & tone</h2>
       <p className="mt-2 text-sm leading-relaxed text-ink-2">{v.summary}</p>
       <p className="mt-1 text-xs text-stone">
         Greeting and sign-off rewrite open drafts ({openCount}). Sent mail is not touched.
@@ -543,7 +541,7 @@ function VoiceCard({ businessId }: { businessId: string }) {
         <label className="block text-sm sm:col-span-2">
           <span className="eyebrow">Sign-off</span>
           <textarea
-            className="field mt-1.5 font-serif leading-relaxed"
+            className="field mt-1.5 leading-relaxed"
             rows={3}
             value={signOff}
             onChange={(e) => setSignOff(e.target.value)}
@@ -573,7 +571,7 @@ function VoicePlayground({ businessId }: { businessId: string }) {
         Sent mail is never rewritten. This is only a preview of greeting and sign-off.
       </p>
       <textarea
-        className="field mt-3 font-serif leading-relaxed"
+        className="field mt-3 leading-relaxed"
         rows={4}
         value={sample}
         onChange={(e) => setSample(e.target.value)}

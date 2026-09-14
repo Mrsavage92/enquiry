@@ -1,15 +1,15 @@
 @import "tailwindcss";
 
 @theme {
-  --font-sans: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
-  --font-serif: "IBM Plex Serif", ui-serif, Georgia, "Times New Roman", serif;
-  --font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", monospace;
+  --font-sans: Inter, "SF Pro Text", "Segoe UI", ui-sans-serif, system-ui, sans-serif;
+  --font-serif: Inter, "SF Pro Text", "Segoe UI", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "SF Mono", "Cascadia Code", ui-monospace, monospace;
 
-  --color-paper: #f3eee6;
-  --color-paper-2: #e7dfd3;
-  --color-raised: #faf7f1;
-  --color-ink: #1a1814;
-  --color-ink-2: #4f4a42;
+  --color-paper: #f6f5f3;
+  --color-paper-2: #f0eef4;
+  --color-raised: #ffffff;
+  --color-ink: #1c1b1f;
+  --color-ink-2: #4f4b55;
   /*
     Darkened from #7a7368, which failed WCAG AA everywhere it was used: 4.06:1
     on --color-paper and 4.38:1 on --color-raised, against the 4.5:1 minimum for
@@ -19,7 +19,7 @@
     that clears AA on the harder of the two backgrounds while keeping the warm
     grey character.
   */
-  --color-stone: #716b61;
+  --color-stone: #68656d;
   /*
     Not a change to --color-stone (4.57:1 on paper, 4.94:1 on raised - both
     already pass). --color-stone measures 4.00:1 on --color-paper-2, below
@@ -29,9 +29,9 @@
     step that clears AA there without touching the passing --color-stone
     value used everywhere else.
   */
-  --color-stone-on-paper-2: #686259;
-  --color-line: #e6ddd2;
-  --color-line-strong: #cfc4b4;
+  --color-stone-on-paper-2: #625d68;
+  --color-line: #e7e4ea;
+  --color-line-strong: #cbc5d3;
   /*
     --color-line (1.26:1 on raised) and --color-line-strong (1.61:1 on
     raised, 1.49:1 on paper) both sit below the 3:1 WCAG 1.4.11 minimum for
@@ -43,21 +43,21 @@
     textarea (the `.field` rules below). #8e867a measures 3.11:1 on paper
     and 3.36:1 on raised - the smallest step that clears 3:1 on both.
   */
-  --color-line-control: #8e867a;
+  --color-line-control: #8a8491;
   --color-line-control-hover: color-mix(in oklab, var(--color-line-control) 78%, black);
-  --color-sidebar: #141210;
-  --color-sidebar-fg: #f3eee6;
-  --color-sidebar-muted: #a3988a;
-  --color-mark: #2f4a3c;
-  --color-mark-hover: #263c31;
-  --color-mark-fg: #f6f2eb;
+  --color-sidebar: #f0eef4;
+  --color-sidebar-fg: #1c1b1f;
+  --color-sidebar-muted: #68656d;
+  --color-mark: #6c55c7;
+  --color-mark-hover: #5943b6;
+  --color-mark-fg: #ffffff;
   /*
     A small, deliberately narrow set of moments (landing hero CTA, onboarding
     submit) get this instead of --color-mark - never a site-wide swap. Derived
     from the same hue via color-mix, not a new colour identity.
   */
-  --color-mark-strong: color-mix(in oklab, var(--color-mark) 82%, black);
-  --color-warn: #8f5a00;
+  --color-mark-strong: #49378e;
+  --color-warn: #8b5e00;
   /*
     Same failure as --color-stone-on-paper-2 above, found by a computed-style
     sweep rather than a grep: plain (unpilled) --color-warn text measures
@@ -69,21 +69,21 @@
     without touching the passing --color-warn value used everywhere else
     (including every --color-warn-bg pill, which stays untouched).
   */
-  --color-warn-on-paper-2: #8a5700;
-  --color-warn-bg: #f7edd4;
+  --color-warn-on-paper-2: #835800;
+  --color-warn-bg: #fff2d8;
   --color-danger: #b42318;
-  --color-danger-bg: #f8ece8;
-  --color-ok: #2c6a4c;
-  --color-ok-bg: #e6f0ea;
-  --color-notebook: #f3eee6;
+  --color-danger-bg: #fff0ed;
+  --color-ok: #24724f;
+  --color-ok-bg: #e8f4ee;
+  --color-notebook: #f6f5f3;
 
   --text-2xs: 0.6875rem;
   --text-2xs--line-height: 1.3;
 
-  --shadow-border: 0px 0px 0px 1px #1a181414, 0px 1px 2px #1a18140a;
-  --shadow-border-hover: 0px 0px 0px 1px #1a18141f, 0px 1px 3px #1a18140f;
-  --shadow-float: 0 16px 40px -12px #1a181447, 0 0 0 1px #1a18140f;
-  --shadow-plate: 0 24px 48px -28px #1a181473, 0 0 0 1px #ffffff14;
+  --shadow-border: 0px 0px 0px 1px #1c1b1f12, 0px 1px 2px #1c1b1f0a;
+  --shadow-border-hover: 0px 0px 0px 1px #1c1b1f1f, 0px 4px 12px #1c1b1f0d;
+  --shadow-float: 0 20px 48px -20px #1c1b1f40, 0 0 0 1px #1c1b1f12;
+  --shadow-plate: 0 24px 48px -28px #1c1b1f47, 0 0 0 1px #ffffff14;
   /*
     :focus-visible only - never a decorative/ambient effect. For custom
     interactive surfaces (e.g. selectable cards) that don't get the standard
@@ -241,7 +241,7 @@ html[data-palette="b"] {
   h2,
   h3 {
     text-wrap: balance;
-    letter-spacing: -0.02em;
+    letter-spacing: 0;
   }
   p {
     text-wrap: pretty;
@@ -277,8 +277,8 @@ html[data-palette="b"] {
 @layer components {
   .eyebrow {
     font-size: var(--text-2xs);
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
+    letter-spacing: 0;
+    text-transform: none;
     color: var(--color-stone);
     font-weight: 600;
     line-height: 1.3;
@@ -305,8 +305,8 @@ html[data-palette="b"] {
   */
   .eyebrow-decision {
     font-size: var(--text-2xs);
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
+    letter-spacing: 0;
+    text-transform: none;
     color: var(--color-ink);
     font-weight: 700;
     line-height: 1.3;
@@ -522,6 +522,10 @@ html[data-palette="b"] {
     */
     position: relative;
     overscroll-behavior: none;
+  }
+  .app-root,
+  .app-root * {
+    letter-spacing: 0 !important;
   }
   .app-header {
     padding-top: var(--app-safe-top);

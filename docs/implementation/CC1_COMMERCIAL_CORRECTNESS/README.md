@@ -4,7 +4,9 @@
 
 Make the existing manual enquiry/quote workflow commercially correct and truthful about actions. Preserve the foundation. Do not rewrite Enquiry.
 
-**Authorised for implementation by the product owner's 2026-09-07 request. Not yet implemented, verified or independently signed off.** Current execution authority: [CURRENT_PHASE.md](../../CURRENT_PHASE.md).
+**Implemented and landed on `main` through PR #16 on 2026-09-09. The package evidence is not an independent phase sign-off and does not pass the first-beta gate.** Current execution authority: [CURRENT_PHASE.md](../../CURRENT_PHASE.md).
+
+This package is retained as the historical CC1 implementation brief and evidence record. UI1 is now the current execution slice; do not infer that CC1's original implementation status means it is still active.
 
 | Reference | Value |
 |---|---|

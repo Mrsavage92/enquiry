@@ -30,7 +30,11 @@ function InsightsPage() {
     <div className="mx-auto h-full max-w-3xl overflow-y-auto px-4 py-5 pb-8 sm:py-8">
       <PageHeader
         title="Insights"
-        description={phone ? undefined : "What is open, what is waiting, and what booked. Not vanity email counts."}
+        description={
+          phone
+            ? undefined
+            : "A restrained read on enquiries, booked work and supported follow-up signals."
+        }
       />
 
       <section className="mt-8">
@@ -38,15 +42,15 @@ function InsightsPage() {
         <dl className="mt-3 grid grid-cols-2 gap-px overflow-hidden rounded-lg bg-line md:grid-cols-4">
           <Stat label="Needs you" value={`${b.needsYou}`} to="/enquiries" />
           <Stat label="Follow-up" value={`${b.followUp}`} to="/enquiries" />
-          <Stat label="Learning" value={`${b.learning}`} to="/business" />
-          <Stat label="Calendar down" value={`${b.calendarDown}`} to="/trust/access" />
+          <Stat label="Suggested updates" value={`${b.learning}`} to="/business" />
+          <Stat label="Calendar issues" value={`${b.calendarDown}`} to="/settings" />
         </dl>
       </section>
 
       {b.openExact > 0 ? (
       <section className="mt-10">
         <p className="eyebrow">Exact prices still open</p>
-        <p className="mt-2 font-serif text-4xl tabular-nums tracking-tight commercial-exact">
+        <p className="mt-2 text-4xl font-semibold tabular-nums commercial-exact">
           {formatAud(b.openExactValue)}
         </p>
         <p className="mt-2 text-sm text-stone">
@@ -63,7 +67,7 @@ function InsightsPage() {
             <li key={row.id}>
               <div className="flex items-baseline justify-between gap-3 text-sm">
                 <span>{row.label}</span>
-                <span className="font-serif tabular-nums">{row.value}</span>
+                <span className="tabular-nums">{row.value}</span>
               </div>
               <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-paper-2">
                 <div
@@ -76,7 +80,7 @@ function InsightsPage() {
         </ul>
         {phone ? null : (
         <p className="mt-3 text-xs text-stone">
-          Quoted includes waiting sheets. Booked is confirmed work, not a conversion rate.
+          Quoted includes waiting sheets. Conversion is shown only where the data supports it.
         </p>
         )}
       </section>
@@ -138,7 +142,7 @@ function InsightsPage() {
                     {slice.needsYou} need you · {slice.quotedWaiting} waiting
                   </span>
                 </span>
-                <span className="font-serif tabular-nums">
+                <span className="tabular-nums">
                   {slice.openExact > 0 ? formatAud(slice.openExactValue) : null}
                 </span>
               </li>
@@ -153,8 +157,8 @@ function InsightsPage() {
 function Stat({ label, value, to }: { label: string; value: string; to: string }) {
   return (
     <Link to={to} className="bg-raised px-4 py-4">
-      <dt className="text-2xs uppercase tracking-wider text-stone">{label}</dt>
-      <dd className="mt-1 font-serif text-2xl tabular-nums tracking-tight">{value}</dd>
+      <dt className="text-xs text-stone">{label}</dt>
+      <dd className="mt-1 text-2xl font-semibold tabular-nums">{value}</dd>
     </Link>
   );
 }
@@ -166,7 +170,7 @@ function Row({ label, value, hint }: { label: string; value: string; hint: strin
         <dt className="text-sm font-medium">{label}</dt>
         <p className="mt-0.5 text-xs leading-relaxed text-stone">{hint}</p>
       </div>
-      <dd className="font-serif text-xl tabular-nums tracking-tight">{value}</dd>
+      <dd className="text-xl font-semibold tabular-nums">{value}</dd>
     </div>
   );
 }
