@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, Navigate } from "@tanstack/react-router";
+import { ArrowRight, LoaderCircle, LockKeyhole, MailCheck } from "lucide-react";
 import {
   OAUTH_PROVIDERS,
   authEnabled,
@@ -12,7 +13,7 @@ import { useCurrentUserState } from "@/lib/auth/use-current-user";
 import { classifyAuthError, sentStateCopy, type AuthIntent } from "@/lib/auth/intent";
 import { canResend, resendCooldownRemainingMs, resendLabel } from "@/lib/auth/resend";
 import { Button } from "@/components/ui/button";
-import { Wordmark } from "@/components/ui/wordmark";
+import { AuthLayout } from "./auth-layout";
 
 /**
  * The one email-link request screen, in two intents.
@@ -54,6 +55,12 @@ export function AuthRequestForm({
   const [lastRequestedAt, setLastRequestedAt] = useState<number | null>(null);
   const [now, setNow] = useState(() => Date.now());
   const [providers, setProviders] = useState<OAuthProviderId[]>([]);
+  const sentHeading = useRef<HTMLHeadingElement>(null);
+  const emailInput = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (sentTo) sentHeading.current?.focus();
+  }, [sentTo]);
 
   useEffect(() => {
     let live = true;
@@ -110,20 +117,25 @@ export function AuthRequestForm({
     }
   };
 
-  if (isPending) return null;
+  if (isPending) {
+    return (
+      <AuthLayout>
+        <div className="auth-loading" role="status">
+          <LoaderCircle className="auth-spinner" size={24} aria-hidden="true" />
+          <span>Checking your session...</span>
+        </div>
+      </AuthLayout>
+    );
+  }
   if (user) return <Navigate to={destination} />;
 
   const copy = sentStateCopy(intent);
 
   return (
-    <main className="mx-auto flex min-h-dvh max-w-md flex-col justify-center px-5 py-16">
-      <Link to="/" className="mb-10 inline-block">
-        <Wordmark />
-      </Link>
-
+    <AuthLayout>
       {!authEnabled ? (
         <>
-          <h1 className="site-display">Sign-in is off</h1>
+          <h1 className="auth-title">Sign-in is off</h1>
           <p className="site-lede mt-4">
             This build runs in local prototype mode, so everything is already open. Set{" "}
             <code className="font-mono text-sm">VITE_SUPABASE_URL</code> and{" "}
@@ -138,8 +150,13 @@ export function AuthRequestForm({
         </>
       ) : sentTo ? (
         <>
-          <h1 className="site-display">{copy.heading}</h1>
-          <p className="site-lede mt-4">
+          <div className="auth-state-icon" aria-hidden="true">
+            <MailCheck size={28} />
+          </div>
+          <h1 ref={sentHeading} tabIndex={-1} className="auth-title">
+            {copy.heading}
+          </h1>
+          <p className="auth-description auth-sent-address">
             {copy.body} <strong>{sentTo}</strong>.
           </p>
           <p className="mt-3 text-sm leading-relaxed text-ink-2">
@@ -153,19 +170,16 @@ export function AuthRequestForm({
             {error ? "" : status}
           </p>
           {error ? (
-            <p
-              role="alert"
-              className="mt-4 animate-[rise-in_200ms_var(--ease-smooth-out)] text-sm text-danger"
-            >
+            <p role="alert" className="auth-error">
               {error}
             </p>
           ) : null}
 
-          <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+          <div className="auth-sent-actions">
             <Button
               type="button"
               variant="secondary"
-              className="min-h-11"
+              className="auth-submit"
               disabled={busy || blocked}
               onClick={() => void request(sentTo)}
             >
@@ -177,8 +191,9 @@ export function AuthRequestForm({
                 setSentTo(null);
                 setError("");
                 setStatus("");
+                requestAnimationFrame(() => emailInput.current?.focus());
               }}
-              className="min-h-11 self-start text-sm text-stone underline-offset-4 hover:text-ink hover:underline"
+              className="auth-change-email"
             >
               Use a different email
             </button>
@@ -186,40 +201,51 @@ export function AuthRequestForm({
         </>
       ) : (
         <>
-          <h1 className="site-display">{heading}</h1>
-          <p className="site-lede mt-3">{lede}</p>
+          <h1 className="auth-title">{heading}</h1>
+          <p className="auth-description">{lede}</p>
 
           <form
             onSubmit={(e) => {
               e.preventDefault();
               void request(email.trim());
             }}
-            className="mt-8 space-y-3"
+            className="auth-form"
+            aria-busy={busy}
           >
             <label className="block text-sm">
-              <span className="mb-1.5 block text-stone">Email</span>
+              <span className="auth-label">Email address</span>
               <input
+                ref={emailInput}
                 type="email"
                 required
                 autoComplete="email"
+                autoCapitalize="none"
+                spellCheck={false}
+                aria-describedby={error ? "auth-request-error" : undefined}
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="you@yourbusiness.com"
-                className="field w-full"
+                className="field auth-input"
               />
             </label>
             {error ? (
-              <p
-                role="alert"
-                className="animate-[rise-in_200ms_var(--ease-smooth-out)] text-sm text-danger"
-              >
+              <p role="alert" id="auth-request-error" className="auth-error">
                 {error}
               </p>
             ) : null}
-            <Button type="submit" disabled={busy} className="min-h-11 w-full">
+            <Button type="submit" disabled={busy} className="auth-submit">
               {busy ? "Sending…" : cta}
+              {busy ? (
+                <LoaderCircle size={18} className="auth-spinner" aria-hidden="true" />
+              ) : (
+                <ArrowRight size={18} aria-hidden="true" />
+              )}
             </Button>
           </form>
+          <p className="auth-reassurance">
+            <LockKeyhole size={16} aria-hidden="true" />
+            No password to remember.
+          </p>
 
           {offered.length > 0 ? (
             <>
@@ -249,9 +275,9 @@ export function AuthRequestForm({
             </>
           ) : null}
 
-          <div className="mt-8 text-sm text-ink-2">{footer}</div>
+          <div className="auth-invitation">{footer}</div>
         </>
       )}
-    </main>
+    </AuthLayout>
   );
 }

@@ -32,12 +32,12 @@ function LoginPage() {
       // Returning owner. Must NOT create an account for a mistyped address.
       intent="signin"
       destination={redirect ?? DEFAULT_RETURN_PATH}
-      heading="Sign in"
-      lede="Enquiry sends a link. There is no password."
-      cta="Email me a link"
+      heading="Welcome back."
+      lede="Sign in to Enquiry."
+      cta="Email me a sign-in link"
       footer={
         <>
-          Not invited yet?{" "}
+          New to Enquiry?{" "}
           <Link to="/early-access" className="underline underline-offset-4 hover:text-ink">
             Join early access
           </Link>
