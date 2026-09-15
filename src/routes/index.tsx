@@ -12,6 +12,7 @@ import { SiteShell } from "@/components/site/site-shell";
 import { ProductShowcase } from "@/components/site/product-showcase";
 import { EarlyAccessInvite } from "@/components/site/early-access-invite";
 import { EnquiryStory } from "@/components/site/enquiry-story";
+import { BrandHero } from "@/components/site/brand-hero";
 
 export const Route = createFileRoute("/")({
   component: Home,
@@ -50,26 +51,8 @@ const QUESTIONS = [
 function Home() {
   return (
     <SiteShell>
-      <section className="public-hero" aria-labelledby="home-title">
-        <div className="public-hero-copy">
-          <h1 id="home-title">
-            Enquiry<span>.</span>
-          </h1>
-          <p>
-            A clearer next step.
-            <br className="public-mobile-break" /> A little more room in your day.
-          </p>
-          <div className="public-actions">
-            <Link to="/early-access" className="public-button">
-              Join early access <ArrowRight size={17} aria-hidden="true" />
-            </Link>
-            <Link to="/demo" className="public-text-link">
-              Try the demo <ArrowRight size={16} aria-hidden="true" />
-            </Link>
-          </div>
-        </div>
-        <ProductShowcase />
-      </section>
+      <BrandHero />
+      <ProductShowcase />
       <section className="public-section public-container" aria-labelledby="work-title">
         <div className="public-section-heading">
           <p className="public-kicker">For the person who runs the business</p>

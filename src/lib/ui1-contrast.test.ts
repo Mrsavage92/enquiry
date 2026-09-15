@@ -60,7 +60,7 @@ test("Entry-page supporting text meets AA on both the shell and form", () => {
 test("Public-site body text and primary action meet AA on their shipped surfaces", () => {
   const publicCss = readFileSync(new URL("../public-site.css", import.meta.url), "utf8");
   const foregrounds = ["#1c1b1f", "#68656d", "#69519d", "#543aab"];
-  const backgrounds = ["#fff", "#f4f1f8", "#f8f8fa", "#f1edf7"];
+  const backgrounds = ["#fff", "#f8f8f7", "#f8f8fa", "#f1edf7"];
   for (const color of [...foregrounds, ...backgrounds, "#654ac2"]) {
     assert.ok(publicCss.includes(color), `The checked colour must exist in public CSS: ${color}`);
   }
@@ -74,4 +74,18 @@ test("Public-site body text and primary action meet AA on their shipped surfaces
     }
   }
   assert.ok((luminance("#ffffff") + 0.05) / (luminance("#654ac2") + 0.05) >= 4.5);
+});
+
+test("Brand hero copy and opaque primary action meet AA on their base surfaces", () => {
+  const heroCss = readFileSync(new URL("../brand-hero.css", import.meta.url), "utf8");
+  for (const [foreground, background] of [
+    ["#292136", "#f0eef5"],
+    ["#64586d", "#f0eef5"],
+    ["#ffffff", "#30213f"],
+  ]) {
+    assert.ok(heroCss.includes(foreground === "#ffffff" ? "#fff" : foreground));
+    assert.ok(heroCss.includes(background));
+    const values = [luminance(foreground), luminance(background)].sort((a, b) => b - a);
+    assert.ok((values[0]! + 0.05) / (values[1]! + 0.05) >= 4.5);
+  }
 });
