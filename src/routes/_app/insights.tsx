@@ -5,6 +5,7 @@ import { formatAud } from "@/domain/labels";
 import { usePrototype } from "@/store/prototype-store";
 import { useNarrow } from "@/lib/use-narrow";
 import { channelLabel } from "@/domain/channel";
+import { CalendarCheck2, Clock3, FileCheck2, Inbox, type LucideIcon } from "lucide-react";
 
 export const Route = createFileRoute("/_app/insights")({
   component: InsightsPage,
@@ -21,7 +22,6 @@ function InsightsPage() {
     .sort((a, b) => b.count - a.count);
   const b = briefing(enquiries, businesses, bookings, filter);
   const funnelRows = funnel(b);
-  const maxFunnel = Math.max(...funnelRows.map((r) => r.value), 1);
   const aging = waitingAge(enquiries, filter).slice(0, 5);
   const perBusiness = businesses
     .filter((biz) => filter === "all" || biz.id === filter)
@@ -34,33 +34,40 @@ function InsightsPage() {
   return (
     <div className="ui-page-scroll">
       <div className="ui-page insights-page">
-        <PageHeader
-          title="Insights"
-          description={phone ? undefined : "All enquiries in this workspace."}
-        />
+        <PageHeader title="Insights" description="A clear view of your current enquiries." />
 
         <section className="mt-8">
           <dl className="insights-summary">
-            <Stat label="Total enquiries" value={`${scoped.length}`} />
-            <Stat label="Need your reply" value={`${b.needsYou}`} />
-            <Stat label="Quoted" value={`${b.quoted}`} />
-            <Stat label="Booked" value={`${b.bookedCount}`} />
+            <Stat
+              icon={Clock3}
+              label="Need your reply"
+              value={`${b.needsYou}`}
+              tone="amber"
+              priority
+            />
+            <Stat icon={Inbox} label="Total enquiries" value={`${scoped.length}`} tone="violet" />
+            <Stat icon={FileCheck2} label="Quoted" value={`${b.quoted}`} tone="neutral" />
+            <Stat icon={CalendarCheck2} label="Booked" value={`${b.bookedCount}`} tone="green" />
           </dl>
         </section>
 
         <div className="insights-charts">
           <section>
             <h2 className="text-lg font-semibold">Enquiries by channel</h2>
+            <p className="insights-caption">Where the enquiries in this workspace came from.</p>
             <ul className="mt-6 space-y-5">
-              {channels.map(({ source, count }) => (
-                <li key={source}>
+              {channels.map(({ source, count }, index) => (
+                <li key={source} className="insights-channel" data-channel-tone={index % 4}>
                   <div className="flex justify-between text-sm">
                     <span>{channelLabel(source)}</span>
-                    <span className="text-stone">{count}</span>
+                    <span className="insights-channel-value">
+                      <strong>{count}</strong>
+                      <small>{Math.round((count / Math.max(scoped.length, 1)) * 100)}%</small>
+                    </span>
                   </div>
                   <div className="mt-2 h-2 rounded-full bg-paper-2">
                     <div
-                      className="h-full rounded-full bg-mark"
+                      className="insights-channel-bar h-full rounded-full"
                       style={{ width: `${(count / Math.max(scoped.length, 1)) * 100}%` }}
                     />
                   </div>
@@ -73,18 +80,13 @@ function InsightsPage() {
           </section>
           <section>
             <h2 className="text-lg font-semibold">Current totals</h2>
-            <ul className="mt-6 space-y-5">
+            <p className="insights-caption">Separate counts, not stages of a conversion funnel.</p>
+            <ul className="insights-current-totals">
               {funnelRows.map((row) => (
                 <li key={row.id}>
                   <div className="flex justify-between text-sm">
                     <span>{row.label}</span>
                     <span className="text-stone">{row.value}</span>
-                  </div>
-                  <div className="mt-2 h-2 rounded-full bg-paper-2">
-                    <div
-                      className="h-full rounded-full bg-ink-2"
-                      style={{ width: `${(row.value / maxFunnel) * 100}%` }}
-                    />
                   </div>
                 </li>
               ))}
@@ -181,9 +183,22 @@ function InsightsPage() {
   );
 }
 
-function Stat({ label, value }: { label: string; value: string }) {
+function Stat({
+  label,
+  value,
+  icon: Icon,
+  tone,
+  priority = false,
+}: {
+  label: string;
+  value: string;
+  icon: LucideIcon;
+  tone: string;
+  priority?: boolean;
+}) {
   return (
-    <div className="bg-raised px-4 py-4">
+    <div className="insights-stat" data-tone={tone} data-priority={priority || undefined}>
+      <Icon size={20} strokeWidth={1.7} aria-hidden="true" />
       <dt className="text-xs text-stone">{label}</dt>
       <dd className="mt-1 text-2xl font-semibold tabular-nums">{value}</dd>
     </div>

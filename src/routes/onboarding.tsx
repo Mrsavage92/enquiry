@@ -1,8 +1,8 @@
-import { Link, createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
-import { ChevronLeft } from "lucide-react";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { useEffect, useRef, useState } from "react";
+import { Building2, ChevronLeft, MapPin } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Wordmark } from "@/components/ui/wordmark";
+import { AuthLayout } from "@/components/auth/auth-layout";
 import { usePrototype } from "@/store/prototype-store";
 import { completeOnboarding } from "@/lib/server/workspace";
 import { cn } from "@/lib/utils";
@@ -70,6 +70,10 @@ function Onboarding() {
   const navigate = useNavigate();
 
   const [stage, setStage] = useState<1 | 2>(1);
+  const stageHeading = useRef<HTMLHeadingElement>(null);
+  useEffect(() => {
+    stageHeading.current?.focus();
+  }, [stage]);
   const [name, setName] = useState("");
   const [ownerFirstName, setOwnerFirstName] = useState("");
   const [industry, setIndustry] = useState("");
@@ -149,15 +153,8 @@ function Onboarding() {
   };
 
   return (
-    <main className="mx-auto flex min-h-dvh max-w-xl flex-col bg-paper px-5 pt-[max(2.5rem,var(--app-safe-top))] sm:px-8">
-      <div className="flex items-center justify-between gap-3">
-        <Link to="/" aria-label="Back to start">
-          <Wordmark />
-        </Link>
-        <p className="text-xs text-stone">Setup</p>
-      </div>
-
-      <div className="mt-6">
+    <AuthLayout wide>
+      <div className="onboarding-progress">
         <p className="text-sm text-stone">
           {stage === 1 ? "Your business" : "Review and create"} · {stage} of 2
         </p>
@@ -175,10 +172,12 @@ function Onboarding() {
         </div>
       </div>
 
-      <div key={stage} className="flex-1 animate-[rise-in_280ms_var(--ease-smooth-out)]">
+      <div key={stage} className="onboarding-flow" data-stage={stage}>
         {stage === 1 ? (
           <section className="mt-8">
-            <h1 className="site-display">Your business</h1>
+            <h1 className="auth-title" ref={stageHeading} tabIndex={-1}>
+              Your business
+            </h1>
             <p className="mt-2 text-sm text-ink-2">Your real business. Nothing here is a sample.</p>
             <div className="mt-6 space-y-3">
               <Field
@@ -254,7 +253,9 @@ function Onboarding() {
           </section>
         ) : (
           <section className="mt-8">
-            <h1 className="site-display">Review, then create your workspace</h1>
+            <h1 className="auth-title" ref={stageHeading} tabIndex={-1}>
+              Review, then create your workspace
+            </h1>
             <p className="mt-2 text-sm text-ink-2">
               Check the details, then Enquiry sets up your workspace.
             </p>
@@ -302,9 +303,26 @@ function Onboarding() {
             </ul>
           </section>
         )}
+        {stage === 1 ? (
+          <aside className="onboarding-preview" aria-label="Business profile preview">
+            <Building2 size={27} strokeWidth={1.5} aria-hidden="true" />
+            <p className="onboarding-preview-label">Your business profile</p>
+            <h2>{name.trim() || "Your business name"}</h2>
+            <p>{industry.trim() || "What you do"}</p>
+            {baseLocation.trim() ? (
+              <p className="onboarding-preview-location">
+                <MapPin size={15} aria-hidden="true" />
+                {baseLocation.trim()}
+              </p>
+            ) : null}
+            <div className="onboarding-preview-note">
+              Not saved yet. You'll review these details before creating your workspace.
+            </div>
+          </aside>
+        ) : null}
       </div>
 
-      <div className="sticky bottom-0 -mx-5 mt-8 border-t border-line bg-paper/95 px-5 py-3 pb-[max(0.75rem,var(--app-safe-bottom))] backdrop-blur-sm sm:-mx-8 sm:px-8">
+      <div className="onboarding-actions">
         {submitError ? (
           <p role="alert" className="mb-3 text-sm text-danger">
             {submitError} Your details are still here - try again.
@@ -331,7 +349,7 @@ function Onboarding() {
           )}
         </div>
       </div>
-    </main>
+    </AuthLayout>
   );
 }
 

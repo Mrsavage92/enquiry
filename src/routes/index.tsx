@@ -2,7 +2,6 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import {
   ArrowRight,
   CalendarDays,
-  Check,
   ChevronDown,
   Inbox,
   MessageSquareText,
@@ -12,6 +11,7 @@ import { socialHead } from "@/lib/site/head";
 import { SiteShell } from "@/components/site/site-shell";
 import { ProductShowcase } from "@/components/site/product-showcase";
 import { EarlyAccessInvite } from "@/components/site/early-access-invite";
+import { EnquiryStory } from "@/components/site/enquiry-story";
 
 export const Route = createFileRoute("/")({
   component: Home,
@@ -129,35 +129,11 @@ function Home() {
               How it works <ArrowRight size={17} aria-hidden="true" />
             </Link>
           </div>
-          <ol className="public-process">
-            {[
-              [
-                "01",
-                "Bring the enquiry in",
-                "Add the customer's request and any follow-up messages. Start with what you have.",
-              ],
-              [
-                "02",
-                "See what matters",
-                "Review the prepared next step, the business details behind it and anything still unresolved.",
-              ],
-              [
-                "03",
-                "Make the final call",
-                "Edit the reply, send it through your channel and accurately record what happened.",
-              ],
-            ].map(([number, title, body]) => (
-              <li key={number}>
-                <span>{number}</span>
-                <h3>{title}</h3>
-                <p>{body}</p>
-              </li>
-            ))}
-          </ol>
-          <div className="public-review-note">
-            <Check size={18} aria-hidden="true" />
-            <p>Prepared does not mean sent. You stay in control of the customer conversation.</p>
-          </div>
+          <EnquiryStory compact />
+          <p className="story-disclosure">
+            An illustrative sample, not a connected inbox. Prepared does not mean sent. You stay in
+            control of the customer conversation.
+          </p>
         </div>
       </section>
       <section

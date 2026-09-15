@@ -1,4 +1,5 @@
 /* Public-site presentation is isolated from the operational workspace. */
+@import "./site-story.css";
 .public-site {
   --public-violet: #654ac2;
   min-height: 100dvh;

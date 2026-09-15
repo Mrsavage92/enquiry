@@ -18,7 +18,8 @@ export const Route = createFileRoute("/demo")({
 function Demo() {
   return (
     <SiteShell>
-      <header className="public-container public-page-heading">
+      <header className="public-container public-page-heading public-demo-heading">
+        <p className="public-kicker">Ridge & Co Painting · Sample business</p>
         <h1>Try Enquiry</h1>
         <p>A painting enquiry, a change of scope and a next step that changes with it.</p>
       </header>
@@ -30,9 +31,9 @@ function Demo() {
           page has to say what it is before it shows any of that - relying on
           /terms to disclose it is relying on a page nobody opens first.
         */}
-          <p className="eyebrow">Demo · sample enquiry, not a real customer</p>
+          <p className="demo-sample-label">Demo · sample enquiry, not a real customer</p>
           <div className="mt-5">
-            <CrossChannelDecisionDemo />
+            <CrossChannelDecisionDemo compact />
           </div>
           <div className="mt-10 flex flex-col gap-3 sm:flex-row">
             <Button asChild className="min-h-12">

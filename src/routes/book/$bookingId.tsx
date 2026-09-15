@@ -9,6 +9,7 @@ import { fixtureLinksAllowed } from "@/lib/public-links";
 import { authEnabled } from "@/lib/auth/client";
 import { QuoteSheet } from "@/components/enquiry/quote-sheet";
 import { quoteSheets } from "@/domain/quote-sheets";
+import { CustomerLinkUnavailable } from "@/components/site/customer-link-unavailable";
 
 /**
  * R1D containment. These links are keyed by a short internal id that ships in
@@ -29,21 +30,7 @@ export const Route = createFileRoute("/book/$bookingId")({
 });
 
 function LinkUnavailable() {
-  return (
-    <main className="mx-auto max-w-lg px-5 py-16">
-      <Link to="/" className="mb-10 inline-block">
-        <Wordmark />
-      </Link>
-      <p className="text-lg font-semibold tracking-tight">This link isn’t available</p>
-      <p className="mt-2 text-sm leading-relaxed text-ink-2">
-        Shareable customer links are not switched on for this deployment. If you were expecting a
-        quote or a booking, reply to the message the business sent you and they’ll sort it out.
-      </p>
-      <Button asChild variant="secondary" className="mt-6">
-        <Link to="/">Go to Enquiry</Link>
-      </Button>
-    </main>
-  );
+  return <CustomerLinkUnavailable />;
 }
 
 function CustomerBook() {
@@ -73,10 +60,19 @@ function CustomerBook() {
   const quote = enquiry ? quoteSheets(enquiry).at(-1) : undefined;
 
   return (
-    <main className="mx-auto min-h-dvh max-w-lg bg-paper px-5 pt-[max(2.5rem,var(--app-safe-top))] pb-[max(2.5rem,var(--app-safe-bottom))]">
+    <main className="customer-document mx-auto min-h-dvh max-w-lg bg-paper px-5 pt-[max(2.5rem,var(--app-safe-top))] pb-[max(2.5rem,var(--app-safe-bottom))]">
+      <p className="customer-sample-label">Sample customer view · No real payment</p>
       <p className="text-xl font-semibold tracking-tight">{business?.name}</p>
       <p className="mt-1 text-sm text-stone">Booking · no account required</p>
       <span className="page-rule" aria-hidden />
+      <ol className="customer-booking-progress" aria-label="Booking progress">
+        {(["offer", "terms", "pay", "done"] as const).map((item, index) => (
+          <li key={item} aria-current={step === item ? "step" : undefined}>
+            <span>{index + 1}</span>
+            {["Summary", "Terms", "Payment", "Recorded"][index]}
+          </li>
+        ))}
+      </ol>
       {step === "offer" ? (
         <section className="mt-8">
           <h1 className="text-3xl font-semibold tracking-tight">{booking.serviceLabel}</h1>
@@ -133,7 +129,7 @@ function CustomerBook() {
       ) : null}
       {step === "done" ? (
         <section className="mt-8">
-          <h1 className="text-2xl font-semibold tracking-tight">Booked</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">Sample booking recorded</h1>
           <p className="mt-3 text-sm leading-relaxed">
             The commencement fee is recorded. {business?.ownerFirstName} will write with the first
             workshop time.

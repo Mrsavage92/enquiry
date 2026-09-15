@@ -77,7 +77,9 @@ export function PhoneDesk({ enquiry }: { enquiry: Enquiry }) {
             .join("")}
         </span>
         <div className="min-w-0 flex-1 pl-2">
-          <p className="truncate text-base font-semibold leading-tight">{enquiry.customerName}</p>
+          <h1 className="break-words text-base font-semibold leading-tight">
+            {enquiry.customerName}
+          </h1>
           <p className="truncate text-2xs text-stone">
             {enquiry.state.lifecycle === "BOOKED"
               ? "Booked"
