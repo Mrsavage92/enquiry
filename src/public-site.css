@@ -468,6 +468,14 @@
 .public-footer nav a:hover {
   color: #543aab;
 }
+.public-footer-bottom a {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.public-footer-bottom a:hover {
+  color: var(--public-violet);
+}
 .public-footer-bottom {
   display: flex;
   justify-content: space-between;

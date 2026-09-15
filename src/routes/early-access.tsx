@@ -21,16 +21,20 @@ const PROMISES = [
     b: "We invite businesses in small groups as the product is ready for them.",
   },
   {
+    t: "A 20-minute setup call",
+    b: "When your invitation arrives, we set up your services, prices and rules with you on a short call, so the first real enquiry lands in a workspace that already knows your business.",
+  },
+  {
     t: "30% off your first 12 months",
-    b: "Join before public release and, if you become a paying customer, your first 12 months are 30% off the standard price.",
+    b: "For the first 20 invited businesses. Join before public release and, if you become a paying customer, your first 12 months are 30% off the standard price.",
   },
   {
     t: "A direct line into what we learn",
-    b: "Early businesses can tell us where Enquiry helps, where it gets in the way, and what still needs work.",
+    b: "In your first week we ask for 15 minutes of honest feedback. What early businesses tell us shapes what gets built next, and we publish what changed.",
   },
   {
     t: "No surprise charge",
-    b: "Enquiry is intended to be a paid product. We’ll share the full pricing before any paid access begins, and you decide whether to continue.",
+    b: "Enquiry is intended to be a paid product. We’ll share the full pricing before any paid access begins, give at least 30 days of written notice, and you decide whether to continue.",
   },
 ];
 

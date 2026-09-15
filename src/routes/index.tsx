@@ -43,7 +43,7 @@ const QUESTIONS = [
   ],
   [
     "What does joining early access mean?",
-    "It puts you on the list for an invitation, not into a paid subscription. The founding offer is 30% off your first 12 months once billing begins. Final plan prices and access timing are not yet announced.",
+    "It puts you on the list for an invitation, not into a paid subscription. Invited businesses get a 20-minute setup call and the founding offer: 30% off your first 12 months once billing begins, with at least 30 days of notice before anyone pays. Final plan prices and access timing are not yet announced.",
   ],
 ] as const;
 
@@ -52,6 +52,7 @@ function Home() {
     <SiteShell>
       <section className="public-hero" aria-labelledby="home-title">
         <div className="public-hero-copy">
+          <p className="public-kicker">For owner-run service businesses</p>
           <h1 id="home-title">
             Enquiry<span>.</span>
           </h1>
