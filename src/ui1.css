@@ -697,23 +697,29 @@ li:nth-child(3n + 3) .customer-avatar {
   font-size: 14px;
 }
 .business-destinations {
-  margin-top: 10px;
+  margin-top: 0;
   display: grid;
   gap: 0;
-  border-top: 1px solid var(--color-line);
+  border: 1px solid var(--color-line);
+  border-radius: 8px;
+  background: #fff;
+  overflow: hidden;
 }
 .business-destination {
   display: flex;
   align-items: center;
   gap: 16px;
   width: 100%;
-  padding: 16px 10px;
-  min-height: 78px;
+  padding: 12px 16px;
+  min-height: 66px;
   border-bottom: 1px solid var(--color-line);
   background: transparent;
   border-radius: 0;
   text-align: left;
   transition: background-color 180ms ease;
+}
+.business-destination:last-child {
+  border-bottom: 0;
 }
 .business-destination:hover,
 .business-destination:focus-visible {
@@ -729,13 +735,12 @@ li:nth-child(3n + 3) .customer-avatar {
 .business-destination strong {
   display: block;
   font-weight: 550;
-  font-size: 15px;
+  font-size: 14px;
 }
 .business-destination small {
-  display: block;
+  display: inline;
   color: var(--color-stone);
-  font-size: 13px;
-  margin-top: 5px;
+  font-size: 12px;
   line-height: 1.5;
 }
 .business-overview {
@@ -743,7 +748,7 @@ li:nth-child(3n + 3) .customer-avatar {
 }
 .business-heading {
   align-items: center;
-  margin-bottom: 24px;
+  margin-bottom: 16px;
 }
 .business-heading button {
   min-height: 44px;
@@ -752,7 +757,7 @@ li:nth-child(3n + 3) .customer-avatar {
   display: flex;
   align-items: center;
   gap: 14px;
-  margin-bottom: 22px;
+  margin-bottom: 16px;
 }
 .business-identity > div {
   min-width: 0;
@@ -760,8 +765,8 @@ li:nth-child(3n + 3) .customer-avatar {
 .business-identity-icon {
   display: grid;
   place-items: center;
-  width: 48px;
-  height: 48px;
+  width: 36px;
+  height: 36px;
   flex-shrink: 0;
   border-radius: 8px;
   color: var(--color-ink-2);
@@ -775,10 +780,10 @@ li:nth-child(3n + 3) .customer-avatar {
 .business-picker select {
   appearance: none;
   background: transparent;
-  min-height: 44px;
+  min-height: 32px;
   padding: 0 28px 0 0;
   max-width: 100%;
-  font-size: 16px;
+  font-size: 14px;
   font-weight: 550;
   cursor: pointer;
 }
@@ -794,8 +799,9 @@ li:nth-child(3n + 3) .customer-avatar {
 }
 .business-groups {
   display: grid;
-  gap: 30px;
-  margin-top: 28px;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0;
+  margin-top: 16px;
 }
 .business-group h2 {
   font-size: 14px;
@@ -803,9 +809,9 @@ li:nth-child(3n + 3) .customer-avatar {
   color: var(--color-ink-2);
 }
 .business-row-review {
-  display: block;
-  margin-top: 5px;
-  font-size: 12px;
+  display: inline-block;
+  margin-left: 10px;
+  font-size: 11px;
   font-weight: 550;
   color: var(--color-warn);
 }
@@ -842,18 +848,6 @@ li:nth-child(3n + 3) .customer-avatar {
   font-size: 13px;
   margin-top: 4px;
 }
-@media (min-width: 1100px) {
-  .business-overview {
-    max-width: 1040px;
-  }
-  .business-groups {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    column-gap: 40px;
-  }
-  .business-destination {
-    min-height: 96px;
-  }
-}
 .business-detail {
   max-width: 940px;
 }
@@ -864,7 +858,7 @@ li:nth-child(3n + 3) .customer-avatar {
   color: var(--color-warn);
   border-block: 1px solid #eadfbe;
   background: #fffbf1;
-  padding: 14px 12px;
+  padding: 10px 12px;
   font-size: 13px;
   margin-bottom: 8px;
   text-align: left;
@@ -1681,7 +1675,7 @@ li:nth-child(3n + 3) .customer-avatar {
   }
   .business-destination {
     min-height: 76px;
-    padding: 14px 0;
+    padding: 14px 12px;
     gap: 14px;
   }
   .business-destination .ui-icon-tile {
@@ -1708,8 +1702,11 @@ li:nth-child(3n + 3) .customer-avatar {
   .business-identity {
     gap: 12px;
   }
+  .business-picker select {
+    min-height: 44px;
+  }
   .business-groups {
-    gap: 26px;
+    gap: 0;
   }
   .inline-reply section[aria-labelledby="rec-heading"] {
     padding: 12px 16px 4px;

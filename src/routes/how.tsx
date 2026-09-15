@@ -1,5 +1,5 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowRight } from "lucide-react";
+import { createFileRoute } from "@tanstack/react-router";
+import { Focus, GitCompareArrows, Lightbulb, ShieldCheck } from "lucide-react";
 import { socialHead } from "@/lib/site/head";
 import { SiteShell } from "@/components/site/site-shell";
 import { EnquiryStory } from "@/components/site/enquiry-story";
@@ -20,16 +20,23 @@ function How() {
   return (
     <SiteShell>
       <header className="public-container public-page-heading public-editorial-heading">
-        <p className="public-kicker">From the first question to the next step</p>
-        <h1>How Enquiry works</h1>
-        <p>A real-world request rarely stands still. Neither should the next step.</p>
-        <div className="public-actions">
-          <Link to="/early-access" className="public-button">
-            Join early access <ArrowRight size={17} aria-hidden="true" />
-          </Link>
-          <Link to="/demo" className="public-text-link">
-            Try a sample enquiry <ArrowRight size={16} aria-hidden="true" />
-          </Link>
+        <div>
+          <h1>How Enquiry works</h1>
+          <p>A real example. A changing request. A clearer next step.</p>
+        </div>
+        <div className="story-principles" aria-label="The Enquiry approach">
+          {[
+            { Icon: Focus, label: "Focus", detail: "See what matters" },
+            { Icon: GitCompareArrows, label: "Change", detail: "Keep the context" },
+            { Icon: Lightbulb, label: "Reason", detail: "Understand why" },
+            { Icon: ShieldCheck, label: "Permission", detail: "Keep the final call" },
+          ].map(({ Icon, label, detail }) => (
+            <div key={label}>
+              <Icon size={19} aria-hidden="true" />
+              <strong>{label}</strong>
+              <span>{detail}</span>
+            </div>
+          ))}
         </div>
       </header>
       <section className="public-story-band" aria-label="Maya's changing enquiry">

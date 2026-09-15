@@ -267,71 +267,62 @@ export function BrainScreen() {
             </button>
           ) : null}
           <div className="business-groups">
-            {[
-              { title: "Your offer & bookings", entries: destinations.slice(0, 4) },
-              { title: "Customer experience", entries: destinations.slice(4) },
-            ].map(({ title, entries }, groupIndex) => (
-              <section
-                className="business-group"
-                key={title}
-                aria-labelledby={`business-group-${groupIndex}`}
-              >
-                <h2 id={`business-group-${groupIndex}`}>{title}</h2>
-                <div className="business-destinations">
-                  {entries.map(({ id: section, label, icon: Icon, tone }) => {
-                    const summary =
-                      section === "voice"
-                        ? {
-                            preview:
-                              [business.voice.warmth, business.voice.formality]
-                                .filter(Boolean)
-                                .join(" · ") || "No tone saved",
-                            needsReview: 0,
-                          }
-                        : businessSectionPreview(business, section);
-                    return (
-                      <button
-                        key={section}
-                        className="business-destination"
-                        onClick={() => {
-                          setTab(section);
-                          setDetailOpen(true);
-                        }}
-                      >
-                        <span className={`ui-icon-tile ${tone}`}>
-                          <Icon size={20} aria-hidden />
-                        </span>
-                        <span>
-                          <strong>{label}</strong>
-                          <small>{summary.preview}</small>
-                          {summary.needsReview > 0 ? (
-                            <span className="business-row-review">
-                              {summary.needsReview} need review
-                            </span>
-                          ) : null}
-                        </span>
-                        <ChevronRight size={18} className="text-stone" aria-hidden />
-                      </button>
-                    );
-                  })}
-                  {groupIndex === 1 ? (
+            <section className="business-group" aria-labelledby="business-directory-heading">
+              <h2 className="sr-only" id="business-directory-heading">
+                Business details
+              </h2>
+              <div className="business-destinations">
+                {destinations.map(({ id: section, label, icon: Icon, tone }) => {
+                  const summary =
+                    section === "voice"
+                      ? {
+                          preview:
+                            [business.voice.warmth, business.voice.formality]
+                              .filter(Boolean)
+                              .join(" · ") || "No tone saved",
+                          needsReview: 0,
+                        }
+                      : businessSectionPreview(business, section);
+                  return (
                     <button
+                      key={section}
                       className="business-destination"
-                      onClick={() => void navigate({ to: "/trust/access" })}
+                      onClick={() => {
+                        setTab(section);
+                        setDetailOpen(true);
+                      }}
                     >
-                      <span className="ui-icon-tile tone-neutral">
-                        <Plug size={20} aria-hidden />
+                      <span className={`ui-icon-tile ${tone}`}>
+                        <Icon size={20} aria-hidden />
                       </span>
                       <span>
-                        <strong>Connections</strong>
-                        <small>Channels and reply permissions</small>
+                        <strong>{label}</strong>
+                        <small>{summary.preview}</small>
+                        {summary.needsReview > 0 ? (
+                          <span className="business-row-review">
+                            {summary.needsReview} need review
+                          </span>
+                        ) : null}
                       </span>
                       <ChevronRight size={18} className="text-stone" aria-hidden />
                     </button>
-                  ) : null}
-                </div>
-              </section>
-            ))}
+                  );
+                })}
+                <button
+                  className="business-destination"
+                  onClick={() => void navigate({ to: "/trust/access" })}
+                >
+                  <span className="ui-icon-tile tone-neutral">
+                    <Plug size={20} aria-hidden />
+                  </span>
+                  <span>
+                    <strong>Connections</strong>
+                    <small>Channels and reply permissions</small>
+                  </span>
+                  <ChevronRight size={18} className="text-stone" aria-hidden />
+                </button>
+              </div>
+            </section>
           </div>
           <div className="business-footer">
             <button

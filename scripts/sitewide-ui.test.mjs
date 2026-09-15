@@ -143,3 +143,53 @@ test("new visual families retain reduced-motion and bounded responsive layouts",
     assert.doesNotMatch(css, /font-size:[^;]*vw|letter-spacing:\s*-/);
   }
 });
+
+test("reference story keeps four stages and three native working surfaces", () => {
+  const source = read("src/components/site/enquiry-story.tsx");
+  for (const title of [
+    "The initial enquiry",
+    "The details change",
+    "Keep the bigger picture",
+    "A clearer next step",
+  ])
+    assert.ok(source.includes(title));
+  assert.match(source, /className="story-progress"/);
+  assert.match(source, /className="story-surfaces"/);
+  assert.equal((source.match(/<article /g) ?? []).length, 3);
+  assert.doesNotMatch(source, /<img|Send a reply/);
+});
+
+test("demo keeps context with the conversation and evidence with the next step", () => {
+  const source = read("src/components/site/cross-channel-decision-demo.tsx");
+  const context = source.indexOf('className="demo-context"');
+  const action = source.indexOf('className="demo-action"');
+  const reasons = source.indexOf('className="demo-reasons"');
+  assert.ok(context > 0 && context < action && action < reasons);
+  assert.match(source, /state\.facts\.map/);
+  assert.match(source, /state\.checks\.map/);
+  assert.match(source, /aria-expanded=\{whyOpen\}/);
+  assert.match(source, /Nothing has been sent or booked/);
+  assert.match(source, /state\.commercialNote/);
+});
+
+test("Business directory retains every destination and review warnings in a single group", () => {
+  const source = read("src/components/business/brain-screen.tsx");
+  assert.match(source, /destinations\.map/);
+  assert.doesNotMatch(source, /destinations\.slice/);
+  assert.match(source, /summary\.needsReview > 0/);
+  assert.match(source, /businessSectionPreview\(business, section\)/);
+  assert.match(source, /to: "\/trust\/access"/);
+});
+
+test("illustrated journal keeps real product assets and labels their sample status", () => {
+  const source = read("src/routes/updates.tsx");
+  assert.match(source, /Current sample workspace/);
+  assert.match(source, /Not customer data/);
+  assert.match(source, /className="product-journal"/);
+  const paths = [...source.matchAll(/"(\/product\/[^"\s]+\.(?:jpg|webp))"/g)].map(
+    (match) => match[1],
+  );
+  assert.ok(paths.length >= 5);
+  for (const path of paths)
+    assert.ok(readFileSync(new URL(`../public${path}`, import.meta.url)).length > 0);
+});
