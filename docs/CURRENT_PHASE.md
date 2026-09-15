@@ -10,6 +10,22 @@ Product-owner instruction on 2026-09-10: implement the UI1 core-experience redes
 
 ## Current release state
 
+### Reference fidelity correction (15 September 2026)
+
+The owner rejected the previous release's fidelity to the generated images. A positive
+GPT screenshot review did not constitute owner acceptance. The correction on
+`codex/ui1-reference-fidelity`, based on `e8b421d`, implements the actual compositions:
+horizontal How sequence and three native working surfaces; conversation/context beside
+next action/evidence in Demo; illustrated chronological Updates rows; one Business
+directory; compact Insights stat cards and independent count bars. The shared homepage
+story inherits the same composition. The roadmap and accepted entry direction are retained.
+
+Existing generated boards are the reference, not a prompt for another reinterpretation.
+Sample claims, dates, metrics and unsupported send actions in those boards are not product
+authority. No domain, auth, tenancy, sending or provider configuration changes are included.
+Evidence and remaining limits: `docs/evidence/reference-fidelity-2026-09-15/README.md`.
+Owner visual acceptance remains open after publication.
+
 ### Sitewide visual review (15 September 2026)
 
 Owner-authorised continuation: apply the original GPT review, creative image exploration,

@@ -22,6 +22,7 @@ function InsightsPage() {
     .sort((a, b) => b.count - a.count);
   const b = briefing(enquiries, businesses, bookings, filter);
   const funnelRows = funnel(b);
+  const largestTotal = Math.max(1, ...funnelRows.map((row) => row.value));
   const aging = waitingAge(enquiries, filter).slice(0, 5);
   const perBusiness = businesses
     .filter((biz) => filter === "all" || biz.id === filter)
@@ -87,6 +88,9 @@ function InsightsPage() {
                   <div className="flex justify-between text-sm">
                     <span>{row.label}</span>
                     <span className="text-stone">{row.value}</span>
+                  </div>
+                  <div className="insights-total-track" aria-hidden="true">
+                    <div style={{ width: `${(row.value / largestTotal) * 100}%` }} />
                   </div>
                 </li>
               ))}
