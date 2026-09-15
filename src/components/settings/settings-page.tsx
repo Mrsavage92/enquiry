@@ -1,292 +1,276 @@
 import { Link } from "@tanstack/react-router";
+import type { ReactNode } from "react";
+import {
+  Bell,
+  Building2,
+  ChevronDown,
+  Clock3,
+  MonitorSmartphone,
+  Plug,
+  ShieldCheck,
+  type LucideIcon,
+} from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
+import { WorkspaceDestination } from "@/components/ui/workspace-destination";
 import { usePrototype } from "@/store/prototype-store";
 import { toast } from "sonner";
 import { InstallAppBlock } from "@/components/shell/install-app";
-import { useNarrow } from "@/lib/use-narrow";
+import { integrationStatusLabel } from "@/domain/labels";
+import { useLiveTrustMutations } from "@/lib/workspace/live-mutations";
 
 export function SettingsPage() {
   const businesses = usePrototype((s) => s.businesses);
   const filter = usePrototype((s) => s.businessFilter);
-  const pause = usePrototype((s) => s.pause);
-  const resume = usePrototype((s) => s.resume);
+  const trust = useLiveTrustMutations();
   const reset = usePrototype((s) => s.reset);
   const demoMode = usePrototype((s) => s.demoMode);
   const startSetup = usePrototype((s) => s.startSetup);
   const prefs = usePrototype((s) => s.prefs);
   const setPrefs = usePrototype((s) => s.setPrefs);
   const connect = usePrototype((s) => s.connectIntegration);
-  const phone = useNarrow(860);
   const id = filter === "all" ? businesses[0]?.id : filter;
   const current = businesses.find((b) => b.id === id);
   const paused = current?.paused;
-  const mailbox = current?.integrations.find((i) => i.kind === "email");
-  const calendar = current?.integrations.find((i) => i.kind === "calendar");
 
   return (
     <div className="ui-page-scroll">
       <div className="ui-page settings-page">
         <PageHeader title="Settings" description={current?.name} />
-
-        <section className="mt-8">
-          <p className="eyebrow">The app</p>
-          <ul className="ledger mt-3">
-            <InstallAppBlock />
-            <li>
-              <p className="font-medium">{current?.name ?? "Workspace"}</p>
-              <p className="mt-1 text-sm text-ink-2">
-                {paused
-                  ? "Paused. Enquiry will keep reading. Nothing will send."
-                  : "Live. You review. You send."}
-              </p>
-              <div className="mt-3">
-                <Button
-                  size="sm"
-                  variant={paused ? "secondary" : "warn"}
-                  onClick={() => {
-                    if (!id) return;
-                    if (paused) resume(id);
-                    else pause(id, "outbound");
-                  }}
-                >
-                  {paused ? "Resume Enquiry" : "Pause outbound"}
-                </Button>
-              </div>
-            </li>
-            <li>
-              <p className="font-medium">Working hours</p>
-              {phone ? null : (
-                <p className="mt-1 text-sm text-ink-2">
-                  Used for follow-up timing. Enquiry will not invent a diary from this.
-                </p>
-              )}
-              <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                <label className="text-sm">
-                  <span className="mb-1 block text-stone">Days</span>
-                  <input
-                    className="field h-11"
-                    value={prefs.workingDays}
-                    onChange={(e) => setPrefs({ workingDays: e.target.value })}
-                  />
-                </label>
-                <label className="text-sm">
-                  <span className="mb-1 block text-stone">From</span>
-                  <input
-                    type="time"
-                    className="field h-11"
-                    value={prefs.hoursStart}
-                    onChange={(e) => setPrefs({ hoursStart: e.target.value })}
-                  />
-                </label>
-                <label className="text-sm">
-                  <span className="mb-1 block text-stone">Until</span>
-                  <input
-                    type="time"
-                    className="field h-11"
-                    value={prefs.hoursEnd}
-                    onChange={(e) => setPrefs({ hoursEnd: e.target.value })}
-                  />
-                </label>
-                <label className="text-sm">
-                  <span className="mb-1 block text-stone">Timezone</span>
-                  <input
-                    className="field h-11"
-                    value={prefs.timezone ?? "Australia/Brisbane"}
-                    onChange={(e) => setPrefs({ timezone: e.target.value })}
-                  />
-                </label>
-              </div>
-            </li>
-            <li>
-              <p className="font-medium">Mailbox</p>
-              <p className="mt-1 text-sm text-ink-2">
-                {mailbox?.status === "connected"
-                  ? `${mailbox.accountLabel}. Enquiry reads this inbox.`
-                  : "No mailbox. Forms and messages still open a case."}
-              </p>
-              {/*
-              No provider handshake exists. The old control flipped a local flag
-              and announced "Mailbox connected. Enquiry will keep reading." - a
-              real business would believe email ingestion was live and then
-              silently receive nothing. Demo keeps the simulated control; live
-              states the truth.
-            */}
-              {mailbox && id && demoMode ? (
-                <Button
-                  size="sm"
-                  variant="secondary"
-                  className="mt-3"
-                  onClick={() => {
-                    connect(id, "email");
-                    toast("Mailbox connected. Enquiry will keep reading.");
-                  }}
-                  disabled={mailbox.status === "connected"}
-                >
-                  {mailbox.status === "connected" ? "Connected" : "Connect mailbox"}
-                </Button>
-              ) : (
-                <p className="mt-3 text-sm text-stone">
-                  Not connected. Mailbox reading is not available yet - paste an enquiry in and
-                  Enquiry will work from that.
-                </p>
-              )}
-            </li>
-            <li>
-              <p className="font-medium">Calendar</p>
-              <p className="mt-1 text-sm text-ink-2">
-                {calendar?.status === "connected"
-                  ? "Free/busy only. Enquiry does not need event titles."
-                  : "Not connected. Unknown is not busy, and it is not free."}
-              </p>
-              {calendar && id && demoMode ? (
-                <Button
-                  size="sm"
-                  variant="secondary"
-                  className="mt-3"
-                  onClick={() => connect(id, "calendar")}
-                  disabled={calendar.status === "connected"}
-                >
-                  {calendar.status === "connected" ? "Connected" : "Reconnect calendar"}
-                </Button>
-              ) : (
-                <Button size="sm" variant="secondary" className="mt-3" asChild>
-                  <Link to="/trust/access">Open access</Link>
-                </Button>
-              )}
-            </li>
-            <li>
-              <p className="font-medium">How work arrives</p>
-              {phone ? null : (
-                <p className="mt-1 text-sm text-ink-2">
-                  Email is one pipe. Forms, texts and Instagram still open a case file. A mailbox is
-                  optional.
-                </p>
-              )}
-              <ul className="mt-3 space-y-3">
-                {(current?.integrations ?? [])
-                  .filter((i) => i.kind !== "calendar" && i.kind !== "email")
-                  .map((i) => (
-                    <li key={i.id} className="flex items-start justify-between gap-3">
-                      <div>
-                        <p className="text-sm font-medium">{i.provider}</p>
-                        <p className="text-xs text-stone">{i.accountLabel}</p>
-                      </div>
-                      {i.status === "connected" ? (
-                        <p className="text-xs text-ok">Connected</p>
-                      ) : id && demoMode ? (
-                        <Button
-                          size="sm"
-                          variant="secondary"
-                          onClick={() => {
-                            connect(id, i.id);
-                            toast(`${i.provider} connected. Enquiry will keep reading.`);
-                          }}
-                        >
-                          Connect
-                        </Button>
-                      ) : (
-                        <p className="text-xs text-stone">Not connected yet</p>
-                      )}
-                    </li>
-                  ))}
-              </ul>
-            </li>
-            <li>
-              <p className="font-medium">Notices</p>
-              {phone ? null : (
-                <p className="mt-1 text-sm text-ink-2">
-                  Quiet signals. Not a notification centre product.
-                </p>
-              )}
-              <div className="mt-3 space-y-2">
-                <Toggle
-                  label="A new enquiry arrives"
-                  checked={prefs.notifyArrival}
-                  onChange={(v) => setPrefs({ notifyArrival: v })}
+        <div className="settings-groups">
+          <SettingsGroup
+            icon={Clock3}
+            title="Working hours"
+            description={`${prefs.workingDays} · ${prefs.hoursStart}–${prefs.hoursEnd}`}
+          >
+            <p>Follow-up timing. These hours do not confirm booking availability.</p>
+            <div className="mt-4 grid gap-4 sm:grid-cols-2">
+              <label className="text-sm">
+                <span className="mb-2 block text-stone">Days</span>
+                <input
+                  className="field h-11"
+                  value={prefs.workingDays}
+                  onChange={(e) => setPrefs({ workingDays: e.target.value })}
                 />
-                <Toggle
-                  label="Follow-up is due"
-                  checked={prefs.notifyFollowUp}
-                  onChange={(v) => setPrefs({ notifyFollowUp: v })}
+              </label>
+              <label className="text-sm">
+                <span className="mb-2 block text-stone">Time zone</span>
+                <input
+                  className="field h-11"
+                  value={prefs.timezone ?? "Australia/Brisbane"}
+                  onChange={(e) => setPrefs({ timezone: e.target.value })}
                 />
-                <Toggle
-                  label="Learning is waiting"
-                  checked={prefs.notifyLearning}
-                  onChange={(v) => setPrefs({ notifyLearning: v })}
+              </label>
+              <label className="text-sm">
+                <span className="mb-2 block text-stone">From</span>
+                <input
+                  type="time"
+                  className="field h-11"
+                  value={prefs.hoursStart}
+                  onChange={(e) => setPrefs({ hoursStart: e.target.value })}
                 />
-              </div>
-            </li>
-            {phone ? null : (
-              <li>
-                <p className="font-medium">Trust Centre</p>
-                <p className="mt-1 text-sm text-ink-2">
-                  Assist, Observe or Private. Action classes stay Ask every time until you change
-                  them.
-                </p>
-                <Button size="sm" variant="secondary" className="mt-3" asChild>
-                  <Link to="/trust">Open Trust</Link>
-                </Button>
-              </li>
-            )}
-            {phone ? null : (
-              <li>
-                <p className="font-medium">Business Brain</p>
-                <p className="mt-1 text-sm text-ink-2">
-                  What Enquiry knows, what needs review, and Your Voice.
-                </p>
-                <Button size="sm" variant="secondary" className="mt-3" asChild>
-                  <Link to="/business">Open Business Brain</Link>
-                </Button>
-              </li>
-            )}
-            {phone ? null : (
-              <li>
-                <p className="font-medium">Keyboard</p>
-                <p className="mt-1 text-sm text-ink-2">
-                  ⌘K jump · / find · J/K move · ⌘Enter send · U undo · ? this list
-                </p>
-              </li>
-            )}
-          </ul>
-        </section>
-
+              </label>
+              <label className="text-sm">
+                <span className="mb-2 block text-stone">Until</span>
+                <input
+                  type="time"
+                  className="field h-11"
+                  value={prefs.hoursEnd}
+                  onChange={(e) => setPrefs({ hoursEnd: e.target.value })}
+                />
+              </label>
+            </div>
+          </SettingsGroup>
+          <SettingsGroup
+            icon={Bell}
+            title="Notifications"
+            description="New enquiries, follow-ups and details to review"
+          >
+            <Toggle
+              label="A new enquiry arrives"
+              checked={prefs.notifyArrival}
+              onChange={(v) => setPrefs({ notifyArrival: v })}
+            />
+            <Toggle
+              label="Follow-up is due"
+              checked={prefs.notifyFollowUp}
+              onChange={(v) => setPrefs({ notifyFollowUp: v })}
+            />
+            <Toggle
+              label="Business details need review"
+              checked={prefs.notifyLearning}
+              onChange={(v) => setPrefs({ notifyLearning: v })}
+            />
+          </SettingsGroup>
+          <SettingsGroup
+            icon={Plug}
+            title="Connections"
+            description={
+              demoMode
+                ? "Sample connections · not live accounts"
+                : "Mailbox, calendar and customer channels"
+            }
+          >
+            <p>
+              {demoMode
+                ? "These connection states belong to the sample workspace. They do not read real messages or calendars."
+                : "Live channel connections are not generally available yet. Add customer messages directly to an enquiry."}
+            </p>
+            <ul className="ledger mt-4">
+              {(current?.integrations ?? []).map((integration) => (
+                <li key={integration.id} className="flex items-center justify-between gap-4">
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium">{integration.provider}</p>
+                    <p className="mt-1 break-words text-xs text-stone">
+                      {integration.accountLabel}
+                    </p>
+                  </div>
+                  {demoMode && id ? (
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      disabled={integration.status === "connected"}
+                      onClick={() => {
+                        connect(id, integration.id);
+                        toast("Sample connection updated. No live account connected.");
+                      }}
+                    >
+                      {integration.status === "connected" ? "Sample connected" : "Connect sample"}
+                    </Button>
+                  ) : (
+                    <span className="text-xs text-stone">
+                      {integrationStatusLabel(integration.status)}
+                    </span>
+                  )}
+                </li>
+              ))}
+            </ul>
+            <div className="workspace-destinations">
+              <WorkspaceDestination
+                to="/trust/access"
+                icon={Plug}
+                title="Connection details"
+                description="Access, status and permissions"
+              />
+            </div>
+          </SettingsGroup>
+          <SettingsGroup
+            icon={ShieldCheck}
+            title="Permissions"
+            description={paused ? "Outbound paused" : "Review preferences and action permissions"}
+          >
+            <p>
+              {paused
+                ? "Outbound actions are paused."
+                : "Prepared replies still need review. Copying does not send a message."}
+            </p>
+            <Button
+              size="sm"
+              variant={paused ? "secondary" : "warn"}
+              className="mt-4"
+              disabled={!id}
+              onClick={() => {
+                if (!id) return;
+                if (paused) void trust.resumeBusiness(id, (message) => toast.error(message));
+                else void trust.pauseBusiness(id, "outbound", (message) => toast.error(message));
+              }}
+            >
+              {paused ? "Resume Enquiry" : "Pause outbound"}
+            </Button>
+            <div className="workspace-destinations">
+              <WorkspaceDestination
+                to="/trust"
+                icon={ShieldCheck}
+                title="Reply settings"
+                description="Review mode and action permissions"
+              />
+              <WorkspaceDestination
+                to="/trust/audit"
+                icon={Clock3}
+                title="Activity history"
+                description="Recorded actions and who allowed them"
+              />
+            </div>
+          </SettingsGroup>
+          <SettingsGroup
+            icon={Building2}
+            title="Business"
+            description="Services, pricing, policies and voice"
+          >
+            <div className="workspace-destinations">
+              <WorkspaceDestination
+                to="/business"
+                icon={Building2}
+                title="Business details"
+                description="Your offer and how you work"
+              />
+            </div>
+          </SettingsGroup>
+          <SettingsGroup
+            icon={MonitorSmartphone}
+            title="This device"
+            description="Enquiry on your home screen"
+          >
+            <ul>
+              <InstallAppBlock />
+            </ul>
+          </SettingsGroup>
+        </div>
         {demoMode ? (
-          <section className="mt-10">
-            <p className="eyebrow">Sample workspace</p>
-            <ul className="ledger mt-3">
+          <details className="settings-sample">
+            <summary>Sample workspace options</summary>
+            <ul className="ledger">
               <li>
                 <p className="font-medium">Set up again</p>
-                <p className="mt-1 text-sm text-ink-2">
-                  Runs Business Brain onboarding for Glow & Co.
-                </p>
+                <p className="mt-1 text-sm text-stone">Open the business setup flow.</p>
                 <Button size="sm" variant="secondary" className="mt-3" asChild>
                   <Link to="/onboarding" onClick={() => startSetup()}>
                     Start setup
                   </Link>
                 </Button>
               </li>
-              {/*
-            Demo-only. This replaces the workspace with F01-F20 sample data; for
-            a signed-in business that is an offer to destroy their work and fill
-            the screen with another studio's.
-          */}
-              {demoMode ? (
-                <li>
-                  <p className="font-medium">Reset sample data</p>
-                  <p className="mt-1 text-sm text-ink-2">
-                    Restores F01–F20 and sample bookings. Your session is local.
-                  </p>
-                  <Button size="sm" variant="secondary" className="mt-3" onClick={() => reset()}>
-                    Reset prototype
-                  </Button>
-                </li>
-              ) : null}
+              <li>
+                <p className="font-medium">Reset sample data</p>
+                <p className="mt-1 text-sm text-stone">
+                  Restore the original sample enquiries and bookings on this device.
+                </p>
+                <Button size="sm" variant="secondary" className="mt-3" onClick={() => reset()}>
+                  Reset prototype
+                </Button>
+              </li>
             </ul>
-          </section>
+          </details>
         ) : null}
       </div>
     </div>
+  );
+}
+
+function SettingsGroup({
+  icon: Icon,
+  title,
+  description,
+  children,
+}: {
+  icon: LucideIcon;
+  title: string;
+  description: string;
+  children: ReactNode;
+}) {
+  return (
+    <details className="settings-group">
+      <summary>
+        <span className="workspace-destination-icon">
+          <Icon size={20} strokeWidth={1.7} aria-hidden="true" />
+        </span>
+        <span>
+          <strong>{title}</strong>
+          <small>{description}</small>
+        </span>
+        <ChevronDown size={18} aria-hidden="true" />
+      </summary>
+      <div className="settings-group-content">{children}</div>
+    </details>
   );
 }
 
@@ -300,7 +284,7 @@ function Toggle({
   onChange: (v: boolean) => void;
 }) {
   return (
-    <label className="flex min-h-11 items-center justify-between gap-3 text-sm">
+    <label className="flex min-h-12 items-center justify-between gap-4 text-sm">
       <span>{label}</span>
       <button
         type="button"
@@ -309,14 +293,16 @@ function Toggle({
         aria-checked={checked}
         onClick={() => onChange(!checked)}
         className={
-          checked ? "h-6 w-10 rounded-full bg-ink p-0.5" : "h-6 w-10 rounded-full bg-paper-2 p-0.5"
+          checked
+            ? "h-6 w-10 shrink-0 rounded-full bg-mark p-0.5"
+            : "h-6 w-10 shrink-0 rounded-full bg-paper-2 p-0.5"
         }
       >
         <span
           className={
             checked
-              ? "block size-5 translate-x-4 rounded-full bg-paper transition-transform"
-              : "block size-5 translate-x-0 rounded-full bg-raised shadow-border transition-transform"
+              ? "block size-5 translate-x-4 rounded-full bg-white transition-transform motion-reduce:transition-none"
+              : "block size-5 translate-x-0 rounded-full bg-raised shadow-border transition-transform motion-reduce:transition-none"
           }
         />
       </button>

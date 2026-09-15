@@ -26,7 +26,7 @@ const VIEWS = [
 ] as const;
 
 export function ProductShowcase() {
-  const [selected, setSelected] = useState(0);
+  const [selected, setSelected] = useState(1);
   const panelId = useId();
   const view = VIEWS[selected];
   return (
@@ -55,8 +55,8 @@ export function ProductShowcase() {
                 alt={item.alt}
                 width="1440"
                 height="960"
-                loading={index === 0 ? "eager" : "lazy"}
-                fetchPriority={index === 0 ? "high" : "auto"}
+                loading={index === 1 ? "eager" : "lazy"}
+                fetchPriority={index === 1 ? "high" : "auto"}
               />
             </picture>
           ))}

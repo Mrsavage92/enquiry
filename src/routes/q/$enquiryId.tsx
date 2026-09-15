@@ -9,6 +9,7 @@ import { quoteSheets } from "@/domain/quote-sheets";
 import { toastUndo } from "@/lib/toast-undo";
 import { fixtureLinksAllowed } from "@/lib/public-links";
 import { authEnabled } from "@/lib/auth/client";
+import { CustomerLinkUnavailable } from "@/components/site/customer-link-unavailable";
 
 /**
  * R1D containment. These links are keyed by a short internal id that ships in
@@ -29,21 +30,7 @@ export const Route = createFileRoute("/q/$enquiryId")({
 });
 
 function LinkUnavailable() {
-  return (
-    <main className="mx-auto max-w-lg px-5 py-16">
-      <Link to="/" className="mb-10 inline-block">
-        <Wordmark />
-      </Link>
-      <p className="text-lg font-semibold tracking-tight">This link isn’t available</p>
-      <p className="mt-2 text-sm leading-relaxed text-ink-2">
-        Shareable customer links are not switched on for this deployment. If you were expecting a
-        quote or a booking, reply to the message the business sent you and they’ll sort it out.
-      </p>
-      <Button asChild variant="secondary" className="mt-6">
-        <Link to="/">Go to Enquiry</Link>
-      </Button>
-    </main>
-  );
+  return <CustomerLinkUnavailable />;
 }
 
 function CustomerQuote() {
@@ -76,7 +63,8 @@ function CustomerQuote() {
   const asked = sentQuestion || enquiry.state.decision === "NEEDS_HUMAN";
 
   return (
-    <main className="mx-auto min-h-dvh max-w-lg bg-paper px-5 pt-[max(2.5rem,var(--app-safe-top))] pb-[max(2.5rem,var(--app-safe-bottom))]">
+    <main className="customer-document mx-auto min-h-dvh max-w-lg bg-paper px-5 pt-[max(2.5rem,var(--app-safe-top))] pb-[max(2.5rem,var(--app-safe-bottom))]">
+      <p className="customer-sample-label">Sample customer view · No real messages sent</p>
       <p className="text-xl font-semibold tracking-tight">{business?.name}</p>
       <p className="mt-1 text-sm text-stone">Quote · no account required</p>
       <span className="page-rule" aria-hidden />

@@ -48,9 +48,7 @@ function Updates() {
       <article className="public-container pb-16">
         <div className="public-page-heading">
           <h1>Updates</h1>
-          <p>
-            Notes on what we are building, what we are learning and the decisions behind Enquiry.
-          </p>
+          <p>The product, the progress, and why it matters to your working day.</p>
           <div className="public-actions">
             <Link to="/early-access" className="public-button">
               Join early access <ArrowRight size={17} aria-hidden="true" />
@@ -60,6 +58,30 @@ function Updates() {
             </Link>
           </div>
         </div>
+        <section className="journal-lead" aria-labelledby="latest-update">
+          <div className="journal-lead-copy">
+            <time dateTime="2026-09-15">15 September 2026 · Product direction</time>
+            <h2 id="latest-update">A clearer view of what's next.</h2>
+            <p>
+              From the next customer reply to Enquiry in your pocket. Our new roadmap puts the
+              outcomes first, with a clear distinction between what is here and what is planned.
+            </p>
+            <Link to="/roadmap" className="public-text-link">
+              Explore the roadmap <ArrowRight size={17} aria-hidden="true" />
+            </Link>
+          </div>
+          <figure>
+            <img
+              src="/product/roadmap/roadmap-desktop.jpg"
+              width="1270"
+              height="714"
+              alt="The Enquiry roadmap with Now, Next, Later and Exploring horizons."
+              loading="lazy"
+            />
+            <figcaption>From the live roadmap · September 2026</figcaption>
+          </figure>
+        </section>
+        <h2 className="journal-list-title">Behind the product</h2>
         <ul className="public-updates">
           {POSTS.map((p) => (
             <li key={p.title}>

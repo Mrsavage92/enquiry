@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "@tanstack/react-router";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { CalendarDays, ChevronLeft, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -127,6 +127,7 @@ export function BookingsCalendar({
 
       {visible.length === 0 ? (
         <EmptyState
+          icon={CalendarDays}
           title="No bookings yet"
           body="Enquiry hands work off once a quote is accepted. Open enquiries still sit in Today."
           action={
@@ -149,6 +150,7 @@ export function BookingsCalendar({
             ))
           ) : (
             <EmptyState
+              icon={CalendarDays}
               title={scheduleView === "past" ? "No past bookings" : "No upcoming bookings"}
               body={
                 scheduleView === "past"
@@ -348,7 +350,13 @@ function DayAgenda({
 }) {
   return (
     <div className="booking-day mt-6">
-      <p className="text-sm font-medium text-ink">{formatDayHeading(dayKey)}</p>
+      <h2 className="booking-date-heading">
+        <span className="booking-date-stamp" aria-hidden="true">
+          <small>{dateFromDayKey(dayKey).toLocaleDateString("en-AU", { month: "short" })}</small>
+          <strong>{dateFromDayKey(dayKey).getDate()}</strong>
+        </span>
+        <time dateTime={dayKey}>{formatDayHeading(dayKey)}</time>
+      </h2>
       {jobs.length === 0 ? (
         <div className="mt-6 border-t border-line pt-6">
           <p className="font-medium">Clear</p>

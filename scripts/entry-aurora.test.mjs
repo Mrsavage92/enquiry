@@ -38,6 +38,10 @@ test("entry aurora belongs to the shared auth layout, without replacing forms", 
   const layout = read("src/components/auth/auth-layout.tsx");
   assert.equal((layout.match(/<AuroraBackground \/>/g) ?? []).length, 1);
   assert.equal((layout.match(/<main\b/g) ?? []).length, 1);
-  assert.match(layout, /className="auth-content">\{children\}/);
+  assert.match(
+    layout,
+    /className=\{`auth-content\$\{wide \? " auth-content-wide" : ""\}`\}>\{children\}/,
+  );
+  assert.match(layout, /wide = false/);
   assert.match(read("src/routes/early-access.tsx"), /<AuthLayout>/);
 });

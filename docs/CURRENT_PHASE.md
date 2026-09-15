@@ -10,6 +10,21 @@ Product-owner instruction on 2026-09-10: implement the UI1 core-experience redes
 
 ## Current release state
 
+### Sitewide visual review (15 September 2026)
+
+Owner-authorised continuation: apply the original GPT review, creative image exploration,
+critique and native implementation process across the whole website and app. Isolated on
+`codex/ui1-sitewide-visual-review`, based on `9ebff84` (PR #29). Five visual boards inform
+four related page families. Strong existing Today, enquiry, Business and roadmap structures
+are retained after review; public storytelling, entry/onboarding, utility pages, Insights,
+permissions and recovery states receive targeted redesigns.
+
+The owner's standing instruction covers website production delivery after verification.
+It does not authorise new provider integrations, production database/auth configuration,
+or a claim of beta readiness. Existing engine, tenant, sending and commercial safeguards
+remain authoritative. See `docs/design/sitewide-2026-09-15/README.md` and
+`docs/evidence/sitewide-2026-09-15/README.md` for decisions, review coverage and limits.
+
 ### Customer roadmap slice (15 September 2026)
 
 Owner-authorised outcome: ask the original GPT design chat to review the public roadmap,

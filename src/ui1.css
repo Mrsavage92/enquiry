@@ -1,4 +1,5 @@
 /* Quiet Signal: a lilac shell, white work, and lightly separated repeated items. */
+@import "./workspace-refinement.css";
 .app-root {
   --motion-quick: 160ms;
   --motion-settle: 220ms;
