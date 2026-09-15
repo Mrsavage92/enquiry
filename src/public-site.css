@@ -1,5 +1,6 @@
 /* Public-site presentation is isolated from the operational workspace. */
 @import "./site-story.css";
+@import "./brand-hero.css";
 .public-site {
   --public-violet: #654ac2;
   min-height: 100dvh;
@@ -121,30 +122,6 @@
 .public-skip:focus {
   top: 12px;
 }
-.public-hero {
-  padding-top: 42px;
-}
-.public-hero-copy {
-  text-align: center;
-  padding: 0 24px 30px;
-}
-.public-hero h1 {
-  font-size: 60px;
-  font-weight: 650;
-  line-height: 1.1;
-}
-.public-hero h1 span {
-  color: var(--public-violet);
-}
-.public-hero-copy > p {
-  margin: 16px auto 0;
-  font-size: 19px;
-  line-height: 1.6;
-  color: #68656d;
-}
-.public-mobile-break {
-  display: none;
-}
 .public-actions {
   display: flex;
   align-items: center;
@@ -188,9 +165,26 @@
   text-underline-offset: 4px;
 }
 .public-showcase {
-  padding: 0 32px 25px;
-  background: #f4f1f8;
-  border-block: 1px solid #eeebf2;
+  padding: 28px 32px 36px;
+  background: #f8f8f7;
+  border-bottom: 1px solid #eeebf2;
+  scroll-margin-top: 20px;
+}
+.public-showcase-heading {
+  max-width: 1120px;
+  margin-inline: auto;
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 16px;
+}
+.public-showcase-heading p {
+  font-size: 20px;
+  font-weight: 550;
+}
+.public-showcase-heading > span {
+  font-size: 12px;
+  color: #68656d;
 }
 .public-showcase-controls {
   display: flex;
@@ -692,23 +686,6 @@
     padding-inline: 12px;
     font-size: 12px;
   }
-  .public-hero {
-    padding-top: 28px;
-  }
-  .public-hero h1 {
-    font-size: 44px;
-  }
-  .public-hero-copy {
-    padding: 0 20px 24px;
-  }
-  .public-hero-copy > p {
-    font-size: 16px;
-    line-height: 1.6;
-    margin-top: 12px;
-  }
-  .public-mobile-break {
-    display: block;
-  }
   .public-actions {
     gap: 18px;
     margin-top: 20px;
@@ -721,7 +698,16 @@
     font-size: 13px;
   }
   .public-showcase {
-    padding: 0 20px 16px;
+    padding: 24px 20px 16px;
+  }
+  .public-showcase-heading {
+    display: block;
+  }
+  .public-showcase-heading p {
+    font-size: 18px;
+  }
+  .public-showcase-heading > span {
+    display: none;
   }
   .public-showcase-controls {
     gap: 3px;

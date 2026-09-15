@@ -10,6 +10,17 @@ Product-owner instruction on 2026-09-10: implement the UI1 core-experience redes
 
 ## Current release state
 
+### Homepage art direction (15 September 2026)
+
+The owner rejected the homepage hero as visually weak, specifically asking for colour,
+artistic design, uniqueness and animation while retaining the different actual product
+views. `codex/ui1-hero-art-direction` isolates that correction from `e4ac563` (PR #31).
+Scope: full-bleed original brand artwork, live typography, CTA hierarchy, controlled motion
+and the transition into the existing screenshot selector. No operational app, auth, pricing,
+provider or engine changes. Website publishing remains covered by the owner's standing
+instruction; aesthetic acceptance and beta readiness are not inferred from publication.
+See `docs/evidence/hero-art-2026-09-15/README.md` for asset provenance and verification.
+
 ### Reference fidelity correction (15 September 2026)
 
 The owner rejected the previous release's fidelity to the generated images. A positive
