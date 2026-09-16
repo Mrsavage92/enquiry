@@ -4,6 +4,7 @@ import { Menu, X } from "lucide-react";
 import { Wordmark } from "@/components/ui/wordmark";
 import { captureAttribution, currentTouch, launchSessionId } from "@/lib/launch/session";
 import { trackLaunchEvent } from "@/lib/launch/api";
+import { SUPPORT_EMAIL, SUPPORT_MAILTO } from "@/lib/site/contact";
 
 const NAV = [
   { to: "/how", label: "How it works" },
@@ -156,11 +157,15 @@ export function SiteShell({ children }: { children: ReactNode }) {
             <Link to="/login">Sign in</Link>
             <Link to="/privacy">Privacy</Link>
             <Link to="/terms">Terms</Link>
+            <a href={SUPPORT_MAILTO}>Contact</a>
           </nav>
         </div>
         <div className="public-container public-footer-bottom">
           <span>Enquiry</span>
-          <span>Built with small service businesses in mind.</span>
+          <span>
+            Built with small service businesses in mind. Questions:{" "}
+            <a href={SUPPORT_MAILTO}>{SUPPORT_EMAIL}</a>
+          </span>
         </div>
       </footer>
     </div>

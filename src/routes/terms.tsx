@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { socialHead } from "@/lib/site/head";
 import { LegalLayout } from "@/components/site/legal-layout";
+import { SUPPORT_EMAIL, SUPPORT_MAILTO } from "@/lib/site/contact";
 
 export const Route = createFileRoute("/terms")({
   component: Terms,
@@ -34,7 +35,8 @@ function Terms() {
         Joining early access is a request, not a purchase and not a guarantee of a place. We invite
         businesses in small groups as the product is ready. Enquiry is intended to become a paid
         product. The founding offer is 30% off the first 12 months once billing begins; final plan
-        prices have not been announced. Joining the list does not create a paid subscription.
+        prices have not been announced. We will give at least 30 days of written notice before any
+        billing begins. Joining the list does not create a paid subscription.
       </p>
       <h2 id="workspace">The demo and your workspace</h2>
       <p>
@@ -68,7 +70,11 @@ function Terms() {
         <Link to="/privacy" className="font-medium text-ink underline-offset-4 hover:underline">
           Privacy
         </Link>{" "}
-        explains the waitlist. Questions belong on a reply to any Enquiry email we send you.
+        explains the waitlist. Questions go to{" "}
+        <a href={SUPPORT_MAILTO} className="font-medium text-ink underline-offset-4 hover:underline">
+          {SUPPORT_EMAIL}
+        </a>
+        .
       </p>
     </LegalLayout>
   );

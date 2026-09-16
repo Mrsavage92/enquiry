@@ -12,6 +12,14 @@ import {
   sanitizePath,
 } from "./guard";
 import { persistRoadmapFeedback, prepareRoadmapFeedback } from "./feedback";
+import { guarded } from "@/lib/server/alert";
+
+/** Rate-limit and cross-site rejections are user outcomes, not incidents. */
+const EXPECTED_LAUNCH_ERRORS = new Set(["Try again in a moment.", "Rejected."]);
+const expectedLaunchError = (error: unknown) =>
+  error instanceof Error && EXPECTED_LAUNCH_ERRORS.has(error.message);
+const launchGuard = <R,>(scope: string, run: () => Promise<R>) =>
+  guarded(scope, run, expectedLaunchError)();
 
 export const joinWaitlist = createServerFn({ method: "POST" })
   .validator((raw: unknown) => {
@@ -33,7 +41,8 @@ export const joinWaitlist = createServerFn({ method: "POST" })
       website: asString(d.website, 80),
     };
   })
-  .handler(async ({ data }) => {
+  .handler(async ({ data }) =>
+    launchGuard("joinWaitlist", async () => {
     const { protectLaunch } = await import("./protect.server");
     protectLaunch("waitlist");
     if (honeypotFilled(data.website)) {
@@ -75,7 +84,8 @@ export const joinWaitlist = createServerFn({ method: "POST" })
       )
     `;
     return { id, already: false as const };
-  });
+    }),
+  );
 
 export const qualifyWaitlist = createServerFn({ method: "POST" })
   .validator((raw: unknown) => {
@@ -91,7 +101,8 @@ export const qualifyWaitlist = createServerFn({ method: "POST" })
       landing_path: sanitizePath(asString(d.landing_path, 200) || "/early-access"),
     };
   })
-  .handler(async ({ data }) => {
+  .handler(async ({ data }) =>
+    launchGuard("qualifyWaitlist", async () => {
     const { protectLaunch } = await import("./protect.server");
     protectLaunch("qualify");
     if (!isUuid(data.id)) return { ok: true };
@@ -114,7 +125,8 @@ export const qualifyWaitlist = createServerFn({ method: "POST" })
       values (${crypto.randomUUID()}, ${sessionId}, ${"qualification_completed"}, ${data.landing_path})
     `;
     return { ok: true };
-  });
+    }),
+  );
 
 export const trackLaunchEvent = createServerFn({ method: "POST" })
   .validator((raw: unknown) => {
@@ -131,7 +143,8 @@ export const trackLaunchEvent = createServerFn({ method: "POST" })
       landing_path: sanitizePath(asString(d.landing_path, 200) || "/"),
     };
   })
-  .handler(async ({ data }) => {
+  .handler(async ({ data }) =>
+    launchGuard("trackLaunchEvent", async () => {
     const { protectLaunch } = await import("./protect.server");
     if (protectLaunch("event") === "drop") return { ok: true };
     if (!isAllowedEvent(data.event_name)) return { ok: true };
@@ -149,7 +162,8 @@ export const trackLaunchEvent = createServerFn({ method: "POST" })
       )
     `;
     return { ok: true };
-  });
+    }),
+  );
 
 export const toggleRoadmapNeed = createServerFn({ method: "POST" })
   .validator((raw: unknown) => {
@@ -165,7 +179,8 @@ export const toggleRoadmapNeed = createServerFn({ method: "POST" })
       referrer: asString(d.referrer, 400),
     };
   })
-  .handler(async ({ data }) => {
+  .handler(async ({ data }) =>
+    launchGuard("toggleRoadmapNeed", async () => {
     const { protectLaunch } = await import("./protect.server");
     protectLaunch("roadmap");
     if (!isAllowedFeature(data.feature_id) || !data.feature_id) return { needed: false };
@@ -205,14 +220,16 @@ export const toggleRoadmapNeed = createServerFn({ method: "POST" })
       )
     `;
     return { needed: true };
-  });
+    }),
+  );
 
 export const listMyRoadmapNeeds = createServerFn({ method: "POST" })
   .validator((raw: unknown) => {
     const d = (raw ?? {}) as Record<string, unknown>;
     return { sessionId: asString(d.sessionId, 80) };
   })
-  .handler(async ({ data }) => {
+  .handler(async ({ data }) =>
+    launchGuard("listMyRoadmapNeeds", async () => {
     const { protectLaunch } = await import("./protect.server");
     if (protectLaunch("needs") === "drop") return { ids: [] as string[] };
     if (!isUuid(data.sessionId)) return { ids: [] as string[] };
@@ -221,7 +238,8 @@ export const listMyRoadmapNeeds = createServerFn({ method: "POST" })
       select feature_id from roadmap_interest where session_id = ${data.sessionId}
     `;
     return { ids: [...new Set(rows.map((r) => canonicalFeatureId(r.feature_id)).filter(isAllowedFeature))] };
-  });
+    }),
+  );
 
 export const saveRoadmapFeedback = createServerFn({ method: "POST" })
   .validator((raw: unknown) => {
@@ -238,7 +256,8 @@ export const saveRoadmapFeedback = createServerFn({ method: "POST" })
       referrer: asString(d.referrer, 400),
     };
   })
-  .handler(async ({ data }) => {
+  .handler(async ({ data }) =>
+    launchGuard("saveRoadmapFeedback", async () => {
     const { protectLaunch } = await import("./protect.server");
     protectLaunch("roadmap");
     const prepared = prepareRoadmapFeedback(data);
@@ -246,4 +265,5 @@ export const saveRoadmapFeedback = createServerFn({ method: "POST" })
     const sql = await getSql();
     await persistRoadmapFeedback(sql, prepared);
     return { ok: true as const, saved: true as const };
-  });
+    }),
+  );

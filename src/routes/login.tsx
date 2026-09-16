@@ -16,12 +16,16 @@ export const Route = createFileRoute("/login")({
     if (typeof search.redirect !== "string" || !search.redirect) return {};
     return { redirect: safeReturnPath(search.redirect) };
   },
-  head: () =>
-    socialHead({
+  head: () => {
+    // Session-only surface: robots.txt already disallows it; this makes the
+    // page say so itself for crawlers that ignore robots, matching /signup.
+    const head = socialHead({
       path: "/login",
       title: "Sign in - Enquiry",
       description: "Enquiry sends a link. There is no password.",
-    }),
+    });
+    return { ...head, meta: [...head.meta, { name: "robots", content: "noindex,nofollow" }] };
+  },
   component: LoginPage,
 });
 

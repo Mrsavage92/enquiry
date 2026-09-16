@@ -14,6 +14,7 @@ import { classifyAuthError, sentStateCopy, type AuthIntent } from "@/lib/auth/in
 import { canResend, resendCooldownRemainingMs, resendLabel } from "@/lib/auth/resend";
 import { Button } from "@/components/ui/button";
 import { AuthLayout } from "./auth-layout";
+import { SUPPORT_EMAIL, SUPPORT_MAILTO } from "@/lib/site/contact";
 
 /**
  * The one email-link request screen, in two intents.
@@ -161,7 +162,11 @@ export function AuthRequestForm({
           </p>
           <p className="mt-3 text-sm leading-relaxed text-ink-2">
             The link opens Enquiry directly. If it has not arrived in a couple of minutes, check
-            spam, then resend.
+            spam, then resend. Still nothing after ten minutes? Email{" "}
+            <a href={SUPPORT_MAILTO} className="underline underline-offset-4 hover:text-ink">
+              {SUPPORT_EMAIL}
+            </a>
+            .
           </p>
 
           {/* Status only. The visible error below is a role="alert", which

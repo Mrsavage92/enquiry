@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { socialHead } from "@/lib/site/head";
 import { LegalLayout } from "@/components/site/legal-layout";
+import { OPERATOR_LINE, SUPPORT_EMAIL, SUPPORT_MAILTO } from "@/lib/site/contact";
 
 export const Route = createFileRoute("/privacy")({
   component: Privacy,
@@ -22,6 +23,7 @@ function Privacy() {
         { id: "use", title: "What we use it for" },
         { id: "workspaces", title: "Demo and workspaces" },
         { id: "providers", title: "Service providers" },
+        { id: "retention", title: "How long we keep it" },
         { id: "waitlist", title: "Keeping the waitlist" },
         { id: "choices", title: "Your choices" },
       ]}
@@ -56,10 +58,18 @@ function Privacy() {
       </p>
       <h2 id="providers">Service providers</h2>
       <p>
-        Enquiry uses hosting, database and authentication providers to operate the service. Where
-        AI-assisted interpretation is enabled, relevant enquiry and business context may be sent to
-        the configured AI provider to prepare a response. Not every deployment or feature has AI
-        processing enabled.
+        Enquiry runs on Vercel (hosting), Supabase (database and sign-in email; the database is in
+        Sydney, Australia) and, where AI-assisted interpretation is enabled, Anthropic (Claude,
+        processed in the United States). Enquiry and business context is sent to Anthropic only to
+        prepare a response, and customer messages are not used to train models. Not every
+        deployment or feature has AI processing enabled.
+      </p>
+      <h2 id="retention">How long we keep it</h2>
+      <p>
+        Waitlist records are kept until you ask us to remove them or the early-access programme
+        ends. Workspace information is kept while your account is active and removed within 30 days
+        of a deletion request, apart from records we must keep to show what actions were recorded
+        and by whom.
       </p>
       <h2 id="waitlist">Keeping the waitlist</h2>
       <p>
@@ -70,11 +80,14 @@ function Privacy() {
       </p>
       <h2 id="choices">Your choices</h2>
       <p>
-        To see, correct, or remove your waitlist email, write from that same address after you
-        receive an Enquiry email - we will reply from there. You can also just not join.
+        To see, correct or remove anything we hold about you, email{" "}
+        <a href={SUPPORT_MAILTO} className="font-medium text-ink underline-offset-4 hover:underline">
+          {SUPPORT_EMAIL}
+        </a>{" "}
+        from the address you joined with. You can also just not join.
       </p>
       <p>
-        Enquiry is being built from Australia.{" "}
+        {OPERATOR_LINE}{" "}
         <Link to="/terms" className="font-medium text-ink underline-offset-4 hover:underline">
           Terms
         </Link>{" "}

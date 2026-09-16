@@ -1,4 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
+import { guarded } from "@/lib/server/alert";
 import { authMiddleware } from "@/lib/auth/middleware";
 import { cleanOnboardingProfile } from "@/domain/onboarding-profile";
 
@@ -23,9 +24,13 @@ import { cleanOnboardingProfile } from "@/domain/onboarding-profile";
  * an error and not a reason to write a placeholder business. Onboarding owns
  * initial creation (R2A s1).
  */
+/** Onboarding is the one path every invited business must survive; report any throw. */
+const workspaceGuard = <R,>(scope: string, run: () => Promise<R>) => guarded(scope, run)();
+
 export const fetchWorkspace = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
-  .handler(async ({ context }) => {
+  .handler(async ({ context }) =>
+    workspaceGuard("fetchWorkspace", async () => {
     const { ensureAppUser } = await import("@/lib/repo/tenancy.server");
     const { hasWorkspace } = await import("@/lib/repo/provision.server");
     const { loadWorkspace } = await import("@/lib/repo/workspace.server");
@@ -46,7 +51,8 @@ export const fetchWorkspace = createServerFn({ method: "GET" })
       };
     }
     return { needsOnboarding: false as const, ...(await loadWorkspace(context.userId)) };
-  });
+    }),
+  );
 
 /**
  * Create the initial workspace from completed onboarding.
@@ -62,7 +68,8 @@ export const completeOnboarding = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   // Shared with the domain so the rules that are tested are the rules that run.
   .validator((raw: unknown) => cleanOnboardingProfile((raw ?? {}) as Record<string, unknown>))
-  .handler(async ({ context, data }) => {
+  .handler(async ({ context, data }) =>
+    workspaceGuard("completeOnboarding", async () => {
     const { ensureAppUser } = await import("@/lib/repo/tenancy.server");
     const { getSessionUser } = await import("@/lib/auth/verify.server");
     const { createInitialWorkspace } = await import("@/lib/repo/provision.server");
@@ -80,7 +87,8 @@ export const completeOnboarding = createServerFn({ method: "POST" })
       userId: context.userId,
     });
     return { ok: true as const, businessId, created };
-  });
+    }),
+  );
 
 /**
  * Re-read the workspace without provisioning. Used after a mutation, where a
