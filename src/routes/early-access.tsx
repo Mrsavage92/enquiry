@@ -34,7 +34,7 @@ const PROMISES = [
   },
   {
     t: "No surprise charge",
-    b: "Enquiry is intended to be a paid product. We’ll share the full pricing before any paid access begins, give at least 30 days of written notice, and you decide whether to continue.",
+    b: "Indicative pricing is A$29-49 per month inc GST, and founding members keep 30% off for the first 12 months. It is provisional: the final figure is confirmed before any paid access begins, with at least 30 days of written notice, and you decide whether to continue.",
   },
 ];
 

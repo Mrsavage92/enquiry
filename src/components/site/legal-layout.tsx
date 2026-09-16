@@ -15,7 +15,7 @@ export function LegalLayout({
       <article className="public-container public-legal">
         <header className="public-legal-header">
           <h1>{title}</h1>
-          <p>Last updated 14 September 2026</p>
+          <p>Last updated 16 September 2026</p>
         </header>
         <div className="public-legal-grid">
           <nav aria-label={`${title} contents`}>
