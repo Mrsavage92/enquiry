@@ -10,6 +10,48 @@ Product-owner instruction on 2026-09-10: implement the UI1 core-experience redes
 
 ## Current release state
 
+### Homepage art direction (15 September 2026)
+
+The owner rejected the homepage hero as visually weak, specifically asking for colour,
+artistic design, uniqueness and animation while retaining the different actual product
+views. `codex/ui1-hero-art-direction` isolates that correction from `e4ac563` (PR #31).
+Scope: full-bleed original brand artwork, live typography, CTA hierarchy, controlled motion
+and the transition into the existing screenshot selector. No operational app, auth, pricing,
+provider or engine changes. Website publishing remains covered by the owner's standing
+instruction; aesthetic acceptance and beta readiness are not inferred from publication.
+See `docs/evidence/hero-art-2026-09-15/README.md` for asset provenance and verification.
+
+### Reference fidelity correction (15 September 2026)
+
+The owner rejected the previous release's fidelity to the generated images. A positive
+GPT screenshot review did not constitute owner acceptance. The correction on
+`codex/ui1-reference-fidelity`, based on `e8b421d`, implements the actual compositions:
+horizontal How sequence and three native working surfaces; conversation/context beside
+next action/evidence in Demo; illustrated chronological Updates rows; one Business
+directory; compact Insights stat cards and independent count bars. The shared homepage
+story inherits the same composition. The roadmap and accepted entry direction are retained.
+
+Existing generated boards are the reference, not a prompt for another reinterpretation.
+Sample claims, dates, metrics and unsupported send actions in those boards are not product
+authority. No domain, auth, tenancy, sending or provider configuration changes are included.
+Evidence and remaining limits: `docs/evidence/reference-fidelity-2026-09-15/README.md`.
+Owner visual acceptance remains open after publication.
+
+### Sitewide visual review (15 September 2026)
+
+Owner-authorised continuation: apply the original GPT review, creative image exploration,
+critique and native implementation process across the whole website and app. Isolated on
+`codex/ui1-sitewide-visual-review`, based on `9ebff84` (PR #29). Five visual boards inform
+four related page families. Strong existing Today, enquiry, Business and roadmap structures
+are retained after review; public storytelling, entry/onboarding, utility pages, Insights,
+permissions and recovery states receive targeted redesigns.
+
+The owner's standing instruction covers website production delivery after verification.
+It does not authorise new provider integrations, production database/auth configuration,
+or a claim of beta readiness. Existing engine, tenant, sending and commercial safeguards
+remain authoritative. See `docs/design/sitewide-2026-09-15/README.md` and
+`docs/evidence/sitewide-2026-09-15/README.md` for decisions, review coverage and limits.
+
 ### Customer roadmap slice (15 September 2026)
 
 Owner-authorised outcome: ask the original GPT design chat to review the public roadmap,

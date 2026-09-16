@@ -1,4 +1,5 @@
 import { useId, useState } from "react";
+import { ArrowUpRight, CircleHelp, Info, Store } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import {
@@ -40,17 +41,13 @@ export function CrossChannelDecisionDemo({
   };
 
   return (
-    <div className="w-full">
+    <div className="decision-demo w-full">
       {compact ? null : (
         <header className="max-w-3xl">
           <p className="eyebrow">{SIGNATURE_DEMO.business}</p>
           <span className="page-rule" aria-hidden />
-          <Heading className="site-display-proof mt-5">
-            {SIGNATURE_DEMO.headline}
-          </Heading>
-          <p className="site-lede mt-5">
-            {SIGNATURE_DEMO.supporting}
-          </p>
+          <Heading className="site-display-proof mt-5">{SIGNATURE_DEMO.headline}</Heading>
+          <p className="site-lede mt-5">{SIGNATURE_DEMO.supporting}</p>
         </header>
       )}
 
@@ -67,8 +64,8 @@ export function CrossChannelDecisionDemo({
         </button>
       </div>
 
-      <div className="mt-6 grid items-start gap-5 lg:grid-cols-12 lg:gap-8">
-        <div className="flex flex-col gap-3 lg:col-span-5">
+      <div className="demo-workspace">
+        <div className="demo-conversation">
           <MessageCard
             channel={SIGNATURE_DEMO.form.channel}
             at={SIGNATURE_DEMO.form.at}
@@ -90,53 +87,69 @@ export function CrossChannelDecisionDemo({
               </div>
             </>
           ) : null}
+          <section className="demo-context" aria-label="Business context">
+            <h2>
+              <Store size={17} aria-hidden="true" /> Business context
+            </h2>
+            <p>{state.want}</p>
+            <dl>
+              {state.facts.map((fact) => (
+                <FactRow key={fact.id} fact={fact} later={later} />
+              ))}
+            </dl>
+          </section>
         </div>
 
-        <article
-          className="proof-doc p-5 sm:p-6 lg:col-span-7"
-          aria-labelledby={liveId}
-        >
-          <p className="eyebrow">{later ? "Decision updated" : "Already decided"}</p>
-          <p id={liveId} className="mt-3 font-serif text-xl leading-snug tracking-tight sm:text-2xl">
-            {state.want}
-          </p>
-
-          <div className="mt-6 border-t border-line pt-5" aria-live="polite">
-            <p className="text-xs uppercase tracking-wider text-stone">Next</p>
-            <p
+        <article className="demo-action" aria-labelledby={liveId}>
+          <div className="demo-next" aria-live="polite">
+            <p className="demo-next-label">
+              <ArrowUpRight size={18} aria-hidden="true" />
+              {later ? "Next step updated" : "Next step"}
+            </p>
+            <h2
+              id={liveId}
               key={state.nextAction}
-              className={cn("proof-next mt-2", later && "demo-arrive")}
+              className={cn("proof-next", later && "demo-arrive")}
             >
               {state.nextAction}
-            </p>
-            <p className="mt-3 max-w-lg text-sm leading-relaxed text-ink-2">{state.nextReason}</p>
+            </h2>
+            <p>{state.nextReason}</p>
           </div>
 
-          <dl className="mt-6 space-y-0">
-            {state.facts.map((fact) => (
-              <FactRow key={fact.id} fact={fact} later={later} />
-            ))}
-          </dl>
-
-          <ul className="mt-5 space-y-1.5">
-            {state.checks.map((check) => (
-              <CheckRow
-                key={check.id}
-                check={check}
-                later={later}
-                whyOpen={whyOpen}
-                whyId={whyId}
-                onToggleWhy={() => setWhyOpen((v) => !v)}
-              />
-            ))}
-          </ul>
-
-          <p className="mt-5 text-xs leading-relaxed text-stone">{state.commercialNote}</p>
+          <section className="demo-reasons" aria-label="Why this step?">
+            <h2>
+              <CircleHelp size={17} aria-hidden="true" /> Why this step?
+            </h2>
+            <ul className="mt-4 space-y-1.5">
+              {state.checks.map((check) => (
+                <CheckRow
+                  key={check.id}
+                  check={check}
+                  later={later}
+                  whyOpen={whyOpen}
+                  whyId={whyId}
+                  onToggleWhy={() => setWhyOpen((v) => !v)}
+                />
+              ))}
+            </ul>
+          </section>
+          <section className="demo-caution" aria-label="Keep in mind">
+            <h2>
+              <Info size={17} aria-hidden="true" /> Keep in mind
+            </h2>
+            <p>{state.commercialNote}</p>
+            <p>
+              Nothing has been sent or booked. You review the next step and send through your own
+              channel.
+            </p>
+          </section>
         </article>
       </div>
 
       {compact ? null : (
-        <p className="mt-10 max-w-xl text-base leading-relaxed text-ink-2">{SIGNATURE_DEMO.takeaway}</p>
+        <p className="mt-10 max-w-xl text-base leading-relaxed text-ink-2">
+          {SIGNATURE_DEMO.takeaway}
+        </p>
       )}
     </div>
   );
@@ -160,7 +173,7 @@ function MessageCard({
   return (
     <article
       className={cn(
-        "bg-raised shadow-border",
+        "demo-message",
         dense ? "rounded-md p-4" : "rounded-md p-5 sm:p-6",
         incoming && "border-l-2 border-mark",
       )}
@@ -171,7 +184,7 @@ function MessageCard({
       </div>
       <p
         className={cn(
-          "mt-3 font-serif leading-relaxed",
+          "mt-3 leading-relaxed",
           dense ? "text-sm text-ink-2 sm:text-base" : "text-lg",
         )}
       >
@@ -230,7 +243,8 @@ function CheckRow({
 }) {
   const changed = later && check.changed;
   const tone = check.tone === "ok" ? "ok" : check.tone === "warn" ? "warn" : "neutral";
-  const badge = changed && check.tone === "warn" ? "Condition" : check.tone === "ok" ? "Clear" : "Noted";
+  const badge =
+    changed && check.tone === "warn" ? "Condition" : check.tone === "ok" ? "Clear" : "Noted";
 
   if (!changed) {
     return (

@@ -12,6 +12,7 @@ import type { ActionPolicyMode } from "@/domain/types";
 import { integrationStatusLabel } from "@/domain/labels";
 import { cn } from "@/lib/utils";
 import { useNarrow } from "@/lib/use-narrow";
+import { CheckCircle2, Circle, Eye, FilePenLine, LockKeyhole } from "lucide-react";
 
 export function TrustOverview() {
   const businesses = usePrototype((s) => s.businesses);
@@ -62,48 +63,49 @@ export function TrustOverview() {
         )}
       </div>
 
-      <p className="mt-8 text-2xl font-semibold tracking-tight">{business.trustMode}</p>
+      <h2 className="mt-8 text-lg font-semibold">Your review preference</h2>
       <p className="mt-2 max-w-xl text-sm leading-relaxed text-ink-2">
-        {business.trustMode === "Private"
-          ? "No mailbox. Work still arrives."
-          : business.trustMode === "Observe"
-            ? "It can read. It will not send."
-            : "You approve each send."}
+        Prepared replies and permission to act are separate. Your connection status still applies.
       </p>
 
-      <div className="mt-6 grid gap-2 sm:grid-cols-3">
+      <div className="trust-mode-options" role="group" aria-label="Review preference">
         {(["Private", "Observe", "Assist"] as const).map((m) => (
           <button
             key={m}
             type="button"
+            aria-pressed={business.trustMode === m}
             onClick={() => void trust.setTrustMode(business.id, m, (msg) => toast.error(msg))}
-            className={cn(
-              "rounded-lg px-4 py-4 text-left text-sm transition-[background-color,color,box-shadow] duration-150 ease-out",
-              business.trustMode === m
-                ? "bg-ink text-paper shadow-border"
-                : "bg-raised text-ink shadow-border hover:shadow-border-hover",
-            )}
+            className="trust-mode-choice"
           >
-            <p className="font-medium">{m}</p>
-            <p
-              className={cn(
-                "mt-1.5 text-xs leading-relaxed",
-                business.trustMode === m ? "text-paper/75" : "text-stone",
-              )}
-            >
-              {m === "Private"
-                ? "No mailbox."
-                : m === "Observe"
-                  ? "Read. Don’t send."
-                  : "You approve each send."}
-            </p>
+            {m === "Private" ? (
+              <LockKeyhole size={21} aria-hidden="true" />
+            ) : m === "Observe" ? (
+              <Eye size={21} aria-hidden="true" />
+            ) : (
+              <FilePenLine size={21} aria-hidden="true" />
+            )}
+            <span>
+              <strong>{m}</strong>
+              <small>
+                {m === "Private"
+                  ? "Work from the details you add. No mailbox reading."
+                  : m === "Observe"
+                    ? "Read-only preference. No outbound actions."
+                    : "Prepare replies for your review."}
+              </small>
+            </span>
+            {business.trustMode === m ? (
+              <CheckCircle2 size={20} aria-hidden="true" />
+            ) : (
+              <Circle size={20} aria-hidden="true" />
+            )}
           </button>
         ))}
       </div>
       {phone ? null : (
         <p className="mt-3 text-xs text-stone">
-          There is no global “give AI control” switch. Autopilot is enabled per action class after
-          evidence.
+          Separate permissions apply to each type of action. Changing this preference does not
+          connect an account.
         </p>
       )}
 
@@ -120,7 +122,7 @@ export function TrustOverview() {
           </div>
         ))}
         <div className="flex items-baseline justify-between gap-4 border-t border-line py-3.5">
-          <dt className="text-sm">Autopilot</dt>
+          <dt className="text-sm">Automatic permissions</dt>
           <dd className="text-sm text-ink-2">
             {autoCount} action class{autoCount === 1 ? "" : "es"} enabled
           </dd>
@@ -159,13 +161,13 @@ export function TrustOverview() {
         </Button>
         {phone ? null : (
           <Button asChild variant="secondary">
-            <Link to="/trust/automation">Review automation</Link>
+            <Link to="/trust/automation">Reply permissions</Link>
           </Button>
         )}
       </div>
       {phone ? null : (
         <p className="mt-3 text-xs text-stone">
-          Pause stops sending. Enquiry will keep reading new requests. Resume from here or the
+          Pause blocks outbound actions without changing your connections. Resume from here or the
           banner.
         </p>
       )}
@@ -186,7 +188,7 @@ export function TrustAccess() {
   const business = businesses.find((b) => b.id === id) ?? businesses[0];
   const calendarDown = enquiries.some(
     (e) =>
-      e.businessId === business.id &&
+      e.businessId === business?.id &&
       e.decision.evaluators.some(
         (ev) =>
           (ev.type === "capacity" || ev.type === "availability") &&
@@ -326,7 +328,7 @@ export function TrustAutomation() {
     <div className="mx-auto h-full max-w-3xl overflow-y-auto px-4 py-5 pb-8 sm:py-8">
       <PageHeader
         title="Reply permissions"
-        description="Automatic is necessary but never sufficient. Runtime still checks facts, risk, integrations and permissions."
+        description="Choose what needs your approval. Facts, risk and connection permissions are still checked before any action."
       />
       {/*
         Demo-only. These comparable counts are illustrative, and a real tenant
@@ -335,8 +337,10 @@ export function TrustAutomation() {
         than on a fixture id, which is the actual meaning.
       */}
       {demoMode ? (
-        <article className="mt-6 border-t border-line pt-5">
-          <p className="font-medium">Ready to automate missing-info questions?</p>
+        <details className="mt-6 border-t border-line pt-5">
+          <summary className="min-h-11 cursor-pointer text-sm font-medium">
+            Sample evidence for missing-information questions
+          </summary>
           <p className="mt-2 text-sm leading-relaxed text-ink-2">
             Enquiry has handled 74 comparable missing-info requests. 72 approved unchanged, 2 edited
             for wording only, 0 factual corrections, 0 pricing or capacity claims.
@@ -345,7 +349,7 @@ export function TrustAutomation() {
             Enquiry may automatically send a question only when a configured decision-critical fact
             is missing and no high-risk flags are present.
           </p>
-        </article>
+        </details>
       ) : null}
       <ul className="ledger mt-2">
         {business.actionPolicies.map((p) => (
@@ -364,6 +368,7 @@ export function TrustAutomation() {
                     <button
                       key={m}
                       type="button"
+                      aria-pressed={p.mode === m}
                       disabled={p.risk === "HIGH" && m === "Automatic when safe"}
                       onClick={() =>
                         void trust.setActionPolicy(business.id, p.action, m, (msg) =>
@@ -423,19 +428,21 @@ export function TrustAudit() {
         : [];
   return (
     <div className="mx-auto h-full max-w-3xl overflow-y-auto px-4 py-5 pb-8 sm:py-8">
-      <PageHeader title="Audit" description="What Enquiry did, and who allowed it. Newest first." />
+      <PageHeader
+        title="Activity history"
+        description="Recorded actions and who allowed them. Newest first."
+      />
       {rows.length === 0 ? (
         <p className="mt-8 border-t border-line py-10 text-sm text-stone">
           No actions recorded yet.
         </p>
       ) : (
-        <ol className="ledger mt-6">
+        <ol className="trust-activity">
           {rows.map((e) => (
             <li key={e.id} className="text-sm">
+              <time dateTime={e.at}>{new Date(e.at).toLocaleString("en-AU")}</time>
               <p className="font-medium">{e.summary}</p>
-              <p className="mt-0.5 text-xs text-stone">
-                {e.actor} · {new Date(e.at).toLocaleString("en-AU")}
-              </p>
+              <small>{e.actor}</small>
             </li>
           ))}
         </ol>

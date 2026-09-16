@@ -26,11 +26,15 @@ const VIEWS = [
 ] as const;
 
 export function ProductShowcase() {
-  const [selected, setSelected] = useState(0);
+  const [selected, setSelected] = useState(1);
   const panelId = useId();
   const view = VIEWS[selected];
   return (
-    <div className="public-showcase">
+    <section id="product-preview" className="public-showcase" aria-label="Explore the actual app">
+      <div className="public-showcase-heading">
+        <p>A little more room in your day.</p>
+        <span>One workspace. Your next move.</span>
+      </div>
       <div className="public-showcase-controls" role="group" aria-label="Product views">
         {VIEWS.map(({ id, icon: Icon, label }, index) => (
           <button
@@ -55,8 +59,8 @@ export function ProductShowcase() {
                 alt={item.alt}
                 width="1440"
                 height="960"
-                loading={index === 0 ? "eager" : "lazy"}
-                fetchPriority={index === 0 ? "high" : "auto"}
+                loading={index === 1 ? "eager" : "lazy"}
+                fetchPriority="auto"
               />
             </picture>
           ))}
@@ -66,6 +70,6 @@ export function ProductShowcase() {
           <span className="public-sample-label">Actual app · sample workspace</span>
         </figcaption>
       </figure>
-    </div>
+    </section>
   );
 }

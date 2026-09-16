@@ -42,46 +42,102 @@ const POSTS = [
   },
 ];
 
+const VISUALS = [
+  {
+    src: "/product/ui1/enquiry-desktop.jpg",
+    alt: "An enquiry in the current sample workspace.",
+    to: "/demo",
+  },
+  {
+    src: "/product/roadmap/roadmap-desktop.jpg",
+    alt: "The public roadmap, separating current and planned outcomes.",
+    to: "/roadmap",
+  },
+  {
+    src: "/product/ui1/enquiry-mobile.jpg",
+    alt: "The current mobile sample enquiry, with its next step and uncertainties.",
+    to: "/demo",
+  },
+  {
+    src: "/product/ui1/today-desktop.jpg",
+    alt: "Today's enquiries in the current sample workspace.",
+    to: "/demo",
+  },
+  {
+    src: "/product/ui1/business-desktop.jpg",
+    alt: "Business information in the current sample workspace.",
+    to: "/demo",
+  },
+] as const;
+
 function Updates() {
   return (
     <SiteShell>
       <article className="public-container pb-16">
-        <div className="public-page-heading">
-          <h1>Updates</h1>
-          <p>
-            Notes on what we are building, what we are learning and the decisions behind Enquiry.
-          </p>
-          <div className="public-actions">
-            <Link to="/early-access" className="public-button">
-              Join early access <ArrowRight size={17} aria-hidden="true" />
-            </Link>
-            <Link to="/roadmap" className="public-text-link">
-              See the roadmap <ArrowRight size={16} aria-hidden="true" />
-            </Link>
+        <header className="public-page-heading journal-heading">
+          <div>
+            <h1>Updates</h1>
+            <p>The product, the progress, and why it matters to your working day.</p>
           </div>
-        </div>
-        <ul className="public-updates">
-          {POSTS.map((p) => (
-            <li key={p.title}>
-              <time>{p.date}</time>
-              <div>
-                <h2>{p.title}</h2>
-                <p>{p.body}</p>
+          <p>
+            Built with care.
+            <br />
+            Shared as we go.
+          </p>
+        </header>
+        <ol className="product-journal" aria-label="Product updates">
+          <li>
+            <time className="journal-date" dateTime="2026-09-15">
+              15 Sep 2026
+            </time>
+            <div className="journal-copy">
+              <h2>A clearer view of what's next.</h2>
+              <p>
+                From the next customer reply to Enquiry in your pocket. Our new roadmap puts the
+                outcomes first, with a clear distinction between what is here and what is planned.
+              </p>
+              <Link to="/roadmap" className="public-text-link">
+                Explore the roadmap <ArrowRight size={15} aria-hidden="true" />
+              </Link>
+            </div>
+            <figure className="journal-visual">
+              <img
+                src="/product/roadmap/roadmap-desktop.jpg"
+                width="1270"
+                height="714"
+                alt="The Enquiry roadmap with Now, Next, Later and Exploring horizons."
+              />
+              <figcaption>From the live roadmap · September 2026</figcaption>
+            </figure>
+          </li>
+          {POSTS.map((post, index) => (
+            <li key={post.title}>
+              <time className="journal-date">{post.date}</time>
+              <div className="journal-copy">
+                <h2>{post.title}</h2>
+                <p>{post.body}</p>
+                <Link to={VISUALS[index].to} className="public-text-link">
+                  {VISUALS[index].to === "/roadmap" ? "View the roadmap" : "Explore the sample"}
+                  <ArrowRight size={15} aria-hidden="true" />
+                </Link>
               </div>
+              <figure className="journal-visual">
+                <img
+                  src={VISUALS[index].src}
+                  alt={VISUALS[index].alt}
+                  width="1280"
+                  height="800"
+                  loading="lazy"
+                />
+                <figcaption>
+                  {VISUALS[index].to === "/roadmap"
+                    ? "Current roadmap · Plans, not release promises"
+                    : "Current sample workspace · Not customer data"}
+                </figcaption>
+              </figure>
             </li>
           ))}
-        </ul>
-        <p className="mt-10 max-w-3xl text-sm text-ink-2">
-          What’s in motion is on the{" "}
-          <Link to="/roadmap" className="font-medium underline-offset-4 hover:underline">
-            roadmap
-          </Link>
-          . Want to see the product?{" "}
-          <Link to="/demo" className="font-medium underline-offset-4 hover:underline">
-            Try the demo
-          </Link>
-          .
-        </p>
+        </ol>
       </article>
       <EarlyAccessInvite />
     </SiteShell>

@@ -43,10 +43,16 @@ function EarlyAccess() {
     <AuthLayout>
       <WaitlistForm appearance="entry" />
       <div className="auth-offer">
-        <p>
-          <strong>For the first businesses.</strong> Join before public release and get 30% off your
-          first 12 months if you become a paying customer.
-        </p>
+        <div className="auth-founding-offer">
+          <strong className="auth-offer-value">
+            30<span>%</span>
+          </strong>
+          <p>
+            <strong>For the first businesses.</strong>
+            <br />
+            Off your first 12 months if you join before public release and become a paying customer.
+          </p>
+        </div>
         <details>
           <summary>
             How early access works

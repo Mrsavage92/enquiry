@@ -4,7 +4,7 @@ import { ArrowLeft, Pause, Play } from "lucide-react";
 import { Wordmark } from "@/components/ui/wordmark";
 import { AuroraBackground } from "@/components/ui/aurora-background";
 
-export function AuthLayout({ children }: { children: ReactNode }) {
+export function AuthLayout({ children, wide = false }: { children: ReactNode; wide?: boolean }) {
   const [motionPaused, setMotionPaused] = useState(false);
   const motionLabel = motionPaused ? "Resume background animation" : "Pause background animation";
 
@@ -21,7 +21,7 @@ export function AuthLayout({ children }: { children: ReactNode }) {
         </Link>
       </header>
       <main className="auth-stage">
-        <div className="auth-content">{children}</div>
+        <div className={`auth-content${wide ? " auth-content-wide" : ""}`}>{children}</div>
       </main>
       <footer className="auth-footer">
         <div className="auth-footer-brand">
