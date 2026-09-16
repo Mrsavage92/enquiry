@@ -44,7 +44,7 @@ export function BrandHero() {
         </picture>
       </div>
       <div className="brand-hero-copy">
-        <p className="brand-hero-category">For the person behind the business.</p>
+        <p className="brand-hero-category">For service businesses that quote before they book.</p>
         <h1 id="home-title">
           Enquiry<span>.</span>
         </h1>
@@ -54,8 +54,8 @@ export function BrandHero() {
           More getting on with it.
         </p>
         <p className="brand-hero-description">
-          Customer enquiries, a prepared next step,
-          <br className="brand-desktop-break" /> and the final say where it belongs. With you.
+          Bring in a messy enquiry. See what it needs, what it should cost
+          <br className="brand-desktop-break" /> and what to say next. You still send it.
         </p>
         <div className="brand-hero-actions">
           <Link to="/early-access" className="brand-hero-join">

@@ -33,7 +33,7 @@ export function ProductShowcase() {
     <section id="product-preview" className="public-showcase" aria-label="Explore the actual app">
       <div className="public-showcase-heading">
         <p>A little more room in your day.</p>
-        <span>One workspace. Your next move.</span>
+        <span>Built in the open. Every change is posted to Updates.</span>
       </div>
       <div className="public-showcase-controls" role="group" aria-label="Product views">
         {VIEWS.map(({ id, icon: Icon, label }, index) => (
