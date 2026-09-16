@@ -66,7 +66,7 @@
   display: inline-flex;
   align-items: center;
   min-height: 44px;
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 500;
   color: #68656d;
 }
@@ -86,12 +86,12 @@
   align-items: center;
   justify-content: center;
   min-height: 44px;
-  padding: 10px 17px;
+  padding: 11px 19px;
   border: 1px solid #d9d0ed;
   background: #f7f4fc;
   color: #543aab;
   border-radius: 8px;
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 600;
   text-align: center;
 }
@@ -136,10 +136,10 @@
   justify-content: center;
   gap: 12px;
   min-height: 48px;
-  padding: 12px 20px;
+  padding: 14px 22px;
   background: var(--public-violet);
   color: #fff;
-  font-size: 14px;
+  font-size: 16px;
   line-height: 1.4;
   font-weight: 600;
   border: 1px solid transparent;
@@ -156,7 +156,7 @@
   gap: 10px;
   min-height: 44px;
   color: #543aab;
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 550;
 }
 .public-text-link:hover {
@@ -179,11 +179,11 @@
   gap: 16px;
 }
 .public-showcase-heading p {
-  font-size: 20px;
+  font-size: 22px;
   font-weight: 550;
 }
 .public-showcase-heading > span {
-  font-size: 12px;
+  font-size: 13px;
   color: #68656d;
 }
 .public-showcase-controls {
@@ -200,7 +200,7 @@
   min-height: 44px;
   width: 164px;
   padding: 8px 12px;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 550;
   color: #68656d;
   border: 1px solid transparent;
@@ -247,13 +247,13 @@
   gap: 20px;
   min-height: 54px;
   padding-top: 14px;
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.5;
   color: #68656d;
 }
 .public-sample-label {
   flex-shrink: 0;
-  font-size: 11px;
+  font-size: 12px;
 }
 .public-section {
   padding-block: 88px;
@@ -263,7 +263,7 @@
 }
 .public-kicker {
   color: #69519d;
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 550;
   line-height: 1.5;
   margin-bottom: 14px;
@@ -273,7 +273,7 @@
 }
 .public-section-heading h2,
 .public-invite h2 {
-  font-size: 34px;
+  font-size: 38px;
   font-weight: 600;
   line-height: 1.22;
 }
@@ -281,7 +281,7 @@
 .public-invite p:not(.public-kicker) {
   margin-top: 18px;
   color: #68656d;
-  font-size: 16px;
+  font-size: 18px;
   line-height: 1.7;
   max-width: 550px;
 }
@@ -314,14 +314,14 @@
 .public-benefit h3,
 .public-process h3 {
   margin-top: 20px;
-  font-size: 18px;
+  font-size: 20px;
   font-weight: 600;
   line-height: 1.45;
 }
 .public-benefit p,
 .public-process p {
   margin-top: 10px;
-  font-size: 14px;
+  font-size: 16px;
   line-height: 1.75;
   color: #68656d;
 }
@@ -347,7 +347,7 @@
   border-top: 1px solid #dcd8e3;
 }
 .public-process li > span {
-  font-size: 12px;
+  font-size: 13px;
   color: #69519d;
   font-weight: 550;
 }
@@ -362,7 +362,7 @@
   flex-shrink: 0;
 }
 .public-review-note p {
-  font-size: 13px;
+  font-size: 15px;
   line-height: 1.6;
   color: #55575a;
 }
@@ -387,7 +387,7 @@
   gap: 20px;
   padding: 23px 0;
   list-style: none;
-  font-size: 15px;
+  font-size: 17px;
   font-weight: 550;
   line-height: 1.6;
   cursor: pointer;
@@ -407,7 +407,7 @@
   max-width: 65ch;
   padding: 0 24px 24px 0;
   color: #68656d;
-  font-size: 14px;
+  font-size: 16px;
   line-height: 1.75;
 }
 .public-invite {
@@ -425,7 +425,7 @@
   text-align: center;
 }
 .public-invite-action p {
-  font-size: 12px !important;
+  font-size: 13px !important;
   margin-top: 12px !important;
 }
 .public-footer {
@@ -440,7 +440,7 @@
 .public-footer-main p {
   margin-top: 16px;
   color: #68656d;
-  font-size: 13px;
+  font-size: 15px;
   line-height: 1.8;
 }
 .public-footer nav {
@@ -449,7 +449,7 @@
   align-items: flex-start;
 }
 .public-footer nav h2 {
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 600;
   margin: 8px 0 10px;
 }
@@ -457,7 +457,7 @@
   display: inline-flex;
   align-items: center;
   min-height: 44px;
-  font-size: 13px;
+  font-size: 15px;
   color: #68656d;
 }
 .public-footer nav a:hover {
@@ -469,7 +469,7 @@
   gap: 24px;
   border-top: 1px solid #eeecf1;
   padding-block: 24px;
-  font-size: 11px;
+  font-size: 12px;
   color: #68656d;
 }
 .public-page-heading {
@@ -478,13 +478,13 @@
 .public-page-heading h1,
 .public-site .site-display-proof,
 .public-site .site-hero {
-  font-size: 44px;
+  font-size: 48px;
   line-height: 1.2;
   font-weight: 600;
 }
 .public-page-heading > p {
   color: #68656d;
-  font-size: 17px;
+  font-size: 19px;
   line-height: 1.7;
   max-width: 650px;
   margin-top: 20px;
@@ -506,18 +506,18 @@
 }
 .public-site .eyebrow {
   text-transform: none;
-  font-size: 12px;
+  font-size: 13px;
   color: #68656d;
 }
 .public-site .text-halo {
   text-shadow: none;
 }
 .public-site .site-display {
-  font-size: 30px;
+  font-size: 34px;
   line-height: 1.3;
 }
 .public-site .site-caption {
-  font-size: 20px;
+  font-size: 22px;
 }
 .public-site .proof-doc {
   background: #fff;
@@ -533,11 +533,11 @@
   border-block: 1px solid #eeecf1;
 }
 .public-site .roadmap-stage h2 {
-  font-size: 32px;
+  font-size: 36px;
   line-height: 1.25;
 }
 .public-site .roadmap-stage h2 + p {
-  font-size: 20px;
+  font-size: 22px;
   line-height: 1.55;
 }
 .public-site .roadmap-stage [class*="uppercase"] {
@@ -570,17 +570,17 @@
   border-top: 1px solid #e6e2ec;
 }
 .public-updates time {
-  font-size: 13px;
+  font-size: 14px;
   color: #68656d;
   padding-top: 5px;
 }
 .public-updates h2 {
-  font-size: 21px;
+  font-size: 23px;
   line-height: 1.45;
   font-weight: 550;
 }
 .public-updates p {
-  font-size: 14px;
+  font-size: 16px;
   color: #68656d;
   line-height: 1.85;
   margin-top: 12px;
@@ -601,11 +601,11 @@
     padding-bottom: 20px;
   }
   .public-hero h1 {
-    font-size: 48px;
+    font-size: 52px;
   }
   .public-hero-copy > p {
     margin-top: 10px;
-    font-size: 17px;
+    font-size: 19px;
   }
   .public-hero .public-actions {
     margin-top: 16px;
@@ -647,7 +647,7 @@
     display: flex;
     align-items: center;
     min-height: 48px;
-    font-size: 15px;
+    font-size: 17px;
   }
   .public-mobile-menu a[aria-current] {
     color: #654ac2;
@@ -670,7 +670,7 @@
     gap: 18px;
   }
   .public-site .roadmap-stage h2 {
-    font-size: 28px;
+    font-size: 32px;
   }
   .public-container {
     width: calc(100% - 40px);
@@ -684,7 +684,7 @@
   }
   .public-nav-join {
     padding-inline: 12px;
-    font-size: 12px;
+    font-size: 13px;
   }
   .public-actions {
     gap: 18px;
@@ -692,10 +692,10 @@
   }
   .public-button {
     padding-inline: 16px;
-    font-size: 13px;
+    font-size: 15px;
   }
   .public-text-link {
-    font-size: 13px;
+    font-size: 15px;
   }
   .public-showcase {
     padding: 24px 20px 16px;
@@ -704,7 +704,7 @@
     display: block;
   }
   .public-showcase-heading p {
-    font-size: 18px;
+    font-size: 20px;
   }
   .public-showcase-heading > span {
     display: none;
@@ -718,7 +718,7 @@
     width: auto;
     padding: 6px 4px;
     gap: 5px;
-    font-size: 11px;
+    font-size: 12px;
   }
   .public-showcase-controls button svg {
     width: 14px;
@@ -734,18 +734,18 @@
     flex-direction: column;
     gap: 5px;
     min-height: 84px;
-    font-size: 11px;
+    font-size: 12px;
   }
   .public-section {
     padding-block: 56px;
   }
   .public-section-heading h2,
   .public-invite h2 {
-    font-size: 28px;
+    font-size: 32px;
   }
   .public-section-heading > p:not(.public-kicker),
   .public-invite p:not(.public-kicker) {
-    font-size: 15px;
+    font-size: 17px;
   }
   .public-benefits,
   .public-process,
@@ -766,7 +766,7 @@
   }
   .public-benefit h3 {
     margin-top: 0;
-    font-size: 17px;
+    font-size: 19px;
   }
   .public-benefit p {
     grid-column: 2;
@@ -789,14 +789,14 @@
   }
   .public-process h3 {
     margin-top: 0;
-    font-size: 17px;
+    font-size: 19px;
   }
   .public-process p {
     grid-column: 2;
     margin-top: 0;
   }
   .public-faq summary {
-    font-size: 14px;
+    font-size: 16px;
   }
   .public-invite {
     padding-block: 44px;
@@ -820,17 +820,17 @@
   .public-page-heading h1,
   .public-site .site-display-proof,
   .public-site .site-hero {
-    font-size: 34px;
+    font-size: 38px;
   }
   .public-page-heading > p {
-    font-size: 15px;
+    font-size: 17px;
   }
   .public-updates li {
     grid-template-columns: 1fr;
     gap: 12px;
   }
   .public-updates h2 {
-    font-size: 20px;
+    font-size: 23px;
   }
 }
 @media (prefers-reduced-motion: reduce) {

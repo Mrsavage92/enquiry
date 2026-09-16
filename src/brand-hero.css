@@ -36,7 +36,7 @@
   padding: 34px 24px 86px;
 }
 .brand-hero-category {
-  font-size: 13px;
+  font-size: 15px;
   color: #544862;
   font-weight: 500;
   margin-bottom: 14px;
@@ -51,14 +51,14 @@
   color: #7450c4;
 }
 .brand-hero-promise {
-  font-size: 30px;
+  font-size: 32px;
   line-height: 1.25;
   font-weight: 550;
   margin-top: 18px;
   color: #352a42;
 }
 .brand-hero-description {
-  font-size: 15px;
+  font-size: 17px;
   line-height: 1.65;
   color: #64586d;
   margin-top: 16px;
@@ -79,7 +79,7 @@
   gap: 18px;
   min-height: 50px;
   padding: 12px 20px;
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 550;
   border-radius: 6px;
 }
@@ -116,7 +116,7 @@
   align-items: center;
   gap: 10px;
   min-height: 44px;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 550;
   padding: 8px 12px;
   color: #342542;
@@ -161,7 +161,7 @@
     font-size: 88px;
   }
   .brand-hero-promise {
-    font-size: 28px;
+    font-size: 30px;
   }
   .brand-hero-art img {
     object-position: 50% 65%;
@@ -179,14 +179,14 @@
     font-size: 68px;
   }
   .brand-hero-category {
-    font-size: 12px;
+    font-size: 13px;
   }
   .brand-hero-promise {
-    font-size: 26px;
+    font-size: 28px;
     margin-top: 18px;
   }
   .brand-hero-description {
-    font-size: 14px;
+    font-size: 16px;
     max-width: 32ch;
     margin-inline: auto;
   }
@@ -199,7 +199,7 @@
   }
   .brand-hero-join,
   .brand-hero-demo {
-    font-size: 13px;
+    font-size: 14px;
     padding-inline: 12px;
     gap: 8px;
   }
@@ -219,7 +219,7 @@
     font-size: 80px;
   }
   .brand-hero-promise {
-    font-size: 24px;
+    font-size: 26px;
     margin-top: 10px;
   }
   .brand-hero-description {
@@ -240,11 +240,11 @@
     font-size: 56px;
   }
   .brand-hero-promise {
-    font-size: 23px;
+    font-size: 24px;
     margin-top: 10px;
   }
   .brand-hero-description {
-    font-size: 13px;
+    font-size: 15px;
     line-height: 1.5;
     margin-top: 10px;
   }
@@ -256,7 +256,7 @@
   .brand-hero-demo {
     min-height: 44px;
     padding-inline: 10px;
-    font-size: 12px;
+    font-size: 13px;
   }
 }
 @media (min-width: 601px) and (max-height: 460px) {
@@ -284,13 +284,13 @@
     grid-row: 1;
   }
   .brand-hero-promise {
-    font-size: 20px;
+    font-size: 22px;
     grid-column: 1;
     grid-row: 2;
     margin-top: 8px;
   }
   .brand-hero-description {
-    font-size: 13px;
+    font-size: 15px;
     grid-column: 2;
     grid-row: 1;
     margin-top: 0;
@@ -304,7 +304,7 @@
   .brand-hero-join,
   .brand-hero-demo {
     min-height: 44px;
-    font-size: 12px;
+    font-size: 13px;
     gap: 8px;
     padding-inline: 8px;
   }
