@@ -83,6 +83,12 @@ export const joinWaitlist = createServerFn({ method: "POST" })
         ${data.referrer}, ${data.landing_path}
       )
     `;
+    // Fire and forget: a signup must succeed whether or not the welcome
+    // email does, and this is inert until the mailbox is configured.
+    const { sendEmailInBackground } = await import("@/lib/email/send.server");
+    const { waitlistWelcomeEmail } = await import("@/lib/email/waitlist-welcome");
+    const { siteOrigin } = await import("@/lib/site/head");
+    sendEmailInBackground(waitlistWelcomeEmail(data.email, siteOrigin()));
     return { id, already: false as const };
     }),
   );

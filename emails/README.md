@@ -36,3 +36,30 @@ an Enquiry sender identity and control over provider-added footer content.
 No SMTP credentials, DNS records, mail security settings or auth safeguards
 were changed in this repair. The reported link-opening delay is not yet proven
 resolved.
+
+## Product email (sent by the app, not by Supabase)
+
+The waitlist welcome is sent by the application, not from a hosted Supabase
+template, so it is versioned as code rather than as a static file here:
+
+- Builder: [`src/lib/email/waitlist-welcome.ts`](../src/lib/email/waitlist-welcome.ts)
+- Transport: [`src/lib/email/send.server.ts`](../src/lib/email/send.server.ts)
+- Tests: `node --experimental-strip-types --import ./scripts/test-resolve-hook.mjs --test src/lib/email/waitlist-welcome.test.ts`
+
+It fires once, on a genuinely new waitlist row, from `joinWaitlist`. A repeat
+submit of an address already on the list sends nothing.
+
+### Required environment (Vercel, production)
+
+| Variable | Example | Effect when missing |
+| --- | --- | --- |
+| `RESEND_API_KEY` | `re_...` | No email is sent. A `[email] skipped` line is logged. Signup still succeeds. |
+| `EMAIL_FROM` | `Enquiry <hello@yourdomain>` | Same as above. Both are required before anything sends. |
+
+Sending is deliberately inert until both are set, so this can deploy before the
+mailbox exists. Use the same verified domain for this and for the Supabase Auth
+custom SMTP sender, so a person who joins the list and a person who signs in see
+the same sender identity.
+
+Replies go to the address in [`src/lib/site/contact.ts`](../src/lib/site/contact.ts).
+Point that at the new mailbox once the domain is verified.

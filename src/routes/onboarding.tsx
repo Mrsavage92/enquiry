@@ -292,6 +292,7 @@ function Onboarding() {
                 "Enquiry prepares replies. Nothing sends without your approval.",
                 "No mailbox or social account is connected yet.",
                 "Enquiry learns your prices and rules from what you confirm, and your voice from replies you approve or edit - not from a quiz.",
+                "During early access we set your services and prices up with you on a 20-minute call, so your first real enquiry has something to price against.",
               ].map((line) => (
                 <li
                   key={line}

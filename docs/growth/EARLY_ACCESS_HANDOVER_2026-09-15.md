@@ -16,6 +16,12 @@ Why: today the sign-in link is sent by Supabase's built-in mailer. Clients see F
 4. Authentication, Rate Limits: raise "emails sent" from the built-in default to something like 30 per hour.
 5. Prove it: open a private window, `/login`, request a link for an address you can read, confirm the From is now `Enquiry <hello@...>` with no Supabase footer, and that the link lands on `/onboarding` or the workspace.
 6. Swap the constant in `src/lib/site/contact.ts` to the same mailbox and merge (Claude does this on request).
+7. In the same Resend account, create an API key with sending access, then add BOTH of these to Vercel (Production) and redeploy:
+   - `RESEND_API_KEY` = that key
+   - `EMAIL_FROM` = `Enquiry <hello@yourdomain>`, the same verified sender
+   This switches on the waitlist welcome email, which is already built and shipped but
+   inert until both variables exist. Until then a signup succeeds in silence and logs
+   `[email] skipped`. See `emails/README.md`.
 
 ### 2. Alert webhook (5 minutes)
 
