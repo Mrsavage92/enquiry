@@ -48,7 +48,7 @@ function EarlyAccess() {
             30<span>%</span>
           </strong>
           <p>
-            <strong>For the first businesses.</strong>
+            <strong>For the first 20 businesses.</strong>
             <br />
             Off your first 12 months if you join before public release and become a paying customer.
           </p>

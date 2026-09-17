@@ -156,7 +156,7 @@
 }
 .story-message > time {
   display: block;
-  color: #79717f;
+  color: #6b6472;
   font-size: 10px;
   margin-top: 8px;
 }
@@ -193,7 +193,7 @@
 }
 .story-change dt,
 .story-change del {
-  color: #79717f;
+  color: #6b6472;
 }
 .story-change strong {
   color: #654ac2;
@@ -262,8 +262,12 @@
 }
 .story-disclosure {
   margin-top: 20px;
-  font-size: 11px;
-  color: #79717f;
+  font-size: 12px;
+  /* 4.5:1 AA floor against the #f8f8fa section ground. #79717f measured
+     4.42:1 and failed; this measures 5.36:1. This line carries the
+     prepared-is-not-sent truth claim, so it must not be the least
+     readable text on the page. */
+  color: #6b6472;
   line-height: 1.7;
 }
 .enquiry-story-compact {
@@ -470,7 +474,7 @@
   align-items: center;
   gap: 10px;
   font-size: 12px;
-  color: #79717f;
+  color: #6b6472;
   padding-top: 5px;
 }
 .journal-date::before {
@@ -515,7 +519,7 @@
 }
 .journal-visual figcaption {
   font-size: 10px;
-  color: #79717f;
+  color: #6b6472;
   margin-top: 8px;
   line-height: 1.5;
 }
