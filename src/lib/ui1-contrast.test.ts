@@ -89,3 +89,22 @@ test("Brand hero copy and opaque primary action meet AA on their base surfaces",
     assert.ok((values[0]! + 0.05) / (values[1]! + 0.05) >= 4.5);
   }
 });
+
+/**
+ * Regression guard. `.story-disclosure` shipped at #79717f on the #f8f8fa
+ * story ground, which measures 4.42:1 and fails the 4.5:1 AA floor for
+ * normal text. Every contrast test above passed while it was live, because
+ * they all read @theme tokens and this rule is a literal in site-story.css.
+ * The sentence carries the prepared-is-not-sent truth claim, so it is the
+ * one line on the page that must never be the hardest to read.
+ */
+test("Story disclosure text meets AA against its own section ground", () => {
+  const storyCss = readFileSync(new URL("../site-story.css", import.meta.url), "utf8");
+  const rule = storyCss.match(/\.story-disclosure\s*\{([\s\S]*?)\}/)?.[1] ?? "";
+  const color = rule.match(/color:\s*(#[\da-f]{6})/i)?.[1];
+  assert.ok(color, "Read the shipped .story-disclosure colour");
+  const ground = "#f8f8fa";
+  const values = [luminance(color), luminance(ground)].sort((a, b) => b - a);
+  const measured = (values[0]! + 0.05) / (values[1]! + 0.05);
+  assert.ok(measured >= 4.5, `.story-disclosure on ${ground} measured ${measured.toFixed(2)}:1`);
+});
