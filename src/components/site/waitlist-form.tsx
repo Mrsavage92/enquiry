@@ -353,6 +353,8 @@ export function WaitlistForm({
       <label className={compact ? "block flex-1" : "block"}>
         <span className={entry ? "auth-label" : "sr-only"}>Email address</span>
         <input
+          id="waitlist-email"
+          name="email"
           type="email"
           required
           autoComplete="email"
