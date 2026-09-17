@@ -98,13 +98,26 @@ export default defineConfig(({ command, isPreview }) => ({
             // rendering inside the Grok builder/sandbox preview chrome that
             // subsystem exists to support (allow-listed the same way in
             // src/lib/preview-embedder-origin.ts).
+            //
+            // Production does NOT carry that allowance. *.grok-sandbox.com
+            // serves user-generated apps, so allow-listing it as a framing
+            // ancestor of a deployed, authenticated operator app hands any
+            // such app a clickjacking surface over a signed-in session. The
+            // preview chrome only needs this locally, so the allowance is
+            // scoped to `vite preview`. If a hosted Grok preview of the
+            // DEPLOYED url turns out to still be a live workflow, set
+            // ALLOW_GROK_EMBED=1 in the Vercel environment to restore it
+            // without a code change.
             routeRules: {
               "**": {
                 headers: {
                   "X-Content-Type-Options": "nosniff",
                   "Referrer-Policy": "strict-origin-when-cross-origin",
-                  "Content-Security-Policy":
-                    "frame-ancestors 'self' https://grok.com https://*.grok.com https://grok-sandbox.com https://*.grok-sandbox.com",
+                  "Content-Security-Policy": `frame-ancestors 'self'${
+                    isPreview || process.env.ALLOW_GROK_EMBED === "1"
+                      ? " https://grok.com https://*.grok.com https://grok-sandbox.com https://*.grok-sandbox.com"
+                      : ""
+                  }`,
                   "Permissions-Policy": "camera=(), microphone=(), geolocation=()",
                 },
               },
