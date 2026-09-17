@@ -220,6 +220,8 @@ export function AuthRequestForm({
             <label className="block text-sm">
               <span className="auth-label">Email address</span>
               <input
+                id="auth-email"
+                name="email"
                 ref={emailInput}
                 type="email"
                 required
