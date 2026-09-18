@@ -107,9 +107,15 @@ test("onboarding still persists before navigation and preserves the auth boundar
     "Not saved yet",
     "stageHeading.current?.focus()",
     'const currency = "AUD"',
+    "clearDraft()",
+    'form="onboarding-stage-1"',
   ])
     assert.ok(source.includes(value), value);
   assert.ok(source.indexOf("await completeOnboarding") < source.indexOf("markOnboarded()"));
+  // The draft is a browser-only convenience: cleared only after the server
+  // confirmed the workspace, never presented as a save.
+  assert.ok(source.indexOf("await completeOnboarding") < source.indexOf("clearDraft()"));
+  assert.match(source, /sessionStorage/);
 });
 
 test("utility pages retain truthful unavailable states and help has real filtering", () => {
