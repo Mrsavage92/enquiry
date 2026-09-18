@@ -1177,3 +1177,46 @@
 .public-showcase-heading > span a:hover {
   color: var(--public-violet);
 }
+
+/* Critique pass 3. The three benefit cells stop being three equal boxes:
+   the wedge cell ("Not yet is a real answer") takes the wider column and
+   the larger heading, the other two support it. FAQ splits into two
+   labelled groups of three and two. Group heading ink-2 on white: 8.5:1. */
+.public-benefits {
+  grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr) minmax(0, 1fr);
+}
+.public-benefit:first-child {
+  padding: 34px 32px 36px;
+}
+.public-benefit:first-child h3 {
+  font-size: 27px;
+  line-height: 1.3;
+}
+.public-benefit:first-child p {
+  font-size: 17px;
+}
+.public-faq-group + .public-faq-group {
+  margin-top: 36px;
+}
+.public-faq-group h3 {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #4f4b55;
+  margin-bottom: 4px;
+}
+.public-faq-group details:first-of-type {
+  border-top: 0;
+}
+@media (max-width: 820px) {
+  .public-benefits {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .public-benefit:first-child {
+    padding: 30px 28px 32px;
+  }
+  .public-benefit:first-child h3 {
+    font-size: 24px;
+  }
+}

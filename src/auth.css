@@ -750,3 +750,12 @@
     font-size: 38px;
   }
 }
+
+.auth-step {
+  margin: 0 0 8px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--color-ink-2);
+}
