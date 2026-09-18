@@ -1,5 +1,4 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { Focus, GitCompareArrows, Lightbulb, ShieldCheck } from "lucide-react";
 import { socialHead } from "@/lib/site/head";
 import { SiteShell } from "@/components/site/site-shell";
 import { EnquiryStory } from "@/components/site/enquiry-story";
@@ -27,20 +26,6 @@ function How() {
             A real example. A changing request. What you can safely promise, and what still decides
             it.
           </p>
-        </div>
-        <div className="story-principles" aria-label="The Enquiry approach">
-          {[
-            { Icon: Focus, label: "Focus", detail: "See what matters" },
-            { Icon: GitCompareArrows, label: "Change", detail: "Keep the context" },
-            { Icon: Lightbulb, label: "Reason", detail: "Understand why" },
-            { Icon: ShieldCheck, label: "Permission", detail: "Keep the final call" },
-          ].map(({ Icon, label, detail }) => (
-            <div key={label}>
-              <Icon size={19} aria-hidden="true" />
-              <strong>{label}</strong>
-              <span>{detail}</span>
-            </div>
-          ))}
         </div>
       </header>
       <section className="public-story-band" aria-label="Maya's changing enquiry">

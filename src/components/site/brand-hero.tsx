@@ -66,6 +66,9 @@ export function BrandHero() {
             Explore the demo <ArrowUpRight size={17} aria-hidden="true" />
           </Link>
         </div>
+        <p className="brand-hero-note">
+          Indicative pricing from A$29 a month. The first 20 businesses get 30% off for 12 months.
+        </p>
       </div>
       <div className="brand-hero-footer">
         <a href="#product-preview" className="brand-hero-explore">

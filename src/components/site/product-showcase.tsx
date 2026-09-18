@@ -7,21 +7,22 @@ const VIEWS = [
     id: "today",
     label: "Your day",
     icon: CalendarDays,
-    caption: "The next work, without the dashboard overload.",
+    caption: "What needs a decision today, and nothing else.",
     alt: "Enquiry Today screen with enquiries needing attention and the day's calendar.",
   },
   {
     id: "enquiry",
     label: "The next reply",
     icon: MessageSquareText,
-    caption: "The conversation first. A prepared next step, ready for your review.",
+    caption:
+      "The conversation, the one detail still blocking the price, and the reply it prepared.",
     alt: "An enquiry in Enquiry, showing the customer conversation, a prepared reply and unresolved details.",
   },
   {
     id: "business",
     label: "Your business",
     icon: Settings2,
-    caption: "Services, pricing and policies, in words that make sense.",
+    caption: "Your services, prices and rules, in your words. These decide the answer.",
     alt: "Enquiry Business settings with services, pricing, availability, policies and voice and tone.",
   },
 ] as const;
@@ -33,7 +34,7 @@ export function ProductShowcase() {
   return (
     <section id="product-preview" className="public-showcase" aria-label="Explore the actual app">
       <div className="public-showcase-heading">
-        <p>A little more room in your day.</p>
+        <p>One enquiry. One detail still deciding it.</p>
         <span>Built in the open. Every change is posted to Updates.</span>
       </div>
       <div className="public-showcase-controls" role="group" aria-label="Product views">

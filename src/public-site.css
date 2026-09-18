@@ -87,16 +87,16 @@
   justify-content: center;
   min-height: 44px;
   padding: 11px 19px;
-  border: 1px solid #d9d0ed;
-  background: #f7f4fc;
-  color: #543aab;
+  border: 1px solid transparent;
+  background: var(--public-violet);
+  color: #fff;
   border-radius: 8px;
   font-size: 15px;
   font-weight: 600;
   text-align: center;
 }
 .public-nav-join:hover {
-  background: #eee8f9;
+  background: #583ac0;
 }
 .public-menu-toggle {
   display: none;
