@@ -54,6 +54,51 @@ const TEAMS = [
 ];
 
 /**
+ * Typed values survive a reload or an accidental back-swipe, in this browser
+ * only. The workspace itself is still created in one server transaction on
+ * review, so this is a draft, not a save, and the review screen keeps saying
+ * so. Cleared the moment the workspace exists.
+ */
+const DRAFT_KEY = "enquiry-onboarding-draft";
+type Draft = {
+  name: string;
+  ownerFirstName: string;
+  industry: string;
+  baseLocation: string;
+  team: string;
+  timezone: string;
+};
+
+function readDraft(): Partial<Draft> {
+  if (typeof window === "undefined") return {};
+  try {
+    const raw = sessionStorage.getItem(DRAFT_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw) as unknown;
+    return parsed && typeof parsed === "object" ? (parsed as Partial<Draft>) : {};
+  } catch {
+    return {};
+  }
+}
+
+function writeDraft(draft: Draft) {
+  try {
+    sessionStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
+  } catch {
+    // Storage can be unavailable (private mode, quota). Losing the draft on
+    // reload is the pre-existing behaviour, not a failure to report.
+  }
+}
+
+function clearDraft() {
+  try {
+    sessionStorage.removeItem(DRAFT_KEY);
+  } catch {
+    // Same reasoning as writeDraft.
+  }
+}
+
+/**
  * At most two stages (R2A Slice 5).
  *
  * The six-step flow this replaced had two steps whose state - a "what should
@@ -74,12 +119,13 @@ function Onboarding() {
   useEffect(() => {
     stageHeading.current?.focus();
   }, [stage]);
-  const [name, setName] = useState("");
-  const [ownerFirstName, setOwnerFirstName] = useState("");
-  const [industry, setIndustry] = useState("");
-  const [timezone, setTimezone] = useState(detectTimezone);
+  const draft = useRef<Partial<Draft>>(readDraft());
+  const [name, setName] = useState(draft.current.name ?? "");
+  const [ownerFirstName, setOwnerFirstName] = useState(draft.current.ownerFirstName ?? "");
+  const [industry, setIndustry] = useState(draft.current.industry ?? "");
+  const [timezone, setTimezone] = useState(() => draft.current.timezone || detectTimezone());
   const [editingTimezone, setEditingTimezone] = useState(false);
-  const [baseLocation, setBaseLocation] = useState("");
+  const [baseLocation, setBaseLocation] = useState(draft.current.baseLocation ?? "");
   // The live money domain is AUD-only (Money.currency, MoneyRange.currency and
   // Business.currency are all the literal "AUD"), so offering a currency field
   // would let someone pick EUR and have it silently treated as AUD. The
@@ -87,18 +133,21 @@ function Onboarding() {
   // is a deliberate later change (R2A correction s6). Nothing to confirm yet
   // is the honest state, so no field is shown for it.
   const currency = "AUD";
-  const [team, setTeam] = useState("solo");
+  const [team, setTeam] = useState(draft.current.team ?? "solo");
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
 
+  useEffect(() => {
+    writeDraft({ name, ownerFirstName, industry, baseLocation, team, timezone });
+  }, [name, ownerFirstName, industry, baseLocation, team, timezone]);
+
   const canContinue = name.trim().length > 0;
 
-  const back = () => {
-    if (stage === 1) {
-      void navigate({ to: "/" });
-      return;
-    }
-    setStage(1);
+  const back = () => setStage(1);
+
+  const continueToReview = () => {
+    if (!canContinue) return;
+    setStage(2);
   };
 
   /**
@@ -132,6 +181,7 @@ function Onboarding() {
         },
       });
       if (!result?.ok) throw new Error("Workspace could not be created.");
+      clearDraft();
       // Server is the authority. Deliberately does NOT call the prototype
       // store's completeOnboarding, which selects fixture business "glow" and
       // pulls fixture enquiries, Brain, trust and integration state into view
@@ -174,11 +224,20 @@ function Onboarding() {
 
       <div key={stage} className="onboarding-flow" data-stage={stage}>
         {stage === 1 ? (
-          <section className="mt-8">
+          <form
+            id="onboarding-stage-1"
+            className="mt-8"
+            onSubmit={(e) => {
+              e.preventDefault();
+              continueToReview();
+            }}
+          >
             <h1 className="auth-title" ref={stageHeading} tabIndex={-1}>
               Your business
             </h1>
-            <p className="mt-2 text-sm text-ink-2">Your real business. Nothing here is a sample.</p>
+            <p className="mt-2 text-sm text-ink-2">
+              Your real business. Nothing here is a sample. Only the name is needed to continue.
+            </p>
             <div className="mt-6 space-y-3">
               <Field
                 label="Business name"
@@ -187,6 +246,7 @@ function Onboarding() {
                 onChange={setName}
                 placeholder="e.g. Ridge & Co"
                 autoComplete="organization"
+                required
               />
               <Field
                 label="Your first name"
@@ -250,7 +310,7 @@ function Onboarding() {
                 </div>
               )}
             </div>
-          </section>
+          </form>
         ) : (
           <section className="mt-8">
             <h1 className="auth-title" ref={stageHeading} tabIndex={-1}>
@@ -330,12 +390,19 @@ function Onboarding() {
           </p>
         ) : null}
         <div className="flex gap-2">
-          <Button variant="secondary" className="min-h-12 px-4" onClick={back}>
-            <ChevronLeft className="size-4" aria-hidden />
-            Back
-          </Button>
+          {stage === 2 ? (
+            <Button variant="secondary" className="min-h-12 px-4" onClick={back}>
+              <ChevronLeft className="size-4" aria-hidden />
+              Back
+            </Button>
+          ) : null}
           {stage === 1 ? (
-            <Button className="min-h-12 flex-1" disabled={!canContinue} onClick={() => setStage(2)}>
+            <Button
+              type="submit"
+              form="onboarding-stage-1"
+              className="min-h-12 flex-1"
+              disabled={!canContinue}
+            >
               Continue
             </Button>
           ) : (
@@ -361,6 +428,7 @@ function Field({
   onChange,
   placeholder,
   autoComplete,
+  required = false,
 }: {
   label: string;
   name: string;
@@ -368,15 +436,20 @@ function Field({
   onChange: (v: string) => void;
   placeholder?: string;
   autoComplete?: string;
+  required?: boolean;
 }) {
   return (
     <label className="block text-sm">
-      <span className="mb-1.5 block text-stone">{label}</span>
+      <span className="mb-1.5 block text-stone">
+        {label}
+        {required ? <span className="text-ink-2"> (needed)</span> : null}
+      </span>
       <input
         name={name}
         value={value}
         placeholder={placeholder}
         autoComplete={autoComplete}
+        required={required}
         onChange={(e) => onChange(e.target.value)}
         className="field h-11"
       />
