@@ -234,6 +234,15 @@ export function WaitlistForm({
             <Link to="/demo">See demo</Link>
           </Button>
         </div>
+        {!compact && storedQualified() ? (
+          <button
+            type="button"
+            className="mt-4 text-sm text-ink-2 underline underline-offset-2"
+            onClick={() => setStep("qualify")}
+          >
+            Edit your answers
+          </button>
+        ) : null}
       </div>
     );
   }
@@ -249,6 +258,13 @@ export function WaitlistForm({
         }}
       >
         <div>
+          <p
+            className={
+              entry ? "auth-step" : "text-xs font-medium uppercase tracking-wide text-ink-2"
+            }
+          >
+            Step 2 of 2 · optional
+          </p>
           {entry ? (
             <h1 className="auth-title" ref={headingRef} tabIndex={-1}>
               A little about your business

@@ -1,4 +1,5 @@
 import { useId, useState } from "react";
+import { useArrowGroup } from "@/components/site/use-arrow-group";
 import { ArrowUpRight, CircleHelp, Info, Store } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
@@ -26,6 +27,9 @@ export function CrossChannelDecisionDemo({
   const Heading = headingLevel;
   const [scene, setScene] = useState<SignatureScene>("form");
   const [whyOpen, setWhyOpen] = useState(false);
+  const sceneKeys = useArrowGroup(2, scene === "form" ? 0 : 1, (index) =>
+    index === 0 ? goForm() : goText(),
+  );
   const liveId = useId();
   const whyId = useId();
   const state = signatureState(scene);
@@ -55,11 +59,22 @@ export function CrossChannelDecisionDemo({
         className={cn("scene-toggle", compact ? "" : "mt-10")}
         role="group"
         aria-label="Maya’s enquiry"
+        onKeyDown={sceneKeys.onKeyDown}
       >
-        <button type="button" aria-pressed={scene === "form"} onClick={goForm}>
+        <button
+          type="button"
+          ref={sceneKeys.bind(0)}
+          aria-pressed={scene === "form"}
+          onClick={goForm}
+        >
           01 · Website form
         </button>
-        <button type="button" aria-pressed={scene === "text"} onClick={goText}>
+        <button
+          type="button"
+          ref={sceneKeys.bind(1)}
+          aria-pressed={scene === "text"}
+          onClick={goText}
+        >
           Then Maya texts…
         </button>
       </div>

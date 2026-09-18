@@ -1,5 +1,6 @@
-import { useId, useRef, useState, type KeyboardEvent } from "react";
+import { useId, useState } from "react";
 import { Link } from "@tanstack/react-router";
+import { useArrowGroup } from "@/components/site/use-arrow-group";
 import { CalendarDays, MessageSquareText, Settings2 } from "lucide-react";
 import { BrowserFrame } from "@/components/site/device-frame";
 
@@ -32,23 +33,7 @@ export function ProductShowcase() {
   const [selected, setSelected] = useState(1);
   const panelId = useId();
   const view = VIEWS[selected];
-  const buttons = useRef<Array<HTMLButtonElement | null>>([]);
-
-  /** Arrow keys move between views once a tab has focus; Home and End jump. */
-  const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
-    const moves: Record<string, number> = {
-      ArrowRight: selected + 1,
-      ArrowLeft: selected - 1,
-      Home: 0,
-      End: VIEWS.length - 1,
-    };
-    const next = moves[event.key];
-    if (next === undefined) return;
-    event.preventDefault();
-    const index = (next + VIEWS.length) % VIEWS.length;
-    setSelected(index);
-    buttons.current[index]?.focus();
-  };
+  const { onKeyDown, bind } = useArrowGroup(VIEWS.length, selected, setSelected);
   return (
     <section id="product-preview" className="public-showcase" aria-label="Explore the actual app">
       <div className="public-showcase-heading">
@@ -66,9 +51,7 @@ export function ProductShowcase() {
         {VIEWS.map(({ id, icon: Icon, label }, index) => (
           <button
             key={id}
-            ref={(el) => {
-              buttons.current[index] = el;
-            }}
+            ref={bind(index)}
             type="button"
             aria-pressed={selected === index}
             aria-controls={panelId}

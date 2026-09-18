@@ -28,27 +28,37 @@ export const Route = createFileRoute("/")({
     }),
 });
 
-const QUESTIONS = [
-  [
-    "Who is Enquiry for?",
-    "Owner-run service businesses: the people answering customers, organising the work and making the final call. Early access is opening in small groups so we can learn from real workflows.",
-  ],
-  [
-    "Will it connect to my email and messages?",
-    "Early access starts with you bringing the enquiry and new messages into Enquiry. Connected channels are on the roadmap. The demo shows a sample conversation, not a live connection to your inbox.",
-  ],
-  [
-    "Does Enquiry send replies for me?",
-    "You review the prepared reply. Copying a reply is not sending it, and recording an action is not delivery. Enquiry keeps those states separate; it does not silently send a message on your behalf.",
-  ],
-  [
-    "What if a price or date is uncertain?",
-    "The uncertainty stays visible. Enquiry can prepare a question or flag a detail for you to check instead of presenting an unsupported price or availability as confirmed.",
-  ],
-  [
-    "What does joining early access mean?",
-    "It puts you on the list for an invitation, not into a paid subscription. Invited businesses get a 20-minute setup call and the founding offer: 30% off your first 12 months once billing begins, with at least 30 days of notice before anyone pays. Final plan prices and access timing are not yet announced.",
-  ],
+const QUESTION_GROUPS = [
+  {
+    title: "About early access",
+    items: [
+      [
+        "Who is Enquiry for?",
+        "Owner-run service businesses: the people answering customers, organising the work and making the final call. Early access is opening in small groups so we can learn from real workflows.",
+      ],
+      [
+        "What does joining early access mean?",
+        "It puts you on the list for an invitation, not into a paid subscription. Invited businesses get a 20-minute setup call and the founding offer: 30% off your first 12 months once billing begins, with at least 30 days of notice before anyone pays. Final plan prices and access timing are not yet announced.",
+      ],
+      [
+        "Will it connect to my email and messages?",
+        "Early access starts with you bringing the enquiry and new messages into Enquiry. Connected channels are on the roadmap. The demo shows a sample conversation, not a live connection to your inbox.",
+      ],
+    ],
+  },
+  {
+    title: "About how it works",
+    items: [
+      [
+        "Does Enquiry send replies for me?",
+        "You review the prepared reply. Copying a reply is not sending it, and recording an action is not delivery. Enquiry keeps those states separate; it does not silently send a message on your behalf.",
+      ],
+      [
+        "What if a price or date is uncertain?",
+        "The uncertainty stays visible. Enquiry can prepare a question or flag a detail for you to check instead of presenting an unsupported price or availability as confirmed.",
+      ],
+    ],
+  },
 ] as const;
 
 function Home() {
@@ -149,20 +159,25 @@ function Home() {
           </div>
         </div>
         <div className="public-faq-list">
-          {QUESTIONS.map(([question, answer]) => (
-            <details
-              key={question}
-              id={question
-                .toLowerCase()
-                .replace(/[^a-z0-9]+/g, "-")
-                .replace(/^-|-$/g, "")}
-            >
-              <summary>
-                {question}
-                <ChevronDown size={19} aria-hidden="true" />
-              </summary>
-              <p>{answer}</p>
-            </details>
+          {QUESTION_GROUPS.map((group) => (
+            <div key={group.title} className="public-faq-group">
+              <h3>{group.title}</h3>
+              {group.items.map(([question, answer]) => (
+                <details
+                  key={question}
+                  id={question
+                    .toLowerCase()
+                    .replace(/[^a-z0-9]+/g, "-")
+                    .replace(/^-|-$/g, "")}
+                >
+                  <summary>
+                    {question}
+                    <ChevronDown size={19} aria-hidden="true" />
+                  </summary>
+                  <p>{answer}</p>
+                </details>
+              ))}
+            </div>
           ))}
         </div>
       </section>
