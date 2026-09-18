@@ -44,7 +44,10 @@ export function BrandHero() {
         </picture>
       </div>
       <div className="brand-hero-copy">
-        <p className="brand-hero-category">For service businesses that quote before they book.</p>
+        <p className="brand-hero-category">
+          For painters, cleaners, mobile beauty and other service businesses that quote before they
+          book.
+        </p>
         <h1 id="home-title">
           Enquiry<span>.</span>
         </h1>

@@ -28,10 +28,13 @@ const EMAIL_SHAPE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
  * server rejected arrives as an Error with a message written for the owner.
  * The two need different advice.
  */
+/** Messages the server writes for the owner; anything else is not shown verbatim. */
+const OWNER_SAFE_MESSAGES = new Set(["Enter a valid email.", "Try again in a moment."]);
+
 function describeFailure(e: unknown, fallback: string): string {
   if (e instanceof TypeError)
     return "We could not reach the server. Check your connection and try again.";
-  if (e instanceof Error && e.message) return e.message;
+  if (e instanceof Error && OWNER_SAFE_MESSAGES.has(e.message)) return e.message;
   return fallback;
 }
 
@@ -100,6 +103,10 @@ export function WaitlistForm({
 
   const submitEmail = async () => {
     if (inFlight.current) return;
+    if (!EMAIL_SHAPE.test(email.trim())) {
+      setHint("That does not look like an email address.");
+      return;
+    }
     inFlight.current = true;
     setError("");
     setBusy(true);
@@ -401,6 +408,7 @@ export function WaitlistForm({
             : "relative space-y-3"
       }
       aria-busy={busy}
+      noValidate
       onSubmit={(e) => {
         e.preventDefault();
         void submitEmail();
@@ -410,7 +418,7 @@ export function WaitlistForm({
         <div className="auth-form-heading">
           <h1 className="auth-title">Join early access</h1>
           <p className="auth-description">
-            For service businesses. Invitations open in small groups.
+            For service businesses. One email now, a few optional questions after.
           </p>
         </div>
       ) : null}
