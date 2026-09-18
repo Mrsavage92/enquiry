@@ -52,6 +52,7 @@ const VISUALS = [
     src: "/product/ui1/enquiry-desktop.jpg",
     alt: "An enquiry in the current sample workspace.",
     to: "/demo",
+    scene: "text",
   },
   {
     src: "/product/roadmap/roadmap-desktop.jpg",
@@ -62,6 +63,7 @@ const VISUALS = [
     src: "/product/ui1/enquiry-mobile.jpg",
     alt: "The current mobile sample enquiry, with its next step and uncertainties.",
     to: "/demo",
+    scene: "text",
   },
   {
     src: "/product/ui1/today-desktop.jpg",
@@ -132,10 +134,22 @@ function Updates() {
                 <div className="journal-copy">
                   <h2>{post.title}</h2>
                   <p>{post.body}</p>
-                  <Link to={VISUALS[index].to} className="public-text-link">
-                    {VISUALS[index].to === "/roadmap" ? "View the roadmap" : "Explore the sample"}
-                    <ArrowRight size={15} aria-hidden="true" />
-                  </Link>
+                  {VISUALS[index].to === "/roadmap" ? (
+                    <Link to="/roadmap" className="public-text-link">
+                      View the roadmap <ArrowRight size={15} aria-hidden="true" />
+                    </Link>
+                  ) : (
+                    <Link
+                      to="/demo"
+                      search={"scene" in VISUALS[index] ? { scene: "text" } : {}}
+                      className="public-text-link"
+                    >
+                      {"scene" in VISUALS[index]
+                        ? "See the follow-up in the sample"
+                        : "Explore the sample"}
+                      <ArrowRight size={15} aria-hidden="true" />
+                    </Link>
+                  )}
                 </div>
                 <figure className="journal-visual">
                   <img

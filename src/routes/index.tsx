@@ -17,8 +17,14 @@ import { BrandHero } from "@/components/site/brand-hero";
 import { CrossMark } from "@/components/site/cross-mark";
 import { SUPPORT_EMAIL, SUPPORT_MAILTO } from "@/lib/site/contact";
 
+type HomeSearch = { view?: "today" | "enquiry" | "business" };
+
 export const Route = createFileRoute("/")({
   component: Home,
+  validateSearch: (search: Record<string, unknown>): HomeSearch =>
+    search.view === "today" || search.view === "enquiry" || search.view === "business"
+      ? { view: search.view }
+      : {},
   head: () =>
     socialHead({
       path: "/",
@@ -41,14 +47,22 @@ const QUESTION_GROUPS = [
         "It puts you on the list for an invitation, not into a paid subscription. Invited businesses get a 20-minute setup call and the founding offer: 30% off your first 12 months once billing begins, with at least 30 days of notice before anyone pays. Final plan prices and access timing are not yet announced.",
       ],
       [
-        "Will it connect to my email and messages?",
-        "Early access starts with you bringing the enquiry and new messages into Enquiry. Connected channels are on the roadmap. The demo shows a sample conversation, not a live connection to your inbox.",
+        "What does it cost?",
+        "Indicative pricing is A$29-49 per month inc GST, and founding members keep 30% off for the first 12 months. It is provisional: the final figure is confirmed in writing before any paid access begins, with at least 30 days of notice.",
+      ],
+      [
+        "What if I decide not to continue?",
+        `Nothing is charged and nothing needs cancelling. Joining the list creates no account or subscription. If early access is not for you, reply to any email from us or write to ${SUPPORT_EMAIL} and we remove you.`,
       ],
     ],
   },
   {
     title: "About how it works",
     items: [
+      [
+        "Will it connect to my email and messages?",
+        "Early access starts with you bringing the enquiry and new messages into Enquiry. Connected channels are on the roadmap. The demo shows a sample conversation, not a live connection to your inbox.",
+      ],
       [
         "Does Enquiry send replies for me?",
         "You review the prepared reply. Copying a reply is not sending it, and recording an action is not delivery. Enquiry keeps those states separate; it does not silently send a message on your behalf.",
@@ -62,10 +76,11 @@ const QUESTION_GROUPS = [
 ] as const;
 
 function Home() {
+  const { view } = Route.useSearch();
   return (
     <SiteShell>
       <BrandHero />
-      <ProductShowcase />
+      <ProductShowcase initialView={view} />
       <section className="public-section public-container" aria-labelledby="work-title">
         <div className="public-section-heading">
           <p className="public-kicker">Before you promise anything</p>

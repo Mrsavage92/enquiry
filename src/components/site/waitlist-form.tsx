@@ -286,75 +286,85 @@ export function WaitlistForm({
             Wrong email? Go back and change it
           </button>
         </div>
-        <label className="block text-sm">
-          <span className="mb-1 block text-stone">What kind of business?</span>
-          <input
-            className="field h-12"
-            value={businessType}
-            onChange={(e) => setBusinessType(e.target.value)}
-            placeholder="Painting, photography, cleaning, studio…"
-          />
-        </label>
-        <label className="block text-sm">
-          <span className="mb-2 block text-stone">Enquiries a month</span>
-          <select className="field h-12" value={volume} onChange={(e) => setVolume(e.target.value)}>
-            <option value="">Select a range</option>
-            {VOLUMES.map((v) => (
-              <option key={v} value={v}>
-                {v}
-              </option>
-            ))}
-          </select>
-        </label>
-        <fieldset>
-          <legend className="mb-2 text-sm text-stone">How work arrives</legend>
-          <div className="waitlist-choices">
-            {CHANNELS.map((c) => {
-              const on = channels.includes(c);
-              return (
-                <label key={c} className="waitlist-choice">
+        <div className="waitlist-group">
+          <p className="waitlist-group-title">Your business</p>
+          <label className="block text-sm">
+            <span className="mb-1 block text-stone">What kind of business?</span>
+            <input
+              className="field h-12"
+              value={businessType}
+              onChange={(e) => setBusinessType(e.target.value)}
+              placeholder="Painting, photography, cleaning, studio…"
+            />
+          </label>
+          <label className="block text-sm">
+            <span className="mb-2 block text-stone">Enquiries a month</span>
+            <select
+              className="field h-12"
+              value={volume}
+              onChange={(e) => setVolume(e.target.value)}
+            >
+              <option value="">Select a range</option>
+              {VOLUMES.map((v) => (
+                <option key={v} value={v}>
+                  {v}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+        <div className="waitlist-group">
+          <p className="waitlist-group-title">Your enquiries</p>
+          <fieldset>
+            <legend className="mb-2 text-sm text-stone">How work arrives</legend>
+            <div className="waitlist-choices">
+              {CHANNELS.map((c) => {
+                const on = channels.includes(c);
+                return (
+                  <label key={c} className="waitlist-choice">
+                    <input
+                      type="checkbox"
+                      checked={on}
+                      onChange={() =>
+                        setChannels((prev) => (on ? prev.filter((x) => x !== c) : [...prev, c]))
+                      }
+                    />
+                    {c}
+                  </label>
+                );
+              })}
+            </div>
+          </fieldset>
+          <label className="block text-sm">
+            <span className="mb-1 block text-stone">Biggest pain handling enquiries</span>
+            <textarea
+              className="field min-h-24"
+              rows={3}
+              value={pain}
+              onChange={(e) => setPain(e.target.value)}
+              placeholder="Reconstructing context. Pricing from memory. Following up."
+            />
+          </label>
+          <fieldset>
+            <legend className="mb-2 text-sm text-stone">
+              Want to test Enquiry before public release?
+            </legend>
+            <div className="waitlist-choices">
+              {["Yes", "Maybe later"].map((v) => (
+                <label key={v} className="waitlist-choice">
                   <input
-                    type="checkbox"
-                    checked={on}
-                    onChange={() =>
-                      setChannels((prev) => (on ? prev.filter((x) => x !== c) : [...prev, c]))
-                    }
+                    type="radio"
+                    name="beta-interest"
+                    value={v}
+                    checked={beta === v}
+                    onChange={() => setBeta(v)}
                   />
-                  {c}
+                  {v}
                 </label>
-              );
-            })}
-          </div>
-        </fieldset>
-        <label className="block text-sm">
-          <span className="mb-1 block text-stone">Biggest pain handling enquiries</span>
-          <textarea
-            className="field min-h-24"
-            rows={3}
-            value={pain}
-            onChange={(e) => setPain(e.target.value)}
-            placeholder="Reconstructing context. Pricing from memory. Following up."
-          />
-        </label>
-        <fieldset>
-          <legend className="mb-2 text-sm text-stone">
-            Want to test Enquiry before public release?
-          </legend>
-          <div className="waitlist-choices">
-            {["Yes", "Maybe later"].map((v) => (
-              <label key={v} className="waitlist-choice">
-                <input
-                  type="radio"
-                  name="beta-interest"
-                  value={v}
-                  checked={beta === v}
-                  onChange={() => setBeta(v)}
-                />
-                {v}
-              </label>
-            ))}
-          </div>
-        </fieldset>
+              ))}
+            </div>
+          </fieldset>
+        </div>
         {error ? (
           <p role="alert" className="auth-error">
             <FailureNote message={error} />

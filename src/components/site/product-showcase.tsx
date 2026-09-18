@@ -1,4 +1,4 @@
-import { useId, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { useArrowGroup } from "@/components/site/use-arrow-group";
 import { CalendarDays, MessageSquareText, Settings2 } from "lucide-react";
@@ -29,8 +29,26 @@ const VIEWS = [
   },
 ] as const;
 
-export function ProductShowcase() {
-  const [selected, setSelected] = useState(1);
+export function ProductShowcase({
+  initialView,
+}: {
+  /** From /?view=; the URL mirrors the selection afterwards so a view is linkable. */
+  initialView?: (typeof VIEWS)[number]["id"];
+}) {
+  const initialIndex = Math.max(
+    0,
+    VIEWS.findIndex((item) => item.id === (initialView ?? "enquiry")),
+  );
+  const [selected, setSelected] = useState(initialIndex);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const url = new URL(window.location.href);
+    const id = VIEWS[selected].id;
+    if (id === "enquiry") url.searchParams.delete("view");
+    else url.searchParams.set("view", id);
+    window.history.replaceState(window.history.state, "", url);
+  }, [selected]);
   const panelId = useId();
   const view = VIEWS[selected];
   const { onKeyDown, bind } = useArrowGroup(VIEWS.length, selected, setSelected);

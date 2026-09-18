@@ -79,11 +79,13 @@
   gap: 8px;
 }
 .auth-motion-toggle {
-  display: grid;
-  place-items: center;
-  width: 44px;
-  height: 44px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 12px;
   border-radius: 6px;
+  font-size: 13px;
   color: var(--auth-muted);
   cursor: pointer;
   transition:
@@ -758,4 +760,21 @@
   letter-spacing: 0.05em;
   text-transform: uppercase;
   color: var(--color-ink-2);
+}
+
+.waitlist-group + .waitlist-group {
+  margin-top: 28px;
+  padding-top: 24px;
+  border-top: 1px solid var(--color-line);
+}
+.waitlist-group-title {
+  margin: 0 0 14px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--color-ink-2);
+}
+.waitlist-group > * + * {
+  margin-top: 20px;
 }

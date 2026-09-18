@@ -4,8 +4,12 @@ import { CrossChannelDecisionDemo } from "@/components/site/cross-channel-decisi
 import { Button } from "@/components/ui/button";
 import { socialHead } from "@/lib/site/head";
 
+type DemoSearch = { scene?: "text" };
+
 export const Route = createFileRoute("/demo")({
   component: Demo,
+  validateSearch: (search: Record<string, unknown>): DemoSearch =>
+    search.scene === "text" ? { scene: "text" } : {},
   head: () =>
     socialHead({
       path: "/demo",
@@ -16,6 +20,7 @@ export const Route = createFileRoute("/demo")({
 });
 
 function Demo() {
+  const { scene } = Route.useSearch();
   return (
     <SiteShell>
       <header className="public-container public-page-heading public-demo-heading">
@@ -31,7 +36,7 @@ function Demo() {
       </header>
       <section className="public-demo-band">
         <div className="public-container">
-          <CrossChannelDecisionDemo compact />
+          <CrossChannelDecisionDemo compact initialScene={scene ?? "form"} syncUrl />
           <div className="mt-10 flex flex-col gap-3 sm:flex-row">
             <Button asChild className="min-h-12">
               <Link to="/early-access">Join early access</Link>
