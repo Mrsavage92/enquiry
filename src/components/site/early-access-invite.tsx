@@ -6,11 +6,11 @@ export function EarlyAccessInvite() {
       <div className="public-container">
         <div>
           <p className="public-kicker">Help shape what comes next</p>
-          <h2 id="invite-title">Enquiry, for your working day.</h2>
+          <h2 id="invite-title">Stop guessing at the reply.</h2>
           <p>
             Join the list. We will invite businesses in small groups as early access opens.
-            Indicative pricing is from A$29 per month inc GST, with 30% off the first 12 months
-            for founding members.
+            Indicative pricing is from A$29 per month inc GST, with 30% off the first 12 months for
+            founding members.
           </p>
         </div>
         <div className="public-invite-action">

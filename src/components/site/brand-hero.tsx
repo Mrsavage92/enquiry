@@ -49,13 +49,14 @@ export function BrandHero() {
           Enquiry<span>.</span>
         </h1>
         <p className="brand-hero-promise">
-          Less back and forth.
+          Know what you can safely promise
           <br />
-          More getting on with it.
+          before you reply.
         </p>
         <p className="brand-hero-description">
-          Bring in a messy enquiry. See what it needs, what it should cost
-          <br className="brand-desktop-break" /> and what to say next. You still send it.
+          It checks the request against how your business works, asks only for the detail
+          <br className="brand-desktop-break" /> that would change the answer, and prepares the
+          reply. You still send it.
         </p>
         <div className="brand-hero-actions">
           <Link to="/early-access" className="brand-hero-join">

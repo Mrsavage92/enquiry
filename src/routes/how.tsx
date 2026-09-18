@@ -23,7 +23,10 @@ function How() {
       <header className="public-container public-page-heading public-editorial-heading">
         <div>
           <h1>How Enquiry works</h1>
-          <p>A real example. A changing request. A clearer next step.</p>
+          <p>
+            A real example. A changing request. What you can safely promise, and what still decides
+            it.
+          </p>
         </div>
         <div className="story-principles" aria-label="The Enquiry approach">
           {[

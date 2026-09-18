@@ -70,7 +70,7 @@ test("marketing retains review-first and sample boundaries", () => {
 
 test("share metadata and browser assets use the approved temporary UI1 identity", () => {
   const metadata = JSON.parse(source("src/lib/og/site.json"));
-  assert.match(metadata.imageAlt, /sample enquiries/);
+  assert.match(metadata.imageAlt, /safely promise/);
   assert.ok(source("src/lib/site/head.ts").includes(metadata.imageAlt));
   assert.equal(metadata.color, "654ac2");
   assert.doesNotMatch(source("public/favicon.svg"), /2f4a3c|f6f2eb/);

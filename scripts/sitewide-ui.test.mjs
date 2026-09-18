@@ -150,7 +150,7 @@ test("reference story keeps four stages and three native working surfaces", () =
     "The initial enquiry",
     "The details change",
     "Keep the bigger picture",
-    "A clearer next step",
+    "What you can promise",
   ])
     assert.ok(source.includes(title));
   assert.match(source, /className="story-progress"/);
