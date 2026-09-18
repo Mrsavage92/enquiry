@@ -114,7 +114,8 @@ test("onboarding still persists before navigation and preserves the auth boundar
   assert.ok(source.indexOf("await completeOnboarding") < source.indexOf("markOnboarded()"));
   // The draft is a browser-only convenience: cleared only after the server
   // confirmed the workspace, never presented as a save.
-  assert.ok(source.indexOf("await completeOnboarding") < source.indexOf("clearDraft()"));
+  // The first clearDraft() in the file is its definition; the call site is the one that matters.
+  assert.ok(source.indexOf("await completeOnboarding") < source.lastIndexOf("clearDraft()"));
   assert.match(source, /sessionStorage/);
 });
 
