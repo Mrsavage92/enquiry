@@ -1,5 +1,4 @@
-import { Link } from "@tanstack/react-router";
-import { ArrowRight } from "lucide-react";
+import { WaitlistForm } from "@/components/site/waitlist-form";
 
 export function EarlyAccessInvite() {
   return (
@@ -15,9 +14,7 @@ export function EarlyAccessInvite() {
           </p>
         </div>
         <div className="public-invite-action">
-          <Link to="/early-access" className="public-button">
-            Join early access <ArrowRight size={17} aria-hidden="true" />
-          </Link>
+          <WaitlistForm compact />
           <p>No payment to join the list.</p>
         </div>
       </div>

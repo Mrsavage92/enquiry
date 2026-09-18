@@ -760,3 +760,65 @@
     transition: none;
   }
 }
+
+/* ------------------------------------------------------------------
+   Compact story progress track (home route only). The filled violet
+   number bubbles with arrows were the most template-shaped element on
+   the page. This keeps the four stages in one row but pins hairline
+   mono-number nodes on a dashed rail, matching the drawn-grid grammar
+   of the sections around it. Geometry adapted from 21st.dev ln-dev7
+   how-it-works-02 (26902), turned horizontal so the three story
+   surfaces below keep their width. /how (non-compact) is untouched.
+   ------------------------------------------------------------------ */
+.enquiry-story-compact .story-progress {
+  gap: 0;
+  padding: 0 0 22px;
+  border-top: 1px dashed #d9cfec;
+  border-bottom: 1px solid #e6e1ed;
+}
+.enquiry-story-compact .story-progress li {
+  position: relative;
+  padding: 0 24px 0 0;
+}
+.enquiry-story-compact .story-progress li + li {
+  padding-left: 24px;
+  border-left: 1px solid #e6e1ed;
+}
+.enquiry-story-compact .story-progress-track {
+  margin: -13px 0 12px;
+}
+.enquiry-story-compact .story-progress-track::after,
+.enquiry-story-compact .story-progress-track > svg {
+  display: none;
+}
+.enquiry-story-compact .story-number {
+  width: 26px;
+  height: 26px;
+  background: #ffffff;
+  color: #1c1b1f;
+  border: 1px solid #cbc5d3;
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+@media (max-width: 600px) {
+  .enquiry-story-compact .story-progress {
+    grid-template-columns: 1fr;
+    border-top: 0;
+    border-left: 1px dashed #d9cfec;
+    margin-left: 13px;
+    padding: 0 0 8px 24px;
+  }
+  .enquiry-story-compact .story-progress li {
+    padding: 0 0 20px;
+  }
+  .enquiry-story-compact .story-progress li + li {
+    padding-left: 0;
+    border-left: 0;
+  }
+  .enquiry-story-compact .story-progress-track {
+    position: absolute;
+    left: -38px;
+    top: 0;
+    margin: 0;
+  }
+}
