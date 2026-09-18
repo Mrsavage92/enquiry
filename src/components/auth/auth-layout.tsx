@@ -38,6 +38,7 @@ export function AuthLayout({ children, wide = false }: { children: ReactNode; wi
             ) : (
               <Pause size={14} aria-hidden="true" />
             )}
+            <span>{motionPaused ? "Resume motion" : "Pause motion"}</span>
           </button>
         </div>
         <nav aria-label="Legal">

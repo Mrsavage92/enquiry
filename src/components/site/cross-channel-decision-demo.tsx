@@ -1,4 +1,4 @@
-import { useId, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import { useArrowGroup } from "@/components/site/use-arrow-group";
 import { ArrowUpRight, CircleHelp, Info, Store } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -20,18 +20,32 @@ import {
 export function CrossChannelDecisionDemo({
   compact = false,
   headingLevel = "h2",
+  initialScene = "form",
+  syncUrl = false,
 }: {
   compact?: boolean;
   headingLevel?: "h1" | "h2";
+  /** Scene to open on; /demo reads it from ?scene=text so a link can land on the follow-up. */
+  initialScene?: SignatureScene;
+  /** Mirror the scene into the URL (replaceState, no navigation) so the state is shareable. */
+  syncUrl?: boolean;
 }) {
   const Heading = headingLevel;
-  const [scene, setScene] = useState<SignatureScene>("form");
+  const [scene, setScene] = useState<SignatureScene>(initialScene);
   const [whyOpen, setWhyOpen] = useState(false);
   const sceneKeys = useArrowGroup(2, scene === "form" ? 0 : 1, (index) =>
     index === 0 ? goForm() : goText(),
   );
   const liveId = useId();
   const whyId = useId();
+
+  useEffect(() => {
+    if (!syncUrl || typeof window === "undefined") return;
+    const url = new URL(window.location.href);
+    if (scene === "text") url.searchParams.set("scene", "text");
+    else url.searchParams.delete("scene");
+    window.history.replaceState(window.history.state, "", url);
+  }, [scene, syncUrl]);
   const state = signatureState(scene);
   const later = scene === "text";
 
@@ -75,7 +89,7 @@ export function CrossChannelDecisionDemo({
           aria-pressed={scene === "text"}
           onClick={goText}
         >
-          Then Maya texts…
+          02 · Then Maya texts…
         </button>
       </div>
 
