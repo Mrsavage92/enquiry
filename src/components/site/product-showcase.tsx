@@ -1,5 +1,6 @@
 import { useId, useState } from "react";
 import { CalendarDays, MessageSquareText, Settings2 } from "lucide-react";
+import { BrowserFrame } from "@/components/site/device-frame";
 
 const VIEWS = [
   {
@@ -50,21 +51,27 @@ export function ProductShowcase() {
         ))}
       </div>
       <figure id={panelId} className="public-product-figure">
-        <div className="public-product-media">
-          {VIEWS.map((item, index) => (
-            <picture key={item.id} hidden={selected !== index}>
-              <source media="(max-width: 600px)" srcSet={`/product/ui1/${item.id}-mobile.jpg`} />
-              <img
-                src={`/product/ui1/${item.id}-desktop.jpg`}
-                alt={item.alt}
-                width="1440"
-                height="960"
-                loading={index === 1 ? "eager" : "lazy"}
-                fetchPriority="auto"
-              />
-            </picture>
-          ))}
-        </div>
+        <BrowserFrame
+          tone="light"
+          url={`Sample workspace · ${view.label}`}
+          className="public-product-frame"
+        >
+          <div className="public-product-media">
+            {VIEWS.map((item, index) => (
+              <picture key={item.id} hidden={selected !== index}>
+                <source media="(max-width: 600px)" srcSet={`/product/ui1/${item.id}-mobile.jpg`} />
+                <img
+                  src={`/product/ui1/${item.id}-desktop.jpg`}
+                  alt={item.alt}
+                  width="1440"
+                  height="960"
+                  loading={index === 1 ? "eager" : "lazy"}
+                  fetchPriority="auto"
+                />
+              </picture>
+            ))}
+          </div>
+        </BrowserFrame>
         <figcaption>
           <span aria-live="polite">{view.caption}</span>
           <span className="public-sample-label">Actual app · sample workspace</span>

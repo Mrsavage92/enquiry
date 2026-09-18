@@ -999,3 +999,172 @@
     border-top: 0;
   }
 }
+
+/* ------------------------------------------------------------------
+   Browser frame around the home captures (2026-09-18). The capture
+   already carried a border and shadow of its own; the frame owns
+   both now so the screenshot reads as a window, not a photo.
+   ------------------------------------------------------------------ */
+.public-product-frame .public-product-media {
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+/* ------------------------------------------------------------------
+   Sticky walkthrough on /how (2026-09-18). Layout adapted from
+   21st.dev hyperiux sticky-content-wrapper (26064) without its GSAP
+   dependency: the stage is position: sticky, the active step is
+   picked by an IntersectionObserver band across the viewport middle.
+   Every text colour here is an existing token measured on white:
+   ink 17.1:1, ink-2 8.5:1, stone 5.7:1, kicker violet 6.4:1.
+   ------------------------------------------------------------------ */
+.public-walkthrough {
+  padding-block: 88px 72px;
+  border-bottom: 1px solid #eceaf0;
+}
+.public-walkthrough-inner {
+  display: grid;
+  grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+  gap: 64px;
+  align-items: start;
+}
+.public-walkthrough-copy .public-section-heading {
+  max-width: none;
+}
+.public-walkthrough-steps {
+  list-style: none;
+  margin-top: 24px;
+  border-top: 1px solid #eceaf0;
+}
+.public-walk-step {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr);
+  gap: 12px;
+  min-height: 36vh;
+  padding: 32px 0;
+  border-bottom: 1px solid #eceaf0;
+  align-content: center;
+}
+.public-walk-index {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  line-height: 1.6;
+  color: #68656d;
+  padding-top: 4px;
+}
+.public-walk-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 13px;
+  font-weight: 550;
+  color: #69519d;
+}
+.public-walk-body h3 {
+  margin-top: 8px;
+  font-size: 24px;
+  line-height: 1.3;
+  font-weight: 600;
+  color: #4f4b55;
+  text-wrap: balance;
+  transition: color 250ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.public-walk-body > p:not(.public-walk-label) {
+  margin-top: 12px;
+  font-size: 16px;
+  line-height: 1.7;
+  color: #68656d;
+  max-width: 44ch;
+}
+.public-walk-step.is-active .public-walk-index {
+  color: #1c1b1f;
+}
+.public-walk-step.is-active h3 {
+  color: #1c1b1f;
+}
+.public-walk-inline {
+  display: none;
+}
+.public-walkthrough-stage {
+  position: sticky;
+  top: 24px;
+  margin: 0;
+}
+.public-walkthrough-media {
+  aspect-ratio: 3 / 2;
+  position: relative;
+  background: #fff;
+}
+.public-walkthrough-media > div {
+  position: absolute;
+  inset: 0;
+  animation: public-product-in 180ms ease-out;
+}
+.public-walkthrough-media img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.public-walkthrough-stage figcaption {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 12px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .public-walkthrough-media > div,
+  .public-product-media picture {
+    animation: none;
+  }
+  .public-walk-body h3 {
+    transition: none;
+  }
+}
+@media (max-width: 1000px) {
+  .public-walkthrough-inner {
+    gap: 40px;
+  }
+  .public-walk-step {
+    min-height: 30vh;
+  }
+}
+@media (max-width: 860px) {
+  .public-walkthrough {
+    padding-block: 64px 48px;
+  }
+  .public-walkthrough-inner {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .public-walkthrough-stage {
+    display: none;
+  }
+  .public-walk-step {
+    min-height: 0;
+    grid-template-columns: 36px minmax(0, 1fr);
+    padding: 28px 0;
+  }
+  .public-walk-body > p:not(.public-walk-label) {
+    max-width: none;
+  }
+  .public-walk-inline {
+    display: block;
+    margin-top: 20px;
+    padding: 10px;
+    background: #f3eff9;
+    border-radius: 8px;
+  }
+  .public-walk-inline img {
+    display: block;
+    width: 100%;
+    height: auto;
+    background: #fff;
+    border: 1px solid #e4deed;
+    border-radius: 4px;
+  }
+}
+@media (max-width: 600px) {
+  .public-walk-body h3 {
+    font-size: 21px;
+  }
+}

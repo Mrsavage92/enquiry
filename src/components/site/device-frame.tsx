@@ -42,25 +42,41 @@ export function BrowserFrame({
   children,
   url = "enquiry.app",
   className,
+  tone = "dark",
 }: {
   children: ReactNode;
   url?: string;
   className?: string;
+  /** `light` sits on the white public pages; the address text is ink-2 on paper-2 (7.4:1). */
+  tone?: "dark" | "light";
 }) {
+  const light = tone === "light";
+  const dot = light ? "bg-[#d9d4e0]" : "bg-white/20";
   return (
     <div
       className={cn(
-        "overflow-hidden rounded-lg bg-[#0b0a09]",
-        "shadow-[0_40px_90px_-40px_rgba(0,0,0,0.85)]",
-        "outline outline-1 -outline-offset-1 outline-white/12",
+        "overflow-hidden rounded-lg outline outline-1 -outline-offset-1",
+        light
+          ? "bg-white outline-[#ded9e8] shadow-[0_12px_36px_#3524510c]"
+          : "bg-[#0b0a09] outline-white/12 shadow-[0_40px_90px_-40px_rgba(0,0,0,0.85)]",
         className,
       )}
     >
-      <div className="flex items-center gap-2 border-b border-white/10 px-3 py-2.5">
-        <span className="h-2.5 w-2.5 rounded-full bg-white/20" />
-        <span className="h-2.5 w-2.5 rounded-full bg-white/20" />
-        <span className="h-2.5 w-2.5 rounded-full bg-white/20" />
-        <span className="ml-2 truncate rounded bg-white/[0.07] px-2.5 py-1 text-[0.7rem] text-paper">
+      <div
+        className={cn(
+          "flex items-center gap-2 border-b px-3 py-2.5",
+          light ? "border-[#eceaf0] bg-[#fafafc]" : "border-white/10",
+        )}
+      >
+        <span className={cn("h-2.5 w-2.5 rounded-full", dot)} />
+        <span className={cn("h-2.5 w-2.5 rounded-full", dot)} />
+        <span className={cn("h-2.5 w-2.5 rounded-full", dot)} />
+        <span
+          className={cn(
+            "ml-2 truncate rounded px-2.5 py-1 text-[0.7rem]",
+            light ? "bg-[#f0eef4] text-[#4f4b55]" : "bg-white/[0.07] text-paper",
+          )}
+        >
           {url}
         </span>
       </div>
