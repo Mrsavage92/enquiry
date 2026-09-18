@@ -47,7 +47,9 @@ const POSTS = [
   },
 ];
 
-const VISUALS = [
+type Visual = { src: string; alt: string; to: "/demo" | "/roadmap"; scene?: "text" };
+
+const VISUALS: readonly Visual[] = [
   {
     src: "/product/ui1/enquiry-desktop.jpg",
     alt: "An enquiry in the current sample workspace.",
@@ -55,9 +57,9 @@ const VISUALS = [
     scene: "text",
   },
   {
-    src: "/product/roadmap/roadmap-desktop.jpg",
-    alt: "The public roadmap, separating current and planned outcomes.",
-    to: "/roadmap",
+    src: "/product/ui1/business-mobile.jpg",
+    alt: "Business settings on mobile in the current sample workspace.",
+    to: "/demo",
   },
   {
     src: "/product/ui1/enquiry-mobile.jpg",
@@ -75,7 +77,7 @@ const VISUALS = [
     alt: "Business information in the current sample workspace.",
     to: "/demo",
   },
-] as const;
+];
 
 function Updates() {
   return (
