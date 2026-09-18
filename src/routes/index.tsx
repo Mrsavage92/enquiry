@@ -4,6 +4,7 @@ import {
   CalendarDays,
   ChevronDown,
   Inbox,
+  Mail,
   MessageSquareText,
   Settings2,
 } from "lucide-react";
@@ -13,6 +14,8 @@ import { ProductShowcase } from "@/components/site/product-showcase";
 import { EarlyAccessInvite } from "@/components/site/early-access-invite";
 import { EnquiryStory } from "@/components/site/enquiry-story";
 import { BrandHero } from "@/components/site/brand-hero";
+import { CrossMark } from "@/components/site/cross-mark";
+import { SUPPORT_EMAIL, SUPPORT_MAILTO } from "@/lib/site/contact";
 
 export const Route = createFileRoute("/")({
   component: Home,
@@ -88,6 +91,8 @@ function Home() {
             },
           ].map(({ icon: Icon, title, body, tone }) => (
             <article key={title} className="public-benefit">
+              <CrossMark position="top-start" />
+              <CrossMark position="bottom-end" />
               <span className={`public-icon public-icon-${tone}`}>
                 <Icon size={23} strokeWidth={1.7} aria-hidden="true" />
               </span>
@@ -123,14 +128,28 @@ function Home() {
         className="public-container public-section public-faq"
         aria-labelledby="questions-title"
       >
-        <div className="public-section-heading">
+        <CrossMark position="top-start" />
+        <CrossMark position="bottom-end" />
+        <div className="public-section-heading public-faq-intro">
           <span className="public-icon public-icon-violet">
             <CalendarDays size={23} aria-hidden="true" />
           </span>
           <h2 id="questions-title">Before you join.</h2>
           <p>A few things worth knowing about early access.</p>
+          <div className="public-faq-contact">
+            <span className="public-icon public-icon-violet" aria-hidden="true">
+              <Mail size={20} strokeWidth={1.7} />
+            </span>
+            <div>
+              <strong>Something not covered?</strong>
+              <p>
+                Questions go to a person, not a queue.{" "}
+                <a href={SUPPORT_MAILTO}>{SUPPORT_EMAIL}</a>
+              </p>
+            </div>
+          </div>
         </div>
-        <div>
+        <div className="public-faq-list">
           {QUESTIONS.map(([question, answer]) => (
             <details key={question}>
               <summary>

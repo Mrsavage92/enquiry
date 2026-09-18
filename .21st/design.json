@@ -1,0 +1,128 @@
+{
+  "version": 1,
+  "project": {
+    "name": "enquiry-marketing-site",
+    "productType": "b2b-saas-prelaunch",
+    "stack": ["react", "tailwind-v4", "vite", "tanstack-start"]
+  },
+  "sources": {
+    "tokens": ["src/styles.css#@theme", "src/public-site.css", "src/site-story.css"],
+    "components": ["src/components/ui", "src/components/site"],
+    "assets": ["public/brand", "public/product"],
+    "instructions": ["AGENTS.md", "docs/CURRENT_PHASE.md", "docs/PUBLIC_CLAIM_TRUTH_MATRIX.md"]
+  },
+  "design": {
+    "colorMode": "light",
+    "colors": {
+      "paper": "#fafafc",
+      "paper-2": "#f0eef4",
+      "raised": "#ffffff",
+      "reply": "#f3efff",
+      "ink": "#1c1b1f",
+      "ink-2": "#4f4b55",
+      "stone": "#68656d",
+      "line": "#eceaf0",
+      "line-strong": "#cbc5d3",
+      "mark": "#6848d6",
+      "mark-hover": "#583ac0",
+      "public-violet": "#654ac2",
+      "kicker": "#69519d",
+      "workflow-band": "#f8f8fa",
+      "invite-band": "#f1edf7",
+      "icon-violet-bg": "#f0eafa",
+      "icon-rose-bg": "#faedf1",
+      "icon-rose-fg": "#9b5069",
+      "icon-green-bg": "#eaf4ef",
+      "icon-green-fg": "#347859"
+    },
+    "typography": {
+      "sans": "Inter Variable, Inter, system-ui",
+      "h2": "38px / 600 / 1.22",
+      "h3": "20px / 600 / 1.45",
+      "body": "16px / 1.75",
+      "lede": "18px / 1.7",
+      "kicker": "15px / 550"
+    },
+    "spacing": { "section": "88px block", "grid-gap": "40-48px" },
+    "radius": { "icon": "8px", "button": "6px", "card": "8px" },
+    "shadows": {
+      "border": "0 0 0 1px #1c1b1f12, 0 1px 2px #1c1b1f0a",
+      "border-hover": "0 0 0 1px #1c1b1f1f, 0 4px 12px #1c1b1f0d"
+    },
+    "motion": {
+      "quick": "150ms",
+      "fast": "250ms",
+      "ease": "cubic-bezier(0.22,1,0.36,1)",
+      "reducedMotion": "respected"
+    },
+    "density": "comfortable"
+  },
+  "components": {
+    "installed": [
+      "badge",
+      "button",
+      "dialog",
+      "segmented",
+      "sheet",
+      "wordmark",
+      "scroll-fade",
+      "empty-state",
+      "waitlist-form",
+      "enquiry-story"
+    ],
+    "preferredPrimitives": ["radix-ui", "lucide-react", "native-details"],
+    "patterns": [
+      "section = kicker + h2 + lede",
+      "icon chip 46px radius 8 in violet/rose/green tints",
+      "native <details> accordion",
+      "hairline drawn-grid grammar: cells bordered with extended hairlines and corner crosshair marks (adopted 2026-09-18)"
+    ]
+  },
+  "constraints": {
+    "must": [
+      "keep src/components/site/brand-hero.tsx untouched",
+      "every text element >= 4.5:1 (3:1 large) against its rendered background",
+      "keep secondary text at #68656d or darker; it already sits at 4.95:1 on lavender",
+      "respect prefers-reduced-motion",
+      "no new runtime dependency without a stated reason",
+      "copy stays truthful: no fabricated logos, testimonials, counts or integrations",
+      "do not add new instances of the product name in copy; the name is under review"
+    ],
+    "avoid": [
+      "dark mode variants",
+      "gradient text",
+      "glassmorphism",
+      "dark glows",
+      "uniform equal-width padded card grids",
+      "hero-metric layouts",
+      "pointer-follow spotlights and other decorative motion",
+      "navy + gold",
+      "Geist"
+    ]
+  },
+  "decisions": [
+    {
+      "date": "2026-09-14",
+      "decision": "UI1 identity: white working surfaces, soft lilac shell, violet accent, sculptural ribbon hero. Owned by Codex.",
+      "source": "docs/CURRENT_PHASE.md"
+    },
+    {
+      "date": "2026-09-18",
+      "decision": "Home body de-templated with a drawn hairline-grid grammar rather than padded cards. Benefits: 21st hirael feature-08 (id 26797) cell geometry, crosshair corner marks, spotlight dropped. Workflow: story progress track becomes a left vertical dashed rail from 21st ln-dev7 how-it-works-02 (id 26902), scoped to the compact story only. FAQ: 21st hirael faq-05 (id 26656) bordered two-column frame plus the contact card idea from ln-dev7 faqs-02 (id 26910), accordion stays native <details>. CTA band: reuse the project's own WaitlistForm compact inline; 21st results only validated the direction.",
+      "source": "independent /critique 2026-09-17 (Nielsen 29/40: body template-shaped, center-aligned)"
+    }
+  ],
+  "evidence": [
+    { "fact": "tokens", "source": "src/styles.css @theme block" },
+    { "fact": "section rhythm and section colours", "source": "src/public-site.css lines 258-430" },
+    {
+      "fact": "@radix-ui/react-accordion already a dependency; native details kept anyway",
+      "source": "package.json"
+    },
+    {
+      "fact": "21st tier paid, aiGenerationEnabled false",
+      "source": "mcp__21st__get_usage 2026-09-18"
+    }
+  ],
+  "generatedAt": "2026-09-18T00:12:02.327Z"
+}
