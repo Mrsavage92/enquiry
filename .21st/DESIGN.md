@@ -18,7 +18,7 @@
 
 ## Components
 
-- Installed: badge, button, dialog, segmented, sheet, wordmark, scroll-fade, empty-state, waitlist-form, enquiry-story
+- Installed: badge, button, dialog, segmented, sheet, wordmark, scroll-fade, empty-state, waitlist-form, enquiry-story, product-walkthrough
 - Preferred primitives: radix-ui, lucide-react, native-details
 - Patterns:
   - section = kicker + h2 + lede
@@ -104,6 +104,8 @@
   Source: docs/CURRENT_PHASE.md
 - **2026-09-18** - Home body de-templated with a drawn hairline-grid grammar rather than padded cards. Benefits: 21st hirael feature-08 (id 26797) cell geometry, crosshair corner marks, spotlight dropped. Workflow: story progress track becomes a left vertical dashed rail from 21st ln-dev7 how-it-works-02 (id 26902), scoped to the compact story only. FAQ: 21st hirael faq-05 (id 26656) bordered two-column frame plus the contact card idea from ln-dev7 faqs-02 (id 26910), accordion stays native <details>. CTA band: reuse the project's own WaitlistForm compact inline; 21st results only validated the direction.
   Source: independent /critique 2026-09-17 (Nielsen 29/40: body template-shaped, center-aligned)
+- **2026-09-18** - Site-wide 21st pass beyond the home body. /how: sticky scroll walkthrough of the three real captures, structure from 21st hyperiux sticky-content-wrapper (id 26064) rebuilt on position: sticky + IntersectionObserver because its GSAP ScrollTrigger would be a new runtime dependency; below 860px each step carries its capture inline. /updates: changelog timeline from 21st shadcnblocks changelog-1 (id 2203), sticky kind-pill + date column, capture under the copy at reading width. /early-access: founding offer as one bordered card from 21st ln-dev7 single-plan pricing card (id 26907), no trust badges and no strike-through price because the standard price is unconfirmed. Home captures and the walkthrough stage sit in the project's own BrowserFrame (device-frame.tsx) with a new light tone; 21st designali browser (id 5942) was retrieved and rejected as a duplicate. Footer deliberately untouched.
+  Source: user: the home-only pass was not enough (2026-09-18)
 
 ## Evidence
 

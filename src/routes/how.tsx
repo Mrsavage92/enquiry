@@ -3,6 +3,7 @@ import { Focus, GitCompareArrows, Lightbulb, ShieldCheck } from "lucide-react";
 import { socialHead } from "@/lib/site/head";
 import { SiteShell } from "@/components/site/site-shell";
 import { EnquiryStory } from "@/components/site/enquiry-story";
+import { ProductWalkthrough } from "@/components/site/product-walkthrough";
 import { EarlyAccessInvite } from "@/components/site/early-access-invite";
 
 export const Route = createFileRoute("/how")({
@@ -49,6 +50,7 @@ function How() {
           your own channel.
         </p>
       </section>
+      <ProductWalkthrough />
       <EarlyAccessInvite />
     </SiteShell>
   );
