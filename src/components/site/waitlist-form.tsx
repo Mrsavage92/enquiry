@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { SUPPORT_EMAIL, SUPPORT_MAILTO } from "@/lib/site/contact";
 import { ArrowRight, CheckCircle2, LoaderCircle } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
@@ -19,6 +20,32 @@ import {
 
 const VOLUMES = ["<5", "5-20", "21-50", "51-100", "100+"] as const;
 const CHANNELS = ["Email", "Website form", "Text", "Instagram", "Facebook", "Phone"] as const;
+
+const EMAIL_SHAPE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+/**
+ * A fetch that never reached the server throws a TypeError; anything the
+ * server rejected arrives as an Error with a message written for the owner.
+ * The two need different advice.
+ */
+function describeFailure(e: unknown, fallback: string): string {
+  if (e instanceof TypeError)
+    return "We could not reach the server. Check your connection and try again.";
+  if (e instanceof Error && e.message) return e.message;
+  return fallback;
+}
+
+function FailureNote({ message }: { message: string }) {
+  return (
+    <>
+      {message} If it keeps happening, email{" "}
+      <a href={SUPPORT_MAILTO} className="underline underline-offset-2">
+        {SUPPORT_EMAIL}
+      </a>
+      .
+    </>
+  );
+}
 
 export function WaitlistForm({
   compact = false,
@@ -42,6 +69,7 @@ export function WaitlistForm({
   const [waitlistId, setWaitlistId] = useState<string | null>(null);
   const [already, setAlready] = useState(false);
   const [error, setError] = useState("");
+  const [hint, setHint] = useState("");
   const [busy, setBusy] = useState(false);
 
   const [businessType, setBusinessType] = useState("");
@@ -134,7 +162,7 @@ export function WaitlistForm({
         setStep("qualify");
       }
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not join just then.");
+      setError(describeFailure(e, "Could not join just then."));
     } finally {
       inFlight.current = false;
       setBusy(false);
@@ -162,7 +190,7 @@ export function WaitlistForm({
       storeQualified();
       setStep("done");
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not save that.");
+      setError(describeFailure(e, "Could not save that."));
     } finally {
       inFlight.current = false;
       setBusy(false);
@@ -231,6 +259,16 @@ export function WaitlistForm({
           <p className={entry ? "auth-description" : "mt-1 text-sm text-ink-2"}>
             You're on the list. These questions are optional and help us understand what you need.
           </p>
+          <button
+            type="button"
+            className="mt-2 text-sm text-ink-2 underline underline-offset-2"
+            onClick={() => {
+              setError("");
+              setStep("email");
+            }}
+          >
+            Wrong email? Go back and change it
+          </button>
         </div>
         <label className="block text-sm">
           <span className="mb-1 block text-stone">What kind of business?</span>
@@ -303,7 +341,7 @@ export function WaitlistForm({
         </fieldset>
         {error ? (
           <p role="alert" className="auth-error">
-            {error}
+            <FailureNote message={error} />
           </p>
         ) : null}
         <div className={entry ? "auth-actions" : "flex flex-col gap-2 sm:flex-row"}>
@@ -359,7 +397,18 @@ export function WaitlistForm({
           required
           autoComplete="email"
           value={email}
-          onChange={(e) => setEmail(e.target.value)}
+          onChange={(e) => {
+            setEmail(e.target.value);
+            if (hint) setHint("");
+          }}
+          onBlur={(e) => {
+            const value = e.currentTarget.value.trim();
+            setHint(
+              value && !EMAIL_SHAPE.test(value) ? "That does not look like an email address." : "",
+            );
+          }}
+          aria-describedby={hint ? "waitlist-email-hint" : undefined}
+          aria-invalid={hint ? true : undefined}
           placeholder="you@yourbusiness.com"
           className="field h-12"
         />
@@ -381,9 +430,14 @@ export function WaitlistForm({
           />
         </label>
       </div>
+      {hint ? (
+        <p id="waitlist-email-hint" className="w-full text-sm text-danger" aria-live="polite">
+          {hint}
+        </p>
+      ) : null}
       {error ? (
         <p role="alert" className="w-full text-sm text-danger">
-          {error}
+          <FailureNote message={error} />
         </p>
       ) : null}
       <Button

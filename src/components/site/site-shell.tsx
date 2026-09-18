@@ -158,6 +158,9 @@ export function SiteShell({ children }: { children: ReactNode }) {
           <nav aria-label="Get started">
             <h2>Get started</h2>
             <Link to="/early-access">Join early access</Link>
+            <Link to="/" hash="questions-title">
+              Questions
+            </Link>
             <Link to="/login">Sign in</Link>
             <Link to="/privacy">Privacy</Link>
             <Link to="/terms">Terms</Link>

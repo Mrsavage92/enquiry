@@ -925,3 +925,23 @@
     grid-column: auto;
   }
 }
+
+/* Journal hierarchy (critique pass 2). The roadmap entry is the one primary
+   element: filled pill, full-width capture. Notes carry a smaller capture so
+   six entries stop reading as six identical blocks. White on #654ac2: 6.3:1. */
+.product-journal > li:first-child .journal-kind {
+  background: #654ac2;
+  border-color: transparent;
+  color: #ffffff;
+}
+.product-journal > li:not(:first-child) .journal-visual {
+  max-width: 520px;
+}
+.product-journal > li:not(:first-child) .journal-copy h2 {
+  font-size: 22px;
+}
+@media (max-width: 860px) {
+  .product-journal > li:not(:first-child) .journal-visual {
+    max-width: none;
+  }
+}

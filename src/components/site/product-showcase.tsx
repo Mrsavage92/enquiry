@@ -1,4 +1,5 @@
-import { useId, useState } from "react";
+import { useId, useRef, useState, type KeyboardEvent } from "react";
+import { Link } from "@tanstack/react-router";
 import { CalendarDays, MessageSquareText, Settings2 } from "lucide-react";
 import { BrowserFrame } from "@/components/site/device-frame";
 
@@ -31,16 +32,43 @@ export function ProductShowcase() {
   const [selected, setSelected] = useState(1);
   const panelId = useId();
   const view = VIEWS[selected];
+  const buttons = useRef<Array<HTMLButtonElement | null>>([]);
+
+  /** Arrow keys move between views once a tab has focus; Home and End jump. */
+  const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    const moves: Record<string, number> = {
+      ArrowRight: selected + 1,
+      ArrowLeft: selected - 1,
+      Home: 0,
+      End: VIEWS.length - 1,
+    };
+    const next = moves[event.key];
+    if (next === undefined) return;
+    event.preventDefault();
+    const index = (next + VIEWS.length) % VIEWS.length;
+    setSelected(index);
+    buttons.current[index]?.focus();
+  };
   return (
     <section id="product-preview" className="public-showcase" aria-label="Explore the actual app">
       <div className="public-showcase-heading">
         <p>One enquiry. One detail still deciding it.</p>
-        <span>Built in the open. Every change is posted to Updates.</span>
+        <span>
+          Built in the open. Every change is posted to <Link to="/updates">Updates</Link>.
+        </span>
       </div>
-      <div className="public-showcase-controls" role="group" aria-label="Product views">
+      <div
+        className="public-showcase-controls"
+        role="group"
+        aria-label="Product views"
+        onKeyDown={onKeyDown}
+      >
         {VIEWS.map(({ id, icon: Icon, label }, index) => (
           <button
             key={id}
+            ref={(el) => {
+              buttons.current[index] = el;
+            }}
             type="button"
             aria-pressed={selected === index}
             aria-controls={panelId}
