@@ -1168,3 +1168,12 @@
     font-size: 21px;
   }
 }
+
+.public-showcase-heading > span a {
+  color: #4f4b55;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.public-showcase-heading > span a:hover {
+  color: var(--public-violet);
+}

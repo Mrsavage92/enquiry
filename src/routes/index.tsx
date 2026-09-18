@@ -150,7 +150,13 @@ function Home() {
         </div>
         <div className="public-faq-list">
           {QUESTIONS.map(([question, answer]) => (
-            <details key={question}>
+            <details
+              key={question}
+              id={question
+                .toLowerCase()
+                .replace(/[^a-z0-9]+/g, "-")
+                .replace(/^-|-$/g, "")}
+            >
               <summary>
                 {question}
                 <ChevronDown size={19} aria-hidden="true" />
