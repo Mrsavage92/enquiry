@@ -12,7 +12,6 @@ import { socialHead } from "@/lib/site/head";
 import { SiteShell } from "@/components/site/site-shell";
 import { ProductShowcase } from "@/components/site/product-showcase";
 import { EarlyAccessInvite } from "@/components/site/early-access-invite";
-import { EnquiryStory } from "@/components/site/enquiry-story";
 import { BrandHero } from "@/components/site/brand-hero";
 import { CrossMark } from "@/components/site/cross-mark";
 import { SUPPORT_EMAIL, SUPPORT_MAILTO } from "@/lib/site/contact";
@@ -126,28 +125,11 @@ function Home() {
             </article>
           ))}
         </div>
-      </section>
-      <section className="public-workflow-band">
-        <div className="public-container public-section">
-          <div className="public-section-heading public-heading-row">
-            <div>
-              <p className="public-kicker">A conversation, not a pipeline</p>
-              <h2>
-                The details change.
-                <br />
-                So does what you can promise.
-              </h2>
-            </div>
-            <Link to="/how" className="public-text-link">
-              How it works <ArrowRight size={17} aria-hidden="true" />
-            </Link>
-          </div>
-          <EnquiryStory compact />
-          <p className="story-disclosure">
-            An illustrative sample, not a connected inbox. Prepared does not mean sent. You stay in
-            control of the customer conversation.
-          </p>
-        </div>
+        <p className="public-benefits-more">
+          <Link to="/how" className="public-text-link">
+            See the details change on a real example <ArrowRight size={17} aria-hidden="true" />
+          </Link>
+        </p>
       </section>
       <section
         className="public-container public-section public-faq"
