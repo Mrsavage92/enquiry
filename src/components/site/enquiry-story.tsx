@@ -12,7 +12,10 @@ const STAGES = [
     title: "Keep the bigger picture",
     detail: "The request meets your services, rules and working day.",
   },
-  { title: "A clearer next step", detail: "Know what to check before making a commitment." },
+  {
+    title: "What you can promise",
+    detail: "One detail still decides it. Check that before committing.",
+  },
 ];
 
 export function EnquiryStory({ compact = false }: { compact?: boolean }) {

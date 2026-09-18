@@ -22,9 +22,9 @@ export const Route = createFileRoute("/")({
   head: () =>
     socialHead({
       path: "/",
-      title: "Enquiry - a clearer next step for your business",
+      title: "Enquiry - know what you can safely promise before you reply",
       description:
-        "Keep customer enquiries moving. Bring the conversation together, prepare the next reply and stay in control. Join Enquiry early access.",
+        "Enquiry checks each customer request against how your business works, asks only for the detail that would change the answer, and prepares the reply for you to send. Join early access.",
     }),
 });
 
@@ -58,35 +58,35 @@ function Home() {
       <ProductShowcase />
       <section className="public-section public-container" aria-labelledby="work-title">
         <div className="public-section-heading">
-          <p className="public-kicker">For the person who runs the business</p>
+          <p className="public-kicker">Before you promise anything</p>
           <h2 id="work-title">
-            Less piecing it together.
+            Yes. No. Not yet.
             <br />
-            More moving it forward.
+            Know before you reply.
           </h2>
           <p>
-            From the first question to the booked job, keep the conversation, the important details
-            and the next step together.
+            Replying quickly is the easy part. Knowing what you can safely say is the hard part, and
+            it is the part Enquiry does first.
           </p>
         </div>
         <div className="public-benefits">
           {[
             {
               icon: Inbox,
-              title: "Know what needs you",
-              body: "A focused daily view of enquiries needing attention and the bookings ahead.",
+              title: "Not yet is a real answer",
+              body: "If a price or a date cannot be decided yet, it says so and shows why, instead of putting an unsupported number in front of a customer.",
               tone: "violet",
             },
             {
               icon: MessageSquareText,
-              title: "Start with a prepared reply",
-              body: "Review a useful next step, with missing details and anything uncertain made clear.",
+              title: "Only asks what changes the answer",
+              body: "It works out which missing detail actually moves the price, the date or whether you can do the job, and asks for that one. Nothing else.",
               tone: "rose",
             },
             {
               icon: Settings2,
-              title: "Keep it true to your business",
-              body: "Your services, pricing, policies and voice give each enquiry its context.",
+              title: "Your rules decide, not a script",
+              body: "Your services, prices and policies do the checking. The same message can get a different correct answer at a different business.",
               tone: "green",
             },
           ].map(({ icon: Icon, title, body, tone }) => (
@@ -110,7 +110,7 @@ function Home() {
               <h2>
                 The details change.
                 <br />
-                The next step should too.
+                So does what you can promise.
               </h2>
             </div>
             <Link to="/how" className="public-text-link">
@@ -143,8 +143,7 @@ function Home() {
             <div>
               <strong>Something not covered?</strong>
               <p>
-                Questions go to a person, not a queue.{" "}
-                <a href={SUPPORT_MAILTO}>{SUPPORT_EMAIL}</a>
+                Questions go to a person, not a queue. <a href={SUPPORT_MAILTO}>{SUPPORT_EMAIL}</a>
               </p>
             </div>
           </div>

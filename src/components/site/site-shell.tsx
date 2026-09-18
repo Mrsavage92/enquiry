@@ -140,7 +140,8 @@ export function SiteShell({ children }: { children: ReactNode }) {
             </Link>
             <p>
               For the person behind the business.
-              <br />A clearer next step, every day.
+              <br />
+              Know what you can promise, every day.
             </p>
           </div>
           <nav aria-label="Explore">
