@@ -26,7 +26,7 @@ const PROMISES = [
   },
   {
     t: "30% off your first 12 months",
-    b: "For the first 20 invited businesses. Join before public release and, if you become a paying customer, your first 12 months are 30% off the standard price.",
+    b: "If you become a paying customer, your first 12 months are 30% off the standard price.",
   },
   {
     t: "A direct line into what we learn",
@@ -57,9 +57,6 @@ function EarlyAccess() {
               <span className="auth-offer-value-label">
                 off your first 12 months if you become a paying customer
               </span>
-            </p>
-            <p className="auth-offer-fine">
-              The standard price is confirmed in writing before any paid access begins.
             </p>
           </div>
           <div className="auth-offer-list">

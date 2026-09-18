@@ -13,6 +13,9 @@ const NAV = [
   { to: "/updates", label: "Updates" },
 ] as const;
 
+/** Desktop header carries three destinations; Updates lives in the footer and the mobile menu. */
+const DESKTOP_NAV = NAV.filter((item) => item.to !== "/updates");
+
 export function SiteShell({ children }: { children: ReactNode }) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const [open, setOpen] = useState(false);
@@ -83,7 +86,7 @@ export function SiteShell({ children }: { children: ReactNode }) {
             <Wordmark size="sm" />
           </Link>
           <nav className="public-desktop-links" aria-label="Site">
-            {NAV.map(({ to, label }) => (
+            {DESKTOP_NAV.map(({ to, label }) => (
               <Link key={to} to={to} aria-current={pathname === to ? "page" : undefined}>
                 {label}
               </Link>

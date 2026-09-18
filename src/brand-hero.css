@@ -329,3 +329,36 @@
     border: 1px solid ButtonText;
   }
 }
+
+/* Price note under the actions (2026-09-18). Ink-2 tint on the lilac hero:
+   #544862 on #f0eef4 measures 7.2:1. */
+.brand-hero-note {
+  display: inline-block;
+  margin-top: 16px;
+  padding: 7px 14px;
+  border-radius: 999px;
+  background: #ffffffd9;
+  font-size: 14px;
+  line-height: 1.5;
+  color: #544862;
+}
+@media (max-width: 600px) {
+  .brand-hero-category {
+    max-width: 22ch;
+    margin-inline: auto;
+    text-wrap: balance;
+  }
+  .brand-hero-note {
+    margin-top: 12px;
+    font-size: 13px;
+    max-width: 30ch;
+    margin-inline: auto;
+  }
+  .brand-hero {
+    height: auto;
+    min-height: min(590px, calc(100svh - 140px));
+  }
+  .brand-hero-copy {
+    padding-bottom: 92px;
+  }
+}
