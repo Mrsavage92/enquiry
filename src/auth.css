@@ -778,3 +778,27 @@
 .waitlist-group > * + * {
   margin-top: 20px;
 }
+
+.auth-notice {
+  margin: 0 0 16px;
+  padding: 12px 14px;
+  border: 1px solid var(--color-line);
+  border-radius: 8px;
+  background: var(--color-paper);
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--color-ink-2);
+}
+.waitlist-more {
+  margin-top: 10px;
+}
+.waitlist-more summary {
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--color-ink-2);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.waitlist-more[open] summary {
+  margin-bottom: 8px;
+}

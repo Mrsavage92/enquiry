@@ -69,6 +69,14 @@ export function storeWaitlistSkipped() {
   window.dispatchEvent(new Event(WAITLIST_EVENT));
 }
 
+/** Forget the signup on this browser after the row is removed on the server. */
+export function clearWaitlist() {
+  localStorage.removeItem(WAITLIST_KEY);
+  localStorage.removeItem(QUALIFIED_KEY);
+  localStorage.removeItem(SKIPPED_KEY);
+  window.dispatchEvent(new Event(WAITLIST_EVENT));
+}
+
 function readTouch(raw: string | null): Touch | null {
   if (!raw) return null;
   try {
@@ -81,7 +89,8 @@ function readTouch(raw: string | null): Touch | null {
       utm_campaign: typeof o.utm_campaign === "string" ? o.utm_campaign.slice(0, 120) : "",
       utm_content: typeof o.utm_content === "string" ? o.utm_content.slice(0, 120) : "",
       referrer: typeof o.referrer === "string" ? o.referrer.slice(0, 400) : "",
-      linkedin_post_id: typeof o.linkedin_post_id === "string" ? o.linkedin_post_id.slice(0, 80) : "",
+      linkedin_post_id:
+        typeof o.linkedin_post_id === "string" ? o.linkedin_post_id.slice(0, 80) : "",
       landing_path: typeof o.landing_path === "string" ? o.landing_path.slice(0, 200) : "",
     };
   } catch {
@@ -92,10 +101,10 @@ function readTouch(raw: string | null): Touch | null {
 function isMeaningful(touch: Touch) {
   return Boolean(
     touch.utm_source ||
-      touch.utm_campaign ||
-      touch.linkedin_post_id ||
-      touch.referrer ||
-      (touch.landing_path && touch.landing_path !== "/"),
+    touch.utm_campaign ||
+    touch.linkedin_post_id ||
+    touch.referrer ||
+    (touch.landing_path && touch.landing_path !== "/"),
   );
 }
 
@@ -119,7 +128,9 @@ export function captureAttribution(): { first: Touch | null; latest: Touch | nul
   }
   return {
     first: readTouch(localStorage.getItem(FIRST_TOUCH_KEY)),
-    latest: readTouch(localStorage.getItem(LATEST_TOUCH_KEY)) ?? (isMeaningful(touch) ? touch : emptyTouch()),
+    latest:
+      readTouch(localStorage.getItem(LATEST_TOUCH_KEY)) ??
+      (isMeaningful(touch) ? touch : emptyTouch()),
   };
 }
 

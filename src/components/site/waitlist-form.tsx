@@ -3,9 +3,10 @@ import { SUPPORT_EMAIL, SUPPORT_MAILTO } from "@/lib/site/contact";
 import { ArrowRight, CheckCircle2, LoaderCircle } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
-import { joinWaitlist, qualifyWaitlist, trackLaunchEvent } from "@/lib/launch/api";
+import { joinWaitlist, leaveWaitlist, qualifyWaitlist, trackLaunchEvent } from "@/lib/launch/api";
 import {
   captureAttribution,
+  clearWaitlist,
   currentTouch,
   firstTouch,
   launchSessionId,
@@ -19,7 +20,8 @@ import {
 } from "@/lib/launch/session";
 
 const VOLUMES = ["<5", "5-20", "21-50", "51-100", "100+"] as const;
-const CHANNELS = ["Email", "Website form", "Text", "Instagram", "Facebook", "Phone"] as const;
+const CHANNELS = ["Email", "Website form", "Text", "Phone"] as const;
+const MORE_CHANNELS = ["Instagram", "Facebook"] as const;
 
 const EMAIL_SHAPE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -73,6 +75,7 @@ export function WaitlistForm({
   const [already, setAlready] = useState(false);
   const [error, setError] = useState("");
   const [hint, setHint] = useState("");
+  const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState(false);
 
   const [businessType, setBusinessType] = useState("");
@@ -204,6 +207,27 @@ export function WaitlistForm({
     }
   };
 
+  const leave = async () => {
+    if (!waitlistId || inFlight.current) return;
+    inFlight.current = true;
+    setBusy(true);
+    setError("");
+    try {
+      await leaveWaitlist({ data: { id: waitlistId, sessionId: launchSessionId() } });
+      clearWaitlist();
+      setWaitlistId(null);
+      setAlready(false);
+      setEmail("");
+      setNotice("You have been removed from the list. Nothing else is kept.");
+      setStep("email");
+    } catch (e) {
+      setError(describeFailure(e, "Could not remove you just then."));
+    } finally {
+      inFlight.current = false;
+      setBusy(false);
+    }
+  };
+
   if (step === "done") {
     return (
       <div className={entry ? "entry-waitlist" : "rounded-xl bg-raised px-5 py-6 shadow-border"}>
@@ -241,14 +265,31 @@ export function WaitlistForm({
             <Link to="/demo">See demo</Link>
           </Button>
         </div>
-        {!compact && storedQualified() ? (
-          <button
-            type="button"
-            className="mt-4 text-sm text-ink-2 underline underline-offset-2"
-            onClick={() => setStep("qualify")}
-          >
-            Edit your answers
-          </button>
+        {!compact ? (
+          <div className="mt-4 flex flex-wrap gap-x-5 gap-y-2 text-sm">
+            {storedQualified() ? (
+              <button
+                type="button"
+                className="text-ink-2 underline underline-offset-2"
+                onClick={() => setStep("qualify")}
+              >
+                Edit your answers
+              </button>
+            ) : null}
+            <button
+              type="button"
+              className="text-ink-2 underline underline-offset-2"
+              disabled={busy}
+              onClick={() => void leave()}
+            >
+              Remove me from the list
+            </button>
+          </div>
+        ) : null}
+        {error ? (
+          <p role="alert" className={entry ? "auth-error" : "mt-3 text-sm text-danger"}>
+            <FailureNote message={error} />
+          </p>
         ) : null}
       </div>
     );
@@ -341,6 +382,26 @@ export function WaitlistForm({
                 );
               })}
             </div>
+            <details className="waitlist-more">
+              <summary>More channels</summary>
+              <div className="waitlist-choices">
+                {MORE_CHANNELS.map((c) => {
+                  const on = channels.includes(c);
+                  return (
+                    <label key={c} className="waitlist-choice">
+                      <input
+                        type="checkbox"
+                        checked={on}
+                        onChange={() =>
+                          setChannels((prev) => (on ? prev.filter((x) => x !== c) : [...prev, c]))
+                        }
+                      />
+                      {c}
+                    </label>
+                  );
+                })}
+              </div>
+            </details>
           </fieldset>
           <label className="block text-sm">
             <span className="mb-1 block text-stone">Biggest pain handling enquiries</span>
@@ -414,6 +475,11 @@ export function WaitlistForm({
         void submitEmail();
       }}
     >
+      {notice ? (
+        <p role="status" className={entry ? "auth-notice" : "w-full text-sm text-ink-2"}>
+          {notice}
+        </p>
+      ) : null}
       {entry ? (
         <div className="auth-form-heading">
           <h1 className="auth-title">Join early access</h1>
@@ -453,7 +519,7 @@ export function WaitlistForm({
         style={{ clipPath: "inset(50%)" }}
       >
         <label>
-          Fax
+          Leave this field empty
           <input
             type="text"
             tabIndex={-1}

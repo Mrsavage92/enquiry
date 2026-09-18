@@ -18,7 +18,7 @@ import { guarded } from "@/lib/server/alert";
 const EXPECTED_LAUNCH_ERRORS = new Set(["Try again in a moment.", "Rejected."]);
 const expectedLaunchError = (error: unknown) =>
   error instanceof Error && EXPECTED_LAUNCH_ERRORS.has(error.message);
-const launchGuard = <R,>(scope: string, run: () => Promise<R>) =>
+const launchGuard = <R>(scope: string, run: () => Promise<R>) =>
   guarded(scope, run, expectedLaunchError)();
 
 export const joinWaitlist = createServerFn({ method: "POST" })
@@ -43,29 +43,33 @@ export const joinWaitlist = createServerFn({ method: "POST" })
   })
   .handler(async ({ data }) =>
     launchGuard("joinWaitlist", async () => {
-    const { protectLaunch } = await import("./protect.server");
-    protectLaunch("waitlist");
-    if (honeypotFilled(data.website)) {
-      return { id: crypto.randomUUID(), already: false };
-    }
-    const sessionId = isUuid(data.sessionId) ? data.sessionId : crypto.randomUUID();
-    const sql = await getSql();
-    const existing = await sql<{ id: string }>`
+      const { protectLaunch } = await import("./protect.server");
+      protectLaunch("waitlist");
+      if (honeypotFilled(data.website)) {
+        // A bot gets a convincing success. A real visitor whose browser filled
+        // the hidden field would be lost silently, so the hit is logged where
+        // a spike can be seen.
+        console.warn("[waitlist] honeypot hit", { landing_path: data.landing_path });
+        return { id: crypto.randomUUID(), already: false };
+      }
+      const sessionId = isUuid(data.sessionId) ? data.sessionId : crypto.randomUUID();
+      const sql = await getSql();
+      const existing = await sql<{ id: string }>`
       select id from waitlist where email = ${data.email} limit 1
     `;
-    if (existing[0]) {
-      await sql`
+      if (existing[0]) {
+        await sql`
         update waitlist
         set latest_touch = ${data.latest_touch || data.first_touch},
             utm_source = coalesce(nullif(utm_source, ''), ${data.utm_source}),
             linkedin_post_id = coalesce(nullif(linkedin_post_id, ''), ${data.linkedin_post_id})
         where id = ${existing[0].id}
       `;
-      // Never hand back another person's waitlist id.
-      return { already: true as const, id: "" };
-    }
-    const id = crypto.randomUUID();
-    await sql`
+        // Never hand back another person's waitlist id.
+        return { already: true as const, id: "" };
+      }
+      const id = crypto.randomUUID();
+      await sql`
       insert into waitlist (
         id, email, utm_source, utm_medium, utm_campaign, utm_content,
         referrer, linkedin_post_id, first_touch, latest_touch
@@ -75,7 +79,7 @@ export const joinWaitlist = createServerFn({ method: "POST" })
         ${data.linkedin_post_id}, ${data.first_touch}, ${data.latest_touch}
       )
     `;
-    await sql`
+      await sql`
       insert into launch_events (id, session_id, event_name, utm_source, utm_medium, utm_campaign, utm_content, referrer, landing_path)
       values (
         ${crypto.randomUUID()}, ${sessionId}, ${"waitlist_signup"},
@@ -83,13 +87,35 @@ export const joinWaitlist = createServerFn({ method: "POST" })
         ${data.referrer}, ${data.landing_path}
       )
     `;
-    // Fire and forget: a signup must succeed whether or not the welcome
-    // email does, and this is inert until the mailbox is configured.
-    const { sendEmailInBackground } = await import("@/lib/email/send.server");
-    const { waitlistWelcomeEmail } = await import("@/lib/email/waitlist-welcome");
-    const { siteOrigin } = await import("@/lib/site/head");
-    sendEmailInBackground(waitlistWelcomeEmail(data.email, siteOrigin()));
-    return { id, already: false as const };
+      // Fire and forget: a signup must succeed whether or not the welcome
+      // email does, and this is inert until the mailbox is configured.
+      const { sendEmailInBackground } = await import("@/lib/email/send.server");
+      const { waitlistWelcomeEmail } = await import("@/lib/email/waitlist-welcome");
+      const { siteOrigin } = await import("@/lib/site/head");
+      sendEmailInBackground(waitlistWelcomeEmail(data.email, siteOrigin()));
+      return { id, already: false as const };
+    }),
+  );
+
+/**
+ * Self-service removal. The id only ever lives in the browser that joined,
+ * so knowing it is the proof of ownership; nothing else is needed.
+ */
+export const leaveWaitlist = createServerFn({ method: "POST" })
+  .validator((raw: unknown) => {
+    const d = (raw ?? {}) as Record<string, unknown>;
+    return { id: asString(d.id, 80), sessionId: asString(d.sessionId, 80) };
+  })
+  .handler(async ({ data }) =>
+    launchGuard("leaveWaitlist", async () => {
+      const { protectLaunch } = await import("./protect.server");
+      protectLaunch("qualify");
+      if (!isUuid(data.id)) return { removed: false };
+      const sql = await getSql();
+      const rows = await sql<{ id: string }>`
+        delete from waitlist where id = ${data.id} returning id
+      `;
+      return { removed: rows.length > 0 };
     }),
   );
 
@@ -109,11 +135,11 @@ export const qualifyWaitlist = createServerFn({ method: "POST" })
   })
   .handler(async ({ data }) =>
     launchGuard("qualifyWaitlist", async () => {
-    const { protectLaunch } = await import("./protect.server");
-    protectLaunch("qualify");
-    if (!isUuid(data.id)) return { ok: true };
-    const sql = await getSql();
-    const rows = await sql<{ id: string }>`
+      const { protectLaunch } = await import("./protect.server");
+      protectLaunch("qualify");
+      if (!isUuid(data.id)) return { ok: true };
+      const sql = await getSql();
+      const rows = await sql<{ id: string }>`
       update waitlist
       set business_type = ${data.business_type},
           enquiry_volume = ${data.enquiry_volume},
@@ -124,13 +150,13 @@ export const qualifyWaitlist = createServerFn({ method: "POST" })
       where id = ${data.id}
       returning id
     `;
-    if (!rows[0]) return { ok: true };
-    const sessionId = isUuid(data.sessionId) ? data.sessionId : "unknown";
-    await sql`
+      if (!rows[0]) return { ok: true };
+      const sessionId = isUuid(data.sessionId) ? data.sessionId : "unknown";
+      await sql`
       insert into launch_events (id, session_id, event_name, landing_path)
       values (${crypto.randomUUID()}, ${sessionId}, ${"qualification_completed"}, ${data.landing_path})
     `;
-    return { ok: true };
+      return { ok: true };
     }),
   );
 
@@ -151,13 +177,13 @@ export const trackLaunchEvent = createServerFn({ method: "POST" })
   })
   .handler(async ({ data }) =>
     launchGuard("trackLaunchEvent", async () => {
-    const { protectLaunch } = await import("./protect.server");
-    if (protectLaunch("event") === "drop") return { ok: true };
-    if (!isAllowedEvent(data.event_name)) return { ok: true };
-    if (!isAllowedFeature(data.feature_id)) return { ok: true };
-    const sessionId = isUuid(data.sessionId) ? data.sessionId : "anonymous";
-    const sql = await getSql();
-    await sql`
+      const { protectLaunch } = await import("./protect.server");
+      if (protectLaunch("event") === "drop") return { ok: true };
+      if (!isAllowedEvent(data.event_name)) return { ok: true };
+      if (!isAllowedFeature(data.feature_id)) return { ok: true };
+      const sessionId = isUuid(data.sessionId) ? data.sessionId : "anonymous";
+      const sql = await getSql();
+      await sql`
       insert into launch_events (
         id, session_id, event_name, feature_id,
         utm_source, utm_medium, utm_campaign, utm_content, referrer, landing_path
@@ -167,7 +193,7 @@ export const trackLaunchEvent = createServerFn({ method: "POST" })
         ${data.referrer}, ${data.landing_path}
       )
     `;
-    return { ok: true };
+      return { ok: true };
     }),
   );
 
@@ -187,34 +213,34 @@ export const toggleRoadmapNeed = createServerFn({ method: "POST" })
   })
   .handler(async ({ data }) =>
     launchGuard("toggleRoadmapNeed", async () => {
-    const { protectLaunch } = await import("./protect.server");
-    protectLaunch("roadmap");
-    if (!isAllowedFeature(data.feature_id) || !data.feature_id) return { needed: false };
-    if (!isUuid(data.sessionId)) return { needed: false };
-    const waitlistId = isUuid(data.waitlist_id) ? data.waitlist_id : null;
-    const sql = await getSql();
-    const canonical = canonicalFeatureId(data.feature_id);
-    const family = featureIdFamily(canonical);
-    const existing: { id: string }[] = [];
-    for (const fid of family) {
-      const rows = await sql<{ id: string }>`
+      const { protectLaunch } = await import("./protect.server");
+      protectLaunch("roadmap");
+      if (!isAllowedFeature(data.feature_id) || !data.feature_id) return { needed: false };
+      if (!isUuid(data.sessionId)) return { needed: false };
+      const waitlistId = isUuid(data.waitlist_id) ? data.waitlist_id : null;
+      const sql = await getSql();
+      const canonical = canonicalFeatureId(data.feature_id);
+      const family = featureIdFamily(canonical);
+      const existing: { id: string }[] = [];
+      for (const fid of family) {
+        const rows = await sql<{ id: string }>`
         select id from roadmap_interest
         where feature_id = ${fid} and session_id = ${data.sessionId}
         limit 1
       `;
-      if (rows[0]) existing.push(rows[0]);
-    }
-    if (existing.length > 0) {
-      for (const row of existing) {
-        await sql`delete from roadmap_interest where id = ${row.id}`;
+        if (rows[0]) existing.push(rows[0]);
       }
-      return { needed: false };
-    }
-    await sql`
+      if (existing.length > 0) {
+        for (const row of existing) {
+          await sql`delete from roadmap_interest where id = ${row.id}`;
+        }
+        return { needed: false };
+      }
+      await sql`
       insert into roadmap_interest (id, feature_id, session_id, waitlist_id)
       values (${crypto.randomUUID()}, ${canonical}, ${data.sessionId}, ${waitlistId})
     `;
-    await sql`
+      await sql`
       insert into launch_events (
         id, session_id, event_name, feature_id,
         utm_source, utm_medium, utm_campaign, utm_content, referrer, landing_path
@@ -225,7 +251,7 @@ export const toggleRoadmapNeed = createServerFn({ method: "POST" })
         ${data.referrer}, ${"/roadmap"}
       )
     `;
-    return { needed: true };
+      return { needed: true };
     }),
   );
 
@@ -236,14 +262,18 @@ export const listMyRoadmapNeeds = createServerFn({ method: "POST" })
   })
   .handler(async ({ data }) =>
     launchGuard("listMyRoadmapNeeds", async () => {
-    const { protectLaunch } = await import("./protect.server");
-    if (protectLaunch("needs") === "drop") return { ids: [] as string[] };
-    if (!isUuid(data.sessionId)) return { ids: [] as string[] };
-    const sql = await getSql();
-    const rows = await sql<{ feature_id: string }>`
+      const { protectLaunch } = await import("./protect.server");
+      if (protectLaunch("needs") === "drop") return { ids: [] as string[] };
+      if (!isUuid(data.sessionId)) return { ids: [] as string[] };
+      const sql = await getSql();
+      const rows = await sql<{ feature_id: string }>`
       select feature_id from roadmap_interest where session_id = ${data.sessionId}
     `;
-    return { ids: [...new Set(rows.map((r) => canonicalFeatureId(r.feature_id)).filter(isAllowedFeature))] };
+      return {
+        ids: [
+          ...new Set(rows.map((r) => canonicalFeatureId(r.feature_id)).filter(isAllowedFeature)),
+        ],
+      };
     }),
   );
 
@@ -264,12 +294,12 @@ export const saveRoadmapFeedback = createServerFn({ method: "POST" })
   })
   .handler(async ({ data }) =>
     launchGuard("saveRoadmapFeedback", async () => {
-    const { protectLaunch } = await import("./protect.server");
-    protectLaunch("roadmap");
-    const prepared = prepareRoadmapFeedback(data);
-    if (!prepared) return { ok: true as const, saved: false as const };
-    const sql = await getSql();
-    await persistRoadmapFeedback(sql, prepared);
-    return { ok: true as const, saved: true as const };
+      const { protectLaunch } = await import("./protect.server");
+      protectLaunch("roadmap");
+      const prepared = prepareRoadmapFeedback(data);
+      if (!prepared) return { ok: true as const, saved: false as const };
+      const sql = await getSql();
+      await persistRoadmapFeedback(sql, prepared);
+      return { ok: true as const, saved: true as const };
     }),
   );
