@@ -822,3 +822,106 @@
     margin: 0;
   }
 }
+
+/* ------------------------------------------------------------------
+   Updates as a changelog timeline (2026-09-18). Layout adapted from
+   21st.dev shadcnblocks changelog-1 (2203): a sticky meta column with
+   a kind pill and the date, and a wide entry column that carries the
+   copy and then the capture underneath it at reading width, rather
+   than a 260px thumbnail squeezed into a third column. The violet
+   date dot now sits on a hairline rail down the left of the entries.
+   Kind pill: kicker violet on the lilac tint, 6.0:1.
+   ------------------------------------------------------------------ */
+.product-journal > li {
+  grid-template-columns: 200px minmax(0, 1fr);
+  gap: 48px;
+  padding: 44px 0;
+}
+.journal-meta {
+  position: sticky;
+  top: 24px;
+  align-self: start;
+  display: grid;
+  gap: 12px;
+  justify-items: start;
+}
+.journal-kind {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #69519d;
+  padding: 7px 10px;
+  border: 1px solid #d9cfec;
+  border-radius: 999px;
+  background: #f8f6fc;
+}
+.journal-date {
+  font-size: 14px;
+  color: #4f4b55;
+  padding-top: 0;
+}
+.journal-entry {
+  display: grid;
+  gap: 28px;
+  padding-left: 32px;
+  border-left: 1px solid #e8e3ee;
+}
+.journal-copy h2 {
+  font-size: 24px;
+}
+.journal-copy p {
+  font-size: 16px;
+  max-width: 62ch;
+}
+.journal-copy .public-text-link {
+  font-size: 14px;
+}
+.journal-visual {
+  grid-column: auto;
+  max-width: 760px;
+}
+.journal-visual figcaption {
+  font-size: 12px;
+}
+@media (max-width: 1000px) {
+  .product-journal > li {
+    grid-template-columns: 160px minmax(0, 1fr);
+    gap: 32px;
+  }
+}
+@media (max-width: 860px) {
+  .product-journal > li {
+    grid-template-columns: 140px minmax(0, 1fr);
+    gap: 24px;
+  }
+  .journal-entry {
+    padding-left: 24px;
+  }
+  .journal-visual {
+    grid-column: auto;
+    max-width: none;
+  }
+}
+@media (max-width: 600px) {
+  .product-journal > li {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 18px;
+    padding: 32px 0;
+  }
+  .journal-meta {
+    position: static;
+    grid-auto-flow: column;
+    align-items: center;
+    gap: 12px;
+  }
+  .journal-entry {
+    padding-left: 0;
+    border-left: 0;
+  }
+  .journal-visual {
+    grid-column: auto;
+  }
+}

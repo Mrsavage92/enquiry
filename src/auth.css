@@ -612,3 +612,141 @@
     scale: 1;
   }
 }
+
+/* ------------------------------------------------------------------
+   Founding offer as one bordered card (2026-09-18). Structure adapted
+   from 21st.dev ln-dev7 single-plan pricing card (26907): header cell,
+   price cell, "what's included" checklist, each separated by a
+   hairline so the five promises read as terms of one offer rather
+   than a stat plus a hidden accordion. No trust badges, no computed
+   strike-through price: the standard price is not yet confirmed.
+   Text colours are existing tokens on white or the lilac tint.
+   ------------------------------------------------------------------ */
+.auth-offer-card {
+  border: 1px solid #e7e2ef;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #fff;
+}
+.auth-offer-card > div + div {
+  border-top: 1px solid #eceaf0;
+}
+.auth-offer-head,
+.auth-offer-price,
+.auth-offer-list {
+  padding: 20px 22px;
+}
+.auth-offer-pill {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #69519d;
+  padding: 7px 10px;
+  border: 1px solid #d9cfec;
+  border-radius: 999px;
+  background: #f8f6fc;
+}
+.auth-offer-head h2 {
+  margin-top: 14px;
+  font-size: 20px;
+  line-height: 1.3;
+  font-weight: 600;
+  color: var(--color-ink);
+}
+.auth-offer-head p {
+  margin: 6px 0 0;
+  font-size: 14px;
+  line-height: 1.6;
+}
+.auth-offer-price {
+  background: #fafafc;
+}
+.auth-offer .auth-offer-value {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin: 0;
+  font-size: 44px;
+  font-weight: 550;
+  line-height: 1;
+  color: #7557ae;
+  white-space: nowrap;
+}
+.auth-offer .auth-offer-value > strong {
+  color: inherit;
+  font-weight: inherit;
+}
+.auth-offer .auth-offer-value span:not(.auth-offer-value-label) {
+  font-size: 24px;
+}
+.auth-offer .auth-offer-value .auth-offer-value-label {
+  font-size: 14px;
+  max-width: 22ch;
+  line-height: 1.5;
+  font-weight: 500;
+  color: var(--color-ink);
+  white-space: normal;
+}
+.auth-offer-fine {
+  margin: 12px 0 0;
+  font-size: 12px;
+  line-height: 1.6;
+}
+.auth-offer-list-title {
+  margin: 0 0 14px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-ink-2);
+}
+.auth-offer-list ul {
+  padding-top: 0;
+}
+.auth-offer-list li {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+.auth-offer-list li + li {
+  margin-top: 14px;
+}
+.auth-offer-list li > :first-child {
+  color: #fff;
+  margin-bottom: 0;
+}
+.auth-offer-check {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  margin-top: 2px;
+  border-radius: 50%;
+  background: #6848d6;
+  color: #fff;
+}
+.auth-offer-list li > div > p:first-child {
+  color: var(--color-ink);
+  font-weight: 500;
+  margin-bottom: 2px;
+}
+.auth-offer-list li > div > p + p {
+  margin-bottom: 0;
+  font-size: 13px;
+  line-height: 1.6;
+}
+@media (max-width: 700px) {
+  .auth-offer-head,
+  .auth-offer-price,
+  .auth-offer-list {
+    padding: 18px 18px;
+  }
+  .auth-offer .auth-offer-value {
+    font-size: 38px;
+  }
+}

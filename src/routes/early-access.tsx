@@ -1,5 +1,5 @@
 import { Link, createFileRoute } from "@tanstack/react-router";
-import { ChevronDown } from "lucide-react";
+import { Check } from "lucide-react";
 import { socialHead } from "@/lib/site/head";
 import { AuthLayout } from "@/components/auth/auth-layout";
 import { WaitlistForm } from "@/components/site/waitlist-form";
@@ -42,32 +42,44 @@ function EarlyAccess() {
   return (
     <AuthLayout>
       <WaitlistForm appearance="entry" />
-      <div className="auth-offer">
-        <div className="auth-founding-offer">
-          <strong className="auth-offer-value">
-            30<span>%</span>
-          </strong>
-          <p>
-            <strong>For the first 20 businesses.</strong>
-            <br />
-            Off your first 12 months if you join before public release and become a paying customer.
-          </p>
+      <section className="auth-offer" aria-labelledby="offer-title">
+        <div className="auth-offer-card">
+          <div className="auth-offer-head">
+            <span className="auth-offer-pill">Founding offer</span>
+            <h2 id="offer-title">For the first 20 businesses.</h2>
+            <p>Join before public release, before any payment is asked for.</p>
+          </div>
+          <div className="auth-offer-price">
+            <p className="auth-offer-value">
+              <strong>
+                30<span>%</span>
+              </strong>
+              <span className="auth-offer-value-label">
+                off your first 12 months if you become a paying customer
+              </span>
+            </p>
+            <p className="auth-offer-fine">
+              The standard price is confirmed in writing before any paid access begins.
+            </p>
+          </div>
+          <div className="auth-offer-list">
+            <p className="auth-offer-list-title">What early access includes</p>
+            <ul>
+              {PROMISES.map((item) => (
+                <li key={item.t}>
+                  <span className="auth-offer-check" aria-hidden="true">
+                    <Check size={11} strokeWidth={2.5} />
+                  </span>
+                  <div>
+                    <p>{item.t}</p>
+                    <p>{item.b}</p>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </div>
         </div>
-        <details>
-          <summary>
-            How early access works
-            <ChevronDown size={16} aria-hidden="true" />
-          </summary>
-          <ul>
-            {PROMISES.map((item) => (
-              <li key={item.t}>
-                <p>{item.t}</p>
-                <p>{item.b}</p>
-              </li>
-            ))}
-          </ul>
-        </details>
-      </div>
+      </section>
       <div className="auth-invitation">
         <p>
           Already have an account? <Link to="/login">Sign in</Link>
