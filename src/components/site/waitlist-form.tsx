@@ -76,6 +76,7 @@ export function WaitlistForm({
   const [error, setError] = useState("");
   const [hint, setHint] = useState("");
   const [notice, setNotice] = useState("");
+  const [confirmLeave, setConfirmLeave] = useState(false);
   const [busy, setBusy] = useState(false);
 
   const [businessType, setBusinessType] = useState("");
@@ -219,6 +220,7 @@ export function WaitlistForm({
       setAlready(false);
       setEmail("");
       setNotice("You have been removed from the list. Nothing else is kept.");
+      setConfirmLeave(false);
       setStep("email");
     } catch (e) {
       setError(describeFailure(e, "Could not remove you just then."));
@@ -276,14 +278,40 @@ export function WaitlistForm({
                 Edit your answers
               </button>
             ) : null}
-            <button
-              type="button"
-              className="text-ink-2 underline underline-offset-2"
-              disabled={busy}
-              onClick={() => void leave()}
-            >
-              Remove me from the list
-            </button>
+            {confirmLeave ? (
+              <span
+                className="flex flex-wrap items-center gap-x-3 gap-y-1"
+                role="group"
+                aria-label="Confirm removal"
+              >
+                <span className="text-ink-2">Remove you from the list?</span>
+                <button
+                  type="button"
+                  className="font-medium text-danger underline underline-offset-2"
+                  disabled={busy}
+                  onClick={() => void leave()}
+                >
+                  {busy ? "Removing…" : "Yes, remove me"}
+                </button>
+                <button
+                  type="button"
+                  className="text-ink-2 underline underline-offset-2"
+                  disabled={busy}
+                  onClick={() => setConfirmLeave(false)}
+                >
+                  Keep me on it
+                </button>
+              </span>
+            ) : (
+              <button
+                type="button"
+                className="text-ink-2 underline underline-offset-2"
+                disabled={busy}
+                onClick={() => setConfirmLeave(true)}
+              >
+                Remove me from the list
+              </button>
+            )}
           </div>
         ) : null}
         {error ? (
