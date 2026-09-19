@@ -2,7 +2,9 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { test } from "node:test";
 import {
+  HARBOUR_SOLO_RULE,
   RIDGE_CREW_WINDOW_RULE,
+  SIGNATURE_BUSINESSES,
   SIGNATURE_DEMO,
   signatureChangedFactIds,
   signatureState,
@@ -79,4 +81,39 @@ test("capacity claims stay grounded in Tom's empty-house crew-window rule", () =
   assert.match(brain, /id: "rd-crew-window"/);
   assert.ok(brain.includes(RIDGE_CREW_WINDOW_RULE.body));
   assert.match(brain, /source: src\("user", "Tom"\)/);
+});
+
+test("the same message gets a different correct answer at the second business", () => {
+  assert.equal(SIGNATURE_BUSINESSES.length, 2);
+  const ridge = signatureState("form", "ridge");
+  const harbour = signatureState("form", "harbour");
+  // Identical customer input: message, facts, channel.
+  assert.equal(ridge.message, harbour.message);
+  assert.deepEqual(ridge.facts, harbour.facts);
+  // Different business rule, different next step.
+  assert.notEqual(ridge.nextAction, harbour.nextAction);
+  assert.match(harbour.nextAction, /full week/i);
+  const cap = harbour.checks.find((c) => c.id === "capacity");
+  assert.match(cap?.why ?? "", /alone/i);
+  assert.equal(cap?.why, HARBOUR_SOLO_RULE.body);
+});
+
+test("one changed fact moves each business's answer for its own reason", () => {
+  const ridge = signatureState("text", "ridge");
+  const harbour = signatureState("text", "harbour");
+  assert.equal(ridge.message, harbour.message);
+  assert.match(ridge.nextAction, /extra crew/i);
+  assert.match(harbour.nextAction, /say no/i);
+  const eligibility = harbour.checks.find((c) => c.id === "eligibility");
+  assert.equal(eligibility?.tone, "warn");
+  assert.match(eligibility?.value ?? "", /not offered/i);
+  const capacity = harbour.checks.find((c) => c.id === "capacity");
+  assert.match(capacity?.value ?? "", /not possible/i);
+  // No invented price anywhere in either answer.
+  const blob = `${ridge.nextAction} ${harbour.nextAction} ${harbour.nextReason} ${harbour.commercialNote}`;
+  assert.doesNotMatch(blob, /\$\d/);
+});
+
+test("an unknown business id falls back to Ridge rather than throwing", () => {
+  assert.equal(signatureState("form", "nope" as never).nextAction, SIGNATURE_DEMO.form.nextAction);
 });

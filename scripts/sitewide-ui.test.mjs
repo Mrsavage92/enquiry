@@ -50,7 +50,7 @@ test("the public story uses the authoritative sample and cannot send or book", (
   ])
     assert.ok(story.replace(/\s+/g, " ").includes(value), value);
   assert.doesNotMatch(story, /fetch\(|sendReply|acceptQuote|confirmExternalBooking/);
-  assert.match(read("src/routes/demo.tsx"), /<CrossChannelDecisionDemo compact/);
+  assert.match(read("src/routes/demo.tsx"), /<CrossChannelDecisionDemo\s+compact/);
 });
 
 test("settings retain controls, sample boundaries and server-backed pause mutations", () => {

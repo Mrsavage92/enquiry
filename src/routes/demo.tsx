@@ -4,12 +4,14 @@ import { CrossChannelDecisionDemo } from "@/components/site/cross-channel-decisi
 import { Button } from "@/components/ui/button";
 import { socialHead } from "@/lib/site/head";
 
-type DemoSearch = { scene?: "text" };
+type DemoSearch = { scene?: "text"; business?: "harbour" };
 
 export const Route = createFileRoute("/demo")({
   component: Demo,
-  validateSearch: (search: Record<string, unknown>): DemoSearch =>
-    search.scene === "text" ? { scene: "text" } : {},
+  validateSearch: (search: Record<string, unknown>): DemoSearch => ({
+    ...(search.scene === "text" ? { scene: "text" as const } : {}),
+    ...(search.business === "harbour" ? { business: "harbour" as const } : {}),
+  }),
   head: () =>
     socialHead({
       path: "/demo",
@@ -20,23 +22,31 @@ export const Route = createFileRoute("/demo")({
 });
 
 function Demo() {
-  const { scene } = Route.useSearch();
+  const { scene, business } = Route.useSearch();
   return (
     <SiteShell>
       <header className="public-container public-page-heading public-demo-heading">
         <div>
           <h1>Try Enquiry</h1>
-          <p>One enquiry. A changing request. See how the next step changes with it.</p>
+          <p>
+            One enquiry, two businesses, one changing request. Watch the right answer differ, then
+            move.
+          </p>
         </div>
         <p className="demo-sample-label">
           <strong>Sample demo</strong>Not a real customer.
           <br />
-          Ridge & Co Painting · Sample business
+          Two sample businesses, one customer
         </p>
       </header>
       <section className="public-demo-band">
         <div className="public-container">
-          <CrossChannelDecisionDemo compact initialScene={scene ?? "form"} syncUrl />
+          <CrossChannelDecisionDemo
+            compact
+            initialScene={scene ?? "form"}
+            initialBusiness={business ?? "ridge"}
+            syncUrl
+          />
           <div className="mt-10 flex flex-col gap-3 sm:flex-row">
             <Button asChild className="min-h-12">
               <Link to="/early-access">Join early access</Link>
