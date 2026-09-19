@@ -22,6 +22,14 @@ import {
 const VOLUMES = ["<5", "5-20", "21-50", "51-100", "100+"] as const;
 const CHANNELS = ["Email", "Website form", "Text", "Phone"] as const;
 const MORE_CHANNELS = ["Instagram", "Facebook"] as const;
+const BUSINESS_CHIPS = [
+  "Painting",
+  "Cleaning",
+  "Mobile beauty",
+  "Photography",
+  "Trades",
+  "Events",
+] as const;
 
 const EMAIL_SHAPE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -68,6 +76,7 @@ export function WaitlistForm({
   const entry = appearance === "entry";
   const headingRef = useRef<HTMLHeadingElement>(null);
   const inFlight = useRef(false);
+  const mountedAt = useRef(Date.now());
   const [email, setEmail] = useState("");
   const [website, setWebsite] = useState("");
   const [step, setStep] = useState<"email" | "qualify" | "done">("email");
@@ -134,6 +143,7 @@ export function WaitlistForm({
         data: {
           email,
           website,
+          elapsed_ms: Date.now() - mountedAt.current,
           sessionId: launchSessionId(),
           utm_source: first.utm_source || latest.utm_source,
           utm_medium: first.utm_medium || latest.utm_medium,
@@ -364,15 +374,30 @@ export function WaitlistForm({
         </div>
         <div className="waitlist-group">
           <p className="waitlist-group-title">Your business</p>
-          <label className="block text-sm">
+          <div className="text-sm">
             <span className="mb-1 block text-stone">What kind of business?</span>
-            <input
-              className="field h-12"
-              value={businessType}
-              onChange={(e) => setBusinessType(e.target.value)}
-              placeholder="Painting, photography, cleaning, studio…"
-            />
-          </label>
+            <div className="waitlist-chips" role="group" aria-label="Common business types">
+              {BUSINESS_CHIPS.map((chip) => (
+                <button
+                  key={chip}
+                  type="button"
+                  aria-pressed={businessType === chip}
+                  onClick={() => setBusinessType(chip)}
+                >
+                  {chip}
+                </button>
+              ))}
+            </div>
+            <label className="block">
+              <span className="sr-only">Or describe it</span>
+              <input
+                className="field h-12"
+                value={businessType}
+                onChange={(e) => setBusinessType(e.target.value)}
+                placeholder="Or describe it: studio, mobile trade, events…"
+              />
+            </label>
+          </div>
           <label className="block text-sm">
             <span className="mb-2 block text-stone">Enquiries a month</span>
             <select

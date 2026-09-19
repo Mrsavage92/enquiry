@@ -39,17 +39,25 @@ export const joinWaitlist = createServerFn({ method: "POST" })
       latest_touch: asString(d.latest_touch, 800),
       landing_path: sanitizePath(asString(d.landing_path, 200) || "/early-access"),
       website: asString(d.website, 80),
+      elapsed_ms: Number(d.elapsed_ms) || 0,
     };
   })
   .handler(async ({ data }) =>
     launchGuard("joinWaitlist", async () => {
       const { protectLaunch } = await import("./protect.server");
       protectLaunch("waitlist");
-      if (honeypotFilled(data.website)) {
+      // Two independent bot signals: the hidden field, and a submit faster than
+      // a person can read the field, type and click (measured from mount).
+      const tooFast = data.elapsed_ms > 0 && data.elapsed_ms < 800;
+      if (honeypotFilled(data.website) || tooFast) {
         // A bot gets a convincing success. A real visitor whose browser filled
         // the hidden field would be lost silently, so the hit is logged where
         // a spike can be seen.
-        console.warn("[waitlist] honeypot hit", { landing_path: data.landing_path });
+        console.warn("[waitlist] bot signal", {
+          landing_path: data.landing_path,
+          honeypot: honeypotFilled(data.website),
+          elapsed_ms: data.elapsed_ms,
+        });
         return { id: crypto.randomUUID(), already: false };
       }
       const sessionId = isUuid(data.sessionId) ? data.sessionId : crypto.randomUUID();
