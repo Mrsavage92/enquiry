@@ -4,8 +4,11 @@ import { ArrowUpRight, CircleHelp, Info, Store } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import {
+  SIGNATURE_BUSINESSES,
   SIGNATURE_DEMO,
+  signatureBusiness,
   signatureState,
+  type SignatureBusinessId,
   type SignatureCheck,
   type SignatureFact,
   type SignatureScene,
@@ -21,21 +24,30 @@ export function CrossChannelDecisionDemo({
   compact = false,
   headingLevel = "h2",
   initialScene = "form",
+  initialBusiness = "ridge",
   syncUrl = false,
 }: {
   compact?: boolean;
   headingLevel?: "h1" | "h2";
   /** Scene to open on; /demo reads it from ?scene=text so a link can land on the follow-up. */
   initialScene?: SignatureScene;
-  /** Mirror the scene into the URL (replaceState, no navigation) so the state is shareable. */
+  /** Which sample business answers; /demo reads it from ?business=harbour. */
+  initialBusiness?: SignatureBusinessId;
+  /** Mirror the state into the URL (replaceState, no navigation) so it is shareable. */
   syncUrl?: boolean;
 }) {
   const Heading = headingLevel;
   const [scene, setScene] = useState<SignatureScene>(initialScene);
+  const [business, setBusiness] = useState<SignatureBusinessId>(initialBusiness);
   const [whyOpen, setWhyOpen] = useState(false);
   const sceneKeys = useArrowGroup(2, scene === "form" ? 0 : 1, (index) =>
     index === 0 ? goForm() : goText(),
   );
+  const businessIndex = SIGNATURE_BUSINESSES.findIndex((b) => b.id === business);
+  const businessKeys = useArrowGroup(SIGNATURE_BUSINESSES.length, businessIndex, (index) => {
+    setBusiness(SIGNATURE_BUSINESSES[index].id);
+    setWhyOpen(false);
+  });
   const liveId = useId();
   const whyId = useId();
 
@@ -44,10 +56,14 @@ export function CrossChannelDecisionDemo({
     const url = new URL(window.location.href);
     if (scene === "text") url.searchParams.set("scene", "text");
     else url.searchParams.delete("scene");
+    if (business !== "ridge") url.searchParams.set("business", business);
+    else url.searchParams.delete("business");
     window.history.replaceState(window.history.state, "", url);
-  }, [scene, syncUrl]);
-  const state = signatureState(scene);
+  }, [scene, business, syncUrl]);
+  const state = signatureState(scene, business);
+  const current = signatureBusiness(business);
   const later = scene === "text";
+  const changedFacts = later ? state.facts.filter((fact) => fact.from) : [];
 
   const goText = () => {
     setScene("text");
@@ -92,6 +108,33 @@ export function CrossChannelDecisionDemo({
           02 · Then Maya texts…
         </button>
       </div>
+
+      <div
+        className="scene-toggle business-toggle"
+        role="group"
+        aria-label="Which business receives it"
+        onKeyDown={businessKeys.onKeyDown}
+      >
+        <span className="business-toggle-label">Same message, received by</span>
+        {SIGNATURE_BUSINESSES.map((b, index) => (
+          <button
+            key={b.id}
+            type="button"
+            ref={businessKeys.bind(index)}
+            aria-pressed={business === b.id}
+            onClick={() => {
+              setBusiness(b.id);
+              setWhyOpen(false);
+            }}
+          >
+            {b.label}
+          </button>
+        ))}
+      </div>
+      <p className="business-toggle-rule">
+        <strong>{current.label}:</strong> {current.detail}. Rule from {current.rule.sourceLabel}:{" "}
+        {current.rule.title.toLowerCase()}.
+      </p>
 
       <div className="demo-workspace">
         <div className="demo-conversation">
@@ -143,6 +186,17 @@ export function CrossChannelDecisionDemo({
               {state.nextAction}
             </h2>
             <p>{state.nextReason}</p>
+            {changedFacts.length > 0 ? (
+              <p className="demo-next-changes">
+                <span>What changed:</span>{" "}
+                {changedFacts.map((fact, index) => (
+                  <span key={fact.id}>
+                    {index > 0 ? " · " : null}
+                    {fact.label} {fact.from} → {fact.value}
+                  </span>
+                ))}
+              </p>
+            ) : null}
           </div>
 
           <section className="demo-reasons" aria-label="Why this step?">

@@ -945,3 +945,53 @@
     max-width: none;
   }
 }
+
+/* Two-business demo (research doc 37, signature demonstration). The business
+   toggle reuses the scene-toggle chrome; the label sits inline as a quiet
+   prefix. The "What changed" line only shows on narrow screens, where the
+   facts panel and the next-step panel are no longer side by side. */
+.decision-demo .business-toggle {
+  margin-top: 14px;
+  align-items: center;
+}
+.business-toggle-label {
+  font-size: 13px;
+  color: #68656d;
+  margin-right: 4px;
+}
+.business-toggle-rule {
+  margin-top: 10px;
+  font-size: 14px;
+  line-height: 1.6;
+  color: #4f4b55;
+  max-width: 64ch;
+}
+.business-toggle-rule strong {
+  color: #1c1b1f;
+  font-weight: 600;
+}
+.demo-next-changes {
+  display: none;
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid #ddd3ee;
+  font-size: 13px;
+  line-height: 1.6;
+  color: #4f4b55;
+}
+.demo-next-changes > span:first-child {
+  font-weight: 600;
+  color: #1c1b1f;
+}
+@media (max-width: 860px) {
+  .demo-next-changes {
+    display: block;
+  }
+  .decision-demo .business-toggle {
+    flex-wrap: wrap;
+  }
+  .business-toggle-label {
+    flex-basis: 100%;
+    margin-bottom: 4px;
+  }
+}
