@@ -1224,3 +1224,35 @@
 .public-benefits-more {
   margin-top: 28px;
 }
+
+/* Walkthrough stage as a phone (critique round 7): the 390px capture at 1:1
+   is readable where the desktop capture at 640px was not. */
+.public-walkthrough-inner {
+  grid-template-columns: minmax(0, 1fr) 400px;
+  gap: 72px;
+}
+.public-walkthrough-stage {
+  justify-self: center;
+  width: 100%;
+  max-width: 400px;
+}
+.public-walkthrough-phone {
+  width: 100%;
+}
+.public-walkthrough-media {
+  aspect-ratio: 390 / 600;
+  background: #fff;
+}
+.public-walkthrough-media img {
+  object-fit: cover;
+  object-position: top;
+}
+.public-walkthrough-stage figcaption {
+  justify-content: center;
+}
+@media (max-width: 1000px) {
+  .public-walkthrough-inner {
+    grid-template-columns: minmax(0, 1fr) 340px;
+    gap: 40px;
+  }
+}

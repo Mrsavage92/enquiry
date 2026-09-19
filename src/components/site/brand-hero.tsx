@@ -2,11 +2,21 @@ import { useEffect, useRef, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { ArrowDown, ArrowUpRight, Pause, Play } from "lucide-react";
 
+const SETTLE_AFTER_MS = 12_000;
+
 export function BrandHero() {
   const [paused, setPaused] = useState(false);
   const [reducedMotion, setReducedMotion] = useState(true);
   const [visible, setVisible] = useState(true);
+  // The ribbon plays while the headline is being read, then settles so it
+  // stops competing with it. Play brings it back for as long as they like.
+  const [settled, setSettled] = useState(false);
   const hero = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => setSettled(true), SETTLE_AFTER_MS);
+    return () => window.clearTimeout(timer);
+  }, []);
 
   useEffect(() => {
     const media = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -29,7 +39,7 @@ export function BrandHero() {
       ref={hero}
       className="brand-hero"
       aria-labelledby="home-title"
-      data-motion={!paused && !reducedMotion && visible ? "playing" : "paused"}
+      data-motion={!paused && !reducedMotion && visible && !settled ? "playing" : "paused"}
     >
       <div className="brand-hero-art" aria-hidden="true">
         <picture>
@@ -81,11 +91,18 @@ export function BrandHero() {
           <button
             type="button"
             className="brand-motion-toggle"
-            onClick={() => setPaused((value) => !value)}
-            aria-label={paused ? "Play background motion" : "Pause background motion"}
-            title={paused ? "Play background motion" : "Pause background motion"}
+            onClick={() => {
+              if (settled) {
+                setSettled(false);
+                setPaused(false);
+                return;
+              }
+              setPaused((value) => !value);
+            }}
+            aria-label={paused || settled ? "Play background motion" : "Pause background motion"}
+            title={paused || settled ? "Play background motion" : "Pause background motion"}
           >
-            {paused ? (
+            {paused || settled ? (
               <Play size={15} aria-hidden="true" />
             ) : (
               <Pause size={15} aria-hidden="true" />

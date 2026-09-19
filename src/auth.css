@@ -802,3 +802,28 @@
 .waitlist-more[open] summary {
   margin-bottom: 8px;
 }
+
+.waitlist-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.waitlist-chips button {
+  min-height: 36px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid #d9d0ed;
+  background: #fff;
+  color: var(--color-ink-2);
+  font-size: 13px;
+}
+.waitlist-chips button:hover {
+  border-color: #b9a8e0;
+}
+.waitlist-chips button[aria-pressed="true"] {
+  background: #f5f0ff;
+  border-color: #ded3f4;
+  color: #654ac2;
+  font-weight: 500;
+}

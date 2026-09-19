@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { CalendarDays, MessageSquareText, Settings2 } from "lucide-react";
-import { BrowserFrame } from "@/components/site/device-frame";
+import { PhoneFrame } from "@/components/site/device-frame";
 import { cn } from "@/lib/utils";
 
 /**
@@ -122,17 +122,25 @@ export function ProductWalkthrough() {
           </ol>
         </div>
         <figure className="public-walkthrough-stage">
-          <BrowserFrame tone="light" url={`Sample workspace · ${current.label}`}>
+          <PhoneFrame className="public-walkthrough-phone">
             <div className="public-walkthrough-media">
               {STEPS.map((step, index) => (
                 <div key={step.id} hidden={active !== index}>
-                  <Capture id={step.id} alt={step.alt} eager />
+                  <img
+                    src={`/product/ui1/${step.id}-mobile.jpg`}
+                    alt={step.alt}
+                    width="390"
+                    height="600"
+                    loading="eager"
+                  />
                 </div>
               ))}
             </div>
-          </BrowserFrame>
+          </PhoneFrame>
           <figcaption>
-            <span className="public-sample-label">Actual app · sample workspace</span>
+            <span className="public-sample-label">
+              Actual app · sample workspace · {current.label}
+            </span>
           </figcaption>
         </figure>
       </div>

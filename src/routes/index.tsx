@@ -47,7 +47,7 @@ const QUESTION_GROUPS = [
       ],
       [
         "What does it cost?",
-        "Indicative pricing is A$29-49 per month inc GST, and founding members keep 30% off for the first 12 months. It is provisional: the final figure is confirmed in writing before any paid access begins, with at least 30 days of notice.",
+        "Indicative pricing is A$29 a month inc GST, and founding members keep 30% off for the first 12 months. There is no higher tier in early access. It is provisional: the final figure is confirmed in writing before any paid access begins, with at least 30 days of notice.",
       ],
       [
         "What if I decide not to continue?",
