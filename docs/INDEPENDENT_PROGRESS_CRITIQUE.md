@@ -1,122 +1,108 @@
 # Enquiry - Independent Progress Critique
 
-> Independent, evidence-based management review of the Enquiry repository. Updated weekly for Codex, Claude, Cursor, and other agents.
+> Independent, evidence-based management review for Codex, Claude, Cursor, and other agents.
 >
 > `docs/CURRENT_PHASE.md` remains the execution authority for scope, sequencing, acceptance criteria, and sign-off. This critique does not authorise later work or sign off any phase.
 
 ## Review metadata
 
-- Review date: 2026-09-14
-- Repository head reviewed: [47a8d29 - merge UI1 Quiet Signal redesign](https://github.com/Mrsavage92/enquiry/commit/47a8d29ba66f19d6280cd2c2ead4b9bc5a360be7)
-- Previous critique commit: [6eba9a4](https://github.com/Mrsavage92/enquiry/commit/6eba9a4cee9759cad54d891e8e7515fe438b1c8b)
-- Change span: 92 commits on `main`, from 2026-09-07 to 2026-09-10
-- Review boundary: current `main`; open [PR #20](https://github.com/Mrsavage92/enquiry/pull/20) is management context, not counted as landed progress
-- Execution authority: [CURRENT_PHASE.md](./CURRENT_PHASE.md)
-- Supporting sources: [phase registry](./PHASE_REGISTRY.md), [UI1 direction](./design/UI1_QUIET_SIGNAL_WORKING_DIRECTION.md), [UI1 visual direction v2](./design/UI1_VISUAL_DIRECTION_V2.md), [CC1 package](./implementation/CC1_COMMERCIAL_CORRECTNESS/README.md), [CC1 implementation report](./implementation/CC1_COMMERCIAL_CORRECTNESS/IMPLEMENTATION_REPORT.md), [test policy](./TEST_REGRESSION_POLICY.md), [beta gate](./BETA_READINESS_GATE.md), [public traffic gate](./PUBLIC_TRAFFIC_GATE.md), [auth contract](./AUTH_DEPLOYMENT_CONTRACT.md), and [beta telemetry spec](./BETA_TELEMETRY_SPEC.md)
-- Product sources: [Notion Product HQ](https://app.notion.com/p/3c6116e8bef281f9b166fb7a964a7a58), [strategy](https://app.notion.com/p/3c6116e8bef28171aab5ee334e52c852), [decision log](https://app.notion.com/p/3c6116e8bef281c7ba4bc14ba0568bdf), [decision engine](https://app.notion.com/p/3c6116e8bef28140a096e39bfa98d682), [validation](https://app.notion.com/p/3c6116e8bef28191b38cc4eaa0979b0d), [Growth and Launch HQ](https://app.notion.com/p/3c7116e8bef2810cb59ad235086c6b34), and [launch plan](https://app.notion.com/p/3d6116e8bef281268755e622aedbebdf)
+- Review date: 2026-09-21
+- Repository head reviewed: [32ccfcc - finish the public-site critique loop](https://github.com/Mrsavage92/enquiry/commit/32ccfccd9cae2997104b7ced6fae443ee7e58d4e)
+- Previous critique commit: [d192390](https://github.com/Mrsavage92/enquiry/commit/d1923906416ae14bd9af27f8625af3563dba7229)
+- Change span: 62 commits on `main`, from the prior reviewed head [47a8d29](https://github.com/Mrsavage92/enquiry/commit/47a8d29ba66f19d6280cd2c2ead4b9bc5a360be7) through 2026-09-19
+- Review boundary: current `main`; open PR #21 is a documentation handover and is not counted as landed product progress
+- Authority and gates: [CURRENT_PHASE.md](./CURRENT_PHASE.md), [PHASE_REGISTRY.md](./PHASE_REGISTRY.md), [BETA_READINESS_GATE.md](./BETA_READINESS_GATE.md), [TEST_REGRESSION_POLICY.md](./TEST_REGRESSION_POLICY.md), [AGENTS.project.md](../AGENTS.project.md)
+- Product sources: [Product HQ](https://app.notion.com/p/3c6116e8bef281f9b166fb7a964a7a58), [strategy](https://app.notion.com/p/3c6116e8bef28171aab5ee334e52c852), [decision log](https://app.notion.com/p/3c6116e8bef281c7ba4bc14ba0568bdf), [decision engine](https://app.notion.com/p/3c6116e8bef28140a096e39bfa98d682), [validation](https://app.notion.com/p/3c6116e8bef28191b38cc4eaa0979b0d), [Growth and Launch HQ](https://app.notion.com/p/3c7116e8bef2810cb59ad235086c6b34), and [launch plan](https://app.notion.com/p/3d6116e8bef281268755e622aedbebdf)
 
 ## Executive verdict
 
-**The product moved materially toward a safer human-authorised enquiry-to-booking loop, but first-beta readiness remains high risk and the current governance state is unreliable.**
+**Meaningful progress landed in public proof, onboarding safety, and launch hygiene. The core enquiry-to-booking product is not yet proven as a safe first-beta system. First-beta risk remains high, with a mixed trend.**
 
-CC1 is real product progress. Current source now preserves quantity meaning, refuses ambiguous/conflicting rules, prevents an unconfirmed model service from becoming an authorised quote, freezes reviewed content, separates copying from external-send attestation, blocks stale approvals, and keeps fact/service interpretation writes inside a revisioned transaction. This directly strengthens:
+The strongest product-facing movement is the two-business demo: the same customer message now produces different answers for Ridge and Harbour because their business rules differ, and a changed fact moves each answer for its own reason. That is a credible demonstration of the wedge described in Notion: business-specific reasoning before booking.
 
-> understood Decision Object -> relevant business check -> minimum blocker -> explainable next action -> human-authorised action
+It is still a fixture-backed public demonstration. There is no current evidence that the same loop works for an arbitrary live tenant, with real provider interpretation, server-persisted Decision Objects, correction history, and a truthful booked/lost handoff.
 
-The rest of the vision is still not demonstrated as a complete beta system. Real-provider interpretation, broader evaluator selection, two-tenant endpoint isolation, real PostgreSQL contention, correction/outcome telemetry, and a proven booked-or-lost downstream handoff remain absent or unverified. UI1 makes the product calmer and more task-led, but it is primarily presentation and interaction-architecture progress, not new decision-engine capability.
+## Vision trace
+
+| Vision stage | Current assessment |
+| --- | --- |
+| Messy inbound enquiry | Demonstrated in fixtures and public demo; arbitrary live input remains unproven. |
+| Understood Decision Object | Stronger public explanation and existing source contracts; current-head live persistence is not independently verified. |
+| Relevant business checks | Two different sample Business Brains now change the answer; live evaluator selection and provider quality remain unknown. |
+| Minimum decision blocker | Visible in sample reasoning and `Why this reply?` affordances; beta evidence is incomplete. |
+| Explainable next action | Public demo and retained reply evidence improve explainability; no complete current-head operator proof. |
+| Human-authorised action | Product boundaries preserve review/copy/record distinctions; full live journey remains unverified. |
+| Booked or lost | No material new evidence this period. |
+| Downstream handoff | No material new evidence this period. |
 
 ## What materially moved
 
-### 1. Commercial correctness and truthful action recording improved
+### 1. The product wedge is clearer and more testable
 
-**Observed fact:** [PR #11](https://github.com/Mrsavage92/enquiry/pull/11) and the integrated release [PR #16](https://github.com/Mrsavage92/enquiry/pull/16) landed CC1 on `main`. Source inspection confirms the important safeguards remain present at the reviewed head:
+**Observed fact:** [c33df5b](https://github.com/Mrsavage92/enquiry/commit/c33df5bcf15c8f0162157710d6200819421411f5) added Harbour Painting to the signature demo. Tests pin identical input, different business rules, changed facts, no invented price, and safe fallback for an unknown business id.
 
-- `parseQuantity` refuses ranges, alternatives, negatives, malformed values, zero, and unsafe magnitudes instead of silently coercing them.
-- `matchRule` returns one, none, or ambiguity/conflict and no longer prices by array order.
-- Unconfirmed service identity produces `PROVISIONAL`, not `EXACT`.
-- `prepareReviewedSendInTransaction` requires a confirmed service for commercial sends, checks message amounts against structured outcomes, derives the recipient server-side, and freezes the reviewed artefact.
-- Copying writes nothing. Only explicit owner attestation records a send.
-- Decision revisions and enquiry locks prevent old previews or late interpretation from silently overwriting current or closed state.
+**Assessment:** This is real product narrative and prototype progress, not merely visual polish. It directly tests the claim that Enquiry makes business-specific decisions rather than acting as a generic inbox or AI receptionist. It is not yet production or cross-industry validation evidence.
 
-**Implementation claim with tracked evidence:** CC1 reports 673/673 tests, typecheck, lint, auth check, builds, PGLite transaction tests, and a real-auth browser journey. The journey found a live-only correction defect, which was fixed and rechecked for persistence and stale-preview refusal. This is credible, specific evidence, but it was not independently rerun in this review.
+### 2. Onboarding became safer without pretending a draft is saved
 
-**Inference:** This is the week's strongest movement toward safe first beta. It removes several paths where Enquiry could state or record a commercial outcome that the owner had not actually confirmed.
+**Observed fact:** [0013e88](https://github.com/Mrsavage92/enquiry/commit/0013e88a0c5c769329ecbaa79b5e58530bb64072) persists an onboarding draft in browser session storage, restores it after reload, submits stage one on Enter, and clears the draft only after the server confirms the atomic workspace creation. The review screen still says the data is not saved.
 
-### 2. A deployable release path was established, with a manual migration obligation
+**Assessment:** This is useful first-beta UX and trust progress. It reduces abandonment risk while preserving server authority. It does not prove zero-membership onboarding, reload persistence of the whole live workspace, or tenant isolation at the current head.
 
-**Observed fact:** [PR #17](https://github.com/Mrsavage92/enquiry/pull/17) removed database migration execution from the Vercel build after production's restricted app role failed DDL. Migration 0007 was reported applied out of band as the table owner, with DML grants and RLS enabled on `reviewed_send`. The current package build no longer runs `db:migrate`.
+### 3. Public-site and early-access readiness improved substantially
 
-**Implementation claim:** [PR #16](https://github.com/Mrsavage92/enquiry/pull/16) reports 725/725 tests and a 14/14 real-auth disposable-user journey before release. Notion records the product as live from 2026-09-09.
+**Observed facts:**
 
-**Risk:** Deployability improved, but schema readiness now depends on a manual pre-deploy procedure. The CC1 implementation report still says the build runs migrations, so evidence documents are stale relative to the current build contract.
+- UI1 public-site work now has explicit evidence for responsive layouts, accessibility contracts, honest sample labelling, roadmap feedback, visual references, and reduced-motion source safeguards.
+- [a402156](https://github.com/Mrsavage92/enquiry/commit/a40215607fb2f413f58690ff9cc80b9fc3900c56) added support/contact wording, processor and retention disclosures, error alerting hooks, a staged cohort operating model, and a first-20 invitation constraint.
+- [32ccfcc](https://github.com/Mrsavage92/enquiry/commit/32ccfccd9cae2997104b7ced6fae443ee7e58d4e) corrected early-access pricing to A$29/month with higher tiers deferred, made the walkthrough readable at phone scale, added business-type chips, and settled the hero motion.
+- [8b6b79e](https://github.com/Mrsavage92/enquiry/commit/8b6b79efe02b65348a67d561b8d5b5ceecccb36f) keeps the evidence explanation reachable after a reply is recorded.
 
-### 3. Demo, public, and display honesty improved
+**Assessment:** This is credible customer-facing and trust progress. It is mostly presentation, acquisition, and operational readiness, not new decision-engine capability.
 
-**Observed fact:** The branch now labels sample data, routes public visitors to an explicit demo, distinguishes sign-in from early access, removes a fabricated sent message on demo decline, corrects timestamp/integration labels, and adds public traffic/security hardening.
+### 4. Phase governance is materially more coherent than last review
 
-**Inference:** These are trust and launch-quality improvements. They reduce false product claims but do not close the operator beta gate.
+**Observed fact:** The current phase and registry now describe UI1 as landed on `main`, independently unreviewed, and still awaiting owner acceptance, while CC1 evidence is treated as historical rather than as automatic beta sign-off. The active sequence is UI1 review and exact-head verification, then the next authorised slice and beta gate.
 
-### 4. UI1 materially changed the operator experience
-
-**Observed fact:** [PR #19](https://github.com/Mrsavage92/enquiry/pull/19) replaced the prior shell and navigation, added Today and secondary account/support destinations, reframed Booked/Business/Insights, and moved the visual system to the authorised lilac/violet Editorial Utility direction.
-
-**Implementation claim:** Typecheck, lint, build, and desktop/phone smoke passed. The full suite reportedly hit PGLite/WASM memory pressure; only representative database failures were rerun in isolation.
-
-**Unknown:** Owner visual acceptance is still open. [PR #20](https://github.com/Mrsavage92/enquiry/pull/20) says the original match was rejected, carries a substantial refinement, and has not been merged. Its latest correction reports 73 targeted tests, while its earlier 725-test result was not rerun at the latest branch head.
-
-**Assessment:** UI1 is meaningful usability progress, but not evidence that arbitrary enquiries are understood better or that beta businesses can complete the full live loop more safely.
-
-### 5. No material movement on the remaining differentiation proof
-
-There is no new successful real-provider benchmark. The checked-in R2E report still records null 16/16, fake 16/16, and real 1 pass / 15 skipped, where the only real-mode pass is an injected provider failure that makes no provider call.
-
-There is also no material evidence this week for:
-
-- dynamic evaluator breadth beyond the narrow current decision path;
-- two real signed-in tenants denied at the HTTP boundary;
-- genuine multi-connection PostgreSQL contention;
-- first-beta correction, override, outcome, activation, or retention telemetry;
-- booked/lost lifecycle completion and downstream handoff across non-fixture enquiries;
-- customer validation, willingness to pay, paid conversion, or repeat use.
+**Assessment:** The earlier direct contradiction between the phase documents has been reduced. The remaining risk is not authority ambiguity so much as the widening public-site surface relative to the still-open beta proof.
 
 ## Important decisions
 
-- **Observed:** The product owner explicitly allowed [PR #16](https://github.com/Mrsavage92/enquiry/pull/16) to merge without prior independent CC1 sign-off. That is a release decision, not retrospective proof that CC1 or the beta gate passed.
-- **Observed:** `CURRENT_PHASE.md` activates UI1 and makes the draft design documents authoritative through that file. It preserves deterministic commercial authority, demo/live separation, and human approval.
-- **Observed:** Reviewed sends use content-derived idempotency. Byte-identical repeat messages on one enquiry cannot currently be recorded as distinct sends. The implementation report correctly leaves this as an owner-ratification decision.
-- **Observed:** Production migrations are now out of band and must be applied by the table-owner role before a dependent deploy.
-- **Inference:** "Quiet Signal" is directionally aligned with the vision when it hides internal mechanics but keeps blockers, uncertainty, evidence, and action authority reachable.
+- The owner-authorised UI1 continuation is public/customer-facing work. Its evidence explicitly says it does not sign off the operator beta, authentication, provider readiness, or public traffic.
+- The pricing decision is now deliberately narrower and more honest: A$29/month for early access, with A$49 and A$79 retained as deferred hypotheses.
+- The demo now makes the cross-industry, business-specific reasoning thesis visible without claiming a live integration or a sent/booked action.
+- Onboarding keeps atomic server creation. Browser draft recovery is convenience only and must not become the durable source of truth.
+- The Notion product sources remain strategically aligned with the repository: AI interprets, deterministic systems validate important outcomes, the owner authorises consequential actions, and the boundary is first enquiry to booked or lost. The Notion pages are largely unverified and older than the reviewed code, so they are strategy context, not release evidence.
 
-## Blockers and urgent contradictions
+## Blockers and unknowns
 
-1. **Execution authority is stale and contradictory.** `CURRENT_PHASE.md` says UI1 is authorised but "not deployed, merged to production or signed off" and forbids merging to `main` without explicit approval. UI1 is already merged to `main` at the reviewed head and has a successful Vercel status. `PHASE_REGISTRY.md` still says CC1 is the only active slice and not yet implemented. Agents cannot reliably determine current authority, release state, or the next permitted action.
-2. **The live sign-in path is operationally blocked.** The 2026-09-09 Notion launch plan records that a real sign-in link redirected to localhost because Supabase URL configuration remained open. Custom SMTP, the Anthropic production key, and the domain decision were also open. The project board still records an environment-variable blocker.
-3. **First-beta verification remains incomplete.** The beta checklist remains entirely open. Two-tenant HTTP isolation, real PostgreSQL contention, exact-head full regression, reload persistence across all meaningful mutations, and beta telemetry are not proven.
-4. **Real model quality is unknown.** The null fallback is safe, but without successful provider cases Enquiry has not shown that arbitrary messy enquiries become useful Decision Objects.
-5. **Release evidence is not tied to the current head.** The last full 725-test claim predates the UI1 merge. Current head exposes only Vercel success. PR #19 explicitly reports a broad-suite memory failure, not a clean exact-head suite.
+1. **The first-beta gate remains open.** Every required section in [BETA_READINESS_GATE.md](./BETA_READINESS_GATE.md) is still unchecked, including two-tenant isolation, live non-demo onboarding, arbitrary non-fixture processing, correction persistence, telemetry, and exact-head verification.
+2. **Hosted authentication evidence is mixed.** The earlier launch audit records one successful sign-in reaching `/auth/complete` and onboarding. The newer auth repair documentation says post-repair inbox delivery and a completed authenticated session still require confirmation. Treat production sign-in as not independently closed until the evidence is reconciled.
+3. **Operational launch blockers remain owner-side.** The early-access handover still calls for custom SMTP, `ALERT_WEBHOOK_URL`, a production `ANTHROPIC_API_KEY) check, and external Grok credential revocation. The repository cannot prove those dashboard and credential states.
+4. **Current-head verification is incomplete.** The reviewed head has a successful Vercel status, but no GitHub Actions workflow run. Historical full-suite, browser, and visual claims are useful evidence but are not a fresh exact-head release ledger.
+5. **The core outcome loop has not materially moved.** There is no new evidence for real-provider quality, non-fixture Decision Objects, correction and outcome telemetry, booked/lost completion, or downstream handoff.
 
 ## Milestone risk and trend
 
-- **First-beta risk: high, improving on commercial safety but flat on end-to-end proof.**
-- **Governance/release risk: high, worsening.**
-- **Product-thesis risk: low to medium, stable.**
-- **Public-traffic risk: high while the site is live but the traffic gate and sign-in configuration remain open.**
+- **First-beta risk: high.** Improving in public trust, onboarding ergonomics, and demo clarity; flat on live core-product proof.
+- **Public launch risk: high.** The website is increasingly ready to attract attention, while auth/email/provider/credential gates are not all independently closed.
+- **Product-thesis risk: low to medium.** The two-business demo strengthens the thesis, but it remains fixture evidence.
+- **Governance risk: medium, improving.** Phase documents are more coherent, but broad UI continuation can still create a misleading sense of beta readiness.
 
-The trend is mixed. CC1 substantially reduced the chance of false prices, false sends, stale approvals, and inconsistent decisions. However, 92 commits created more presentation and launch movement than new validation of the core differentiation. Shipping UI1 before reconciling authority, exact-head tests, sign-in, provider evidence, and beta gates increases the chance that visible polish is mistaken for beta readiness.
+The main management risk is sequencing: visible public progress is accelerating faster than evidence for the operator loop that must turn an enquiry into a safe, explainable, authorised outcome.
 
 ## Next three priorities
 
-1. **Restore one truthful control plane.** Reconcile `CURRENT_PHASE.md`, `PHASE_REGISTRY.md`, deployed-main status, CC1 review status, and PR #20. Record what is active, what landed, what remains unsigned, and whether PR #20 is accepted or rejected. Do not infer permission to merge it from UI1's existence.
-2. **Prove the exact beta candidate, not an earlier branch.** At the chosen head, run the full regression/typecheck/lint/build ledger, real-auth zero-membership onboarding, two-tenant endpoint denial, meaningful reload persistence, and controlled multi-connection PostgreSQL checks. Verify the manual migration procedure, Supabase redirect allow-list, and transactional SMTP before inviting a business.
-3. **Return focus to the differentiating loop.** Run the real provider across the non-fixture benchmark, then exercise several business brains through interpretation, relevant evaluator selection, one minimum blocker, explanation, owner correction/approval, booked or lost outcome, downstream handoff, and structured beta telemetry. Do not substitute another visual phase or broader integration programme.
+1. **Produce one exact-head beta candidate ledger.** Run typecheck, full test discovery, focused product regressions, build, auth, zero-membership onboarding, two-tenant isolation, reload persistence, desktop/phone QA, and reduced-motion checks against one chosen commit. Classify every remaining failure using [TEST_REGRESSION_POLICY.md](./TEST_REGRESSION_POLICY.md).
+2. **Close and evidence the operational gates.** Reconcile the hosted sign-in result, custom SMTP, production Anthropic configuration, alert webhook, domain decision, and historical credential revocation. Record dashboard or runtime proof, not implementation claims.
+3. **Prove the differentiating live loop before expanding public scope.** Use an arbitrary non-fixture enquiry and at least two tenant-specific Business Brains to show interpretation, relevant evaluator selection, one minimum blocker, explanation, owner correction/approval, recorded response, booked/lost outcome, downstream handoff, and structured telemetry.
 
 ## Evidence and confidence
 
-- **High confidence observed facts:** current `main` source, phase documents, merged/open PR state, current Vercel commit status, beta/public gate text, source-level CC1 safeguards, and Notion-recorded operational blockers.
-- **Medium confidence implementation claims:** 673/673 and 725/725 test reports, browser journeys, production migration application, and UI smoke evidence. They are detailed and committed but were not rerun by this review.
-- **Inference:** CC1 is meaningful safe-product progress; UI1 is meaningful usability progress but does not materially close interpretation or beta-evidence gaps.
-- **Unknown:** current production content at the latest head, successful production sign-in after the recorded localhost failure, production SMTP, real-provider quality, exact-head full-suite status, first-customer behaviour, paid conversion, and retention.
+- **High confidence:** current repository source, commit diffs, current phase and registry, beta gate text, current-head Vercel status, and the committed public-site and onboarding evidence.
+- **Medium confidence:** implementation reports and browser checks from earlier commits, including the deployed waitlist and sign-in audit. They are specific but not all current-head or independently rerun.
+- **Low or unknown:** current hosted environment variables, SMTP reliability, exact-head full-suite result, live provider quality, live tenant isolation, customer activation, payment intent, retention, booked/lost behaviour, and downstream handoff.
 
 ## Implementation handoff
 
-Read `docs/CURRENT_PHASE.md` first, but treat its release-state statements and the registry's CC1 status as contradictory evidence requiring owner reconciliation before any merge, deploy, or new phase. For UI1, review current `main` and PR #20 separately and preserve every CC1 server boundary. For beta work, attach evidence to one exact commit and label source observation, test evidence, browser evidence, production verification, and unknowns separately. Do not self-sign UI1, CC1, R2E/R2F, the beta gate, or the public traffic gate.
+Read [CURRENT_PHASE.md](./CURRENT_PHASE.md) first. Treat the public-site work as customer-facing progress, not beta sign-off. Preserve the server-authoritative onboarding boundary, demo/live separation, deterministic commercial rules, provenance, review-first action authority, and the explicit distinction between copied, recorded, and sent responses. Attach the next release evidence to one exact commit. Do not self-sign UI1, CC1, R2E/R2F, the beta gate, or the public traffic gate.
