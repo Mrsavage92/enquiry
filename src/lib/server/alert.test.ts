@@ -1,6 +1,13 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { describeError, formatAlert, guarded, sendAlert } from "./alert.ts";
+import {
+  describeError,
+  formatAlert,
+  guarded,
+  resetWebhookCache,
+  resolveWebhookUrl,
+  sendAlert,
+} from "./alert.ts";
 
 const at = new Date("2026-09-15T00:00:00.000Z");
 
@@ -110,4 +117,52 @@ test("guarded reports unexpected errors, rethrows, and leaves expected ones alon
   } finally {
     console.error = quiet;
   }
+});
+
+test("the webhook comes from env first, then the settings table, cached for five minutes", async () => {
+  resetWebhookCache();
+  const previous = process.env.ALERT_WEBHOOK_URL;
+  delete process.env.ALERT_WEBHOOK_URL;
+  let loads = 0;
+  const loadSetting = async (key: string) => {
+    loads += 1;
+    return key === "alert_webhook_url" ? "https://relay.example/hook" : null;
+  };
+  const t0 = new Date("2026-09-23T00:00:00.000Z");
+  assert.equal(
+    await resolveWebhookUrl({ loadSetting, now: () => t0 }),
+    "https://relay.example/hook",
+  );
+  assert.equal(
+    await resolveWebhookUrl({ loadSetting, now: () => t0 }),
+    "https://relay.example/hook",
+  );
+  assert.equal(loads, 1, "second call inside the TTL does not query again");
+  const later = new Date(t0.getTime() + 6 * 60 * 1000);
+  await resolveWebhookUrl({ loadSetting, now: () => later });
+  assert.equal(loads, 2, "after the TTL the setting is read again");
+
+  process.env.ALERT_WEBHOOK_URL = "https://env.example/hook";
+  assert.equal(
+    await resolveWebhookUrl({ loadSetting, now: () => later }),
+    "https://env.example/hook",
+  );
+  assert.equal(loads, 2, "env wins without a query");
+  if (previous === undefined) delete process.env.ALERT_WEBHOOK_URL;
+  else process.env.ALERT_WEBHOOK_URL = previous;
+  resetWebhookCache();
+});
+
+test("a failing settings read means skipped, never a throw", async () => {
+  resetWebhookCache();
+  const previous = process.env.ALERT_WEBHOOK_URL;
+  delete process.env.ALERT_WEBHOOK_URL;
+  const outcome = await sendAlert(
+    { scope: "x", error: new Error("boom") },
+    { loadSetting: async () => null, fetchImpl: async () => new Response("", { status: 200 }) },
+  );
+  assert.equal(outcome, "skipped");
+  if (previous === undefined) delete process.env.ALERT_WEBHOOK_URL;
+  else process.env.ALERT_WEBHOOK_URL = previous;
+  resetWebhookCache();
 });

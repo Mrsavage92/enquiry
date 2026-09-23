@@ -16,6 +16,8 @@
 const ALERT_TIMEOUT_MS = 3000;
 const MAX_MESSAGE = 600;
 const MAX_STACK_LINES = 3;
+const SETTINGS_TTL_MS = 5 * 60 * 1000;
+const WEBHOOK_SETTING_KEY = "alert_webhook_url";
 
 export type AlertContext = Record<string, string | number | boolean | null | undefined>;
 
@@ -31,7 +33,50 @@ export type AlertOptions = {
   webhookUrl?: string;
   fetchImpl?: typeof fetch;
   now?: () => Date;
+  /** Test seam for the settings-table fallback. */
+  loadSetting?: (key: string) => Promise<string | null>;
 };
+
+let cachedWebhook: { value: string; at: number } | null = null;
+
+/** Reads one row of launch_settings; any failure reads as "not set". */
+async function loadLaunchSetting(key: string): Promise<string | null> {
+  try {
+    const { getSql } = await import("@/lib/db");
+    const sql = await getSql();
+    const rows = await sql<{ value: string }>`
+      select value from launch_settings where key = ${key} limit 1
+    `;
+    return rows[0]?.value ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Env var first. If unset, the launch_settings table, cached per instance for
+ * five minutes so an alert storm does not add a query per failure. A database
+ * that is itself down reads as "no webhook", and the alert still lands in the
+ * log line above.
+ */
+export async function resolveWebhookUrl(
+  options: Pick<AlertOptions, "webhookUrl" | "loadSetting" | "now"> = {},
+): Promise<string> {
+  if (options.webhookUrl !== undefined) return options.webhookUrl;
+  const fromEnv = process.env.ALERT_WEBHOOK_URL ?? "";
+  if (fromEnv) return fromEnv;
+  const nowMs = (options.now ?? (() => new Date()))().getTime();
+  if (cachedWebhook && nowMs - cachedWebhook.at < SETTINGS_TTL_MS) return cachedWebhook.value;
+  const load = options.loadSetting ?? loadLaunchSetting;
+  const value = (await load(WEBHOOK_SETTING_KEY)) ?? "";
+  cachedWebhook = { value, at: nowMs };
+  return value;
+}
+
+/** Test seam: forget the cached setting. */
+export function resetWebhookCache(): void {
+  cachedWebhook = null;
+}
 
 export function describeError(error: unknown): { message: string; stack: string } {
   if (error instanceof Error) {
@@ -75,7 +120,7 @@ export async function sendAlert(
   const at = (options.now ?? (() => new Date()))();
   const text = formatAlert(input, at);
   console.error(`[alert] ${text.replace(/\n/g, " || ")}`);
-  const url = options.webhookUrl ?? process.env.ALERT_WEBHOOK_URL ?? "";
+  const url = await resolveWebhookUrl(options);
   if (!url) return "skipped";
   const fetchImpl = options.fetchImpl ?? fetch;
   const controller = new AbortController();
