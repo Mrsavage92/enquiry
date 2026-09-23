@@ -93,3 +93,9 @@ If it is not for you, say so and I will remove your account and data.
 
 [Adam]
 [contact mailbox]
+
+## Update 2026-09-23: alerting is live without the env var; the Grok credential is the last owner step
+
+**Alerting.** `ALERT_WEBHOOK_URL` is still unset on Vercel (the CLI on this machine cannot see the project's team), so the app now falls back to a `launch_settings` row (`alert_webhook_url`) in the database, cached five minutes per instance. That row points at an n8n cloud relay ("Enquiry - Alert relay", workflow `TwoA8CzZr89tUhqw`) which emails `adam.savage.itservices@gmail.com` through the existing Resend credential as "Enquiry Alerts". Verified: a test POST produced Resend id `01a0cd27-...`. Setting the env var in Vercel later simply takes precedence; nothing else changes.
+
+**Grok preview credential, owner only.** The value that was once committed was `PREVIEW_CLIENT_SECRET` for the OAuth client id `grok_preview`, issued by the Grok App Builder's deployer broker (`app-builder-deployer/auth/src/preview-oauth.ts`; the broker keeps only a hash of it in its own Vercel env). It was a preview-only client scoped to `*.grok-sandbox.com`. To revoke: open the Grok App Builder for this app, regenerate or delete the preview client (or delete the app there entirely, since Enquiry no longer deploys through it), then tick the first box in `docs/PUBLIC_TRAFFIC_GATE.md` section 1. Nothing in this repo can do that; deletion from the repo is not revocation.
