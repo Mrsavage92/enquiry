@@ -293,7 +293,7 @@ export function Queue({ activeId, phone = false }: { activeId?: string; phone?: 
                   : queueFilter === "waiting"
                     ? "Nobody is waiting"
                     : queueFilter === "at_risk"
-                      ? "Nothing needs a look"
+                      ? "Nobody has gone quiet"
                       : queueFilter === "closed"
                         ? "Nothing closed yet"
                         : "No enquiries in this workspace"}

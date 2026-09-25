@@ -1,4 +1,4 @@
-import { format, formatDistanceToNow, parseISO } from "date-fns";
+import { format, parseISO } from "date-fns";
 import { enAU } from "date-fns/locale";
 
 export {
@@ -55,14 +55,6 @@ export function formatWhen(iso: string): string {
 export function formatShortDate(iso: string): string {
   try {
     return format(wallDate(iso), "d MMM yyyy", { locale: enAU });
-  } catch {
-    return iso;
-  }
-}
-
-export function formatRelative(iso: string): string {
-  try {
-    return formatDistanceToNow(parseISO(iso), { addSuffix: true, locale: enAU });
   } catch {
     return iso;
   }

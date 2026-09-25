@@ -1,6 +1,7 @@
 import { Link, useNavigate } from "@tanstack/react-router";
 import { ChevronRight, Plus, Search } from "lucide-react";
 import { AddEnquiry } from "./add-enquiry";
+import { PracticeBadge } from "./practice-note";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -103,7 +104,7 @@ export function EnquiriesListPage() {
           <div className="enquiries-column-head" aria-hidden>
             <span>Customer</span>
             <span>Service</span>
-            <span>Date</span>
+            <span>Job date</span>
             <span>Status</span>
             <span className="enquiries-updated">When</span>
             <span />
@@ -147,6 +148,7 @@ export function EnquiriesListPage() {
                             <p className="truncate text-base font-semibold">
                               {enquiry.customerName}
                             </p>
+                            <PracticeBadge enquiry={enquiry} />
                           </div>
                           <p className="enquiries-customer-service mt-1 truncate text-sm text-ink-2">
                             {enquiry.serviceLabel}
@@ -165,7 +167,9 @@ export function EnquiriesListPage() {
                         {enquiry.serviceLabel}
                       </p>
                       <p className="enquiries-date min-w-0 text-sm text-ink-2">
-                        {enquiry.dateLabel || "Not set"}
+                        {/* Labelled, because a bare date or "Not set" said
+                            nothing about which date it was. */}
+                        {enquiry.dateLabel ? `Job ${enquiry.dateLabel}` : "Job date not given"}
                         <span className="mt-1 block text-xs text-stone">
                           {channelLabel(enquiry.source)}
                         </span>

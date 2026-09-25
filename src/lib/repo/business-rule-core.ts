@@ -4,6 +4,7 @@ import {
   ruleFingerprint,
   type BusinessRule,
 } from "../../domain/business-rule.ts";
+import { redecideOpenEnquiries } from "./decision-apply.ts";
 
 /**
  * Saving a confirmed pricing rule, as pure SQL logic - separate from
@@ -132,4 +133,43 @@ export async function saveBusinessRuleInTransaction(
     supersededIds,
     supersededLabels,
   };
+}
+
+/**
+ * Save the price and bring every open enquiry up to date with it, as one
+ * transaction: an owner who adds their prices should see the enquiries that
+ * were waiting on those prices change, not keep reading "no prices yet".
+ */
+export async function saveBusinessRuleAndRedecide(
+  sql: Sql,
+  input: SaveBusinessRuleInput,
+): Promise<SaveBusinessRuleResult & { updatedEnquiryIds: string[] }> {
+  const saved = await saveBusinessRuleInTransaction(sql, input);
+  const updatedEnquiryIds =
+    saved.outcome === "duplicate" ? [] : await redecideOpenEnquiries(sql, input.businessId);
+  return { ...saved, updatedEnquiryIds };
+}
+
+/**
+ * Several prices from one "Add business detail" preview, all or nothing: every
+ * price is saved and the open enquiries are decided once, in one transaction,
+ * so a failure part-way leaves nothing half-saved for the owner to untangle.
+ */
+export async function saveBusinessRulesAndRedecide(
+  sql: Sql,
+  input: { businessId: string; rules: { rule: BusinessRule; readable: string }[] },
+): Promise<{ saved: SaveBusinessRuleResult[]; updatedEnquiryIds: string[] }> {
+  const saved: SaveBusinessRuleResult[] = [];
+  for (const r of input.rules) {
+    saved.push(
+      await saveBusinessRuleInTransaction(sql, {
+        businessId: input.businessId,
+        rule: r.rule,
+        readable: r.readable,
+      }),
+    );
+  }
+  const changedAny = saved.some((s) => s.outcome !== "duplicate");
+  const updatedEnquiryIds = changedAny ? await redecideOpenEnquiries(sql, input.businessId) : [];
+  return { saved, updatedEnquiryIds };
 }

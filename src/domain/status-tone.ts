@@ -11,7 +11,8 @@ export function statusTone(enquiry: Enquiry): "neutral" | "ok" | "warn" | "dange
     case STATUS.bookingToConfirm:
       return "info";
     case STATUS.publicComment:
-    case STATUS.needsLook:
+    case STATUS.goneQuiet:
+    case STATUS.needsPrices:
     case STATUS.needsDetail:
     case STATUS.yourCall:
     case STATUS.followUp:

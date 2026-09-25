@@ -1,10 +1,12 @@
 import { useState } from "react";
+import { useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { usePrototype } from "@/store/prototype-store";
 import { useFirstBetaActions } from "@/lib/workspace/live-mutations";
 import { activeRules } from "@/domain/decide";
 import { describeRule } from "@/domain/business-rule";
+import { quantityFieldFor } from "@/domain/price-sentence";
 import type { Business } from "@/domain/types";
 
 /**
@@ -19,17 +21,27 @@ import type { Business } from "@/domain/types";
  * either a flat fee or a per-something with a minimum, and a business that
  * needs more than this in week one is not the first-beta customer.
  */
-export function PricingRules({ business }: { business: Business }) {
+export function PricingRules({
+  business,
+  autoOpen = false,
+}: {
+  business: Business;
+  /** Arrived from "Add your prices" on an enquiry: open the form straight away. */
+  autoOpen?: boolean;
+}) {
   const demoMode = usePrototype((s) => s.demoMode);
   const actions = useFirstBetaActions();
+  const navigate = useNavigate();
   const rules = activeRules(business);
 
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(autoOpen && !demoMode);
   const [kind, setKind] = useState<"fixed_price" | "per_unit">("per_unit");
   const [service, setService] = useState("");
   const [amount, setAmount] = useState("");
   const [unit, setUnit] = useState("person");
   const [quantityField, setQuantityField] = useState("guests");
+  // Follows the unit ("bedroom" -> "bedrooms") until the owner types their own.
+  const [fieldTouched, setFieldTouched] = useState(false);
   const [minimumQuantity, setMinimumQuantity] = useState("");
   const [saving, setSaving] = useState(false);
 
@@ -70,6 +82,14 @@ export function PricingRules({ business }: { business: Business }) {
         toast("That price is already saved - nothing changed.");
       } else if (res?.superseded?.length) {
         toast.success(`Saved. This replaces ${res.superseded.join("; ")}.`);
+      } else if ((res?.updatedEnquiries ?? 0) > 0) {
+        // Said, because the enquiries it changed are on another screen.
+        toast.success(
+          res.updatedEnquiries === 1
+            ? "Saved. 1 open enquiry has been worked out again with this price."
+            : `Saved. ${res.updatedEnquiries} open enquiries have been worked out again with this price.`,
+          { action: { label: "Back to Today", onClick: () => void navigate({ to: "/today" }) } },
+        );
       } else {
         toast.success("Saved. Enquiry can price this now.");
       }
@@ -166,7 +186,12 @@ export function PricingRules({ business }: { business: Business }) {
                   <input
                     className="field w-full"
                     value={unit}
-                    onChange={(e) => setUnit(e.target.value)}
+                    onChange={(e) => {
+                      setUnit(e.target.value);
+                      if (!fieldTouched && e.target.value.trim()) {
+                        setQuantityField(quantityFieldFor(e.target.value));
+                      }
+                    }}
                     placeholder="person"
                   />
                 </label>
@@ -177,7 +202,10 @@ export function PricingRules({ business }: { business: Business }) {
                   <input
                     className="field w-full"
                     value={quantityField}
-                    onChange={(e) => setQuantityField(e.target.value)}
+                    onChange={(e) => {
+                      setFieldTouched(true);
+                      setQuantityField(e.target.value);
+                    }}
                     placeholder="guests"
                   />
                   <span className="mt-1.5 block text-xs text-stone">

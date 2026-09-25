@@ -5,6 +5,7 @@ import { describeRule } from "../../domain/business-rule.ts";
 import { snapshotFromDecision, stateFromDecision } from "../../domain/decision-snapshot.ts";
 import { applyDecision, isClosed, lockEnquiry } from "./decision-apply.ts";
 import type { EnquiryInterpreter, InterpretFailureReason } from "../interpret/types.ts";
+import { readEnquiryBasics } from "../../domain/enquiry-basics.ts";
 
 /**
  * Creating a real enquiry, as pure SQL logic - deliberately separate from
@@ -29,6 +30,13 @@ export type InsertManualEnquiryInput = {
   customerPhone: string;
   serviceLabel: string;
   intakeNote: string;
+  /**
+   * A practice enquiry: marked, never counted, never sendable, deletable. See
+   * migrations/0012 and practice-core.ts.
+   */
+  practice?: boolean;
+  /** Injected so the year a written date lands in is testable. */
+  now?: Date;
 };
 
 export type InsertManualEnquiryResult = { enquiryId: string; messageId: string };
@@ -50,6 +58,11 @@ export async function insertManualEnquiry(
   // decision is computed from the same fact the row will carry, so the stored
   // snapshot and the stored facts cannot disagree from the first moment.
   const ownerConfirmedService = input.serviceLabel.trim();
+  // The name and job date the customer wrote plainly, read without a model so
+  // they are there even when no interpreter is configured. What the owner typed
+  // always wins; a date read this way is `inferred`, never confirmed.
+  const basics = readEnquiryBasics(input.body, input.now ?? new Date());
+  const customerName = input.customerName.trim() || basics.customerName || "";
   const seedFacts = ownerConfirmedService
     ? [
         {
@@ -64,7 +77,7 @@ export async function insertManualEnquiry(
     { serviceLabel: input.serviceLabel, facts: seedFacts as never },
   );
   const snapshot = snapshotFromDecision(decision, {
-    customerName: input.customerName,
+    customerName,
     ownerFirstName: owner?.owner_first_name ?? undefined,
     serviceLabel: input.serviceLabel,
   });
@@ -73,16 +86,17 @@ export async function insertManualEnquiry(
   const rows = await sql<{ id: string }>`
     insert into enquiry (
       business_id, customer_name, customer_email, customer_phone, source,
-      service_label, lifecycle, decision_state, commercial_state,
+      service_label, date_label, lifecycle, decision_state, commercial_state,
       responsibility, intake_note, decision_snapshot, decision_revision,
-      received_at, updated_at
+      practice, received_at, updated_at
     ) values (
-      ${input.businessId}, ${input.customerName}, ${input.customerEmail},
+      ${input.businessId}, ${customerName}, ${input.customerEmail},
       ${input.customerPhone || null}, ${"manual"}, ${input.serviceLabel},
+      ${basics.jobDate?.label ?? null},
       ${"OPEN"}, ${state.decisionState}, ${state.commercialState},
       ${state.responsibility},
       ${input.intakeNote || null}, ${JSON.stringify(snapshot)}::jsonb, ${1},
-      now(), now()
+      ${input.practice === true}, now(), now()
     )
     returning id
   `;
@@ -94,13 +108,32 @@ export async function insertManualEnquiry(
       (enquiry_id, direction, channel, at, from_addr, to_addr, body, intake)
     values (
       ${enquiryId}, ${"inbound"}, ${"manual"}, now(),
-      ${input.customerEmail || input.customerName || "Customer"}, ${""},
+      ${input.customerEmail || customerName || "Customer"}, ${""},
       ${input.body}, ${"manual"}
     )
     returning id
   `;
   const messageId = msgRows[0]?.id;
   if (!messageId) throw new Error("Could not record the inbound message.");
+
+  if (basics.jobDate) {
+    await sql`
+      insert into enquiry_fact
+        (enquiry_id, field, label, value, display_value, status, confidence,
+         asserted_by, provenance, customer_specific)
+      values (
+        ${enquiryId}, ${"date"}, ${"Job date"}, ${basics.jobDate.iso},
+        ${basics.jobDate.label}, ${"inferred"}, ${"Medium"}, ${"system"},
+        ${JSON.stringify({
+          kind: "message",
+          label: "Read from the customer's message",
+          messageId,
+          span: basics.jobDate.span,
+        })}::jsonb,
+        ${true}
+      )
+    `;
+  }
 
   // The service the owner typed, recorded as an owner-asserted confirmed fact
   // rather than left as a bare `service_label` string. A nonblank label alone
@@ -161,18 +194,22 @@ function toDbConfidence(band: "low" | "medium" | "high"): ConfidenceBand {
 /**
  * Supersede-then-insert, but ONLY when the current live row for this field
  * (if any) is not itself `status = 'confirmed'` or `asserted_by = 'user'` - a
- * model may never supersede a human. That guard is evaluated in the SAME
- * statement as the write, not from a value read earlier in the request:
- * `interpretAndApply` awaits an interpreter call that can take up to 8
- * seconds, and a pre-read guard leaves that whole window open for an
- * operator's confirmation (via `answerEnquiryFact` or `setEnquiryService`,
- * from a second tab or a teammate) to be silently clobbered back to an
- * inferred, unconfirmed value with no error and no UI explanation.
+ * model may never supersede a human.
  *
- * The `blocked` CTE is read-only but is still evaluated exactly once, against
- * one consistent snapshot, and both the `sup` update and the final insert key
- * off it - so within this one statement there is no window between "check"
- * and "write" for a concurrent confirm to land in.
+ * The guard is read at write time, not from a value read earlier in the
+ * request: `interpretAndApply` awaits an interpreter call that can take up to
+ * 8 seconds, and an operator can confirm the same fact in that window. Every
+ * caller runs this inside `runInTransaction` AFTER `lockEnquiry`, and
+ * `answerEnquiryFact` / `setEnquiryService` take the same lock, so the check,
+ * the supersede and the insert below form one critical section.
+ *
+ * Three statements, not one. This used to be a single statement with the
+ * supersede in a data-modifying CTE, but Postgres does not order a CTE's
+ * UPDATE before the main INSERT (the docs call the order unpredictable), so
+ * whenever a live system-read fact already existed for the field the insert
+ * hit `enquiry_fact_field_uq` and the whole reading of the message was lost.
+ * It never showed while nothing wrote a fact before the interpreter did; the
+ * rule-based job date read on arrival does.
  *
  * Returns whether a row was actually written, so the caller's `factsWritten`
  * count and audit line reflect what landed, not what was attempted.
@@ -187,26 +224,25 @@ async function supersedeAndInsertFact(
   confidence: ConfidenceBand,
   provenance: Record<string, unknown>,
 ): Promise<boolean> {
+  const blocked = await sql<{ id: string }>`
+    select id from enquiry_fact
+    where enquiry_id = ${enquiryId} and lower(field) = lower(${field})
+      and superseded = false
+      and (status = 'confirmed' or asserted_by = 'user')
+    limit 1
+  `;
+  if (blocked.length > 0) return false;
+  await sql`
+    update enquiry_fact set superseded = true, updated_at = now()
+    where enquiry_id = ${enquiryId} and lower(field) = lower(${field})
+      and superseded = false
+  `;
   const rows = await sql<{ id: string }>`
-    with blocked as (
-      select 1 from enquiry_fact
-      where enquiry_id = ${enquiryId} and lower(field) = lower(${field})
-        and superseded = false
-        and (status = 'confirmed' or asserted_by = 'user')
-    ),
-    sup as (
-      update enquiry_fact set superseded = true, updated_at = now()
-      where enquiry_id = ${enquiryId} and lower(field) = lower(${field})
-        and superseded = false
-        and not exists (select 1 from blocked)
-      returning id
-    )
     insert into enquiry_fact
       (enquiry_id, field, label, value, display_value, status, confidence,
        asserted_by, provenance, customer_specific)
-    select ${enquiryId}, ${field}, ${field}, ${value}, ${displayValue},
-      ${status}, ${confidence}, ${"system"}, ${JSON.stringify(provenance)}::jsonb, ${true}
-    where not exists (select 1 from blocked)
+    values (${enquiryId}, ${field}, ${field}, ${value}, ${displayValue},
+      ${status}, ${confidence}, ${"system"}, ${JSON.stringify(provenance)}::jsonb, ${true})
     returning id
   `;
   return rows.length > 0;

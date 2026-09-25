@@ -16,6 +16,7 @@ import type {
   WorkspacePrefs,
 } from "@/domain/types";
 import { BOOKINGS, BUSINESSES, ENQUIRIES } from "@/fixtures";
+import { relativeSample } from "@/fixtures/relative-dates";
 import { reconnectCalendar, reevaluateAfterFact, resolveFamilyPrice } from "@/domain/reeval";
 import { applyVoiceToDraft } from "@/domain/voice-apply";
 import { detectVoiceEdit } from "@/domain/voice-detect";
@@ -71,6 +72,11 @@ type VoiceNotice = {
 type PrototypeState = {
   onboarded: boolean;
   demoMode: boolean;
+  /**
+   * The person chose the sample workspace (More > sample). Local, auth-off
+   * only: without it a fresh browser opens onboarding rather than the sample.
+   */
+  sampleChosen: boolean;
   onboardingStep: number;
   onboardingMaxStep: number;
   onboardingSource: string | null;
@@ -184,7 +190,8 @@ type Actions = {
   dismissLearning: (businessId: string, suggestionId: string) => void;
   confirmKnowledge: (businessId: string, itemId: string) => void;
   resolveConflict: (businessId: string, keepId: string, dropId: string) => void;
-  tellEnquiry: (businessId: string, input: string) => void;
+  /** Returns false when nothing in the input could be used, so the screen can say so. */
+  tellEnquiry: (businessId: string, input: string) => boolean;
   confirmBrainChange: () => void;
   cancelBrainChange: () => void;
   setVoice: (businessId: string, patch: Partial<VoiceProfile>) => void;
@@ -232,20 +239,33 @@ type Actions = {
   tickFollowUps: () => void;
 };
 
+/**
+ * The sample workspace as of today, so "Waiting since" and job dates read as
+ * this week rather than the week the fixtures were written.
+ */
+function sampleWorkspace(now = new Date()) {
+  const { enquiries, bookings } = relativeSample(ENQUIRIES, BOOKINGS, now);
+  const sample = structuredClone({ enquiries, bookings });
+  return {
+    enquiries: sample.enquiries,
+    bookings: sample.bookings,
+    drafts: Object.fromEntries(sample.enquiries.map((e) => [e.id, e.decision.draft.body])),
+  };
+}
+
 const seed = (): Omit<PrototypeState, never> => ({
   onboarded: true,
   demoMode: true,
+  sampleChosen: false,
   onboardingStep: 0,
   onboardingMaxStep: 0,
   onboardingSource: "website",
   businesses: structuredClone(BUSINESSES),
-  enquiries: structuredClone(ENQUIRIES),
-  bookings: structuredClone(BOOKINGS),
+  ...sampleWorkspace(),
   businessFilter: "all",
   queueFilter: "needs_you",
   brainTab: "all",
   brainFocusComposer: false,
-  drafts: Object.fromEntries(ENQUIRIES.map((e) => [e.id, e.decision.draft.body])),
   teach: null,
   duplicate: null,
   brainPreview: null,
@@ -495,10 +515,9 @@ export const usePrototype = create<PrototypeState & Actions>()(
         set({
           onboarded: true,
           demoMode: true,
+          sampleChosen: true,
           businesses: structuredClone(BUSINESSES),
-          enquiries: structuredClone(ENQUIRIES),
-          bookings: structuredClone(BOOKINGS),
-          drafts: Object.fromEntries(ENQUIRIES.map((e) => [e.id, e.decision.draft.body])),
+          ...sampleWorkspace(),
           businessFilter: "all",
           queueFilter: "needs_you",
           firstHint: false,
@@ -506,7 +525,7 @@ export const usePrototype = create<PrototypeState & Actions>()(
           lastArrivalId: null,
         }),
       restoreFixture: (enquiryId) => {
-        const fixture = ENQUIRIES.find((e) => e.id === enquiryId);
+        const fixture = sampleWorkspace().enquiries.find((e) => e.id === enquiryId);
         if (!fixture) return;
         if (replyTimer) {
           clearTimeout(replyTimer);
@@ -670,7 +689,7 @@ export const usePrototype = create<PrototypeState & Actions>()(
           lastAutomated:
             automated && business ? recordAutomatedSend(enquiry, business) : s.lastAutomated,
           audit: appendAudit(s.audit, {
-            actor: automated ? "Enquiry (Autopilot)" : (business?.ownerName ?? "You"),
+            actor: automated ? "Enquiry, with your permission" : (business?.ownerName ?? "You"),
             summary: auditSummary(automated ? "approve_auto" : "approve", enquiry.fixtureId),
             detail: next.decision.recommendation.label,
             objectType: "enquiry",
@@ -860,10 +879,11 @@ export const usePrototype = create<PrototypeState & Actions>()(
       },
       tellEnquiry: (businessId, input) => {
         const business = get().businesses.find((b) => b.id === businessId);
-        if (!business) return;
+        if (!business) return false;
         const preview = compileBrainChange(business, input, get().enquiries);
-        if (!preview) return;
+        if (!preview) return false;
         set({ brainPreview: preview });
+        return true;
       },
       confirmBrainChange: () => {
         const preview = get().brainPreview;
@@ -1758,6 +1778,7 @@ export const usePrototype = create<PrototypeState & Actions>()(
         lastAutomated: s.lastAutomated,
         dismissedNotices: s.dismissedNotices,
         installDismissed: s.installDismissed,
+        sampleChosen: s.sampleChosen,
       }),
       merge: (persisted, current) => {
         const p = (persisted ?? {}) as Partial<PrototypeState>;

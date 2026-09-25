@@ -15,6 +15,7 @@ import { useFirstBetaActions } from "@/lib/workspace/live-mutations";
 import { previewFor } from "@/domain/send-preview";
 import { comesBackCue, lastSent } from "@/domain/time-cues";
 import { SendPreview, type SendPreviewCopyState } from "./send-preview";
+import { toastRecordedSend } from "@/lib/workspace/send-undo";
 
 export function WaitingDesk({ enquiry, onDone }: { enquiry: Enquiry; onDone?: () => void }) {
   const acceptQuote = usePrototype((s) => s.acceptQuote);
@@ -116,10 +117,12 @@ export function WaitingDesk({ enquiry, onDone }: { enquiry: Enquiry; onDone?: ()
         return;
       }
       setConfirmOpen(false);
-      toast.success(
+      const messageId = res.messageId;
+      toastRecordedSend(
         res.duplicate
           ? "Already recorded - this follow-up is on file once."
           : "Recorded as sent by you. The quote stays on file.",
+        res.duplicate || !messageId ? null : () => firstBeta.undoSend(enquiry.id, messageId),
       );
       onDone?.();
     } catch (err) {

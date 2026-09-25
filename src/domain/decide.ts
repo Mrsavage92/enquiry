@@ -40,6 +40,13 @@ export type Decision = {
    * showing a figure that array order happened to pick.
    */
   serviceChoices?: string[];
+  /**
+   * The owner has to tell Enquiry something before this enquiry can move:
+   * `add_prices` when the business has no prices at all, `add_price` when none
+   * of them covers this service. The next step is then the business screen,
+   * never a disabled button on the enquiry.
+   */
+  setup?: "add_prices" | "add_price" | "choose_service";
 };
 
 /**
@@ -160,8 +167,12 @@ export function decideEnquiry(
     action: "ESCALATE_HUMAN",
     explanation:
       rules.length === 0
-        ? "No pricing rules are set up yet, so Enquiry cannot price this."
-        : `Nothing in this business's pricing covers "${price.service}".`,
+        ? "You have not added any prices yet, so Enquiry cannot work out a price for this. Add what you charge and this enquiry updates."
+        : !price.service.trim()
+          ? "Enquiry does not know which of your services this is yet. Say which one and the price follows."
+          : `None of your prices covers "${price.service}" yet. Add a price for it and this enquiry updates.`,
+    setup:
+      rules.length === 0 ? "add_prices" : !price.service.trim() ? "choose_service" : "add_price",
   };
 }
 
@@ -200,7 +211,8 @@ export function validateFactAnswer(
 
   const selected = matchRule(rules, serviceLabel);
   const rule =
-    selected.kind === "one" && selected.rule.kind === "per_unit" &&
+    selected.kind === "one" &&
+    selected.rule.kind === "per_unit" &&
     norm(selected.rule.quantityField) === norm(field)
       ? selected.rule
       : quantityRules[0]!;

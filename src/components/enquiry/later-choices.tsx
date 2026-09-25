@@ -33,7 +33,7 @@ export function LaterChoices({
               key={choice.id}
               variant="secondary"
               className="min-h-12 w-full justify-start"
-              onClick={() => onChoose(choice.until, choice.label.toLowerCase())}
+              onClick={() => onChoose(choice.until, choice.label)}
             >
               {choice.label}
             </Button>

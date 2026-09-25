@@ -13,6 +13,30 @@ import { BUSINESS_BY_ID } from "@/fixtures";
 import { resolveBusiness } from "@/lib/workspace/resolve-business";
 import { usePrototype } from "@/store/prototype-store";
 import { QuoteSheet } from "./quote-sheet";
+import { concreteWhen } from "@/domain/time-cues";
+
+/**
+ * How the embedded (phone) thread splits: what came before, the customer's
+ * latest message (always visible - the owner should never have to remember
+ * what they asked), and the replies sent after it, folded away.
+ */
+function splitThread(conversation: Message[]) {
+  let lastIn = -1;
+  for (let i = conversation.length - 1; i >= 0; i -= 1) {
+    if (conversation[i]!.direction === "inbound") {
+      lastIn = i;
+      break;
+    }
+  }
+  if (lastIn < 0) {
+    return { earlier: conversation.slice(0, -1), latest: conversation.slice(-1), after: [] };
+  }
+  return {
+    earlier: conversation.slice(0, lastIn),
+    latest: [conversation[lastIn]!],
+    after: conversation.slice(lastIn + 1),
+  };
+}
 
 export function Conversation({
   enquiry,
@@ -69,36 +93,85 @@ export function Conversation({
               : "min-h-0 flex-1 overflow-y-auto px-6 py-7",
         )}
       >
-        {embedded && enquiry.conversation.length > 1 ? (
-          <li className="conversation-history">
-            <details>
-              <summary>Earlier messages ({enquiry.conversation.length - 1})</summary>
-              <ol>
-                {enquiry.conversation.slice(0, -1).map((message, index) => (
-                  <MessageBlock
-                    key={message.id}
-                    message={message}
-                    enquiry={enquiry}
-                    compact={compact}
-                    spaced={index > 0}
-                  />
-                ))}
-              </ol>
-            </details>
-          </li>
-        ) : null}
-        {(embedded ? enquiry.conversation.slice(-1) : enquiry.conversation).map((m, i) => (
-          <MessageBlock
-            key={m.id}
-            message={m}
-            enquiry={enquiry}
-            compact={compact}
-            spaced={i > 0}
-            endRef={i === enquiry.conversation.length - 1 ? endRef : undefined}
-          />
-        ))}
+        {embedded ? (
+          <EmbeddedThread enquiry={enquiry} compact={compact} endRef={endRef} />
+        ) : (
+          enquiry.conversation.map((m, i) => (
+            <MessageBlock
+              key={m.id}
+              message={m}
+              enquiry={enquiry}
+              compact={compact}
+              spaced={i > 0}
+              endRef={i === enquiry.conversation.length - 1 ? endRef : undefined}
+            />
+          ))
+        )}
       </ol>
     </div>
+  );
+}
+
+function EmbeddedThread({
+  enquiry,
+  compact,
+  endRef,
+}: {
+  enquiry: Enquiry;
+  compact: boolean;
+  endRef: Ref<HTMLLIElement>;
+}) {
+  const prefs = usePrototype((s) => s.prefs);
+  const { earlier, latest, after } = splitThread(enquiry.conversation);
+  return (
+    <>
+      {earlier.length > 0 ? (
+        <li className="conversation-history">
+          <details>
+            <summary>Earlier messages ({earlier.length})</summary>
+            <ol>
+              {earlier.map((message, index) => (
+                <MessageBlock
+                  key={message.id}
+                  message={message}
+                  enquiry={enquiry}
+                  compact={compact}
+                  spaced={index > 0}
+                />
+              ))}
+            </ol>
+          </details>
+        </li>
+      ) : null}
+      {latest.map((m) => (
+        <MessageBlock
+          key={m.id}
+          message={m}
+          enquiry={enquiry}
+          compact={compact}
+          spaced={false}
+          endRef={after.length === 0 ? endRef : undefined}
+        />
+      ))}
+      {after.map((m, i) => (
+        <li key={m.id} className="conversation-history mt-4">
+          <details>
+            <summary>
+              Your reply, sent {concreteWhen(m.at, new Date(), prefs.timezone || undefined)}
+            </summary>
+            <ol>
+              <MessageBlock
+                message={m}
+                enquiry={enquiry}
+                compact={compact}
+                spaced={false}
+                endRef={i === after.length - 1 ? endRef : undefined}
+              />
+            </ol>
+          </details>
+        </li>
+      ))}
+    </>
   );
 }
 

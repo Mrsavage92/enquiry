@@ -181,13 +181,23 @@ export async function confirmReviewedSendInTransaction(
   const [enq] = await sql<{
     lifecycle: string;
     decision_revision: string | number;
+    practice: boolean | null;
   }>`
-    select lifecycle, decision_revision from enquiry
+    select lifecycle, decision_revision, practice from enquiry
     where id = ${input.enquiryId}
     for update
   `;
   if (!enq) {
     return { ok: false, reason: "missing", message: "That enquiry no longer exists." };
+  }
+  // Prepare already refuses a practice enquiry; this is the second lock on the
+  // same door, so no crafted call can record a send against one either.
+  if (enq.practice) {
+    return {
+      ok: false,
+      reason: "closed",
+      message: "This is a practice enquiry, so nothing is recorded as sent from it.",
+    };
   }
 
   const [reviewed] = await sql<ReviewedSendRow>`
@@ -266,6 +276,18 @@ export async function confirmReviewedSendInTransaction(
     `;
     return { ok: true, duplicate: true, stale, messageId: again?.consumed_message_id ?? null };
   }
+
+  // What the enquiry looked like the moment before this send, kept on the
+  // artefact so an Undo puts back exactly this rather than guessing.
+  const [prior] = await sql<Record<string, unknown>>`
+    select decision_state, commercial_state, responsibility, value_exact_minor,
+      value_range_min_minor, value_range_max_minor, currency
+    from enquiry where id = ${input.enquiryId}
+  `;
+  await sql`
+    update reviewed_send set prior_state = ${JSON.stringify(prior ?? null)}::jsonb
+    where id = ${reviewed.id}
+  `;
 
   const [biz] = await sql<{ name: string }>`
     select name from business where id = ${input.businessId}
@@ -375,6 +397,19 @@ export async function confirmReviewedSendInTransaction(
       `;
     }
   }
+
+  // The revision this send left the enquiry at. Undo is only honest while the
+  // enquiry is still exactly here: a decline, an answered fact or a newer
+  // decision after the send would be silently rolled back otherwise.
+  const [after] = await sql<{ decision_revision: string | number }>`
+    select decision_revision from enquiry where id = ${input.enquiryId}
+  `;
+  await sql`
+    update reviewed_send
+    set prior_state = coalesce(prior_state, '{}'::jsonb)
+      || jsonb_build_object('after_revision', ${Number(after?.decision_revision ?? 0)}::bigint)
+    where id = ${reviewed.id}
+  `;
 
   const summary = reviewed.recipient
     ? `Reply confirmed sent by the owner via ${channelLabel(reviewed.channel as Channel)} to ${reviewed.recipient}`

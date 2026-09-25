@@ -41,6 +41,23 @@ export function concreteWhen(iso: string, now = new Date(), tz = DEFAULT_ZONE): 
   return format(then, "EEE d MMM", { locale: enAU });
 }
 
+/**
+ * Where a parked enquiry is: "Parked until 3:15pm today", "Parked until
+ * tomorrow 8:00am", "Parked until Mon 28 Sep". The day keeps its capitals
+ * wherever the sentence is used.
+ */
+export function parkedUntil(untilIso: string, now = new Date(), tz = DEFAULT_ZONE): string {
+  const back = wall(untilIso, tz);
+  const today = wall(now, tz);
+  if (!back || !today) return "Parked";
+  const key = dayKeyFromDate(back);
+  if (key === dayKeyFromDate(today)) return `Parked until ${clock(back)} today`;
+  if (key === dayKeyFromDate(addCalendarDays(today, 1))) {
+    return `Parked until tomorrow ${clock(back)}`;
+  }
+  return `Parked until ${format(back, "EEE d MMM", { locale: enAU })}`;
+}
+
 /** A day to come back on: "today", "tomorrow", "Tue 29 Sep". */
 export function concreteDay(target: Date, now = new Date(), tz = DEFAULT_ZONE): string {
   const today = wall(now, tz);
@@ -130,8 +147,7 @@ export function rowTimeCue(enquiry: Enquiry, prefs: WorkspacePrefs, now = new Da
     return `Updated ${concreteWhen(enquiry.updatedAt, now, tz)}`;
   }
   if (enquiry.snoozedUntil && Date.parse(enquiry.snoozedUntil) > now.getTime()) {
-    const back = wall(enquiry.snoozedUntil, tz);
-    return back ? `Back ${concreteDay(back, now, tz)}` : "Later";
+    return parkedUntil(enquiry.snoozedUntil, now, tz);
   }
   const lastOut = lastMessageAt(enquiry, "outbound");
   if (enquiry.followUpDue && lastOut) {
@@ -191,6 +207,7 @@ export function catchUpSince(
   let answered = 0;
   let due = 0;
   for (const e of enquiries) {
+    if (e.practice) continue;
     if (Date.parse(e.receivedAt) > since) {
       arrived += 1;
       continue;

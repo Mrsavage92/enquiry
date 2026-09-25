@@ -140,6 +140,8 @@ export type EnquiryRow = {
   snoozed_until: string | Date | null;
   teach_prompt: string | null;
   notes: string | null;
+  /** migrations/0012; absent on a database that has not run it yet. */
+  practice?: boolean | null;
   received_at: string | Date;
   updated_at: string | Date;
 };
@@ -470,5 +472,6 @@ export function toEnquiry(
     updatedAt: iso(r.updated_at),
     teachPrompt: r.teach_prompt ?? undefined,
     notes: r.notes ?? undefined,
+    practice: r.practice === true || undefined,
   };
 }

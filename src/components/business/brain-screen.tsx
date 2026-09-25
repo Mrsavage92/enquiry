@@ -16,7 +16,7 @@ import {
   ShieldCheck,
   Store,
 } from "lucide-react";
-import { useNavigate } from "@tanstack/react-router";
+import { useNavigate, useSearch } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -37,6 +37,16 @@ import { cn } from "@/lib/utils";
 import { applyVoiceToDraft } from "@/domain/voice-apply";
 import { useNarrow } from "@/lib/use-narrow";
 import { useScrollFade } from "@/lib/use-scroll-fade";
+import {
+  readPriceSentences,
+  PRICE_EXAMPLE,
+  FLAT_EXAMPLE,
+  type ReadPrice,
+} from "@/domain/price-sentence";
+import { describeRule } from "@/domain/business-rule";
+import { concreteWhen } from "@/domain/time-cues";
+import { decidingPhrase } from "@/domain/price-compiler";
+import { useFirstBetaActions } from "@/lib/workspace/live-mutations";
 
 const SECTIONS = [
   { id: "all", label: "Overview" },
@@ -83,6 +93,16 @@ export function BrainScreen() {
   const [query, setQuery] = useState("");
   const [detailOpen, setDetailOpen] = useState(false);
   const [composerOpen, setComposerOpen] = useState(false);
+  // What "Preview" could not use, said beside the box - never a silent no-op.
+  const [tellError, setTellError] = useState<string | null>(null);
+  const [livePrices, setLivePrices] = useState<{
+    prices: ReadPrice[];
+    unread: { line: string; reason: string }[];
+  } | null>(null);
+  const [savingPrices, setSavingPrices] = useState(false);
+  const firstBeta = useFirstBetaActions();
+  const search = useSearch({ strict: false }) as { section?: string };
+  const pricingRef = useRef<HTMLDivElement>(null);
   const tellRef = useRef<HTMLTextAreaElement>(null);
   const focusComposer = usePrototype((s) => s.brainFocusComposer);
   const setFocusComposer = usePrototype((s) => s.setBrainFocusComposer);
@@ -120,6 +140,20 @@ export function BrainScreen() {
     setComposerOpen(true);
     setFocusComposer(false);
   }, [focusComposer, setFocusComposer, setTab]);
+
+  // "Add your prices" on an enquiry lands here with ?section=pricing: open the
+  // pricing section and bring it into view, rather than a menu to find it in.
+  const deepLinkPricing = search.section === "pricing";
+  useEffect(() => {
+    if (!deepLinkPricing) return;
+    setTab("pricing");
+    setDetailOpen(true);
+    setComposerOpen(false);
+  }, [deepLinkPricing, setTab]);
+  useEffect(() => {
+    if (!deepLinkPricing || tab !== "pricing" || !detailOpen) return;
+    pricingRef.current?.scrollIntoView({ block: "start" });
+  }, [deepLinkPricing, tab, detailOpen]);
 
   useEffect(() => {
     if (tab !== "home") return;
@@ -388,7 +422,11 @@ export function BrainScreen() {
           )}
         </header>
 
-        {tabValue === "pricing" ? <PricingRules business={business} /> : null}
+        {tabValue === "pricing" ? (
+          <div ref={pricingRef} id="pricing" className="scroll-mt-4">
+            <PricingRules business={business} autoOpen={deepLinkPricing} />
+          </div>
+        ) : null}
 
         {!composerOpen ? (
           <Button variant="ghost" className="mt-5" onClick={() => setComposerOpen(true)}>
@@ -400,7 +438,30 @@ export function BrainScreen() {
             className="mt-6"
             onSubmit={(e) => {
               e.preventDefault();
-              tell(business.id, input);
+              setTellError(null);
+              if (!input.trim()) {
+                setTellError(`Write a price first, for example: ${PRICE_EXAMPLE}.`);
+                return;
+              }
+              if (demoMode) {
+                if (!tell(business.id, input)) {
+                  setTellError(
+                    `Enquiry could not match that to anything in this sample business. Try a price, for example: ${PRICE_EXAMPLE}.`,
+                  );
+                }
+                return;
+              }
+              // A real business: read the owner's own words as prices they can
+              // confirm, and name every line that could not be read.
+              const read = readPriceSentences(input);
+              if (read.prices.length === 0) {
+                const why = read.unread[0]?.reason ?? "There is no dollar amount in it.";
+                setTellError(
+                  `Enquiry could not read a price from that. ${why} Write one price per line, for example: ${PRICE_EXAMPLE}, or ${FLAT_EXAMPLE}.`,
+                );
+                return;
+              }
+              setLivePrices(read);
             }}
           >
             <label className="block" htmlFor="tell">
@@ -411,18 +472,26 @@ export function BrainScreen() {
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 rows={2}
+                aria-describedby={tellError ? "tell-error" : undefined}
                 placeholder={
-                  business.id === "northlight"
-                    ? "Event coverage will be $200 an hour."
-                    : business.id === "ridge"
-                      ? "Interior bedrooms will be $450."
-                      : business.id === "harbour"
-                        ? "A 3 bed / 2 bath deep clean is $360."
-                        : "Group mobile makeup will be $160 a person."
+                  !demoMode
+                    ? `${PRICE_EXAMPLE}. ${FLAT_EXAMPLE}.`
+                    : business.id === "northlight"
+                      ? "Event coverage will be $200 an hour."
+                      : business.id === "ridge"
+                        ? "Interior bedrooms will be $450."
+                        : business.id === "harbour"
+                          ? "A 3 bed / 2 bath deep clean is $360."
+                          : "Group mobile makeup will be $160 a person."
                 }
                 className="field mt-2"
               />
             </label>
+            {tellError ? (
+              <p id="tell-error" role="alert" className="mt-2 text-sm text-danger">
+                {tellError}
+              </p>
+            ) : null}
             <div className="mt-2 flex flex-wrap items-center justify-between gap-3">
               {phone ? null : (
                 <p className="text-xs text-stone">
@@ -582,6 +651,79 @@ export function BrainScreen() {
           </div>
         )}
 
+        <Dialog open={Boolean(livePrices)} onOpenChange={(o) => !o && setLivePrices(null)}>
+          <DialogContent title="Prices to save">
+            {livePrices ? (
+              <div className="space-y-3 text-sm">
+                <ul className="space-y-2">
+                  {livePrices.prices.map((p) => (
+                    <li key={p.line}>
+                      <p className="font-medium">{describeRule(p.rule)}</p>
+                      <p className="mt-0.5 text-ink-2">
+                        {p.rule.kind === "per_unit"
+                          ? `When a customer does not say how many, Enquiry asks for ${decidingPhrase(p.rule.quantityField)}.`
+                          : "One flat price for this job."}
+                      </p>
+                    </li>
+                  ))}
+                </ul>
+                {livePrices.unread.length > 0 ? (
+                  <div className="callout bg-warn-bg text-warn">
+                    <p className="font-medium">Not saved - Enquiry could not read these:</p>
+                    <ul className="mt-1 space-y-1 text-ink-2">
+                      {livePrices.unread.map((u) => (
+                        <li key={u.line}>{`"${u.line}" - ${u.reason}`}</li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : null}
+                <p className="text-ink-2">
+                  Open enquiries that are waiting on your prices update when you save.
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    disabled={savingPrices}
+                    onClick={async () => {
+                      setSavingPrices(true);
+                      try {
+                        // One call: every price saves, or none does.
+                        const res = await firstBeta.saveRules(
+                          business.id,
+                          livePrices.prices.map((p) => p.rule),
+                        );
+                        const updated = res.updatedEnquiries > 0;
+                        setLivePrices(null);
+                        setInput("");
+                        setComposerOpen(false);
+                        toast.success(
+                          updated
+                            ? "Saved. Open enquiries that were waiting on these prices have been worked out again."
+                            : "Saved. Enquiry can price these now.",
+                        );
+                      } catch (err) {
+                        toast.error(
+                          err instanceof Error ? err.message : "Could not save those prices.",
+                        );
+                      } finally {
+                        setSavingPrices(false);
+                      }
+                    }}
+                  >
+                    {savingPrices
+                      ? "Saving…"
+                      : livePrices.prices.length === 1
+                        ? "Save this price"
+                        : `Save these ${livePrices.prices.length} prices`}
+                  </Button>
+                  <Button variant="secondary" onClick={() => setLivePrices(null)}>
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            ) : null}
+          </DialogContent>
+        </Dialog>
+
         <Dialog open={Boolean(preview)} onOpenChange={(o) => !o && cancel()}>
           <DialogContent title="Proposed business change">
             {preview ? (
@@ -663,6 +805,11 @@ export function BrainScreen() {
   );
 }
 
+/** "from today 9:16pm", never "from 2026-09-25T11:16:25.413Z". */
+function readableFrom(value: string): string {
+  return /^\d{4}-\d{2}-\d{2}T/.test(value) ? concreteWhen(value) : value;
+}
+
 function KnowledgeRow({
   item,
   all,
@@ -702,7 +849,7 @@ function KnowledgeRow({
       <p className="mt-1 text-sm leading-relaxed text-ink-2">{item.body}</p>
       <p className="mt-1.5 text-xs text-stone">
         {item.source.label}
-        {item.effectiveFrom ? ` · from ${item.effectiveFrom}` : ""}
+        {item.effectiveFrom ? ` · from ${readableFrom(item.effectiveFrom)}` : ""}
         {item.stale ? " · last confirmed a while ago" : ""}
       </p>
       <button

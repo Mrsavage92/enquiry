@@ -12,7 +12,9 @@ export const Route = createFileRoute("/_app/insights")({
 });
 
 function InsightsPage() {
-  const enquiries = usePrototype((s) => s.enquiries);
+  // A practice enquiry is for trying the product; it is never a figure.
+  const allEnquiries = usePrototype((s) => s.enquiries);
+  const enquiries = allEnquiries.filter((e) => !e.practice);
   const businesses = usePrototype((s) => s.businesses);
   const bookings = usePrototype((s) => s.bookings);
   const filter = usePrototype((s) => s.businessFilter);

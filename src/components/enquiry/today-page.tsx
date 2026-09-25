@@ -40,6 +40,11 @@ import { statusTone } from "@/domain/status-tone";
 import type { Enquiry, WorkspacePrefs } from "@/domain/types";
 import { usePrototype } from "@/store/prototype-store";
 import { AddEnquiry } from "./add-enquiry";
+import { isPricingStep, setupStep } from "@/domain/next-action";
+import { useFirstBetaActions } from "@/lib/workspace/live-mutations";
+import { toast } from "sonner";
+import { PracticeBadge } from "./practice-note";
+import { useDeletePractice } from "@/lib/workspace/use-delete-practice";
 
 /** Oldest wait first: the person who has waited longest is the one to start with. */
 function waitingSince(e: Enquiry): number {
@@ -69,6 +74,7 @@ function EnquiryRow({ enquiry, prefs }: { enquiry: Enquiry; prefs: WorkspacePref
         <span className="today-row-content">
           <span className="today-row-title">
             <strong>{enquiry.customerName}</strong>
+            <PracticeBadge enquiry={enquiry} />
             <Badge tone={statusTone(enquiry)}>{derivedLabel(enquiry.state, enquiry)}</Badge>
           </span>
           {/* The owner's next step leads, not the customer's message. */}
@@ -86,20 +92,56 @@ function EnquiryRow({ enquiry, prefs }: { enquiry: Enquiry; prefs: WorkspacePref
   );
 }
 
+/** The owner changed the prepared reply and has not sent it: that is the thing to finish. */
+function hasUnfinishedReply(enquiry: Enquiry, drafts: Record<string, string>): boolean {
+  const saved = drafts[enquiry.id];
+  return saved !== undefined && saved.trim() !== "" && saved !== enquiry.decision.draft.body;
+}
+
 function StartHere({ enquiry, prefs }: { enquiry: Enquiry; prefs: WorkspacePrefs }) {
+  const drafts = usePrototype((s) => s.drafts);
+  const unfinished = hasUnfinishedReply(enquiry, drafts);
+  const setup = setupStep(enquiry);
+  const pricing = !unfinished && isPricingStep(setup);
+  const first = enquiry.customerName.split(/\s+/)[0] || "them";
   return (
     <section className="today-start" aria-labelledby="start-here-title">
-      <p className="today-start-kicker">Start here</p>
-      <h2 id="start-here-title">{enquiry.customerName}</h2>
+      <p className="today-start-kicker">{unfinished ? "Unfinished reply" : "Start here"}</p>
+      <h2 id="start-here-title" className="flex flex-wrap items-center gap-2">
+        {enquiry.customerName}
+        <PracticeBadge enquiry={enquiry} />
+      </h2>
       <p className="today-start-meta">
         {[enquiry.serviceLabel, rowTimeCue(enquiry, prefs)].filter(Boolean).join(" · ")}
       </p>
-      <p className="today-start-next">{nextStepLabel(enquiry)}</p>
-      <Button asChild className="mt-4 min-h-12 w-full sm:w-auto">
-        <Link to="/enquiries/$enquiryId" params={{ enquiryId: enquiry.id }}>
-          Open this enquiry <ArrowRight size={16} aria-hidden />
-        </Link>
-      </Button>
+      <p className="today-start-next">
+        {unfinished ? `Finish your reply to ${first}` : nextStepLabel(enquiry)}
+      </p>
+      {pricing ? (
+        // No prices yet: the one step that moves this enquiry is on the
+        // business screen, so the button goes there, enabled.
+        <>
+          <Button asChild className="mt-4 min-h-12 w-full sm:w-auto">
+            <Link to="/business" search={{ section: "pricing" }}>
+              {setup?.label} <ArrowRight size={16} aria-hidden />
+            </Link>
+          </Button>
+          <Link
+            to="/enquiries/$enquiryId"
+            params={{ enquiryId: enquiry.id }}
+            className="ui-text-link mt-3"
+          >
+            Open this enquiry <ArrowRight size={15} aria-hidden />
+          </Link>
+        </>
+      ) : (
+        <Button asChild className="mt-4 min-h-12 w-full sm:w-auto">
+          <Link to="/enquiries/$enquiryId" params={{ enquiryId: enquiry.id }}>
+            {unfinished ? "Continue your reply" : "Open this enquiry"}{" "}
+            <ArrowRight size={16} aria-hidden />
+          </Link>
+        </Button>
+      )}
     </section>
   );
 }
@@ -128,12 +170,27 @@ function CatchUpLine({ enquiries }: { enquiries: Enquiry[] }) {
  * The first thing a new owner sees after onboarding: one next step, nothing to
  * decode. No stats, no calendar, no empty tabs.
  */
-function FirstRun() {
+function FirstRun({ practice }: { practice?: Enquiry }) {
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
+  const [trying, setTrying] = useState(false);
   const businesses = usePrototype((s) => s.businesses);
   const filter = usePrototype((s) => s.businessFilter);
   const business = businesses.find((b) => b.id === filter) ?? businesses[0];
+  const actions = useFirstBetaActions();
+  const { remove, deleting } = useDeletePractice();
+  const tryPractice = async () => {
+    if (!business) return;
+    setTrying(true);
+    try {
+      const id = await actions.createPractice(business.id);
+      void navigate({ to: "/enquiries/$enquiryId", params: { enquiryId: id } });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not open a practice enquiry.");
+    } finally {
+      setTrying(false);
+    }
+  };
   return (
     <section className="today-start" aria-labelledby="first-run-title">
       <p className="today-start-kicker">Your first step</p>
@@ -149,6 +206,35 @@ function FirstRun() {
       >
         Add your first enquiry
       </Button>
+      {practice ? (
+        <p className="today-start-meta mt-3 flex flex-wrap items-center gap-x-3">
+          <span>Your practice enquiry is waiting.</span>
+          <Link
+            to="/enquiries/$enquiryId"
+            params={{ enquiryId: practice.id }}
+            className="inline-flex min-h-11 items-center font-medium text-mark-strong underline-offset-4 hover:underline"
+          >
+            Open it
+          </Link>
+          <button
+            type="button"
+            className="inline-flex min-h-11 items-center font-medium text-mark-strong underline-offset-4 hover:underline"
+            disabled={deleting}
+            onClick={() => void remove(practice.id)}
+          >
+            {deleting ? "Deleting…" : "Delete it"}
+          </button>
+        </p>
+      ) : (
+        <button
+          type="button"
+          className="mt-3 inline-flex min-h-11 items-center text-sm font-medium text-mark-strong underline-offset-4 hover:underline"
+          disabled={!business || trying}
+          onClick={() => void tryPractice()}
+        >
+          {trying ? "Opening a practice enquiry…" : "Try a practice enquiry"}
+        </button>
+      )}
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent title="Add an enquiry" className="max-h-[90dvh] overflow-y-auto">
           {business ? (
@@ -181,10 +267,18 @@ export function TodayPage() {
   const tz = prefs.timezone || "Australia/Brisbane";
   const visible = enquiries.filter((e) => filter === "all" || e.businessId === filter);
   const summary = queueSummary(visible);
-  const firstRun = !demoMode && visible.length === 0;
+  // A practice enquiry does not end the first run: until a real one arrives,
+  // the first step is still "Add your first enquiry".
+  const practice = visible.find((e) => e.practice);
+  const firstRun = !demoMode && visible.every((e) => e.practice);
   const needsYou = visible
     .filter((e) => queueSection(e) === "needs_you")
-    .sort((a, b) => waitingSince(a) - waitingSince(b));
+    // Practice goes last: a real customer is always the one to start with.
+    .sort(
+      (a, b) =>
+        Number(Boolean(a.practice)) - Number(Boolean(b.practice)) ||
+        waitingSince(a) - waitingSince(b),
+    );
   const waiting = visible.filter((e) => queueSection(e) === "waiting");
   const start = needsYou[0];
   const showingWaiting = phone && view === "waiting";
@@ -243,7 +337,7 @@ export function TodayPage() {
         </header>
 
         {firstRun ? (
-          <FirstRun />
+          <FirstRun practice={practice} />
         ) : (
           <>
             {demoMode ? null : <CatchUpLine enquiries={visible} />}
@@ -310,8 +404,8 @@ export function TodayPage() {
                       <Clock3 size={16} aria-hidden />
                       <span>
                         {summary.atRisk === 1
-                          ? "One enquiry needs a look"
-                          : "A few enquiries need a look"}
+                          ? "One customer has gone quiet"
+                          : "A few customers have gone quiet"}
                       </span>
                       <ChevronRight size={16} aria-hidden />
                     </Link>
@@ -418,8 +512,8 @@ export function TodayPage() {
                       <Clock3 size={17} aria-hidden />
                       <p>
                         {summary.atRisk === 1
-                          ? "One enquiry needs a look."
-                          : "A few enquiries need a look."}
+                          ? "One customer has gone quiet."
+                          : "A few customers have gone quiet."}
                         <Link to="/enquiries" onClick={() => setQueueFilter("at_risk")}>
                           Look at them <ArrowRight size={14} aria-hidden />
                         </Link>

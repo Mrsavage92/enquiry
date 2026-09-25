@@ -3,7 +3,9 @@ import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
 import { ENQUIRIES } from "../fixtures/enquiries.ts";
-import { derivedLabel, QUEUE_NAMES, STATUS } from "./labels.ts";
+import { derivedLabel, nextStepLabel, QUEUE_NAMES, STATUS } from "./labels.ts";
+import { decideEnquiry } from "./decide.ts";
+import { snapshotFromDecision } from "./decision-snapshot.ts";
 import type { CompositeState } from "./types.ts";
 
 /**
@@ -58,7 +60,9 @@ const RETIRED: [RegExp, string][] = [
   [/Waiting on client/, "Waiting"],
   [/\bNeeds info\b/, "Needs a detail"],
   [/Ready to quote/, "Reply ready"],
-  [/\bAt risk\b|\bat risk\b/, "Needs a look"],
+  [/\bAt risk\b|\bat risk\b/, "Gone quiet"],
+  // Read as a second "Needs you" queue beside the real one.
+  [/\b[Nn]eeds? a look\b/, "Gone quiet"],
   [/Autopilot sent/, "(removed: nothing sends by itself)"],
   [/Needs your attention/, "Needs you"],
 ];
@@ -102,4 +106,47 @@ test("no retired status word is hard-coded on an owner-facing screen", () => {
     });
   }
   assert.deepEqual(hits, []);
+});
+
+test("no owner-facing screen or sample says Autopilot", () => {
+  const hits: string[] = [];
+  for (const file of [...SCANNED, "src/fixtures"].flatMap(files)) {
+    if (!/\.(tsx?|ts)$/.test(file) || /\.test\.tsx?$/.test(file)) continue;
+    code(readFileSync(file, "utf8"))
+      .split("\n")
+      .forEach((line, i) => {
+        // The stored trust-mode value list is data the server validates, not
+        // words anyone reads; every other occurrence is copy.
+        if (/"Assist", "Autopilot"\]/.test(line)) return;
+        if (/\bAutopilot\b/.test(line)) hits.push(`${file}:${i + 1}`);
+      });
+  }
+  assert.deepEqual(hits, []);
+});
+
+test("the tab for customers who went quiet cannot be read as a second 'Needs you'", () => {
+  assert.notEqual(QUEUE_NAMES.at_risk, QUEUE_NAMES.needs_you);
+  assert.doesNotMatch(QUEUE_NAMES.at_risk, /need/i);
+});
+
+test("an enquiry waiting on the owner's prices: the chip and the next step agree", () => {
+  const decision = decideEnquiry(
+    { knowledge: [] },
+    { serviceLabel: "Exterior repaint", facts: [] },
+  );
+  const snapshot = snapshotFromDecision(decision, { customerName: "Karen Walsh" });
+  const base = ENQUIRIES.find((e) => e.state.lifecycle === "OPEN")!;
+  const e = {
+    ...base,
+    atRisk: undefined,
+    followUpDue: undefined,
+    snoozedUntil: undefined,
+    duplicateOf: undefined,
+    source: "manual" as const,
+    state: { ...base.state, lifecycle: "OPEN" as const, decision: "NEEDS_HUMAN" as const },
+    decision: { ...base.decision, ...snapshot },
+  };
+  assert.equal(nextStepLabel(e), "Add your prices");
+  assert.equal(derivedLabel(e.state, e), STATUS.needsPrices);
+  assert.ok(ALLOWED.has(derivedLabel(e.state, e)));
 });

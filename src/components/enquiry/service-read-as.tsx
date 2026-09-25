@@ -6,6 +6,7 @@ import { factStatusLabel, factStatusTone, formatAud } from "@/domain/labels";
 import { serviceAuthority } from "@/domain/service-authority";
 import { useFirstBetaActions } from "@/lib/workspace/live-mutations";
 import type { Enquiry } from "@/domain/types";
+import { setupStep } from "@/domain/next-action";
 
 /**
  * "Enquiry read this as X" - only shown when `service_label` was set by a
@@ -40,10 +41,15 @@ export function ServiceReadAs({ enquiry }: { enquiry: Enquiry }) {
     setValue(current);
   }, [fact?.id, current]);
 
-  // Only when there is something to confirm. A confirmed service needs no
-  // prompt, and an enquiry with no service named at all needs a service, not a
-  // confirmation.
-  if (authority.state !== "proposed" && authority.state !== "unattributed") return null;
+  // No service named at all, and the business has prices: the next step is
+  // to say which service this is. Asked here, where the answer is typed.
+  const naming = authority.state === "absent" && setupStep(enquiry)?.kind === "choose_service";
+
+  // Otherwise only when there is something to confirm. A confirmed service
+  // needs no prompt.
+  if (authority.state !== "proposed" && authority.state !== "unattributed" && !naming) {
+    return null;
+  }
 
   const provisional = enquiry.decision?.provisionalPrice;
 
@@ -63,7 +69,11 @@ export function ServiceReadAs({ enquiry }: { enquiry: Enquiry }) {
   return (
     <section className="border-b border-line px-5 py-5">
       <div className="flex flex-wrap items-center gap-2">
-        {fact ? (
+        {naming ? (
+          <p className="text-sm text-ink-2">
+            Which of your services is this? Enquiry prices it once you say.
+          </p>
+        ) : fact ? (
           <>
             <Badge tone={factStatusTone(fact.status)}>{factStatusLabel(fact.status)}</Badge>
             <p className="text-sm text-ink-2">
@@ -115,7 +125,11 @@ export function ServiceReadAs({ enquiry }: { enquiry: Enquiry }) {
           title={saving ? "Working it out…" : `Confirm service: ${value.trim() || current}`}
         >
           <span className="min-w-0 truncate">
-            {saving ? "Working it out…" : `Confirm service: ${value.trim() || current}`}
+            {saving
+              ? "Working it out…"
+              : naming && !value.trim()
+                ? "Set the service"
+                : `Confirm service: ${value.trim() || current}`}
           </span>
         </Button>
       </div>
