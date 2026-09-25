@@ -83,16 +83,19 @@
   font-weight: 550;
   border-radius: 6px;
 }
+/* One fill for every "Join early access" button: --public-violet #654ac2,
+   the design context's accent. White text on it measures 6.3:1; hover
+   #583ac0 is 7.6:1. */
 .brand-hero-join {
-  background: #30213f;
+  background: #654ac2;
   color: #fff;
   box-shadow: 0 3px 0 #b8a4d2;
 }
 .brand-hero-join svg {
-  color: #e2ee94;
+  color: #fff;
 }
 .brand-hero-join:hover {
-  background: #50356a;
+  background: #583ac0;
   box-shadow: 0 4px 0 #b8a4d2;
 }
 .brand-hero-demo {

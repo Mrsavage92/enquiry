@@ -48,7 +48,7 @@ function Demo() {
             syncUrl
           />
           <div className="mt-10 flex flex-col gap-3 sm:flex-row">
-            <Button asChild className="min-h-12">
+            <Button asChild className="min-h-12 bg-[#654ac2] hover:bg-[#583ac0]">
               <Link to="/early-access">Join early access</Link>
             </Button>
             <Button asChild variant="secondary" className="min-h-12">

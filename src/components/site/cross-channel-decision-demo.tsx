@@ -1,6 +1,7 @@
-import { useEffect, useId, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
+import { Link } from "@tanstack/react-router";
 import { useArrowGroup } from "@/components/site/use-arrow-group";
-import { ArrowUpRight, CircleHelp, Info, Store } from "lucide-react";
+import { ArrowRight, ArrowUpRight, CircleHelp, Info, Store } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import {
@@ -22,12 +23,19 @@ import {
  */
 export function CrossChannelDecisionDemo({
   compact = false,
+  summary = false,
   headingLevel = "h2",
   initialScene = "form",
   initialBusiness = "ridge",
   syncUrl = false,
 }: {
   compact?: boolean;
+  /**
+   * Home page proof: the two toggles, the latest message, the verdict and the
+   * next step. Drops the business context, the checks and the caution panel;
+   * links through to /demo for those.
+   */
+  summary?: boolean;
   headingLevel?: "h1" | "h2";
   /** Scene to open on; /demo reads it from ?scene=text so a link can land on the follow-up. */
   initialScene?: SignatureScene;
@@ -50,6 +58,20 @@ export function CrossChannelDecisionDemo({
   });
   const liveId = useId();
   const whyId = useId();
+  const verdictRef = useRef<HTMLParagraphElement>(null);
+  const firstRender = useRef(true);
+
+  // On a phone the verdict can sit below the fold once the toggles are
+  // tapped, so bring it into view after the answer changes.
+  useEffect(() => {
+    if (firstRender.current) {
+      firstRender.current = false;
+      return;
+    }
+    if (typeof window === "undefined" || !window.matchMedia("(max-width: 860px)").matches) return;
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    verdictRef.current?.scrollIntoView({ block: "nearest", behavior: reduce ? "auto" : "smooth" });
+  }, [scene, business]);
 
   useEffect(() => {
     if (!syncUrl || typeof window === "undefined") return;
@@ -75,8 +97,8 @@ export function CrossChannelDecisionDemo({
   };
 
   return (
-    <div className="decision-demo w-full">
-      {compact ? null : (
+    <div className={cn("decision-demo w-full", summary && "decision-demo-summary")}>
+      {compact || summary ? null : (
         <header className="max-w-3xl">
           <p className="eyebrow">{SIGNATURE_DEMO.business}</p>
           <span className="page-rule" aria-hidden />
@@ -86,7 +108,7 @@ export function CrossChannelDecisionDemo({
       )}
 
       <div
-        className={cn("scene-toggle", compact ? "" : "mt-10")}
+        className={cn("scene-toggle", compact || summary ? "" : "mt-10")}
         role="group"
         aria-label="Maya’s enquiry"
         onKeyDown={sceneKeys.onKeyDown}
@@ -137,46 +159,59 @@ export function CrossChannelDecisionDemo({
       </p>
 
       <div className="demo-workspace">
+        <p className="demo-verdict" ref={verdictRef} aria-live="polite" aria-atomic="true">
+          <span className="demo-verdict-kicker">Verdict</span>
+          <strong key={state.verdict}>{state.verdict}</strong>
+        </p>
         <div className="demo-conversation">
-          <MessageCard
-            channel={SIGNATURE_DEMO.form.channel}
-            at={SIGNATURE_DEMO.form.at}
-            body={SIGNATURE_DEMO.form.message}
-            meta={`${SIGNATURE_DEMO.customer} · ${SIGNATURE_DEMO.phone}`}
-            dense={later}
-          />
-          {later ? (
+          {summary ? (
+            <MessageCard
+              channel={later ? SIGNATURE_DEMO.text.channel : SIGNATURE_DEMO.form.channel}
+              at={later ? SIGNATURE_DEMO.text.at : SIGNATURE_DEMO.form.at}
+              body={later ? SIGNATURE_DEMO.text.message : SIGNATURE_DEMO.form.message}
+              meta={SIGNATURE_DEMO.customer}
+              incoming={later}
+              dense
+            />
+          ) : (
             <>
-              <LinkLine label={state.link?.label ?? ""} reason={state.link?.reason ?? ""} />
-              <div className="demo-arrive">
-                <MessageCard
-                  channel={SIGNATURE_DEMO.text.channel}
-                  at={SIGNATURE_DEMO.text.at}
-                  body={SIGNATURE_DEMO.text.message}
-                  meta={`${SIGNATURE_DEMO.customer} · ${SIGNATURE_DEMO.phone}`}
-                  incoming
-                />
-              </div>
+              <MessageCard
+                channel={SIGNATURE_DEMO.form.channel}
+                at={SIGNATURE_DEMO.form.at}
+                body={SIGNATURE_DEMO.form.message}
+                meta={`${SIGNATURE_DEMO.customer} · ${SIGNATURE_DEMO.phone}`}
+                dense={later}
+              />
+              {later ? (
+                <>
+                  <LinkLine label={state.link?.label ?? ""} reason={state.link?.reason ?? ""} />
+                  <div className="demo-arrive">
+                    <MessageCard
+                      channel={SIGNATURE_DEMO.text.channel}
+                      at={SIGNATURE_DEMO.text.at}
+                      body={SIGNATURE_DEMO.text.message}
+                      meta={`${SIGNATURE_DEMO.customer} · ${SIGNATURE_DEMO.phone}`}
+                      incoming
+                    />
+                  </div>
+                </>
+              ) : null}
+              <section className="demo-context" aria-label="Business context">
+                <h2>
+                  <Store size={17} aria-hidden="true" /> Business context
+                </h2>
+                <p>{state.want}</p>
+                <dl>
+                  {state.facts.map((fact) => (
+                    <FactRow key={fact.id} fact={fact} later={later} />
+                  ))}
+                </dl>
+              </section>
             </>
-          ) : null}
-          <section className="demo-context" aria-label="Business context">
-            <h2>
-              <Store size={17} aria-hidden="true" /> Business context
-            </h2>
-            <p>{state.want}</p>
-            <dl>
-              {state.facts.map((fact) => (
-                <FactRow key={fact.id} fact={fact} later={later} />
-              ))}
-            </dl>
-          </section>
+          )}
         </div>
 
         <article className="demo-action" aria-labelledby={liveId}>
-          <p className="demo-verdict">
-            <span className="demo-verdict-kicker">Verdict</span>
-            <strong key={state.verdict}>{state.verdict}</strong>
-          </p>
           <div className="demo-next" aria-live="polite">
             <p className="demo-next-label">
               <ArrowUpRight size={18} aria-hidden="true" />
@@ -203,37 +238,56 @@ export function CrossChannelDecisionDemo({
             ) : null}
           </div>
 
-          <section className="demo-reasons" aria-label="Why this step?">
-            <h2>
-              <CircleHelp size={17} aria-hidden="true" /> Why this step?
-            </h2>
-            <ul className="mt-4 space-y-1.5">
-              {state.checks.map((check) => (
-                <CheckRow
-                  key={check.id}
-                  check={check}
-                  later={later}
-                  whyOpen={whyOpen}
-                  whyId={whyId}
-                  onToggleWhy={() => setWhyOpen((v) => !v)}
-                />
-              ))}
-            </ul>
-          </section>
-          <section className="demo-caution" aria-label="Keep in mind">
-            <h2>
-              <Info size={17} aria-hidden="true" /> Keep in mind
-            </h2>
-            <p>{state.commercialNote}</p>
-            <p>
-              Nothing has been sent or booked. You review the next step and send through your own
-              channel.
+          {summary ? (
+            <p className="demo-summary-foot">
+              Nothing has been sent or booked.{" "}
+              <Link
+                to="/demo"
+                search={{
+                  ...(later ? { scene: "text" as const } : {}),
+                  ...(business === "harbour" ? { business: "harbour" as const } : {}),
+                }}
+                className="public-text-link"
+              >
+                See why, step by step <ArrowRight size={16} aria-hidden="true" />
+              </Link>
             </p>
-          </section>
+          ) : null}
+          {summary ? null : (
+            <section className="demo-reasons" aria-label="Why this step?">
+              <h2>
+                <CircleHelp size={17} aria-hidden="true" /> Why this step?
+              </h2>
+              <ul className="mt-4 space-y-1.5">
+                {state.checks.map((check) => (
+                  <CheckRow
+                    key={check.id}
+                    check={check}
+                    later={later}
+                    whyOpen={whyOpen}
+                    whyId={whyId}
+                    onToggleWhy={() => setWhyOpen((v) => !v)}
+                  />
+                ))}
+              </ul>
+            </section>
+          )}
+          {summary ? null : (
+            <section className="demo-caution" aria-label="Keep in mind">
+              <h2>
+                <Info size={17} aria-hidden="true" /> Keep in mind
+              </h2>
+              <p>{state.commercialNote}</p>
+              <p>
+                Nothing has been sent or booked. You review the next step and send through your own
+                channel.
+              </p>
+            </section>
+          )}
         </article>
       </div>
 
-      {compact ? null : (
+      {compact || summary ? null : (
         <p className="mt-10 max-w-xl text-base leading-relaxed text-ink-2">
           {SIGNATURE_DEMO.takeaway}
         </p>
@@ -267,7 +321,7 @@ function MessageCard({
     >
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <p className="eyebrow">{channel}</p>
-        <p className="font-mono text-2xs tabular-nums text-stone">{at}</p>
+        <p className="demo-message-time text-xs tabular-nums text-stone">{at}</p>
       </div>
       <p
         className={cn(

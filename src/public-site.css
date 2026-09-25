@@ -98,6 +98,22 @@
 .public-nav-join:hover {
   background: #583ac0;
 }
+/* On / at phone width the hero's own Join button is on screen at first, so
+   the header copy steps aside until the hero button scrolls away. Visibility
+   (not display) keeps the header from shifting; without JS the class is never
+   added and the button stays visible. */
+@media (max-width: 600px) {
+  .public-nav-join {
+    transition:
+      opacity 150ms ease-out,
+      visibility 150ms;
+  }
+  .public-nav-join.is-deferred {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+  }
+}
 .public-menu-toggle {
   display: none;
   align-items: center;
@@ -562,9 +578,8 @@
 }
 .public-site .roadmap-stage aside {
   background: #faf9fc;
-  border: 0;
-  border-left: 2px solid #ddd4ef;
-  border-radius: 0;
+  border: 1px solid #e8e3ee;
+  border-radius: 8px;
 }
 .public-site [aria-label="Roadmap stages"] button {
   min-height: 58px;
@@ -1064,8 +1079,9 @@
   align-content: center;
 }
 .public-walk-index {
-  font-family: var(--font-mono);
   font-size: 13px;
+  font-weight: 550;
+  font-variant-numeric: tabular-nums;
   line-height: 1.6;
   color: #68656d;
   padding-top: 4px;
@@ -1275,5 +1291,87 @@
   .public-walkthrough-inner {
     grid-template-columns: minmax(0, 1fr) 340px;
     gap: 40px;
+  }
+}
+
+/* Critique pass 3 ------------------------------------------------------- */
+
+/* Invite band: same fill as the header and hero Join buttons. */
+.public-invite-action button[type="submit"],
+.public-invite-action a.bg-mark {
+  background: var(--public-violet);
+}
+.public-invite-action button[type="submit"]:hover,
+.public-invite-action a.bg-mark:hover {
+  background: #583ac0;
+}
+
+/* Home proof: the live sample decision is the first view. */
+.public-product-figure:has(> .public-decision-panel:not([hidden])) {
+  max-width: 1040px;
+}
+.public-decision-panel {
+  background: #fff;
+  border: 1px solid #ded9e8;
+  border-radius: 8px;
+  box-shadow: 0 12px 36px #3524510c;
+  padding: 28px 32px 24px;
+}
+.public-decision-panel .demo-workspace {
+  margin-top: 22px;
+}
+
+/* ADHD section: the claim and its lines beside one real enquiry capture. */
+.public-adhd {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 300px;
+  gap: 64px;
+  align-items: center;
+}
+.public-adhd .public-section-heading {
+  max-width: 600px;
+}
+.public-adhd-figure {
+  margin: 0;
+  justify-self: center;
+  width: 100%;
+  max-width: 300px;
+}
+.public-adhd-shot {
+  border: 1px solid #ded9e8;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 12px 36px #3524510c;
+}
+.public-adhd-figure img {
+  display: block;
+  width: 100%;
+  height: auto;
+  background: #fff;
+}
+.public-adhd-figure figcaption {
+  margin-top: 12px;
+  text-align: center;
+  color: #68656d;
+}
+@media (max-width: 860px) {
+  .public-adhd {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 36px;
+  }
+}
+@media (max-width: 600px) {
+  .public-showcase-controls {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+  .public-product-figure:has(> .public-decision-panel:not([hidden])) {
+    max-width: none;
+  }
+  .public-decision-panel {
+    padding: 18px 16px;
+  }
+  .public-adhd-figure {
+    max-width: 260px;
   }
 }

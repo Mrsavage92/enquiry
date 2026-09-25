@@ -624,11 +624,12 @@
    strike-through price: the standard price is not yet confirmed.
    Text colours are existing tokens on white or the lilac tint.
    ------------------------------------------------------------------ */
+/* Critique pass 3: the offer sits inside the white entry card already, so it
+   no longer draws a second card. Its parts are separated by hairlines only. */
 .auth-offer-card {
-  border: 1px solid #e7e2ef;
-  border-radius: 8px;
-  overflow: hidden;
-  background: #fff;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
 }
 .auth-offer-card > div + div {
   border-top: 1px solid #eceaf0;
@@ -636,7 +637,10 @@
 .auth-offer-head,
 .auth-offer-price,
 .auth-offer-list {
-  padding: 20px 22px;
+  padding: 20px 0;
+}
+.auth-offer-head {
+  padding-top: 0;
 }
 .auth-offer-pill {
   display: inline-block;
@@ -663,7 +667,22 @@
   line-height: 1.6;
 }
 .auth-offer-price {
-  background: #fafafc;
+  background: transparent;
+}
+/* #4f4b55 on #fff: 8.5:1. */
+.auth-offer-window,
+.auth-offer-next {
+  margin: 14px 0 0;
+  font-size: 13px;
+  line-height: 1.6;
+  color: #4f4b55;
+}
+.auth-offer-window + .auth-offer-next {
+  margin-top: 6px;
+}
+.auth-offer .auth-offer-next strong {
+  color: var(--color-ink);
+  font-weight: 600;
 }
 .auth-offer .auth-offer-value {
   display: flex;
@@ -745,7 +764,10 @@
   .auth-offer-head,
   .auth-offer-price,
   .auth-offer-list {
-    padding: 18px 18px;
+    padding: 18px 0;
+  }
+  .auth-offer-head {
+    padding-top: 0;
   }
   .auth-offer .auth-offer-value {
     font-size: 38px;
@@ -825,4 +847,77 @@
   border-color: #ded3f4;
   color: #654ac2;
   font-weight: 500;
+}
+
+/* /early-access only: flat paper instead of the blurred lilac aurora, and no
+   motion toggle once there is no motion. Scoped by the offer section, which
+   no other auth page renders. */
+.auth-page:has(.auth-offer) {
+  background: var(--color-paper);
+}
+.auth-page:has(.auth-offer) .entry-aurora,
+.auth-page:has(.auth-offer) .auth-motion-toggle {
+  display: none;
+}
+
+/* Questions moved from the home FAQ, in the same native details style.
+   Summary #1c1b1f on #fff 17:1; answer #4f4b55 on #fff 8.5:1. */
+.auth-faq {
+  margin-top: 28px;
+  padding-top: 22px;
+  border-top: 1px solid var(--color-line);
+  scroll-margin-top: 24px;
+}
+.auth-faq h2 {
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.4;
+  color: var(--color-ink);
+  margin-bottom: 6px;
+}
+.auth-faq details + details {
+  border-top: 1px solid var(--color-line);
+}
+.auth-faq summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 48px;
+  padding: 10px 0;
+  cursor: pointer;
+  list-style: none;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--color-ink);
+}
+.auth-faq summary::-webkit-details-marker {
+  display: none;
+}
+.auth-faq summary svg {
+  flex-shrink: 0;
+  color: #68656d;
+  transition: transform 150ms ease-out;
+}
+.auth-faq details[open] summary svg {
+  transform: rotate(180deg);
+}
+.auth-faq details > p {
+  margin: 0 0 14px;
+  font-size: 13px;
+  line-height: 1.7;
+  color: #4f4b55;
+}
+@media (prefers-reduced-motion: reduce) {
+  .auth-faq summary svg {
+    transition: none;
+  }
+}
+
+/* Same Join fill as the site header, hero and invite band (#654ac2, white 6.3:1). */
+.auth-page:has(.auth-offer) .auth-submit:not(:disabled) {
+  background: #654ac2;
+}
+.auth-page:has(.auth-offer) .auth-submit:not(:disabled):hover {
+  background: #583ac0;
 }
