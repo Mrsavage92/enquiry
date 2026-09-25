@@ -42,8 +42,11 @@ test("legal contents point to actual document headings", () => {
 test("the public story uses the authoritative sample and cannot send or book", () => {
   const story = read("src/components/site/enquiry-story.tsx");
   for (const value of [
-    "SIGNATURE_DEMO.form.message",
-    "SIGNATURE_DEMO.text.message",
+    // The sample story, built from the one timestamp the server render and
+    // the browser share (use-signature-demo.ts), so dates never mismatch.
+    "useSignatureDemo()",
+    "demo.form.message",
+    "demo.text.message",
     "RIDGE_CREW_WINDOW_RULE.body",
     "Nothing has been sent or booked",
     "Sample conversation",

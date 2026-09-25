@@ -1,12 +1,11 @@
 import { useEffect, useId, useRef, useState } from "react";
+import { useSignatureDemo } from "@/lib/site/use-signature-demo";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useArrowGroup } from "@/components/site/use-arrow-group";
 import { ArrowRight, ArrowUpRight, Check, CircleHelp, Info, Store } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import {
-  SIGNATURE_BUSINESSES,
-  SIGNATURE_DEMO,
   signatureBusiness,
   signatureState,
   type SignatureBusinessId,
@@ -44,6 +43,7 @@ export function CrossChannelDecisionDemo({
   /** Mirror the state into /demo's search params (router replace, scroll kept) so it is shareable. */
   syncUrl?: boolean;
 }) {
+  const { demo, businesses } = useSignatureDemo();
   const Heading = headingLevel;
   const [scene, setScene] = useState<SignatureScene>(initialScene);
   const [business, setBusiness] = useState<SignatureBusinessId>(initialBusiness);
@@ -72,9 +72,9 @@ export function CrossChannelDecisionDemo({
   const sceneKeys = useArrowGroup(2, scene === "form" ? 0 : 1, (index) =>
     index === 0 ? goForm() : goText(),
   );
-  const businessIndex = SIGNATURE_BUSINESSES.findIndex((b) => b.id === business);
-  const businessKeys = useArrowGroup(SIGNATURE_BUSINESSES.length, businessIndex, (index) =>
-    show(scene, SIGNATURE_BUSINESSES[index].id),
+  const businessIndex = businesses.findIndex((b) => b.id === business);
+  const businessKeys = useArrowGroup(businesses.length, businessIndex, (index) =>
+    show(scene, businesses[index].id),
   );
   const liveId = useId();
   const whyId = useId();
@@ -93,8 +93,8 @@ export function CrossChannelDecisionDemo({
     verdictRef.current?.scrollIntoView({ block: "nearest", behavior: reduce ? "auto" : "smooth" });
   }, [scene, business]);
 
-  const state = signatureState(scene, business);
-  const current = signatureBusiness(business);
+  const state = signatureState(scene, business, businesses);
+  const current = signatureBusiness(business, businesses);
   const later = scene === "text";
   const changedFacts = later ? state.facts.filter((fact) => fact.from) : [];
 
@@ -102,10 +102,10 @@ export function CrossChannelDecisionDemo({
     <div className={cn("decision-demo w-full", summary && "decision-demo-summary")}>
       {compact || summary ? null : (
         <header className="max-w-3xl">
-          <p className="eyebrow">{SIGNATURE_DEMO.business}</p>
+          <p className="eyebrow">{demo.business}</p>
           <span className="page-rule" aria-hidden />
-          <Heading className="site-display-proof mt-5">{SIGNATURE_DEMO.headline}</Heading>
-          <p className="site-lede mt-5">{SIGNATURE_DEMO.supporting}</p>
+          <Heading className="site-display-proof mt-5">{demo.headline}</Heading>
+          <p className="site-lede mt-5">{demo.supporting}</p>
         </header>
       )}
 
@@ -144,7 +144,7 @@ export function CrossChannelDecisionDemo({
         onKeyDown={businessKeys.onKeyDown}
       >
         <span className="business-toggle-label">Received by</span>
-        {SIGNATURE_BUSINESSES.map((b, index) => (
+        {businesses.map((b, index) => (
           <button
             key={b.id}
             type="button"
@@ -170,20 +170,20 @@ export function CrossChannelDecisionDemo({
         <div className="demo-conversation">
           {summary ? (
             <MessageCard
-              channel={later ? SIGNATURE_DEMO.text.channel : SIGNATURE_DEMO.form.channel}
-              at={later ? SIGNATURE_DEMO.text.at : SIGNATURE_DEMO.form.at}
-              body={later ? SIGNATURE_DEMO.text.message : SIGNATURE_DEMO.form.message}
-              meta={SIGNATURE_DEMO.customer}
+              channel={later ? demo.text.channel : demo.form.channel}
+              at={later ? demo.text.at : demo.form.at}
+              body={later ? demo.text.message : demo.form.message}
+              meta={demo.customer}
               incoming={later}
               dense
             />
           ) : (
             <>
               <MessageCard
-                channel={SIGNATURE_DEMO.form.channel}
-                at={SIGNATURE_DEMO.form.at}
-                body={SIGNATURE_DEMO.form.message}
-                meta={`${SIGNATURE_DEMO.customer} · ${SIGNATURE_DEMO.phone}`}
+                channel={demo.form.channel}
+                at={demo.form.at}
+                body={demo.form.message}
+                meta={`${demo.customer} · ${demo.phone}`}
                 dense={later}
               />
               {later ? (
@@ -191,10 +191,10 @@ export function CrossChannelDecisionDemo({
                   <LinkLine label={state.link?.label ?? ""} reason={state.link?.reason ?? ""} />
                   <div className="demo-arrive">
                     <MessageCard
-                      channel={SIGNATURE_DEMO.text.channel}
-                      at={SIGNATURE_DEMO.text.at}
-                      body={SIGNATURE_DEMO.text.message}
-                      meta={`${SIGNATURE_DEMO.customer} · ${SIGNATURE_DEMO.phone}`}
+                      channel={demo.text.channel}
+                      at={demo.text.at}
+                      body={demo.text.message}
+                      meta={`${demo.customer} · ${demo.phone}`}
                       incoming
                     />
                   </div>
@@ -294,9 +294,7 @@ export function CrossChannelDecisionDemo({
       </div>
 
       {compact || summary ? null : (
-        <p className="mt-10 max-w-xl text-base leading-relaxed text-ink-2">
-          {SIGNATURE_DEMO.takeaway}
-        </p>
+        <p className="mt-10 max-w-xl text-base leading-relaxed text-ink-2">{demo.takeaway}</p>
       )}
     </div>
   );

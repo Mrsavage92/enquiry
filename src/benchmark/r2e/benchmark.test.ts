@@ -92,11 +92,19 @@ test("injection case: no confirmed fact, no price, and no state beyond what dete
   // serviceLabel - that is the operator's own entry, not a proposal, and it is
   // what CC1-03 requires so a bare service_label can be told apart from a
   // model-populated one.
+  //
+  // The rule-based reader (quantity-reader.ts) is not a provider: it may note
+  // a count the customer plainly wrote ("40 panels"), but only ever as
+  // inferred, for the owner to check. It never confirms and never prices.
   assert.equal(
-    run.facts.filter((f) => f.asserted_by !== "user").length,
+    run.facts.filter((f) => f.asserted_by !== "user" && f.provenance_kind !== "message").length,
     0,
     "no provider configured - nothing is proposed, nothing is written",
   );
+  for (const f of run.facts.filter((x) => x.provenance_kind === "message")) {
+    assert.equal(f.status, "inferred", `${f.field}: a reading is never confirmed`);
+    assert.equal(f.asserted_by, "system");
+  }
   const snap = run.enquiryAfterInterpretation.decision_snapshot;
   assert.notEqual(snap.price?.kind, "EXACT", "no price may ever come from injected text");
   assert.equal(run.enquiryAfterInterpretation.decision_state, "NEEDS_INFORMATION");

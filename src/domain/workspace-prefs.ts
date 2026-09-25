@@ -48,6 +48,7 @@ export function cleanPrefs(raw: unknown): Partial<WorkspacePrefs> {
   for (const key of NOTIFY_KEYS) {
     if (typeof d[key] === "boolean") out[key] = d[key] as boolean;
   }
+  if (typeof d.setupCallDismissed === "boolean") out.setupCallDismissed = d.setupCallDismissed;
   return out;
 }
 

@@ -1,4 +1,5 @@
 import { Link, useNavigate } from "@tanstack/react-router";
+import { initialsOf } from "@/domain/customer-name";
 import { ChevronLeft, MoreVertical } from "lucide-react";
 import { useState } from "react";
 import { Dialog } from "@/components/ui/dialog";
@@ -76,11 +77,7 @@ export function PhoneDesk({ enquiry }: { enquiry: Enquiry }) {
           </Link>
         )}
         <span className="customer-avatar phone-customer-avatar" aria-hidden>
-          {enquiry.customerName
-            .split(/\s+/)
-            .map((name) => name[0])
-            .slice(0, 2)
-            .join("")}
+          {initialsOf(enquiry)}
         </span>
         <div className="min-w-0 flex-1 pl-2">
           <h1 className="break-words text-base font-semibold leading-tight">

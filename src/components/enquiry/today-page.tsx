@@ -1,4 +1,5 @@
 import { Link, useNavigate } from "@tanstack/react-router";
+import { firstName, initialsOf } from "@/domain/customer-name";
 import { useState } from "react";
 import { useNarrow } from "@/lib/use-narrow";
 import { Segmented } from "@/components/ui/segmented";
@@ -11,6 +12,7 @@ import {
   Clock3,
   Menu,
   Search,
+  X,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -45,19 +47,12 @@ import { useFirstBetaActions } from "@/lib/workspace/live-mutations";
 import { toast } from "sonner";
 import { PracticeBadge } from "./practice-note";
 import { useDeletePractice } from "@/lib/workspace/use-delete-practice";
+import { usePrefsSaver } from "@/lib/workspace/owner-sync";
 
 /** Oldest wait first: the person who has waited longest is the one to start with. */
 function waitingSince(e: Enquiry): number {
   const lastIn = [...e.conversation].reverse().find((m) => m.direction === "inbound");
   return Date.parse(lastIn?.at ?? e.receivedAt) || 0;
-}
-
-function initials(name: string): string {
-  return name
-    .split(/\s+/)
-    .map((n) => n[0])
-    .slice(0, 2)
-    .join("");
 }
 
 function EnquiryRow({ enquiry, prefs }: { enquiry: Enquiry; prefs: WorkspacePrefs }) {
@@ -69,7 +64,7 @@ function EnquiryRow({ enquiry, prefs }: { enquiry: Enquiry; prefs: WorkspacePref
         className="today-enquiry-row"
       >
         <span className="customer-avatar" aria-hidden>
-          {initials(enquiry.customerName)}
+          {initialsOf(enquiry)}
         </span>
         <span className="today-row-content">
           <span className="today-row-title">
@@ -103,7 +98,7 @@ function StartHere({ enquiry, prefs }: { enquiry: Enquiry; prefs: WorkspacePrefs
   const unfinished = hasUnfinishedReply(enquiry, drafts);
   const setup = setupStep(enquiry);
   const pricing = !unfinished && isPricingStep(setup);
-  const first = enquiry.customerName.split(/\s+/)[0] || "them";
+  const first = firstName(enquiry);
   return (
     <section className="today-start" aria-labelledby="start-here-title">
       <p className="today-start-kicker">{unfinished ? "Unfinished reply" : "Start here"}</p>
@@ -254,6 +249,45 @@ function FirstRun({ practice }: { practice?: Enquiry }) {
   );
 }
 
+/**
+ * "Book a setup call" - only when a booking link is configured on the server
+ * (launch_settings.setup_call_url). No link, no card, and nothing that hints
+ * at one. Closing it is kept with the workspace's own preferences, so it stays
+ * closed on every device.
+ */
+function SetupCallCard() {
+  const url = usePrototype((s) => s.setupCallUrl);
+  const demoMode = usePrototype((s) => s.demoMode);
+  const dismissed = usePrototype((s) => s.prefs.setupCallDismissed === true);
+  const savePrefs = usePrefsSaver();
+  if (demoMode || !url || dismissed) return null;
+  return (
+    <section className="callout mt-4 bg-paper-2 text-ink" aria-labelledby="setup-call-title">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h2 id="setup-call-title" className="text-base font-semibold text-ink">
+            Book a setup call
+          </h2>
+          <p className="mt-1 text-sm text-ink-2">We set your services and prices up with you.</p>
+        </div>
+        <button
+          type="button"
+          className="inline-flex min-h-11 min-w-11 items-center justify-center text-ink-2 hover:text-ink"
+          aria-label="Close the setup call card"
+          onClick={() => savePrefs({ setupCallDismissed: true })}
+        >
+          <X size={18} aria-hidden />
+        </button>
+      </div>
+      <Button asChild variant="secondary" className="mt-3 min-h-11">
+        <a href={url} target="_blank" rel="noopener noreferrer">
+          Book a time <ArrowRight size={16} aria-hidden />
+        </a>
+      </Button>
+    </section>
+  );
+}
+
 export function TodayPage() {
   const phone = useNarrow(860) !== false;
   const [view, setView] = useState("needs_you");
@@ -335,6 +369,8 @@ export function TodayPage() {
             </Link>
           )}
         </header>
+
+        <SetupCallCard />
 
         {firstRun ? (
           <FirstRun practice={practice} />

@@ -8,6 +8,7 @@ import type {
 } from "./types";
 import { isPricingStep, setupStep } from "./next-action.ts";
 import { decidingPhrase } from "./price-compiler.ts";
+import { firstName } from "./customer-name.ts";
 
 /**
  * The one place a fact's status becomes reader-facing text.
@@ -105,6 +106,42 @@ export const MARKERS = { practice: "Practice" } as const;
 /** The three answers to "can I safely promise this?". */
 export const PROMISE_WORDS = { yes: "Yes", no: "No", notYet: "Not yet" } as const;
 
+export type PromiseWord = (typeof PROMISE_WORDS)[keyof typeof PROMISE_WORDS];
+
+/**
+ * The answer to "can I safely promise this?" for one enquiry, in the product's
+ * three words, with the short reason. Derived only from the decision state, so
+ * it can never say Yes over an enquiry that has nothing ready.
+ */
+export function promiseVerdict(enquiry: Enquiry): { word: PromiseWord; line: string } {
+  const { lifecycle, decision, commercial } = enquiry.state;
+  const v = (word: PromiseWord, reason: string) => ({ word, line: `${word} - ${reason}` });
+  if (lifecycle === "BOOKED") return v(PROMISE_WORDS.yes, "booked");
+  if (lifecycle === "DECLINED" || lifecycle === "LOST" || lifecycle === "CANCELLED") {
+    return v(PROMISE_WORDS.no, "closed");
+  }
+  const rec = enquiry.decision?.recommendation;
+  const ineligible = enquiry.decision?.evaluators?.some(
+    (e) => e.type === "eligibility" && e.status === "FAIL",
+  );
+  if (rec?.action === "DECLINE" || ineligible) return v(PROMISE_WORDS.no, "outside what you offer");
+  if (decision === "EVALUATING") return v(PROMISE_WORDS.notYet, "still reading it");
+  if (decision === "WAITING_ON_CLIENT") {
+    return commercial === "QUOTED" || commercial === "ESTIMATED" || commercial === "ACCEPTED"
+      ? v(PROMISE_WORDS.yes, "your quote is with them")
+      : v(PROMISE_WORDS.notYet, "waiting on their answer");
+  }
+  const blocking = enquiry.decision?.missing?.find((m) => m.blocking);
+  if (blocking?.inferred) return v(PROMISE_WORDS.notYet, "check one detail they gave");
+  if (decision === "NEEDS_INFORMATION") return v(PROMISE_WORDS.notYet, "one detail decides it");
+  const setup = setupStep(enquiry);
+  if (isPricingStep(setup)) return v(PROMISE_WORDS.notYet, "your prices decide it");
+  if (setup || needsOneDetail(enquiry)) return v(PROMISE_WORDS.notYet, "say which service");
+  if (decision === "ACTION_READY") return v(PROMISE_WORDS.yes, "reply ready");
+  if (decision === "BOOKING_PENDING") return v(PROMISE_WORDS.yes, "confirm the booking");
+  return v(PROMISE_WORDS.notYet, "your call");
+}
+
 /** Queue and tab names. "Needs you" is only ever the name of the queue, never a badge. */
 export const QUEUE_NAMES = {
   needs_you: "Needs you",
@@ -132,9 +169,36 @@ export function derivedLabel(state: CompositeState, enquiry?: Enquiry): StatusWo
   if (enquiry && isPricingStep(setupStep({ state, decision: enquiry.decision }))) {
     return STATUS.needsPrices;
   }
+  // Saying which service it is, or choosing between two, is one detail the
+  // owner supplies - the same kind of blocker as a missing count, so the same
+  // word. "Your call" is kept for enquiries that need judgment, not a detail.
+  if (state.decision === "NEEDS_HUMAN" && enquiry && needsOneDetail(enquiry)) {
+    return STATUS.needsDetail;
+  }
   if (state.decision === "NEEDS_HUMAN") return STATUS.yourCall;
   if (state.decision === "ACTION_READY") return STATUS.replyReady;
   return STATUS.open;
+}
+
+/** Reason codes for an escalation whose way forward is one detail from the owner. */
+const ONE_DETAIL_CODES = new Set(["CHOOSE_SERVICE", "CONFIRM_SERVICE", "CHOOSE_BETWEEN"]);
+const ONE_DETAIL_LABELS = new Set(["Confirm the service", "Choose the service"]);
+
+/** Whether an escalation is waiting on one detail rather than on judgment. */
+export function needsOneDetail(enquiry: Pick<Enquiry, "decision">): boolean {
+  const rec = enquiry.decision?.recommendation;
+  if (!rec) return false;
+  return (
+    (rec.reasonCodes ?? []).some((c) => ONE_DETAIL_CODES.has(c)) || ONE_DETAIL_LABELS.has(rec.label)
+  );
+}
+
+/** What a waiting enquiry is waiting for, as the end of a sentence. */
+export function waitingForPhrase(enquiry: Enquiry): string {
+  const blocking = enquiry.decision?.missing?.find((m) => m.blocking);
+  if (blocking) return decidingPhrase(blocking.label.toLowerCase());
+  const quoted = enquiry.state.commercial === "QUOTED" || enquiry.state.commercial === "ESTIMATED";
+  return quoted ? "their answer to your quote" : "their answer";
 }
 
 /**
@@ -146,12 +210,18 @@ export function nextStepLabel(enquiry: Enquiry): string {
   if (enquiry.state.decision === "EVALUATING") return "Enquiry is reading it";
   if (enquiry.followUpDue) return "Decide whether to follow up";
   const blocking = enquiry.decision?.missing?.find((m) => m.blocking);
+  if (enquiry.state.decision === "NEEDS_INFORMATION" && blocking?.inferred) {
+    // They already said it: the owner checks the reading, never asks again.
+    return `Check ${decidingPhrase(blocking.label.toLowerCase())}`;
+  }
   if (enquiry.state.decision === "NEEDS_INFORMATION" && blocking) {
     // What the owner does next is ask the customer; the phone card offers
     // typing it in as the second choice.
     return `Ask for ${decidingPhrase(blocking.label.toLowerCase())}`;
   }
-  if (enquiry.state.decision === "WAITING_ON_CLIENT") return "Nothing until they answer";
+  if (enquiry.state.decision === "WAITING_ON_CLIENT") {
+    return `Waiting on ${firstName(enquiry)} - for ${waitingForPhrase(enquiry)}`;
+  }
   const setup = setupStep(enquiry);
   if (setup) return setup.label;
   const label = enquiry.decision?.recommendation?.label?.trim();
@@ -414,6 +484,25 @@ export function queueSummary(all: Enquiry[]): QueueSummary {
     exactCount: exact.length,
     exactValue: exact.reduce((sum, e) => sum + (e.valueExact?.amount ?? 0), 0),
   };
+}
+
+/**
+ * What an empty tab says when nothing was searched for. Each tab says what is
+ * true of that tab; "No enquiries match" is only ever the answer to a search.
+ */
+export function emptyTabMessage(queueFilter: string): string {
+  switch (queueFilter) {
+    case "needs_you":
+      return "Nothing needs you right now.";
+    case "waiting":
+      return "You are not waiting on anyone.";
+    case "at_risk":
+      return "No quiet enquiries.";
+    case "closed":
+      return "Nothing closed yet.";
+    default:
+      return "No enquiries yet.";
+  }
 }
 
 /** The queue's heading. Words, not a large number: what is next, not what is behind. */

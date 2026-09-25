@@ -160,7 +160,7 @@ export function rowTimeCue(enquiry: Enquiry, prefs: WorkspacePrefs, now = new Da
   }
   if (enquiry.state.decision === "EVALUATING") return "Reading now";
   const since = lastMessageAt(enquiry, "inbound") ?? enquiry.receivedAt;
-  return `Waiting on you since ${concreteWhen(since, now, tz)}`;
+  return `Your turn since ${concreteWhen(since, now, tz)}`;
 }
 
 /** When a waiting enquiry comes back to the owner, as a short sentence. */

@@ -63,8 +63,16 @@ export type PrepareReviewResult =
        * `service_unconfirmed` - a quote whose service premise nobody confirmed.
        * `amount_mismatch` - the text names money the structured decision does not.
        * `practice` - a practice enquiry, which nothing is ever sent from.
+       * `unconfirmed_reading` - the decision rests on a count read from the
+       *   customer's message that the owner has not confirmed.
        */
-      reason: "closed" | "not_sendable" | "service_unconfirmed" | "amount_mismatch" | "practice";
+      reason:
+        | "closed"
+        | "not_sendable"
+        | "service_unconfirmed"
+        | "amount_mismatch"
+        | "practice"
+        | "unconfirmed_reading";
       message: string;
     };
 
@@ -173,6 +181,7 @@ type SnapshotRow = {
   price: DecisionPrice | null;
   implied_amounts: number[] | null;
   evaluators: EvaluatorResult[] | null;
+  missing: { factField?: string; inferred?: unknown }[] | null;
   engine_version: string;
 };
 
@@ -216,6 +225,7 @@ export async function prepareReviewedSendInTransaction(
       decision_snapshot -> 'price' as price,
       decision_snapshot -> 'impliedAmountsMinor' as implied_amounts,
       decision_snapshot -> 'evaluators' as evaluators,
+      decision_snapshot -> 'missing' as missing,
       engine_version
     from enquiry where id = ${input.enquiryId}
   `;
@@ -229,6 +239,18 @@ export async function prepareReviewedSendInTransaction(
       ok: false,
       reason: "not_sendable",
       message: "Enquiry has not prepared anything to send for this one.",
+    };
+  }
+
+  // A reading of the customer's own words ("roughly 120 square metres") is
+  // something the owner checks with one tap, not something a reply may rest
+  // on. Until it is confirmed there is nothing to record as sent.
+  if ((enq.missing ?? []).some((m) => m && m.inferred)) {
+    return {
+      ok: false,
+      reason: "unconfirmed_reading",
+      message:
+        "Enquiry read a detail from their message that you have not confirmed yet. Check it first, then the reply is ready.",
     };
   }
 

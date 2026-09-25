@@ -6,6 +6,7 @@ import { snapshotFromDecision, stateFromDecision } from "../../domain/decision-s
 import { applyDecision, isClosed, lockEnquiry } from "./decision-apply.ts";
 import type { EnquiryInterpreter, InterpretFailureReason } from "../interpret/types.ts";
 import { readEnquiryBasics } from "../../domain/enquiry-basics.ts";
+import { blockedQuantity, findQuantityInMessages } from "./quantity-inference.ts";
 
 /**
  * Creating a real enquiry, as pure SQL logic - deliberately separate from
@@ -72,14 +73,38 @@ export async function insertManualEnquiry(
         },
       ]
     : [];
-  const decision = decideEnquiry(
-    { knowledge: knowledge.map((k) => ({ state: k.state, rulePayload: k.rule_payload })) },
-    { serviceLabel: input.serviceLabel, facts: seedFacts as never },
-  );
+  const business = {
+    knowledge: knowledge.map((k) => ({ state: k.state, rulePayload: k.rule_payload })),
+  };
+  let decision = decideEnquiry(business, {
+    serviceLabel: input.serviceLabel,
+    facts: seedFacts as never,
+  });
+  // The count the price needs, when the message already gives it: read now,
+  // stored as inferred below, so the first next step is "check it".
+  const wantQuantity = blockedQuantity(decision);
+  const quantityRead = wantQuantity
+    ? findQuantityInMessages([{ id: "", body: input.body }], wantQuantity.field, wantQuantity.unit)
+    : null;
+  if (wantQuantity && quantityRead) {
+    decision = decideEnquiry(business, {
+      serviceLabel: input.serviceLabel,
+      facts: [
+        ...seedFacts,
+        {
+          field: wantQuantity.field,
+          value: quantityRead.value,
+          status: "inferred" as const,
+          displayValue: quantityRead.span,
+        },
+      ] as never,
+    });
+  }
   const snapshot = snapshotFromDecision(decision, {
     customerName,
     ownerFirstName: owner?.owner_first_name ?? undefined,
     serviceLabel: input.serviceLabel,
+    jobDateIso: basics.jobDate?.asked ? basics.jobDate.iso : undefined,
   });
   const state = stateFromDecision(decision);
 
@@ -129,6 +154,27 @@ export async function insertManualEnquiry(
           label: "Read from the customer's message",
           messageId,
           span: basics.jobDate.span,
+          asked: basics.jobDate.asked,
+        })}::jsonb,
+        ${true}
+      )
+    `;
+  }
+
+  if (wantQuantity && quantityRead) {
+    await sql`
+      insert into enquiry_fact
+        (enquiry_id, field, label, value, display_value, status, confidence,
+         asserted_by, provenance, customer_specific)
+      values (
+        ${enquiryId}, ${wantQuantity.field}, ${wantQuantity.field}, ${quantityRead.value},
+        ${quantityRead.span}, ${"inferred"}, ${quantityRead.approximate ? "Medium" : "High"},
+        ${"system"},
+        ${JSON.stringify({
+          kind: "message",
+          label: "Read from the customer's message",
+          messageId,
+          span: quantityRead.span,
         })}::jsonb,
         ${true}
       )

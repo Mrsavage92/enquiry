@@ -9,11 +9,27 @@ export type VoiceProposal = {
 
 export type DollarMatch = { raw: string; amount: number };
 
+/**
+ * Every way a message can name money: "$3,000", "$ 3000", "A$3000", "AU$3000",
+ * "AUD 3000", "3,000 dollars", "3k", "$3.6k". A kept edit that says the old
+ * price in any of these forms must be caught, not only the "$3,000" shape.
+ */
+const AMOUNT = String.raw`(\d{1,3}(?:,\d{3})+|\d+)(?:\.(\d{1,2}))?`;
+const MONEY = new RegExp(
+  String.raw`(?:\b(?:AUD|AU|A)\s?\$|\bAUD\b|\$)\s?${AMOUNT}(\s?k\b)?|\b${AMOUNT}\s?(k\b|dollars?\b|bucks\b)`,
+  "gi",
+);
+
 export function dollarMatches(text: string): DollarMatch[] {
-  return [...text.matchAll(/\$[\d,]+(?:\.\d{2})?/g)].map((m) => ({
-    raw: m[0],
-    amount: Number(m[0].replace(/[$,]/g, "")),
-  }));
+  return [...text.matchAll(MONEY)].map((m) => {
+    const prefixed = m[1] !== undefined;
+    const whole = (prefixed ? m[1] : m[4])!.replace(/,/g, "");
+    const cents = prefixed ? m[2] : m[5];
+    const suffix = ((prefixed ? m[3] : m[6]) ?? "").trim().toLowerCase();
+    const base = Number(cents ? `${whole}.${cents}` : whole);
+    const amount = suffix === "k" ? Math.round(base * 1000 * 100) / 100 : base;
+    return { raw: m[0], amount };
+  });
 }
 
 export function dollarAmounts(text: string): number[] {
@@ -99,13 +115,19 @@ function extractSignOff(body: string): string {
     .trim();
 }
 
-function greetingTemplate(line: string, firstName: string): { greeting: string; warmth?: string } | null {
+function greetingTemplate(
+  line: string,
+  firstName: string,
+): { greeting: string; warmth?: string } | null {
   if (!line || line.length > 60) return null;
   const escaped = firstName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   const nameRe = new RegExp(escaped, "i");
   const templated = line.replace(nameRe, "{name}");
   if (/^hello\b/i.test(line)) {
-    return { greeting: templated.includes("{name}") ? templated : "Hello {name},", warmth: "Reserved" };
+    return {
+      greeting: templated.includes("{name}") ? templated : "Hello {name},",
+      warmth: "Reserved",
+    };
   }
   if (/^hi\b/i.test(line)) {
     return { greeting: templated.includes("{name}") ? templated : "Hi {name},", warmth: "Warm" };

@@ -4,6 +4,13 @@ import { toast } from "sonner";
 export const SEND_UNDO_TOAST_MS = 12_000;
 
 /**
+ * One toast per recorded send, however many taps: a second confirm (a double
+ * tap, or the server's "already recorded" answer) replaces the first toast
+ * instead of stacking a second one on top of it.
+ */
+export const RECORDED_SEND_TOAST_ID = "recorded-send";
+
+/**
  * The "Recorded as sent" toast, with an Undo that really undoes.
  *
  * The demo's Undo reverted a browser store; a live send had no Undo at all,
@@ -16,10 +23,11 @@ export function toastRecordedSend(
   undo: (() => Promise<{ ok: boolean; message?: string }>) | null,
 ): void {
   if (!undo) {
-    toast.success(message);
+    toast.success(message, { id: RECORDED_SEND_TOAST_ID });
     return;
   }
   toast.success(message, {
+    id: RECORDED_SEND_TOAST_ID,
     duration: SEND_UNDO_TOAST_MS,
     action: {
       label: "Undo",

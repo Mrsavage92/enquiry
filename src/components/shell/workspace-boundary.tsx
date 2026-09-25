@@ -74,6 +74,8 @@ function useWorkspacePhase(session: SessionPhase): {
           bookings: data.bookings,
           audit: data.audit,
           drafts: data.drafts,
+          staleDrafts: data.staleDrafts,
+          setupCallUrl: data.setupCallUrl,
           prefs: data.prefs,
         });
         setWorkspace("ready");
@@ -156,6 +158,8 @@ function LocalWorkspaceSync({ children }: { children: ReactNode }) {
           bookings: data.bookings,
           audit: data.audit,
           drafts: data.drafts,
+          staleDrafts: data.staleDrafts,
+          setupCallUrl: data.setupCallUrl,
           prefs: data.prefs,
         });
       })
@@ -177,6 +181,8 @@ function LocalWorkspaceSync({ children }: { children: ReactNode }) {
           bookings: data.bookings,
           audit: data.audit,
           drafts: data.drafts,
+          staleDrafts: data.staleDrafts,
+          setupCallUrl: data.setupCallUrl,
           prefs: data.prefs,
         });
       })

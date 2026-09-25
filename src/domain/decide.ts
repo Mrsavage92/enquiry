@@ -24,7 +24,16 @@ export type Decision = {
   /** One sentence the operator can read and check. */
   explanation: string;
   /** The single decision-critical missing fact, when there is one. */
-  blocker?: { field: string; reason: string };
+  blocker?: {
+    field: string;
+    reason: string;
+    /**
+     * What the customer already wrote for this fact, read but not confirmed.
+     * The next step is then the owner checking it, never asking the customer
+     * again for something they already said.
+     */
+    inferred?: { value: string; display: string };
+  };
   /**
    * An amount Enquiry has calculated but is NOT authorised to quote, because
    * the premise it rests on - the service - was proposed by a model and never
@@ -84,6 +93,28 @@ export function toCompilerFacts(facts: EnquiryFact[]): CompilerFact[] {
   }));
 }
 
+/** A read-but-unconfirmed value for the deciding field, if the message gave one. */
+function inferredFor(
+  facts: ReadonlyArray<Pick<EnquiryFact, "field" | "value" | "status"> & { displayValue?: string }>,
+  field: string,
+): { value: string; display: string } | undefined {
+  const want = field.trim().toLowerCase();
+  const fact = facts.find(
+    (f) =>
+      f.field.trim().toLowerCase() === want &&
+      (f.status === "inferred" || f.status === "check_this") &&
+      String(f.value ?? "").trim(),
+  );
+  if (!fact) return undefined;
+  // Only a reading that is one usable number is something to check. A range
+  // ("30-35") or a guess is still a question for the customer.
+  if (!parseQuantity(String(fact.value)).ok) return undefined;
+  return {
+    value: String(fact.value).trim(),
+    display: fact.displayValue?.trim() || String(fact.value),
+  };
+}
+
 /**
  * Decide one enquiry.
  *
@@ -114,11 +145,16 @@ export function decideEnquiry(
   }
 
   if (price.kind === "BLOCKED") {
+    const inferred = inferredFor(enquiry.facts ?? [], price.missingField);
     return {
       price,
       action: "REQUEST_INFORMATION",
       explanation: price.reason,
-      blocker: { field: price.missingField, reason: price.reason },
+      blocker: {
+        field: price.missingField,
+        reason: price.reason,
+        ...(inferred ? { inferred } : {}),
+      },
     };
   }
 

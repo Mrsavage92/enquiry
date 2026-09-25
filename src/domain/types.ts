@@ -143,6 +143,11 @@ export type MissingInformation = {
   reason: string;
   blocking: boolean;
   unlocks: string;
+  /**
+   * The value the customer already gave, read from their message and not yet
+   * confirmed: the owner checks it rather than asking for it again.
+   */
+  inferred?: { value: string; display: string };
 };
 
 export type EvaluatorResult = {
@@ -192,6 +197,10 @@ export type Message = {
   quoteId?: string;
   formFields?: { label: string; value: string }[];
   commentContext?: string;
+  /** When the owner recorded it as sent (the server's undo clock). */
+  sentAt?: string;
+  /** A reviewed send backs this message, so it can be undone in the window. */
+  reviewed?: boolean;
 };
 
 export type QuoteVersion = {
@@ -430,6 +439,8 @@ export type Enquiry = {
   fixtureId: string;
   businessId: string;
   customerName: string;
+  /** No name was given or read; `customerName` then holds "Customer". */
+  nameUnknown?: boolean;
   customerEmail: string;
   customerPhone?: string;
   customerHandle?: string;
@@ -502,6 +513,8 @@ export type WorkspacePrefs = {
   notifyArrival: boolean;
   notifyFollowUp: boolean;
   notifyLearning: boolean;
+  /** The owner closed the "Book a setup call" card on Today. */
+  setupCallDismissed?: boolean;
 };
 
 export type InstrumentationEvent = {

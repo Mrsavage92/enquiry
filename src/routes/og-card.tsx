@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { Wordmark } from "@/components/ui/wordmark";
-import { SIGNATURE_DEMO } from "@/lib/site/signature-demo";
+import { useSignatureDemo } from "@/lib/site/use-signature-demo";
 
 /**
  * Unlinked, noindex render target for the social share card (public/og.jpg).
@@ -18,7 +18,8 @@ export const Route = createFileRoute("/og-card")({
 });
 
 function OgCard() {
-  const state = SIGNATURE_DEMO.form;
+  const { demo } = useSignatureDemo();
+  const state = demo.form;
   const scope = state.facts.find((f) => f.id === "scope")!;
   const deadline = state.facts.find((f) => f.id === "deadline")!;
   const eligibility = state.checks.find((c) => c.id === "eligibility")!;

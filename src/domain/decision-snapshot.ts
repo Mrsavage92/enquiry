@@ -1,6 +1,7 @@
 import type { Decision } from "./decide.ts";
 import { composeReply } from "./compose-reply.ts";
-import { impliedAmountsMinor } from "./price-compiler.ts";
+import { decidingPhrase, impliedAmountsMinor } from "./price-compiler.ts";
+import type { ReplyContext } from "./compose-reply.ts";
 import type {
   CommercialState,
   DecisionSnapshot,
@@ -57,6 +58,7 @@ export const SETUP_REASON = {
 
 function recommendationLabel(decision: Decision): string {
   if (decision.action === "SEND_QUOTE") return "Send the quote";
+  if (decision.blocker?.inferred) return `Check ${decidingPhrase(decision.blocker.field)}`;
   if (decision.action === "REQUEST_INFORMATION") return "Ask for what's missing";
   if (decision.setup === "add_prices") return "Add your prices";
   if (decision.setup === "add_price") return "Add a price for this job";
@@ -67,10 +69,7 @@ function recommendationLabel(decision: Decision): string {
 }
 
 /** How a live `Decision` reads in the desk's own vocabulary. */
-export function snapshotFromDecision(
-  decision: Decision,
-  who: { customerName?: string; ownerFirstName?: string; serviceLabel?: string } = {},
-): DecisionSnapshot {
+export function snapshotFromDecision(decision: Decision, who: ReplyContext = {}): DecisionSnapshot {
   const base = emptyDecisionSnapshot();
   const recommendation: Recommendation = {
     action: decision.action,
@@ -78,11 +77,18 @@ export function snapshotFromDecision(
     reason: decision.explanation,
     // Nothing is ever sent without the owner, so approval is always required.
     requiredApproval: true,
-    reasonCodes: decision.setup ? [SETUP_REASON[decision.setup]] : [],
+    reasonCodes: decision.setup
+      ? [SETUP_REASON[decision.setup]]
+      : decision.provisional
+        ? ["CONFIRM_SERVICE"]
+        : decision.serviceChoices?.length
+          ? ["CHOOSE_BETWEEN"]
+          : [],
     // `primaryEnabled` is about the SEND control. An escalation has nothing to
     // send; its next step (add prices, choose the service) is a link the desk
     // renders from the reason code, never this flag.
-    primaryEnabled: decision.action !== "ESCALATE_HUMAN",
+    // A reading the owner has not confirmed is not something to send on either.
+    primaryEnabled: decision.action !== "ESCALATE_HUMAN" && !decision.blocker?.inferred,
   };
   return {
     ...base,
@@ -99,6 +105,7 @@ export function snapshotFromDecision(
             reason: decision.blocker.reason,
             blocking: true,
             unlocks: "the price",
+            ...(decision.blocker.inferred ? { inferred: decision.blocker.inferred } : {}),
           },
         ]
       : [],

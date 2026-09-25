@@ -39,7 +39,20 @@ test("an introduction names the customer", () => {
 
 test("'the 10th of October' is read as the next 10 October", () => {
   const d = readJobDate("moving out on the 10th of October. Tom", NOW);
-  assert.deepEqual(d, { iso: "2026-10-10", label: "Sat 10 Oct", span: "10th of October" });
+  assert.deepEqual(d, {
+    iso: "2026-10-10",
+    label: "Sat 10 Oct",
+    span: "10th of October",
+    asked: false,
+  });
+});
+
+test("a date is 'asked about' only when the customer asks, not when they mention it", () => {
+  assert.equal(readJobDate("Could you do it on Saturday 3 October? Cheers", NOW)?.asked, true);
+  assert.equal(readJobDate("Is 14/11 free?", NOW)?.asked, true);
+  assert.equal(readJobDate("Are you available 3 Oct for a quote", NOW)?.asked, true);
+  assert.equal(readJobDate("Our wedding is on the 14th of Feb at Sirromet.", NOW)?.asked, false);
+  assert.equal(readJobDate("Keys go back Friday 3 October. Can you help?", NOW)?.asked, false);
 });
 
 test("weekday, month-first and Australian numeric dates are read", () => {
@@ -69,4 +82,37 @@ test("both basics come back together", () => {
   // 3 October 2026 is a Saturday: the label comes from the calendar, not
   // from the weekday the customer wrote.
   assert.equal(b.jobDate?.label, "Sat 3 Oct");
+});
+
+test("dash sign-offs, kisses and short sign-offs all give the name", () => {
+  const cases: [string, string][] = [
+    ["hey mate need an end of lease clean for a 2 bed unit. can u do the 1st? - Priya", "Priya"],
+    ["can u do the 1st?\n-- Priya", "Priya"],
+    ["can u do the 1st? \u2013 Priya Nair", "Priya Nair"],
+    ["can u do the 1st? \u2014 Priya", "Priya"],
+    ["Would love a quote! Priya x", "Priya"],
+    ["Would love a quote! Priya xx", "Priya"],
+    ["Would love a quote. Thanks Priya", "Priya"],
+    ["Would love a quote.\nRegards, Priya", "Priya"],
+    ["Would love a quote.\nCheers, Karen Mills", "Karen Mills"],
+  ];
+  for (const [text, want] of cases) assert.equal(readCustomerName(text), want, text);
+});
+
+test("a dash before a non-name is not a name", () => {
+  assert.equal(readCustomerName("need it done asap - Thanks"), undefined);
+  assert.equal(readCustomerName("price for 3 rooms - Monday"), undefined);
+});
+
+test("a date the customer rules out, or only mentions, is never 'asked about'", () => {
+  assert.equal(
+    readJobDate("We're not available on 3 October, any other day is fine.", NOW)?.asked,
+    false,
+  );
+  assert.equal(readJobDate("We're away 3 October. Can you come after?", NOW)?.asked, false);
+  assert.equal(readJobDate("Any day except 3 October?", NOW)?.asked, false);
+  assert.equal(readJobDate("3 October won't work for us?", NOW)?.asked, false);
+  assert.equal(readJobDate("Free quote please for 3 October move", NOW)?.asked, false);
+  assert.equal(readJobDate("Are you free on 3 October", NOW)?.asked, true);
+  assert.equal(readJobDate("Does 3 October suit", NOW)?.asked, true);
 });

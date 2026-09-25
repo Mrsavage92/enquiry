@@ -1,4 +1,5 @@
 import { Link, useNavigate } from "@tanstack/react-router";
+import { initialsOf } from "@/domain/customer-name";
 import { ChevronRight, Plus, Search } from "lucide-react";
 import { AddEnquiry } from "./add-enquiry";
 import { PracticeBadge } from "./practice-note";
@@ -10,7 +11,14 @@ import { Badge } from "@/components/ui/badge";
 import { Segmented } from "@/components/ui/segmented";
 import { channelLabel } from "@/domain/channel";
 import { rowTimeCue } from "@/domain/time-cues";
-import { derivedLabel, filteredEnquiries, QUEUE_NAMES } from "@/domain/labels";
+import {
+  derivedLabel,
+  emptyTabMessage,
+  filteredEnquiries,
+  nextStepLabel,
+  queueSection,
+  QUEUE_NAMES,
+} from "@/domain/labels";
 import { statusTone } from "@/domain/status-tone";
 import { usePrototype, type QueueFilter } from "@/store/prototype-store";
 
@@ -119,10 +127,14 @@ export function EnquiriesListPage() {
                 ) : undefined
               }
             />
-          ) : listed.length === 0 ? (
+          ) : listed.length === 0 && q ? (
             <div className="px-5 py-12 text-center">
               <p className="font-medium">No enquiries match.</p>
               <p className="mt-1 text-sm text-ink-2">Try a customer name, service or channel.</p>
+            </div>
+          ) : listed.length === 0 ? (
+            <div className="px-5 py-12 text-center" role="status">
+              <p className="font-medium">{emptyTabMessage(queueFilter)}</p>
             </div>
           ) : (
             <ul className="divide-y divide-line">
@@ -137,11 +149,7 @@ export function EnquiriesListPage() {
                     >
                       <div className="flex min-w-0 items-center gap-3">
                         <span className="customer-avatar" aria-hidden>
-                          {enquiry.customerName
-                            .split(/\s+/)
-                            .map((n) => n[0])
-                            .slice(0, 2)
-                            .join("")}
+                          {initialsOf(enquiry)}
                         </span>
                         <div className="min-w-0">
                           <div className="flex flex-wrap items-center gap-2">
@@ -153,6 +161,11 @@ export function EnquiriesListPage() {
                           <p className="enquiries-customer-service mt-1 truncate text-sm text-ink-2">
                             {enquiry.serviceLabel}
                           </p>
+                          {queueSection(enquiry) === "waiting" && !enquiry.snoozedUntil ? (
+                            // Who it waits on and for what, so nothing relies
+                            // on remembering what was asked.
+                            <p className="mt-1 text-sm text-ink-2">{nextStepLabel(enquiry)}</p>
+                          ) : null}
                           {businessFilter === "all" && business?.name ? (
                             <p className="enquiries-customer-business mt-1 truncate text-xs text-stone">
                               {business.name}

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { tradeExamples } from "@/domain/trade-examples";
 import {
   ArrowLeft,
   ArrowRight,
@@ -37,12 +38,7 @@ import { cn } from "@/lib/utils";
 import { applyVoiceToDraft } from "@/domain/voice-apply";
 import { useNarrow } from "@/lib/use-narrow";
 import { useScrollFade } from "@/lib/use-scroll-fade";
-import {
-  readPriceSentences,
-  PRICE_EXAMPLE,
-  FLAT_EXAMPLE,
-  type ReadPrice,
-} from "@/domain/price-sentence";
+import { readPriceSentences, PRICE_EXAMPLE, type ReadPrice } from "@/domain/price-sentence";
 import { describeRule } from "@/domain/business-rule";
 import { concreteWhen } from "@/domain/time-cues";
 import { decidingPhrase } from "@/domain/price-compiler";
@@ -119,6 +115,7 @@ export function BrainScreen() {
   // "glow" studio and render its Brain/trust state as this tenant's own.
   const id = filter === "all" ? businesses[0]?.id : filter;
   const business = businesses.find((b) => b.id === id) ?? businesses[0];
+  const trade = tradeExamples(business?.industry);
   const serviceCatalogue = visibleBusinessServices(business, query);
   // Undefined-safe rather than guarded here: the early return has to sit below
   // every hook, so nothing between this line and the render may assume a
@@ -148,12 +145,14 @@ export function BrainScreen() {
     if (!deepLinkPricing) return;
     setTab("pricing");
     setDetailOpen(true);
-    setComposerOpen(false);
-  }, [deepLinkPricing, setTab]);
+    // A real business lands on the sentence box, open and focused: writing
+    // "Interior painting $30 per square metre" is the quickest way in.
+    setComposerOpen(!demoMode);
+  }, [deepLinkPricing, setTab, demoMode]);
   useEffect(() => {
-    if (!deepLinkPricing || tab !== "pricing" || !detailOpen) return;
+    if (!deepLinkPricing || tab !== "pricing" || !detailOpen || !demoMode) return;
     pricingRef.current?.scrollIntoView({ block: "start" });
-  }, [deepLinkPricing, tab, detailOpen]);
+  }, [deepLinkPricing, tab, detailOpen, demoMode]);
 
   useEffect(() => {
     if (tab !== "home") return;
@@ -422,7 +421,7 @@ export function BrainScreen() {
           )}
         </header>
 
-        {tabValue === "pricing" ? (
+        {tabValue === "pricing" && demoMode ? (
           <div ref={pricingRef} id="pricing" className="scroll-mt-4">
             <PricingRules business={business} autoOpen={deepLinkPricing} />
           </div>
@@ -440,7 +439,7 @@ export function BrainScreen() {
               e.preventDefault();
               setTellError(null);
               if (!input.trim()) {
-                setTellError(`Write a price first, for example: ${PRICE_EXAMPLE}.`);
+                setTellError(`Write a price first, for example: ${trade.sentence}.`);
                 return;
               }
               if (demoMode) {
@@ -457,7 +456,7 @@ export function BrainScreen() {
               if (read.prices.length === 0) {
                 const why = read.unread[0]?.reason ?? "There is no dollar amount in it.";
                 setTellError(
-                  `Enquiry could not read a price from that. ${why} Write one price per line, for example: ${PRICE_EXAMPLE}, or ${FLAT_EXAMPLE}.`,
+                  `Enquiry could not read a price from that. ${why} Write one price per line, for example: ${trade.sentence}, or ${trade.flatSentence}.`,
                 );
                 return;
               }
@@ -465,7 +464,11 @@ export function BrainScreen() {
             }}
           >
             <label className="block" htmlFor="tell">
-              <span className="eyebrow">Add business detail</span>
+              <span className="eyebrow">
+                {tabValue === "pricing" && !demoMode
+                  ? "Write your prices, one per line"
+                  : "Add business detail"}
+              </span>
               <textarea
                 id="tell"
                 ref={tellRef}
@@ -475,7 +478,7 @@ export function BrainScreen() {
                 aria-describedby={tellError ? "tell-error" : undefined}
                 placeholder={
                   !demoMode
-                    ? `${PRICE_EXAMPLE}. ${FLAT_EXAMPLE}.`
+                    ? `${trade.sentence}. ${trade.flatSentence}.`
                     : business.id === "northlight"
                       ? "Event coverage will be $200 an hour."
                       : business.id === "ridge"
@@ -504,6 +507,15 @@ export function BrainScreen() {
             </div>
           </form>
         )}
+
+        {tabValue === "pricing" && !demoMode ? (
+          // A real business writes its prices as a sentence first (the box
+          // above, open when arriving from "Add your prices"); the form is the
+          // second way, for anything the sentence reader will not take.
+          <div ref={pricingRef} id="pricing" className="scroll-mt-4">
+            <PricingRules business={business} secondary />
+          </div>
+        ) : null}
 
         <div className="relative mt-8">
           <div

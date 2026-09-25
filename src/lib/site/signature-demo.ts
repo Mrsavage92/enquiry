@@ -1,3 +1,7 @@
+import { format } from "date-fns";
+import { enAU } from "date-fns/locale";
+import { addCalendarDays, startOfDay, wallNow } from "@/domain/format";
+
 export type SignatureScene = "form" | "text";
 
 export type SignatureFact = {
@@ -45,27 +49,96 @@ export const RIDGE_CREW_WINDOW_RULE = {
   sourceLabel: "Tom",
 } as const;
 
-export const SIGNATURE_DEMO = {
-  business: "Sample business · Ridge & Co Painting",
-  owner: "Tom Ridge",
-  customer: "Maya Chen",
-  phone: "0491 570 006",
-  headline: "One enquiry. Even when the conversation moves.",
-  supporting:
-    "A form becomes a text. The scope changes. Enquiry keeps the request, the business checks and the next action current.",
-  takeaway:
-    "Enquiry doesn’t just keep the messages together. It keeps the business decision current.",
-  form: {
+/**
+ * The dates behind the signature demo, computed from `now` instead of frozen
+ * on the day the copy was written - the same problem `src/fixtures/relative-dates.ts`
+ * solves for the sample workspace, but this story has no ISO-timestamped
+ * fixtures to shift: every date only ever existed as prose, so it is computed
+ * fresh each time from a handful of day/week offsets and rendered as words.
+ *
+ * `emptyFrom` anchors the story: it is always the next Monday at least three
+ * weeks out from `now`, which keeps "empty from Monday the 14th" a genuine
+ * Monday for any `now` and keeps the crew-window arithmetic below intact
+ * (Mon->Fri is five weekdays, Mon->Wed is three) regardless of month or year.
+ */
+export type SignatureDates = {
+  arrivalForm: Date;
+  arrivalText: Date;
+  emptyFrom: Date;
+  deadlineForm: Date;
+  deadlineText: Date;
+};
+
+const DAYS_SINCE_FORM_ARRIVED = 3;
+const WEEKS_UNTIL_EMPTY_HOUSE = 3;
+
+function mondayOnOrAfter(d: Date): Date {
+  const MONDAY = 1;
+  return addCalendarDays(d, (MONDAY - d.getDay() + 7) % 7);
+}
+
+export function buildSignatureDates(now: Date = new Date()): SignatureDates {
+  const today = startOfDay(wallNow(now));
+  const arrivalForm = addCalendarDays(today, -DAYS_SINCE_FORM_ARRIVED);
+  const arrivalText = addCalendarDays(arrivalForm, 1);
+  const emptyFrom = mondayOnOrAfter(addCalendarDays(today, WEEKS_UNTIL_EMPTY_HOUSE * 7));
+  // Five weekdays, Mon-Fri: the crew-window rule's full window.
+  const deadlineForm = addCalendarDays(emptyFrom, 4);
+  // Three weekdays, Mon-Wed: the compressed window the rule calls out by name.
+  const deadlineText = addCalendarDays(emptyFrom, 2);
+  return { arrivalForm, arrivalText, emptyFrom, deadlineForm, deadlineText };
+}
+
+function formatArrivalAt(d: Date, time: string): string {
+  return `${format(d, "EEE d MMM", { locale: enAU })}, ${time}`;
+}
+
+/** "Monday the 14th" - a weekday name paired with its own ordinal day. */
+function formatWeekdayThe(d: Date): string {
+  return format(d, "EEEE 'the' do", { locale: enAU });
+}
+
+function formatShortDate(d: Date): string {
+  return format(d, "d MMM", { locale: enAU });
+}
+
+function formatLongDate(d: Date): string {
+  return format(d, "d MMMM", { locale: enAU });
+}
+
+type SignatureDemoContent = {
+  business: string;
+  owner: string;
+  customer: string;
+  phone: string;
+  headline: string;
+  supporting: string;
+  takeaway: string;
+  form: SignatureState;
+  text: SignatureState;
+  /** "16th": the day the text scene moves the deadline to, for the copy that names it. */
+  textDeadlineDay: string;
+};
+
+/**
+ * The signature demo, built fresh from `now`. Message prose, the "at"
+ * timestamps and the scope/access/deadline facts are all derived from the
+ * same `SignatureDates`, so the arrival, the empty-house Monday and the two
+ * deadlines can never drift out of sync with each other.
+ */
+export function buildSignatureDemo(now: Date = new Date()): SignatureDemoContent {
+  const dates = buildSignatureDates(now);
+
+  const form: SignatureState = {
     scene: "form",
     channel: "Website form",
-    at: "Tue 25 Aug, 9:14am",
-    message:
-      "Hi, we settle on a four-bedroom place in New Farm on 18 September. It’s empty from Monday the 14th. We’d like the bedrooms and living areas painted before we move in. Is that doable?",
+    at: formatArrivalAt(dates.arrivalForm, "9:14am"),
+    message: `Hi, we settle on a four-bedroom place in New Farm on ${formatLongDate(dates.deadlineForm)}. It’s empty from ${formatWeekdayThe(dates.emptyFrom)}. We’d like the bedrooms and living areas painted before we move in. Is that doable?`,
     want: "Interior painting · 4 bedrooms + living · New Farm",
     facts: [
       { id: "scope", label: "Scope", value: "4 bedrooms + living areas" },
-      { id: "access", label: "Access", value: "Empty from 14 Sep" },
-      { id: "deadline", label: "Deadline", value: "18 Sep" },
+      { id: "access", label: "Access", value: `Empty from ${formatShortDate(dates.emptyFrom)}` },
+      { id: "deadline", label: "Deadline", value: formatShortDate(dates.deadlineForm) },
     ],
     checks: [
       { id: "eligibility", label: "Eligibility", value: "Offered", tone: "ok" },
@@ -88,13 +161,13 @@ export const SIGNATURE_DEMO = {
     nextReason:
       "The current window looks like a two-person job, but the living areas need measuring before a final quote can be confirmed.",
     commercialNote: "Final quote follows site measure.",
-  } satisfies SignatureState,
-  text: {
+  };
+
+  const text: SignatureState = {
     scene: "text",
     channel: "Text message",
-    at: "Wed 26 Aug, 7:22am",
-    message:
-      "Hey, Maya from the website form. Settlement has moved forward - could we have it finished by Wednesday the 16th instead? And we’d like the ceilings done too.",
+    at: formatArrivalAt(dates.arrivalText, "7:22am"),
+    message: `Hey, Maya from the website form. Settlement has moved forward - could we have it finished by ${formatWeekdayThe(dates.deadlineText)} instead? And we’d like the ceilings done too.`,
     want: "Interior painting · 4 bedrooms + living + ceilings · New Farm",
     facts: [
       {
@@ -103,8 +176,13 @@ export const SIGNATURE_DEMO = {
         value: "4 bedrooms + living areas + ceilings",
         from: "4 bedrooms + living areas",
       },
-      { id: "access", label: "Access", value: "Empty from 14 Sep" },
-      { id: "deadline", label: "Deadline", value: "16 Sep", from: "18 Sep" },
+      { id: "access", label: "Access", value: `Empty from ${formatShortDate(dates.emptyFrom)}` },
+      {
+        id: "deadline",
+        label: "Deadline",
+        value: formatShortDate(dates.deadlineText),
+        from: formatShortDate(dates.deadlineForm),
+      },
     ],
     checks: [
       { id: "eligibility", label: "Eligibility", value: "Offered", tone: "ok" },
@@ -132,8 +210,31 @@ export const SIGNATURE_DEMO = {
       label: "Linked to Maya’s existing enquiry",
       reason: "Same mobile number as the website form.",
     },
-  } satisfies SignatureState,
-};
+  };
+
+  return {
+    business: "Sample business · Ridge & Co Painting",
+    owner: "Tom Ridge",
+    customer: "Maya Chen",
+    phone: "0491 570 006",
+    headline: "One enquiry. Even when the conversation moves.",
+    supporting:
+      "A form becomes a text. The scope changes. Enquiry keeps the request, the business checks and the next action current.",
+    takeaway:
+      "Enquiry doesn’t just keep the messages together. It keeps the business decision current.",
+    form,
+    text,
+    textDeadlineDay: format(dates.deadlineText, "do", { locale: enAU }),
+  };
+}
+
+/**
+ * Computed once at module load, from the real current time, so every
+ * existing consumer that reads `SIGNATURE_DEMO.form.at` (etc.) as a plain
+ * value keeps working unchanged. Tests that need a fixed `now` should call
+ * `buildSignatureDemo(now)` directly instead of reading this constant.
+ */
+export const SIGNATURE_DEMO = buildSignatureDemo();
 
 export type SignatureBusinessId = "ridge" | "harbour";
 
@@ -148,88 +249,7 @@ export const HARBOUR_SOLO_RULE = {
   sourceLabel: "Priya",
 } as const;
 
-const HARBOUR_FORM: SignatureState = {
-  ...SIGNATURE_DEMO.form,
-  checks: [
-    { id: "eligibility", label: "Eligibility", value: "Offered", tone: "ok" },
-    {
-      id: "scope",
-      label: "Scope",
-      value: "Living areas need a measure before a final quote",
-      tone: "check",
-    },
-    {
-      id: "capacity",
-      label: "Capacity",
-      value: "Fits exactly - five weekdays for this scope, working alone",
-      tone: "ok",
-      why: HARBOUR_SOLO_RULE.body,
-    },
-  ],
-  verdict: "Not yet - measure first, hold the week",
-  nextAction: "Offer a site measure and hold the full week",
-  nextReason:
-    "Alone, this scope needs every weekday in the window. Measure first so the quote is real, and keep the week clear.",
-};
-
-const HARBOUR_TEXT: SignatureState = {
-  ...SIGNATURE_DEMO.text,
-  checks: [
-    {
-      id: "eligibility",
-      label: "Eligibility",
-      value: "Ceilings are not offered here - partner referral",
-      tone: "block",
-      changed: true,
-      why: HARBOUR_SOLO_RULE.body,
-    },
-    {
-      id: "scope",
-      label: "Scope",
-      value: "Living areas still need a measure",
-      tone: "check",
-    },
-    {
-      id: "capacity",
-      label: "Capacity",
-      value: "Not possible - three weekdays is short of the five this scope needs solo",
-      tone: "block",
-      changed: true,
-      why: HARBOUR_SOLO_RULE.body,
-    },
-  ],
-  verdict: "No to the 16th - offer the next full week",
-  nextAction: "Say no to the 16th, offer the next full week, refer the ceilings",
-  nextReason:
-    "Same conversation, different business. Alone, the shorter window cannot fit four bedrooms plus living, and ceilings are not something Harbour does. The honest reply offers what is possible.",
-  commercialNote: "No quote for work that cannot be done in the window.",
-};
-
-/**
- * The signature demonstration (research doc 37): the same customer message
- * producing two different correct answers at two businesses, then one changed
- * fact moving each answer for its own reasons.
- */
-export const SIGNATURE_BUSINESSES = [
-  {
-    id: "ridge",
-    label: "Ridge & Co Painting",
-    detail: "Two-person crew, a third contractor on 48 hours notice",
-    owner: SIGNATURE_DEMO.owner,
-    rule: RIDGE_CREW_WINDOW_RULE,
-    form: SIGNATURE_DEMO.form,
-    text: SIGNATURE_DEMO.text,
-  },
-  {
-    id: "harbour",
-    label: "Harbour Painting",
-    detail: "One painter, walls only, ceilings referred out",
-    owner: "Priya Nair",
-    rule: HARBOUR_SOLO_RULE,
-    form: HARBOUR_FORM,
-    text: HARBOUR_TEXT,
-  },
-] as const satisfies readonly {
+export type SignatureBusiness = {
   id: SignatureBusinessId;
   label: string;
   detail: string;
@@ -237,17 +257,114 @@ export const SIGNATURE_BUSINESSES = [
   rule: { id: string; title: string; body: string; sourceLabel: string };
   form: SignatureState;
   text: SignatureState;
-}[];
+};
 
-export function signatureBusiness(id: SignatureBusinessId) {
-  return SIGNATURE_BUSINESSES.find((b) => b.id === id) ?? SIGNATURE_BUSINESSES[0];
+/**
+ * The signature demonstration (research doc 37): the same customer message
+ * producing two different correct answers at two businesses, then one changed
+ * fact moving each answer for its own reasons.
+ *
+ * Harbour's form/text reuse Ridge's message, "at" and facts verbatim (only
+ * the checks/verdict/next-action differ), so both businesses always agree on
+ * what day the empty-house Monday and the two deadlines are.
+ */
+export function buildSignatureBusinesses(
+  demo: SignatureDemoContent = SIGNATURE_DEMO,
+): SignatureBusiness[] {
+  const harbourForm: SignatureState = {
+    ...demo.form,
+    checks: [
+      { id: "eligibility", label: "Eligibility", value: "Offered", tone: "ok" },
+      {
+        id: "scope",
+        label: "Scope",
+        value: "Living areas need a measure before a final quote",
+        tone: "check",
+      },
+      {
+        id: "capacity",
+        label: "Capacity",
+        value: "Fits exactly - five weekdays for this scope, working alone",
+        tone: "ok",
+        why: HARBOUR_SOLO_RULE.body,
+      },
+    ],
+    verdict: "Not yet - measure first, hold the week",
+    nextAction: "Offer a site measure and hold the full week",
+    nextReason:
+      "Alone, this scope needs every weekday in the window. Measure first so the quote is real, and keep the week clear.",
+  };
+
+  const harbourText: SignatureState = {
+    ...demo.text,
+    checks: [
+      {
+        id: "eligibility",
+        label: "Eligibility",
+        value: "Ceilings are not offered here - partner referral",
+        tone: "block",
+        changed: true,
+        why: HARBOUR_SOLO_RULE.body,
+      },
+      {
+        id: "scope",
+        label: "Scope",
+        value: "Living areas still need a measure",
+        tone: "check",
+      },
+      {
+        id: "capacity",
+        label: "Capacity",
+        value: "Not possible - three weekdays is short of the five this scope needs solo",
+        tone: "block",
+        changed: true,
+        why: HARBOUR_SOLO_RULE.body,
+      },
+    ],
+    verdict: `No to the ${demo.textDeadlineDay} - offer the next full week`,
+    nextAction: `Say no to the ${demo.textDeadlineDay}, offer the next full week, refer the ceilings`,
+    nextReason:
+      "Same conversation, different business. Alone, the shorter window cannot fit four bedrooms plus living, and ceilings are not something Harbour does. The honest reply offers what is possible.",
+    commercialNote: "No quote for work that cannot be done in the window.",
+  };
+
+  return [
+    {
+      id: "ridge",
+      label: "Ridge & Co Painting",
+      detail: "Two-person crew, a third contractor on 48 hours notice",
+      owner: demo.owner,
+      rule: RIDGE_CREW_WINDOW_RULE,
+      form: demo.form,
+      text: demo.text,
+    },
+    {
+      id: "harbour",
+      label: "Harbour Painting",
+      detail: "One painter, walls only, ceilings referred out",
+      owner: "Priya Nair",
+      rule: HARBOUR_SOLO_RULE,
+      form: harbourForm,
+      text: harbourText,
+    },
+  ];
+}
+
+export const SIGNATURE_BUSINESSES = buildSignatureBusinesses(SIGNATURE_DEMO);
+
+export function signatureBusiness(
+  id: SignatureBusinessId,
+  businesses: readonly SignatureBusiness[] = SIGNATURE_BUSINESSES,
+): SignatureBusiness {
+  return businesses.find((b) => b.id === id) ?? businesses[0]!;
 }
 
 export function signatureState(
   scene: SignatureScene,
   business: SignatureBusinessId = "ridge",
+  businesses: readonly SignatureBusiness[] = SIGNATURE_BUSINESSES,
 ): SignatureState {
-  const b = signatureBusiness(business);
+  const b = signatureBusiness(business, businesses);
   return scene === "text" ? b.text : b.form;
 }
 

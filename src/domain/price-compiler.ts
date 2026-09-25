@@ -112,6 +112,9 @@ export type PriceOutcome =
 
 const norm = (s: string): string => s.trim().toLowerCase();
 
+/** "1,200", as a customer reads a count back in the workings. */
+const count = (n: number): string => n.toLocaleString("en-AU", { maximumFractionDigits: 4 });
+
 /**
  * A total order over rules that does not depend on the array they arrived in.
  *
@@ -337,8 +340,8 @@ export function compilePrice(
   return priced(
     amountMinor,
     appliedMinimum
-      ? `${quantity} ${pluraliseUnit(rule.unit, quantity)}, billed at the ${rule.minimumQuantity} ${rule.unit} minimum, at $${rule.amount} each.`
-      : `${billable} ${pluraliseUnit(rule.unit, billable)} at $${rule.amount} each.`,
+      ? `${count(quantity)} ${pluraliseUnit(rule.unit, quantity)}, billed at the ${rule.minimumQuantity} ${rule.unit} minimum, at $${rule.amount} each.`
+      : `${count(billable)} ${pluraliseUnit(rule.unit, billable)} at $${rule.amount} each.`,
   );
 }
 
