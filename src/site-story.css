@@ -1103,3 +1103,10 @@
     margin-bottom: 4px;
   }
 }
+
+@media (max-width: 860px) {
+  .public-demo-heading > .demo-sample-label {
+    padding-left: 0;
+    border-left: 0;
+  }
+}

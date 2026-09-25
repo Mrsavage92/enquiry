@@ -578,9 +578,8 @@
 }
 .public-site .roadmap-stage aside {
   background: #faf9fc;
-  border: 0;
-  border-left: 2px solid #ddd4ef;
-  border-radius: 0;
+  border: 1px solid #e8e3ee;
+  border-radius: 8px;
 }
 .public-site [aria-label="Roadmap stages"] button {
   min-height: 58px;

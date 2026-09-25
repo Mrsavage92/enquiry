@@ -205,8 +205,8 @@
   margin-top: 12px;
 }
 .roadmap-boundary {
-  border-left: 2px solid var(--roadmap-line);
-  padding-left: 12px;
+  border-top: 1px solid var(--roadmap-line);
+  padding-top: 12px;
   color: #514d58;
 }
 /* The concept figure spans the whole row under the band's items, so it no

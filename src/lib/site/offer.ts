@@ -51,7 +51,7 @@ export const OFFER = {
   band: `${FOUNDING_PRICE} a month while you stay. ${STANDARD_PRICE} after launch.`,
   gst: "Prices include GST.",
   /** Appended to OFFER.short on the hero note while payments are not open. */
-  noteSuffix: ` ${PAYMENT_TIMING}`,
+  noteSuffix: " No card today.",
   /** The small line under the invite-band form while payments are not open. */
   reassure: PAYMENT_TIMING,
   /** The /early-access page heading, once payments are not open. */
