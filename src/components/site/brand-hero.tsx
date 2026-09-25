@@ -1,4 +1,4 @@
-import { OFFER } from "@/lib/site/offer";
+import { OFFER, paymentsOpen } from "@/lib/site/offer";
 import { useEffect, useRef, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { ArrowDown, ArrowUpRight, Pause, Play } from "lucide-react";
@@ -80,7 +80,9 @@ export function BrandHero() {
             Explore the demo <ArrowUpRight size={17} aria-hidden="true" />
           </Link>
         </div>
-        <p className="brand-hero-note">{OFFER.short}</p>
+        <p className="brand-hero-note">
+          {paymentsOpen ? OFFER.refund : `${OFFER.short}${OFFER.noteSuffix}`}
+        </p>
       </div>
       <div className="brand-hero-footer">
         <a href="#product-preview" className="brand-hero-explore">

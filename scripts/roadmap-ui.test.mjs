@@ -52,6 +52,7 @@ test("roadmap retains a readable static fallback, reduced motion and no decorati
   assert.match(css, /scroll-margin-top/);
   assert.doesNotMatch(css, /gradient|font-size:[^;]*vw|letter-spacing:\s*-/);
   const route = read("src/routes/roadmap.tsx");
-  assert.match(route, /Early access by invitation/);
+  assert.match(route, /Anyone can join the list at the founding price/);
+  assert.doesNotMatch(route, /Early access by invitation/);
   assert.match(route, /Enquiry roadmap/);
 });

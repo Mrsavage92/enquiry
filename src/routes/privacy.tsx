@@ -18,6 +18,7 @@ function Privacy() {
   return (
     <LegalLayout
       title="Privacy"
+      lastUpdated="16 September 2026"
       sections={[
         { id: "collect", title: "What we collect" },
         { id: "use", title: "What we use it for" },
@@ -61,8 +62,8 @@ function Privacy() {
         Enquiry runs on Vercel (hosting), Supabase (database and sign-in email; the database is in
         Sydney, Australia) and, where AI-assisted interpretation is enabled, Anthropic (Claude,
         processed in the United States). Enquiry and business context is sent to Anthropic only to
-        prepare a response, and customer messages are not used to train models. Not every
-        deployment or feature has AI processing enabled.
+        prepare a response, and customer messages are not used to train models. Not every deployment
+        or feature has AI processing enabled.
       </p>
       <h2 id="retention">How long we keep it</h2>
       <p>
@@ -81,7 +82,10 @@ function Privacy() {
       <h2 id="choices">Your choices</h2>
       <p>
         To see, correct or remove anything we hold about you, email{" "}
-        <a href={SUPPORT_MAILTO} className="font-medium text-ink underline-offset-4 hover:underline">
+        <a
+          href={SUPPORT_MAILTO}
+          className="font-medium text-ink underline-offset-4 hover:underline"
+        >
           {SUPPORT_EMAIL}
         </a>{" "}
         from the address you joined with. You can also just not join.

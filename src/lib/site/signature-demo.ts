@@ -24,6 +24,8 @@ export type SignatureState = {
   want: string;
   facts: SignatureFact[];
   checks: SignatureCheck[];
+  /** Plain Yes / No / Not yet call, truthfully read off nextAction and the checks below. */
+  verdict: string;
   nextAction: string;
   nextReason: string;
   commercialNote: string;
@@ -76,6 +78,7 @@ export const SIGNATURE_DEMO = {
         why: RIDGE_CREW_WINDOW_RULE.body,
       },
     ],
+    verdict: "Not yet - measure first",
     nextAction: "Offer a site measure",
     nextReason:
       "The current window looks like a two-person job, but the living areas need measuring before a final quote can be confirmed.",
@@ -115,6 +118,7 @@ export const SIGNATURE_DEMO = {
         why: RIDGE_CREW_WINDOW_RULE.body,
       },
     ],
+    verdict: "Yes, with a condition",
     nextAction: "Confirm the extra crew option and keep the site measure",
     nextReason:
       "The earlier deadline plus ceilings needs the third contractor. Keep the site measure - the quote still isn’t final until then.",
@@ -157,6 +161,7 @@ const HARBOUR_FORM: SignatureState = {
       why: HARBOUR_SOLO_RULE.body,
     },
   ],
+  verdict: "Not yet - measure first, hold the week",
   nextAction: "Offer a site measure and hold the full week",
   nextReason:
     "Alone, this scope needs every weekday in the window. Measure first so the quote is real, and keep the week clear.",
@@ -188,6 +193,7 @@ const HARBOUR_TEXT: SignatureState = {
       why: HARBOUR_SOLO_RULE.body,
     },
   ],
+  verdict: "No to the 16th - offer the next full week",
   nextAction: "Say no to the 16th, offer the next full week, refer the ceilings",
   nextReason:
     "Same message, different business. Alone, the shorter window cannot fit four bedrooms plus living, and ceilings are not something Harbour does. The honest reply offers what is possible.",

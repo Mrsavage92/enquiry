@@ -1,13 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import {
-  ArrowRight,
-  CalendarDays,
-  ChevronDown,
-  Inbox,
-  Mail,
-  MessageSquareText,
-  Settings2,
-} from "lucide-react";
+import { ArrowRight, ChevronDown, Inbox, Mail, MessageSquareText, Settings2 } from "lucide-react";
 import { socialHead } from "@/lib/site/head";
 import { SiteShell } from "@/components/site/site-shell";
 import { ProductShowcase } from "@/components/site/product-showcase";
@@ -30,7 +22,7 @@ export const Route = createFileRoute("/")({
       path: "/",
       title: "Enquiry - know what you can safely promise before you reply",
       description:
-        "Enquiry checks each customer request against how your business works, asks only for the detail that would change the answer, and prepares the reply for you to send. Join early access.",
+        "Enquiry checks each customer request, asks only what changes the answer, and prepares the reply - built for owners juggling everything, including ADHD.",
     }),
 });
 
@@ -129,6 +121,18 @@ function Home() {
           </Link>
         </p>
       </section>
+      <section className="public-section public-container" aria-labelledby="adhd-title">
+        <div className="public-section-heading">
+          <p className="public-kicker">Built for busy heads</p>
+          <h2 id="adhd-title">Made for owners who juggle everything, including ADHD.</h2>
+        </div>
+        <ul className="public-plain-list">
+          <li>It opens on what needs you, not a dashboard to decode.</li>
+          <li>One enquiry, one next step. The reply is prepared; you decide.</li>
+          <li>It keeps the details, so you don't have to hold them between jobs.</li>
+          <li>Nothing sends until you say so.</li>
+        </ul>
+      </section>
       <section
         className="public-container public-section public-faq"
         aria-labelledby="questions-title"
@@ -136,9 +140,6 @@ function Home() {
         <CrossMark position="top-start" />
         <CrossMark position="bottom-end" />
         <div className="public-section-heading public-faq-intro">
-          <span className="public-icon public-icon-violet">
-            <CalendarDays size={23} aria-hidden="true" />
-          </span>
           <h2 id="questions-title">Before you join.</h2>
           <p>A few things worth knowing about early access.</p>
           <div className="public-faq-contact">
@@ -164,6 +165,7 @@ function Home() {
                     .toLowerCase()
                     .replace(/[^a-z0-9]+/g, "-")
                     .replace(/^-|-$/g, "")}
+                  open={question === "What does it cost?" ? true : undefined}
                 >
                   <summary>
                     {question}

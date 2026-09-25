@@ -291,6 +291,23 @@
   gap: 48px;
   margin-top: 44px;
 }
+
+/* Critique pass 2. Plain lines, not a fourth card grid: the ADHD section
+   states the claim once as a heading, then four short facts a reader can
+   take in at a glance. #4f4b55 on #fff measures 8.5:1. */
+.public-plain-list {
+  margin-top: 28px;
+  max-width: 560px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  list-style: none;
+}
+.public-plain-list li {
+  font-size: 17px;
+  line-height: 1.7;
+  color: #4f4b55;
+}
 .public-icon {
   display: inline-flex;
   align-items: center;
@@ -1178,19 +1195,16 @@
   color: var(--public-violet);
 }
 
-/* Critique pass 3. The three benefit cells stop being three equal boxes:
-   the wedge cell ("Not yet is a real answer") takes the wider column and
-   the larger heading, the other two support it. FAQ splits into two
+/* Critique pass 3. The wedge cell ("Not yet is a real answer") keeps the
+   wider column so its longer copy sits comfortably, but pass 2 removed the
+   larger heading override: card 1 is not a deliberate lead and its h3 now
+   matches the other two sizes at every breakpoint. FAQ splits into two
    labelled groups of three and two. Group heading ink-2 on white: 8.5:1. */
 .public-benefits {
   grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr) minmax(0, 1fr);
 }
 .public-benefit:first-child {
   padding: 34px 32px 36px;
-}
-.public-benefit:first-child h3 {
-  font-size: 27px;
-  line-height: 1.3;
 }
 .public-benefit:first-child p {
   font-size: 17px;
@@ -1216,9 +1230,6 @@
   .public-benefit:first-child {
     padding: 30px 28px 32px;
   }
-  .public-benefit:first-child h3 {
-    font-size: 24px;
-  }
 }
 
 .public-benefits-more {
@@ -1226,10 +1237,16 @@
 }
 
 /* Walkthrough stage as a phone (critique round 7): the 390px capture at 1:1
-   is readable where the desktop capture at 640px was not. */
-.public-walkthrough-inner {
-  grid-template-columns: minmax(0, 1fr) 400px;
-  gap: 72px;
+   is readable where the desktop capture at 640px was not. This column
+   override was unscoped and unconditional, so it outranked the 860px
+   single-column rule above at every width including mobile (same
+   specificity, later in source order); scoping it to sit above that
+   breakpoint was the other half of the P0 layout fix (critique pass 2). */
+@media (min-width: 861px) {
+  .public-walkthrough-inner {
+    grid-template-columns: minmax(0, 1fr) 400px;
+    gap: 72px;
+  }
 }
 .public-walkthrough-stage {
   justify-self: center;
@@ -1250,7 +1267,11 @@
 .public-walkthrough-stage figcaption {
   justify-content: center;
 }
-@media (max-width: 1000px) {
+/* Scoped to sit above the 860px single-column breakpoint below (~line 1132):
+   an unscoped max-width: 1000px here came after that block in source order
+   and won the cascade at any width <= 860px, forcing a 0px/340px grid on
+   mobile even though the single-column rule matched too (critique P0). */
+@media (min-width: 861px) and (max-width: 1000px) {
   .public-walkthrough-inner {
     grid-template-columns: minmax(0, 1fr) 340px;
     gap: 40px;

@@ -117,3 +117,24 @@ test("one changed fact moves each business's answer for its own reason", () => {
 test("an unknown business id falls back to Ridge rather than throwing", () => {
   assert.equal(signatureState("form", "nope" as never).nextAction, SIGNATURE_DEMO.form.nextAction);
 });
+
+test("every business x scene combination carries a plain Yes / No / Not yet verdict", () => {
+  for (const business of SIGNATURE_BUSINESSES) {
+    for (const scene of ["form", "text"] as const) {
+      const state = signatureState(scene, business.id);
+      assert.ok(state.verdict && state.verdict.length > 0, `${business.id}/${scene} has a verdict`);
+      assert.match(
+        state.verdict,
+        /\b(Yes|No|Not yet)\b/,
+        `${business.id}/${scene} verdict "${state.verdict}" names a Yes/No/Not yet answer`,
+      );
+    }
+  }
+  assert.equal(SIGNATURE_DEMO.form.verdict, "Not yet - measure first");
+  assert.equal(SIGNATURE_DEMO.text.verdict, "Yes, with a condition");
+  assert.equal(signatureState("form", "harbour").verdict, "Not yet - measure first, hold the week");
+  assert.equal(
+    signatureState("text", "harbour").verdict,
+    "No to the 16th - offer the next full week",
+  );
+});

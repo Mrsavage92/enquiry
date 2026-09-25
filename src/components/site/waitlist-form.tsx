@@ -10,7 +10,7 @@ import {
   qualifyWaitlist,
   trackLaunchEvent,
 } from "@/lib/launch/api";
-import { OFFER_FAQ } from "@/lib/site/offer";
+import { OFFER, OFFER_FAQ } from "@/lib/site/offer";
 import {
   captureAttribution,
   clearWaitlist,
@@ -579,10 +579,8 @@ export function WaitlistForm({
       ) : null}
       {entry ? (
         <div className="auth-form-heading">
-          <h1 className="auth-title">Join early access</h1>
-          <p className="auth-description">
-            For service businesses. One email now, a few optional questions after.
-          </p>
+          <h1 className="auth-title">{OFFER.entryHeadline}</h1>
+          <p className="auth-description">{OFFER.entrySub}</p>
         </div>
       ) : null}
       <label className={compact ? "block flex-1" : "block"}>

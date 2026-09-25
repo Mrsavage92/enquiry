@@ -19,8 +19,10 @@ function Terms() {
   return (
     <LegalLayout
       title="Terms"
+      lastUpdated="25 September 2026"
       sections={[
         { id: "waitlist", title: "The waitlist" },
+        { id: "founding", title: "The founding rate" },
         { id: "workspace", title: "Demo and workspace" },
         { id: "changes", title: "Product changes" },
         { id: "acceptable-use", title: "Acceptable use" },

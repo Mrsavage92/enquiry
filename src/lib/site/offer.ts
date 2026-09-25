@@ -27,12 +27,15 @@ export const FOUNDING_PAYMENT_LINK = "";
 
 export const paymentsOpen = FOUNDING_PAYMENT_LINK !== "";
 
+/** Appended to a sentence that already ends in a full stop, e.g. `${OFFER.short}${NO_CARD_TODAY}`. */
+const NO_CARD_TODAY = " No card today.";
+
 export const OFFER = {
   name: "Founding member",
   /** The one-line offer. */
   headline: `${FOUNDING_PRICE} a month, for as long as you stay.`,
-  /** Hero and invite band. */
-  short: `Founding members pay ${FOUNDING_PRICE} a month, for as long as they stay. After that it's ${STANDARD_PRICE}.`,
+  /** Hero and invite band. Unambiguous about who pays what, and from when. */
+  short: `Join now: ${FOUNDING_PRICE} a month, locked for as long as you stay. Everyone who joins after launch pays ${STANDARD_PRICE}.`,
   after: `Businesses that join after the founding window pay ${STANDARD_PRICE} a month.`,
   window: FOUNDING_CLOSES
     ? `Open until ${FOUNDING_CLOSES}.`
@@ -42,11 +45,17 @@ export const OFFER = {
     ? "Pay today and you're in today."
     : `Join the list now and the founding price is yours. You pay nothing until you start using it.`,
   gst: "Prices include GST.",
+  /** Appended to OFFER.short on the hero note while payments are not open. */
+  noteSuffix: NO_CARD_TODAY,
+  /** The small reassurance line under the invite-band form while payments are not open. */
+  reassure: "No card today. First month refundable when you start. A person helps you set up.",
+  /** The /early-access page heading, once payments are not open. */
+  entryHeadline: `Lock in ${FOUNDING_PRICE} a month.`,
+  entrySub: `Founding price, kept for as long as you stay. ${STANDARD_PRICE} for everyone after launch.${paymentsOpen ? "" : NO_CARD_TODAY}`,
 } as const;
 
 /** The promises card on /early-access. */
 export const OFFER_PROMISES = [
-  { t: OFFER.headline, b: `${OFFER.after} ${OFFER.window}` },
   { t: "Your first month is refundable", b: OFFER.refund },
   {
     t: "Setup help from a person",
