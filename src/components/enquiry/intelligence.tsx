@@ -173,6 +173,9 @@ export function Intelligence({
     !hasOwnEdit &&
     staleEdit.trim() !== "" &&
     staleEdit !== enquiry.decision.draft.body;
+  // Until the owner chooses, nothing can type over either version: an edit
+  // started now would autosave over the stored one and it would be gone.
+  const editLocked = showStaleEdit;
   const resumedEdit = useRef(false);
   useEffect(() => {
     if (!hasOwnEdit || resumedEdit.current || compact) return;
@@ -574,7 +577,7 @@ export function Intelligence({
                       <CircleHelp className="size-4" aria-hidden />
                       Why?
                     </button>
-                    {inline && (hasOwnEdit || (sendable && !readingToCheck)) ? (
+                    {inline && !editLocked && (hasOwnEdit || (sendable && !readingToCheck)) ? (
                       <button
                         type="button"
                         className="inline-flex min-h-11 items-center gap-1.5 text-sm font-medium text-mark"
@@ -867,7 +870,7 @@ export function Intelligence({
                       <HearLetter text={draftBody} />
                     </div>
                   ) : null}
-                  {draftOpen ? (
+                  {draftOpen && !editLocked ? (
                     <>
                       <label className="mt-3 block">
                         <span className="sr-only">Draft message</span>
@@ -1360,7 +1363,7 @@ export function Intelligence({
       />
 
       {compact ? (
-        <Dialog open={draftOpen} onOpenChange={setDraftOpen}>
+        <Dialog open={draftOpen && !editLocked} onOpenChange={setDraftOpen}>
           <SheetContent title={short ? "Message" : "Reply"}>
             <textarea
               aria-label="Draft reply"

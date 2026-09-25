@@ -1,4 +1,10 @@
-import { createRootRoute, HeadContent, Outlet, Scripts } from "@tanstack/react-router";
+import {
+  createRootRoute,
+  HeadContent,
+  Outlet,
+  Scripts,
+  useRouterState,
+} from "@tanstack/react-router";
 import { AuthProvider } from "@/lib/auth/provider";
 import { PreviewHostBridge } from "@/components/preview-host-bridge";
 import { PaletteFlag } from "@/components/palette-flag";
@@ -8,7 +14,32 @@ import appCss from "../styles.css?url";
 
 const APP_NAME = "Enquiry";
 
+/**
+ * On an enquiry the decision, its buttons and the choices under a changed
+ * reply fill the lower screen, so a toast there would cover the very action
+ * it reports on. Enquiry screens show toasts at the top, over the header;
+ * everywhere else they sit above the phone's bottom navigation.
+ */
+function AppToaster() {
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const onEnquiry = /^\/enquiries\/[^/]+/.test(pathname);
+  return (
+    <Toaster
+      position={onEnquiry ? "top-center" : "bottom-center"}
+      offset={24}
+      mobileOffset={onEnquiry ? { top: 8 } : { bottom: 96 }}
+      toastOptions={{
+        className: "font-sans text-ink bg-raised shadow-float",
+      }}
+    />
+  );
+}
+
 export const Route = createRootRoute({
+  // One timestamp for the server render and the browser, so anything dated
+  // relative to "now" (the sample story) renders the same text on both.
+  loader: () => ({ renderedAt: Date.now() }),
+  staleTime: Infinity,
   head: () => ({
     meta: [
       { charSet: "utf-8" },
@@ -46,16 +77,7 @@ export const Route = createRootRoute({
         <AuthProvider>
           <Outlet />
         </AuthProvider>
-        <Toaster
-          position="bottom-center"
-          offset={24}
-          // Clear of the phone's bottom navigation and the line above it, so a
-          // toast never sits over a row's time cue or the action under it.
-          mobileOffset={{ bottom: 96 }}
-          toastOptions={{
-            className: "font-sans text-ink bg-raised shadow-float",
-          }}
-        />
+        <AppToaster />
         <Scripts />
       </body>
     </html>

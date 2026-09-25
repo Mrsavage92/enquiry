@@ -87,7 +87,8 @@ export function snapshotFromDecision(decision: Decision, who: ReplyContext = {})
     // `primaryEnabled` is about the SEND control. An escalation has nothing to
     // send; its next step (add prices, choose the service) is a link the desk
     // renders from the reason code, never this flag.
-    primaryEnabled: decision.action !== "ESCALATE_HUMAN",
+    // A reading the owner has not confirmed is not something to send on either.
+    primaryEnabled: decision.action !== "ESCALATE_HUMAN" && !decision.blocker?.inferred,
   };
   return {
     ...base,

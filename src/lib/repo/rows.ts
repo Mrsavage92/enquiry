@@ -178,6 +178,8 @@ export type MessageRow = {
   quote_id: string | null;
   form_fields: unknown;
   comment_context: string | null;
+  sent_at?: string | Date | null;
+  reviewed_send_id?: string | null;
 };
 
 export type QuoteRow = {
@@ -385,6 +387,11 @@ export function toMessage(r: MessageRow): Message {
     quoteId: r.quote_id ?? undefined,
     formFields: (r.form_fields ?? undefined) as Message["formFields"],
     commentContext: r.comment_context ?? undefined,
+    // When the owner recorded it as sent, and whether a reviewed artefact backs
+    // it: the lasting Undo times from the same moment the server does, and is
+    // only offered where the server could actually undo it.
+    ...(r.sent_at ? { sentAt: iso(r.sent_at) } : {}),
+    ...(r.reviewed_send_id ? { reviewed: true } : {}),
   };
 }
 

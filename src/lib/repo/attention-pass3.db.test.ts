@@ -15,6 +15,7 @@ import {
 } from "./owner-state-core.ts";
 import { loadWorkspace, safeBookingUrl } from "./workspace.server.ts";
 import { ForbiddenError } from "./tenancy.server.ts";
+import { prepareReviewedSendInTransaction } from "./reviewed-send-core.ts";
 import { describeRule, type BusinessRule } from "../../domain/business-rule.ts";
 
 /**
@@ -337,4 +338,92 @@ test("the setup-call card has a link only when one is configured, and closing it
     (await loadOwnerState(sql, [a.businessId])).prefs[a.businessId]?.setupCallDismissed,
     true,
   );
+});
+
+async function confirmFact(
+  pg: PGlite,
+  enquiryId: string,
+  businessId: string,
+  field: string,
+  value: string,
+) {
+  await tx(pg, async (t) => {
+    await lockEnquiry(t, enquiryId);
+    await t`update enquiry_fact set superseded = true where enquiry_id = ${enquiryId} and lower(field) = lower(${field}) and superseded = false`;
+    await t`
+      insert into enquiry_fact (enquiry_id, field, label, value, display_value, status, confidence, asserted_by, provenance, customer_specific)
+      values (${enquiryId}, ${field}, ${field}, ${value}, ${value}, ${"confirmed"}, ${"High"}, ${"user"}, ${JSON.stringify({ kind: "user" })}::jsonb, ${true})
+    `;
+    await applyDecision(t, {
+      enquiryId,
+      businessId,
+      serviceLabel: "Interior painting",
+      customerName: "Karen Mills",
+    });
+  });
+}
+
+async function prepare(pg: PGlite, enquiryId: string, businessId: string, body: string) {
+  return tx(pg, (sql) =>
+    prepareReviewedSendInTransaction(sql, {
+      enquiryId,
+      businessId,
+      userId: "user-a",
+      body,
+      channel: "manual",
+    }),
+  );
+}
+
+test("a reply resting on an unconfirmed reading is refused by the server", async () => {
+  const pg = await freshDb();
+  const a = await tenant(pg, "user-a", "Alpha Painting");
+  await saveRule(pg, a.businessId, PER_SQM);
+  const karen = await enquiry(pg, a.businessId, KAREN, "Interior painting");
+  const snap = (await row(pg, karen.enquiryId)).decision_snapshot as Snap & {
+    recommendation: { primaryEnabled: boolean };
+  };
+  assert.equal(snap.recommendation.primaryEnabled, false);
+
+  const res = await prepare(pg, karen.enquiryId, a.businessId, snap.draft.body);
+  assert.equal(res.ok, false);
+  if (!res.ok) assert.equal(res.reason, "unconfirmed_reading");
+  const artefacts = await pg.query("select id from reviewed_send where enquiry_id = $1", [
+    karen.enquiryId,
+  ]);
+  assert.equal(artefacts.rows.length, 0, "nothing frozen for review");
+
+  // Confirmed, it prepares.
+  await confirmFact(pg, karen.enquiryId, a.businessId, "square metres", "120");
+  const ok = await prepare(
+    pg,
+    karen.enquiryId,
+    a.businessId,
+    (await row(pg, karen.enquiryId)).decision_snapshot.draft.body,
+  );
+  assert.equal(ok.ok, true);
+});
+
+test("a kept edit naming the old price in any money format is refused", async () => {
+  const pg = await freshDb();
+  const a = await tenant(pg, "user-a", "Alpha Painting");
+  await saveRule(pg, a.businessId, PER_SQM);
+  const karen = await enquiry(pg, a.businessId, KAREN, "Interior painting");
+  await confirmFact(pg, karen.enquiryId, a.businessId, "square metres", "120");
+  // The facts move: 140 square metres, $4,200. The owner kept an edit that
+  // still carries the old $3,600 somewhere, written a different way.
+  await confirmFact(pg, karen.enquiryId, a.businessId, "square metres", "140");
+  for (const old of ["$ 3600", "3,600 dollars", "AUD 3600", "A$3600", "3.6k", "$3.6k", "3k"]) {
+    const body = `Hi Karen, that comes to $4,200 (it was ${old} before). 140 square metres at $30 each.`;
+    const res = await prepare(pg, karen.enquiryId, a.businessId, body);
+    assert.equal(res.ok, false, old);
+    if (!res.ok) assert.equal(res.reason, "amount_mismatch", old);
+  }
+  const fine = await prepare(
+    pg,
+    karen.enquiryId,
+    a.businessId,
+    "Hi Karen, that comes to $4,200. 140 square metres at $30 each.",
+  );
+  assert.equal(fine.ok, true);
 });

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { askFor, composeReply, spokenDate } from "./compose-reply.ts";
+import { askFor, composeReply, quantityPhrase, spokenDate } from "./compose-reply.ts";
 import { decideEnquiry } from "./decide.ts";
 
 const perUnit = {
@@ -106,4 +106,13 @@ test("a count the customer already gave is never asked for again", () => {
   const body = composeReply(decision, { customerName: "Sarah" });
   assert.doesNotMatch(body, /how many|let me know/i);
   assert.match(body, /4 guests you mentioned/);
+});
+
+test("stored field names read as a person would say them", () => {
+  assert.equal(quantityPhrase("2", "num_bedrooms"), "2 bedrooms");
+  assert.equal(quantityPhrase("1", "numBedrooms"), "1 bedroom");
+  assert.equal(quantityPhrase("32", "gutter_metres"), "32 gutter metres");
+  assert.equal(quantityPhrase("4", "number of guests"), "4 guests");
+  assert.equal(quantityPhrase("1200", "square metres"), "1,200 square metres");
+  assert.equal(askFor("num_bedrooms"), "can you let me know how many bedrooms there are?");
 });

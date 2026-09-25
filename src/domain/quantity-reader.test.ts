@@ -111,3 +111,43 @@ test("an owner's own unit word works without a built-in family", () => {
   assert.equal(read("6 windows at the front", "windows", "window"), "6");
   assert.equal(read("a single window", "windows", "window"), undefined);
 });
+
+test("thousands separators are one number, never its last digits", () => {
+  const cases: [string, string, string, string][] = [
+    ["about 1,200 square metres of wall", "square metres", "1200", "about 1,200 square metres"],
+    ["12,000 square metres warehouse", "square metres", "12000", "12,000 square metres"],
+    ["roughly 1 200 sqm", "square metres", "1200", "roughly 1 200 sqm"],
+    ["a gala for 1,000 guests", "guests", "1000", "1,000 guests"],
+  ];
+  for (const [text, field, value, span] of cases) {
+    const r = readQuantityFromMessage(text, field);
+    assert.equal(r?.value, value, text);
+    assert.equal(r?.span, span, text);
+    // What the owner is shown is exactly what the customer wrote.
+    assert.ok(text.includes(r!.span), `${text}: span is a substring`);
+  }
+});
+
+test("ranges, bounds, corrections and per-item sizes are not a reading", () => {
+  const none: [string, string][] = [
+    ["between 3 and 4 bedrooms", "bedrooms"],
+    ["4 and 5 bedrooms", "bedrooms"],
+    ["one hour or two", "hours"],
+    ["3 bedrooms - 4 if we count the study", "bedrooms"],
+    ["not 3 bedrooms, 4", "bedrooms"],
+    ["3 bedrooms, sorry I mean 4", "bedrooms"],
+    ["3 bedrooms actually 4", "bedrooms"],
+    ["2 rooms each 3 metres squared", "square metres"],
+    ["3 square metres each", "square metres"],
+    ["up to 5 guests", "guests"],
+    ["less than 100 square metres", "square metres"],
+    ["no more than 6 people", "people"],
+    ["at least 3 hours", "hours"],
+    ["over 100 square metres", "square metres"],
+    ["under 50 sqm", "square metres"],
+  ];
+  for (const [text, field] of none) assert.equal(read(text, field), undefined, text);
+  // A different unit after a comma is not a correction.
+  assert.equal(read("4 x bedrooms, 2 bathrooms", "bedrooms"), "4");
+  assert.equal(read("2 bed unit in Nundah, carpets too. Moving out on the 30th.", "bedrooms"), "2");
+});

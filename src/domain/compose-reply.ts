@@ -29,12 +29,29 @@ export function dateLine(iso: string | undefined): string | null {
   return day ? `I'll confirm whether ${day} works.` : null;
 }
 
+/**
+ * A stored field name as a person says it: "num_bedrooms" and "numBedrooms"
+ * read as "bedrooms", "gutter_metres" as "gutter metres".
+ */
+export function humanField(field: string): string {
+  return field
+    .trim()
+    .replace(/([a-z])([A-Z])/g, "$1 $2")
+    .replace(/[_-]+/g, " ")
+    .toLowerCase()
+    .replace(/^(?:num|no|nr|qty|count|number|total)(?: of)?\s+/, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 /** "120 square metres", "1 bedroom": a count said the way a person says it. */
 export function quantityPhrase(value: string, field: string): string {
-  const name = field.trim().replace(/_/g, " ").toLowerCase();
+  const name = humanField(field);
   const n = Number(value);
   const word = n === 1 && /[^s]s$/.test(name) ? name.slice(0, -1) : name;
-  return `${value} ${word}`.trim();
+  // "1,200", written the way the customer would read it back.
+  const shown = Number.isFinite(n) && value.trim() !== "" ? n.toLocaleString("en-AU") : value;
+  return `${shown} ${word}`.trim();
 }
 
 /** Money arrives in minor units; a customer reads dollars. */
@@ -53,7 +70,7 @@ function formatMinor(amountMinor: number, currency: string): string {
  * singular field keeps "the" ("...know the address?").
  */
 export function askFor(field: string): string {
-  const name = field.trim().replace(/_/g, " ").toLowerCase();
+  const name = humanField(field);
   if (!name) return "can you tell me a bit more about the job?";
   return /[^s]s$/.test(name)
     ? `can you let me know how many ${name} there are?`

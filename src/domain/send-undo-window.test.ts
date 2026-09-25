@@ -9,7 +9,12 @@ const base = {
   state: { lifecycle: "OPEN", decision: "WAITING_ON_CLIENT" } as never,
 };
 const msg = (direction: "inbound" | "outbound", minutesAgo: number, id = "m") =>
-  ({ id, direction, at: new Date(NOW - minutesAgo * 60_000).toISOString() }) as never;
+  ({
+    id,
+    direction,
+    at: new Date(NOW - minutesAgo * 60_000).toISOString(),
+    reviewed: direction === "outbound",
+  }) as never;
 
 test("the enquiry offers Undo for exactly the server's window", () => {
   assert.equal(SEND_UNDO_WINDOW_MS, UNDO_SEND_WINDOW_MS);
@@ -42,4 +47,22 @@ test("after the window, after their reply, or on a closed enquiry: no Undo", () 
     null,
   );
   assert.equal(undoableSend({ ...base, conversation: [msg("inbound", 1)] }, NOW), null);
+});
+
+test("the window runs from sent_at, like the server, and needs a reviewed send", () => {
+  const at = new Date(NOW - 20 * 60_000).toISOString();
+  const sentAt = new Date(NOW - 5 * 60_000).toISOString();
+  const r = undoableSend(
+    {
+      ...base,
+      conversation: [{ id: "o", direction: "outbound", at, sentAt, reviewed: true }],
+    } as never,
+    NOW,
+  );
+  assert.equal(r?.msLeft, SEND_UNDO_WINDOW_MS - 5 * 60_000);
+  const unbacked = undoableSend(
+    { ...base, conversation: [{ id: "o", direction: "outbound", at: sentAt }] } as never,
+    NOW,
+  );
+  assert.equal(unbacked, null, "a message no reviewed send backs cannot be undone");
 });

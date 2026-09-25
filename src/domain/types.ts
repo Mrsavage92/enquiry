@@ -197,6 +197,10 @@ export type Message = {
   quoteId?: string;
   formFields?: { label: string; value: string }[];
   commentContext?: string;
+  /** When the owner recorded it as sent (the server's undo clock). */
+  sentAt?: string;
+  /** A reviewed send backs this message, so it can be undone in the window. */
+  reviewed?: boolean;
 };
 
 export type QuoteVersion = {

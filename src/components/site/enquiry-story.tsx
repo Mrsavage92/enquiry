@@ -1,6 +1,7 @@
 import { ArrowRight, CalendarDays, MessageSquareText, ShieldCheck, Users } from "lucide-react";
 import { Link } from "@tanstack/react-router";
-import { RIDGE_CREW_WINDOW_RULE, SIGNATURE_DEMO } from "@/lib/site/signature-demo";
+import { RIDGE_CREW_WINDOW_RULE } from "@/lib/site/signature-demo";
+import { useSignatureDemo } from "@/lib/site/use-signature-demo";
 
 const STAGES = [
   { title: "The initial enquiry", detail: "Maya gets in touch about painting her new home." },
@@ -19,6 +20,7 @@ const STAGES = [
 ];
 
 export function EnquiryStory({ compact = false }: { compact?: boolean }) {
+  const { demo } = useSignatureDemo();
   const Heading = compact ? "h3" : "h2";
   return (
     <div className={`enquiry-story ${compact ? "enquiry-story-compact" : ""}`}>
@@ -47,19 +49,19 @@ export function EnquiryStory({ compact = false }: { compact?: boolean }) {
         <article className="story-message">
           <div className="story-message-meta">
             <MessageSquareText size={16} aria-hidden="true" />
-            <span>Original request · {SIGNATURE_DEMO.form.channel}</span>
+            <span>Original request · {demo.form.channel}</span>
           </div>
-          <time>{SIGNATURE_DEMO.form.at}</time>
-          <blockquote>{SIGNATURE_DEMO.form.message}</blockquote>
-          <span className="story-byline">{SIGNATURE_DEMO.customer}</span>
+          <time>{demo.form.at}</time>
+          <blockquote>{demo.form.message}</blockquote>
+          <span className="story-byline">{demo.customer}</span>
         </article>
         <article className="story-message story-change">
           <div className="story-message-meta">
             <MessageSquareText size={16} aria-hidden="true" />
-            <span>Follow-up · {SIGNATURE_DEMO.text.channel}</span>
+            <span>Follow-up · {demo.text.channel}</span>
           </div>
-          <time>{SIGNATURE_DEMO.text.at}</time>
-          <blockquote>{SIGNATURE_DEMO.text.message}</blockquote>
+          <time>{demo.text.at}</time>
+          <blockquote>{demo.text.message}</blockquote>
           <dl>
             <div>
               <dt>
@@ -82,12 +84,12 @@ export function EnquiryStory({ compact = false }: { compact?: boolean }) {
         <article className="story-next">
           <p className="story-verdict">
             <span>Verdict</span>
-            <strong>{SIGNATURE_DEMO.text.verdict}.</strong>
+            <strong>{demo.text.verdict}.</strong>
           </p>
           <span className="story-next-label">
             <Users size={17} aria-hidden="true" /> Next step
           </span>
-          <h3>{SIGNATURE_DEMO.text.nextAction}</h3>
+          <h3>{demo.text.nextAction}</h3>
           <p>
             Availability and the final price still need confirming. Nothing has been sent or booked.
           </p>

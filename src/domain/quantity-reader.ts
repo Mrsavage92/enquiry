@@ -44,9 +44,53 @@ const NUMBER_WORDS: Record<string, number> = {
   twelve: 12,
 };
 
-const NUM = String.raw`(\d{1,6}(?:\.\d{1,2})?|${Object.keys(NUMBER_WORDS).join("|")})`;
+const WORD_NUMBERS = Object.keys(NUMBER_WORDS).join("|");
 
-const APPROX = String.raw`(?:roughly|about|around|approx(?:imately|\.)?|approximately|~|circa|nearly|almost|close to|maybe|give or take|just under|just over|over|under)`;
+/**
+ * One number: "1,200", "12,000", "1 200", "120", "2.5", or a word from one to
+ * twelve. Grouped thousands come first so "1,200" is never read as its last
+ * three digits.
+ */
+const NUM_RAW = String.raw`\d{1,3}(?:,\d{3})+(?:\.\d{1,2})?|\d{1,3}(?: \d{3})+(?![\d,])|\d{1,6}(?:\.\d{1,2})?|\b(?:${WORD_NUMBERS})\b`;
+const NUM = `(${NUM_RAW})`;
+
+/** Hedges: the customer means about this many. Kept and shown, never dropped. */
+const APPROX = String.raw`(?:roughly|about|around|approximately|approx\.?|~|circa|nearly|almost|close to|maybe|give or take)`;
+
+/**
+ * Bounds: "up to 5", "at least 3", "over 100". A bound is not a count, so it
+ * is no reading at all rather than a number marked exact.
+ */
+const BOUND_BEFORE = new RegExp(
+  String.raw`\b(?:up to|less than|more than|fewer than|no more than|no less than|not more than|at least|at most|over|under|below|above|min(?:imum)?|max(?:imum)?|just over|just under)\s*$`,
+  "i",
+);
+
+/** "not 3 bedrooms" is not a count of 3. */
+const NEGATED_BEFORE = /\bnot\s+$/i;
+
+/** "2 rooms each 3 metres squared": a per-item size, not the job size. */
+const EACH_BEFORE = /\b(?:each|per|every)\s+$/i;
+const EACH_AFTER = /^\s*(?:each|apiece|per\b|a piece)/i;
+
+/** "3-4", "3 or 4", "between 3 and 4", "4 and 5" before the counted number. */
+const RANGE_BEFORE = new RegExp(
+  String.raw`(?:\d|\b(?:${WORD_NUMBERS}))\s*(?:-|–|to|or|and|\/)\s*$`,
+  "i",
+);
+
+/** "one hour or two", "3 bedrooms - 4", after the unit. */
+const RANGE_AFTER = new RegExp(String.raw`^\s*(?:or|-|–|to|and|\/)\s*(?:${NUM_RAW})`, "i");
+
+/**
+ * A correction just after the count: "not 3 bedrooms, 4", "3 bedrooms, sorry
+ * I mean 4". A bare number (no unit of its own) soon after a comma or a
+ * "sorry / I mean / actually" is the customer changing their answer.
+ */
+const CORRECTION_AFTER = new RegExp(
+  String.raw`^[^.!?\n]{0,20}?(?:,|;|\bi mean\b|\bsorry\b|\bactually\b|\bmake that\b)\s*(?:(?:sorry|i mean|actually|make that|no)[,\s]*)*(?:${NUM_RAW})\s*(?=$|[.,!?;)]|\binstead\b)`,
+  "i",
+);
 
 /**
  * Families of words a customer uses for one unit. Matched against the field
@@ -93,17 +137,12 @@ export function unitWordsFor(field: string, unit = ""): string | null {
 }
 
 function toNumber(raw: string): number | null {
-  const lower = raw.toLowerCase();
+  const lower = raw.toLowerCase().trim();
   if (lower in NUMBER_WORDS) return NUMBER_WORDS[lower]!;
-  const n = Number(lower);
+  // Thousands separators are grouping, not decimals: "1,200" and "1 200" are 1200.
+  const n = Number(lower.replace(/[, ]/g, ""));
   return Number.isFinite(n) && n > 0 ? n : null;
 }
-
-/** A number just before the match that turns it into a range or a choice. */
-const RANGE_BEFORE = new RegExp(
-  String.raw`(?:\d|\b(?:${Object.keys(NUMBER_WORDS).join("|")}))\s*(?:-|–|to|or|\/)\s*$`,
-  "i",
-);
 
 export function readQuantityFromMessage(
   text: string,
@@ -114,21 +153,33 @@ export function readQuantityFromMessage(
   if (!words || !text.trim()) return undefined;
 
   // "roughly 120 square metres", "2 bed", "4 x bedrooms", "3-bedroom", "120m2".
+  // Not after a word character, a decimal point, a dollar sign, a thousands
+  // comma or a digit and space, so no number is ever read from its own tail.
   const forward = new RegExp(
-    String.raw`(?:\b(${APPROX})\s+)?(?<![\w.$])${NUM}(ish)?\s*(?:x\s*)?-?\s*${words}(?![a-z])`,
+    String.raw`(?:\b(${APPROX})\s+)?(?<![\w.$,])(?<!\d )${NUM}(ish)?\s*(?:x\s*)?-?\s*${words}(?![a-z])`,
     "gi",
   );
   // "bedrooms: 3", "bedrooms - 3".
   const labelled = new RegExp(
-    String.raw`\b${words}\s*[:=]\s*(?:(${APPROX})\s+)?${NUM}(?!\w|\.\d)`,
+    String.raw`\b${words}\s*[:=]\s*(?:(${APPROX})\s+)?${NUM}(?!\w|\.\d|,\d)`,
     "gi",
   );
 
   const reads: MessageQuantity[] = [];
   let ranged = false;
   for (const m of text.matchAll(forward)) {
-    const before = text.slice(0, m.index);
-    if (RANGE_BEFORE.test(before)) {
+    const index = m.index ?? 0;
+    const before = text.slice(0, index);
+    const after = text.slice(index + m[0].length);
+    if (
+      RANGE_BEFORE.test(before) ||
+      BOUND_BEFORE.test(before) ||
+      NEGATED_BEFORE.test(before) ||
+      EACH_BEFORE.test(before) ||
+      EACH_AFTER.test(after) ||
+      RANGE_AFTER.test(after) ||
+      CORRECTION_AFTER.test(after)
+    ) {
       ranged = true;
       continue;
     }
@@ -136,6 +187,7 @@ export function readQuantityFromMessage(
     if (n === null) continue;
     reads.push({
       value: String(n),
+      // Exactly what the customer wrote, so the owner confirms their words.
       span: m[0].trim(),
       approximate: Boolean(m[1] || m[3]),
     });

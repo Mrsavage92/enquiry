@@ -103,3 +103,16 @@ test("a dash before a non-name is not a name", () => {
   assert.equal(readCustomerName("need it done asap - Thanks"), undefined);
   assert.equal(readCustomerName("price for 3 rooms - Monday"), undefined);
 });
+
+test("a date the customer rules out, or only mentions, is never 'asked about'", () => {
+  assert.equal(
+    readJobDate("We're not available on 3 October, any other day is fine.", NOW)?.asked,
+    false,
+  );
+  assert.equal(readJobDate("We're away 3 October. Can you come after?", NOW)?.asked, false);
+  assert.equal(readJobDate("Any day except 3 October?", NOW)?.asked, false);
+  assert.equal(readJobDate("3 October won't work for us?", NOW)?.asked, false);
+  assert.equal(readJobDate("Free quote please for 3 October move", NOW)?.asked, false);
+  assert.equal(readJobDate("Are you free on 3 October", NOW)?.asked, true);
+  assert.equal(readJobDate("Does 3 October suit", NOW)?.asked, true);
+});

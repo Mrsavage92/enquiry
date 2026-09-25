@@ -29,6 +29,17 @@ export type JobDateRead = {
   asked: boolean;
 };
 
+/**
+ * The sentence says the day does NOT work for them ("We're not available on
+ * 3 October"): that is not a question to answer with the date.
+ */
+const DATE_NEGATED =
+  /\b(?:not|never|unavailable|away|except|busy)\b|n't\b|\bcan ?not\b|\bcannot\b|\bno good\b/i;
+
+/** Asking: "can you", "are you available", "free on that day", "does it suit". */
+const DATE_ASKS =
+  /\b(?:can|could|would|will)\s+(?:you|u|ya)\b|\bavailab|\bfree\s+(?:on|that|this)\b|\bsuits?\b/i;
+
 /** Whether the sentence holding the date asks about it. */
 export function asksAboutDate(text: string, index: number): boolean {
   const before = text.slice(0, index);
@@ -37,11 +48,10 @@ export function asksAboutDate(text: string, index: number): boolean {
   const rest = text.slice(index);
   const endRel = rest.search(/[.!?\n]/);
   const end = endRel === -1 ? text.length : index + endRel;
-  if (text[end] === "?") return true;
   const sentence = text.slice(start, end);
-  return /\b(?:can|could|would|will)\s+(?:you|u|ya)\b|\bavailab|\bfree\b|\bsuits?\b/i.test(
-    sentence,
-  );
+  if (DATE_NEGATED.test(sentence)) return false;
+  if (text[end] === "?") return true;
+  return DATE_ASKS.test(sentence);
 }
 
 export type EnquiryBasics = { customerName?: string; jobDate?: JobDateRead };

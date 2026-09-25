@@ -830,7 +830,9 @@ export const BENCHMARK_CASES: BenchmarkCase[] = [
         commercialState: "UNASSESSED",
         blockerField: "vehicles",
       },
-      trust: { neverConfirmedFields: ["vehicles"], primaryEnabled: true },
+      // The count is in the message, read but unconfirmed: nothing is sendable
+      // until the owner checks it (the server refuses it too).
+      trust: { neverConfirmedFields: ["vehicles"], primaryEnabled: false },
       // "just the one vehicle" is already in the message: the reply works from
       // it and never asks the customer for it again (attention pass 3, C4).
       draft: { mustContain: ["1 vehicle you mentioned"], mustNotContain: ["$", "how many"] },
@@ -1065,7 +1067,9 @@ export const BENCHMARK_CASES: BenchmarkCase[] = [
         commercialState: "UNASSESSED",
         blockerField: "panels",
       },
-      trust: { neverConfirmedFields: ["approved", "price", "panels"], primaryEnabled: true },
+      // The count is in the message, read but unconfirmed: nothing is sendable
+      // until the owner checks it (the server refuses it too).
+      trust: { neverConfirmedFields: ["approved", "price", "panels"], primaryEnabled: false },
       draft: {
         mustContain: ["panels"],
         mustNotContain: ["$1", "approved", "admin mode", "confirmed"],

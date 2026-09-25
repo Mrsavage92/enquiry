@@ -160,7 +160,11 @@ function decideFrom(
   return { decision, snapshot, state: stateFromDecision(decision) };
 }
 
-/** Read the live facts and rules and decide, writing nothing. */
+/**
+ * Read the live facts and rules and decide. Writes no decision, but may insert
+ * one `inferred` fact: the count the price needs, when the customer's message
+ * already gives it (see quantity-inference.ts). Caller holds the lock.
+ */
 async function workOutDecision(
   sql: Sql,
   input: { enquiryId: string; businessId: string; serviceLabel: string; customerName: string },

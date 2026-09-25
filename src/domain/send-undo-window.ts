@@ -20,7 +20,10 @@ export function undoableSend(
   const last = enquiry.conversation[enquiry.conversation.length - 1];
   // Anything after the send (their reply) makes it history, as on the server.
   if (!last || last.direction !== "outbound") return null;
-  const at = Date.parse(last.at);
+  // Only a send the server can undo: one backed by a reviewed artefact.
+  if (!last.reviewed) return null;
+  // The same clock as the server: sent_at, falling back to the message time.
+  const at = Date.parse(last.sentAt ?? last.at);
   if (!Number.isFinite(at)) return null;
   const msLeft = SEND_UNDO_WINDOW_MS - (now - at);
   return msLeft > 0 ? { messageId: last.id, msLeft } : null;
