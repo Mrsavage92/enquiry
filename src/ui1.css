@@ -164,16 +164,14 @@
   background: var(--color-nav-active);
   color: var(--color-nav-active-fg);
 }
-.app-sidebar nav [aria-current="page"] .nav-count {
-  color: white;
-  background: #7055d8;
-}
-.nav-count {
-  min-width: 22px;
-  min-height: 22px;
-  display: grid;
-  place-items: center;
-  border-radius: 6px;
+/* Calm attention marker: 8px dot in the accent, >= 3:1 against every nav surface. */
+.nav-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  flex: none;
+  border-radius: 999px;
+  background: var(--color-mark);
 }
 .app-sidebar button[aria-label="Account menu"] {
   border: 1px solid #e4deef;
@@ -381,12 +379,6 @@
   text-decoration: underline;
   text-underline-offset: 4px;
 }
-.today-summary {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 16px;
-  margin-bottom: 24px;
-}
 .today-stat {
   display: flex;
   align-items: center;
@@ -529,6 +521,68 @@ li:nth-child(3n + 3) .customer-avatar {
   width: 14px;
   color: #98919f;
   flex-shrink: 0;
+}
+.today-row-next {
+  display: block;
+  margin-top: 6px;
+  font-size: 13px;
+  font-weight: 550;
+  color: var(--color-ink);
+}
+.today-row-cue {
+  display: block;
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--color-stone);
+}
+/* "Start here": one enquiry, its next step, one button. Same surface as a row. */
+.today-start {
+  margin-bottom: 20px;
+  padding: 20px;
+  border: 1px solid #ece9f3;
+  border-radius: 8px;
+  background: var(--color-raised);
+}
+.today-start-kicker {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-mark-strong);
+}
+.today-start h2 {
+  margin-top: 6px;
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+.today-start-meta {
+  margin-top: 4px;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--color-ink-2);
+}
+.today-start-next {
+  margin-top: 12px;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--color-ink);
+}
+.today-catchup {
+  margin-bottom: 16px;
+  padding: 12px 14px;
+  border-radius: 8px;
+  background: var(--color-paper-2);
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--color-ink-2);
+}
+.today-catchup strong {
+  font-weight: 600;
+  color: var(--color-ink);
+}
+.ui-empty .today-empty-title {
+  font-weight: 550;
+  font-size: 16px;
 }
 .today-schedule {
   padding-left: 0;
@@ -1369,7 +1423,7 @@ li:nth-child(3n + 3) .customer-avatar {
   display: grid;
   grid-template-columns:
     minmax(150px, 1.2fr) minmax(120px, 1fr) minmax(110px, 0.8fr)
-    110px 90px 16px;
+    110px 160px 16px;
   align-items: center;
   gap: 20px;
 }
@@ -1514,9 +1568,12 @@ li:nth-child(3n + 3) .customer-avatar {
     margin-left: 50px;
   }
   .enquiries-list-row .enquiries-service,
-  .enquiries-list-row .enquiries-customer-business,
-  .enquiries-list-row .enquiries-updated {
+  .enquiries-list-row .enquiries-customer-business {
     display: none;
+  }
+  .enquiries-list-row .enquiries-updated {
+    grid-column: 1;
+    margin-left: 50px;
   }
   .enquiries-list-row .enquiries-customer-service {
     display: block;
@@ -1542,11 +1599,16 @@ li:nth-child(3n + 3) .customer-avatar {
 @media (min-width: 861px) and (max-width: 1100px) {
   .enquiries-column-head,
   .enquiries-list-row {
-    grid-template-columns: minmax(130px, 1.2fr) minmax(100px, 1fr) minmax(100px, 0.8fr) 100px 16px;
+    grid-template-columns: minmax(130px, 1.2fr) minmax(100px, 0.8fr) 100px 140px 16px;
     gap: 12px;
   }
-  .enquiries-updated {
+  /* Service moves under the customer name so the concrete time cue keeps its column. */
+  .enquiries-service,
+  .enquiries-column-head > span:nth-child(2) {
     display: none;
+  }
+  .enquiries-list-row .enquiries-customer-service {
+    display: block;
   }
   .enquiry-work-grid {
     grid-template-columns: minmax(0, 1fr);

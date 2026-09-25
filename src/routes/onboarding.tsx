@@ -137,6 +137,8 @@ function Onboarding() {
   const [team, setTeam] = useState(draft.current.team ?? "solo");
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
+  // Offered once, here, and off unless the owner ticks it.
+  const [noticesOn, setNoticesOn] = useState(false);
 
   useEffect(() => {
     writeDraft({ name, ownerFirstName, industry, baseLocation, team, timezone });
@@ -183,6 +185,21 @@ function Onboarding() {
       });
       if (!result?.ok) throw new Error("Workspace could not be created.");
       clearDraft();
+      if (noticesOn) {
+        // Best effort: the workspace exists either way, and the same switch is
+        // in Settings. A failure here must not strand the owner on this screen.
+        try {
+          const { saveWorkspacePrefs } = await import("@/lib/server/owner-state");
+          await saveWorkspacePrefs({
+            data: {
+              businessId: result.businessId,
+              prefs: { notifyArrival: true, notifyFollowUp: true },
+            },
+          });
+        } catch (err) {
+          console.warn("[onboarding] notice choice not saved", err);
+        }
+      }
       // Server is the authority. Deliberately does NOT call the prototype
       // store's completeOnboarding, which selects fixture business "glow" and
       // pulls fixture enquiries, Brain, trust and integration state into view
@@ -191,7 +208,8 @@ function Onboarding() {
       // destination route's own WorkspaceGate refetches the real workspace
       // the moment it mounts, before rendering anything that reads it.
       markOnboarded();
-      await navigate({ to: "/enquiries" });
+      // Land where the owner will start every day, on the one next step.
+      await navigate({ to: "/today" });
     } catch (err) {
       setSubmitError(
         err instanceof Error && err.message
@@ -363,6 +381,23 @@ function Onboarding() {
                 </li>
               ))}
             </ul>
+
+            <label className="mt-6 flex min-h-11 cursor-pointer items-start gap-3 text-sm">
+              <input
+                type="checkbox"
+                className="mt-0.5 size-5 shrink-0 accent-[var(--color-mark)]"
+                checked={noticesOn}
+                onChange={(e) => setNoticesOn(e.target.checked)}
+              />
+              <span>
+                <span className="font-medium text-ink">
+                  Show me a notice when something needs me
+                </span>
+                <span className="mt-1 block text-ink-2">
+                  Inside Enquiry only. Off unless you tick this; you can change it in Settings.
+                </span>
+              </span>
+            </label>
           </section>
         )}
         {stage === 1 ? (

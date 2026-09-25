@@ -3,7 +3,7 @@ export function auditSummary(action: string, fixtureId: string): string {
     case "approve":
       return `Sent the recommended action on ${fixtureId}`;
     case "approve_auto":
-      return `Autopilot sent ${fixtureId}`;
+      return `Sample reply recorded for ${fixtureId}`;
     case "accept_quote":
       return `Quote accepted - ${fixtureId} booked`;
     case "client_question":
@@ -17,7 +17,7 @@ export function auditSummary(action: string, fixtureId: string): string {
     case "decline":
       return `${fixtureId} declined`;
     case "snooze":
-      return `${fixtureId} snoozed`;
+      return `${fixtureId} set for later`;
     case "note":
       return `Note added on ${fixtureId}`;
     case "correct_fact":

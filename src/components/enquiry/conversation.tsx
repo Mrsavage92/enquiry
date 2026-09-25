@@ -162,18 +162,24 @@ function MessageBlock({
       {form && m.formFields?.length ? (
         <div className="mt-4 rounded-lg bg-raised px-5 py-4 shadow-border">
           <p className="eyebrow">Submitted on the website</p>
-          <dl className="mt-3">
-            {m.formFields.map((f) => (
-              <div
-                key={f.label}
-                className="flex justify-between gap-4 border-t border-line py-1.5 text-sm first:border-t-0"
-              >
-                <dt className="text-stone">{f.label}</dt>
-                <dd className="text-right">{f.value}</dd>
-              </div>
-            ))}
-          </dl>
-          {m.body ? <p className="mt-3 text-sm leading-relaxed text-ink-2">{m.body}</p> : null}
+          {/* On a phone the answers table would push the next step below the
+              fold, so the message leads and the table waits behind one tap. */}
+          {compact ? (
+            <>
+              {m.body ? <p className="mt-3 text-sm leading-relaxed text-ink-2">{m.body}</p> : null}
+              <details className="form-answers mt-2">
+                <summary className="inline-flex min-h-11 cursor-pointer items-center text-sm font-medium text-mark-strong">
+                  Show form answers ({m.formFields.length})
+                </summary>
+                <FormFields fields={m.formFields} />
+              </details>
+            </>
+          ) : (
+            <>
+              <FormFields fields={m.formFields} />
+              {m.body ? <p className="mt-3 text-sm leading-relaxed text-ink-2">{m.body}</p> : null}
+            </>
+          )}
         </div>
       ) : comment ? (
         <blockquote className="mt-4 border-l-2 border-ink pl-4">
@@ -209,5 +215,21 @@ function MessageBlock({
         </div>
       ) : null}
     </li>
+  );
+}
+
+function FormFields({ fields }: { fields: NonNullable<Message["formFields"]> }) {
+  return (
+    <dl className="mt-3">
+      {fields.map((f) => (
+        <div
+          key={f.label}
+          className="flex justify-between gap-4 border-t border-line py-1.5 text-sm first:border-t-0"
+        >
+          <dt className="text-stone">{f.label}</dt>
+          <dd className="text-right">{f.value}</dd>
+        </div>
+      ))}
+    </dl>
   );
 }

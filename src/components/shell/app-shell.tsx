@@ -24,6 +24,7 @@ import { SystemBanners } from "./system-banners";
 import { Jump, JumpTrigger } from "./jump";
 import { KeysHelp } from "./keys";
 import { Notices } from "./notices";
+import { useMarkSeen } from "@/lib/workspace/owner-sync";
 import { toast } from "sonner";
 
 const NAV = [
@@ -52,6 +53,7 @@ export function AppShell() {
   const pauseAny = usePrototype((s) => s.businesses.some((b) => b.paused));
   const setNetworkOffline = usePrototype((s) => s.setNetworkOffline);
   const tickFollowUps = usePrototype((s) => s.tickFollowUps);
+  useMarkSeen();
   const openCount = usePrototype(
     (s) =>
       s.enquiries.filter(
@@ -230,20 +232,13 @@ export function AppShell() {
             <Icon className="size-4 shrink-0" aria-hidden />
             {item.label}
             {item.to === "/today" && openCount > 0 ? (
+              // A dot, not a number: something is waiting, without a running
+              // tally to feel behind on. The real count stays in the name.
               <span
-                className={cn(
-                  "nav-count ml-auto tabular-nums text-2xs",
-                  inverse
-                    ? active
-                      ? "text-sidebar-muted"
-                      : "text-sidebar-muted"
-                    : active
-                      ? "text-paper/70"
-                      : "text-stone",
-                )}
-              >
-                {openCount}
-              </span>
+                className="nav-dot ml-auto"
+                role="img"
+                aria-label={`${openCount} ${openCount === 1 ? "needs" : "need"} you`}
+              />
             ) : null}
           </Link>
         );
@@ -315,9 +310,11 @@ export function AppShell() {
                     >
                       <Icon className="size-5" aria-hidden />
                       {item.to === "/enquiries" && openCount > 0 ? (
-                        <span className="absolute -right-2.5 -top-1 min-w-4 rounded-full bg-ink px-1 text-center text-[10px] leading-4 text-paper">
-                          {openCount > 9 ? "9+" : openCount}
-                        </span>
+                        <span
+                          className="nav-dot absolute -right-1 -top-0.5"
+                          role="img"
+                          aria-label={`${openCount} ${openCount === 1 ? "needs" : "need"} you`}
+                        />
                       ) : null}
                     </span>
                     {item.label}

@@ -73,6 +73,8 @@ function useWorkspacePhase(session: SessionPhase): {
           enquiries: data.enquiries,
           bookings: data.bookings,
           audit: data.audit,
+          drafts: data.drafts,
+          prefs: data.prefs,
         });
         setWorkspace("ready");
       })
@@ -108,8 +110,41 @@ export function WorkspaceGate({
   isOnboardingRoute?: boolean;
 }) {
   // Auth disabled: local prototype mode. Nothing to load, nothing to isolate.
-  if (!authEnabled) return <>{children}</>;
+  if (!authEnabled) return <LocalWorkspaceSync>{children}</LocalWorkspaceSync>;
   return <LiveWorkspaceGate isOnboardingRoute={isOnboardingRoute}>{children}</LiveWorkspaceGate>;
+}
+
+/**
+ * Auth disabled (local development): still a pass-through, so the prototype
+ * and the public demo are untouched. The one addition: a browser that has
+ * already onboarded a real local workspace (demoMode false, via the dev user)
+ * re-reads it on load, so a reload shows the same enquiries and saved replies
+ * instead of an empty screen. Never runs in demo mode; never runs with auth on.
+ */
+function LocalWorkspaceSync({ children }: { children: ReactNode }) {
+  const hydrate = usePrototype((s) => s.hydrateFromServer);
+  const demoMode = usePrototype((s) => s.demoMode);
+  useEffect(() => {
+    if (demoMode) return;
+    let live = true;
+    fetchWorkspace()
+      .then((data) => {
+        if (!live || data.needsOnboarding) return;
+        hydrate({
+          businesses: data.businesses,
+          enquiries: data.enquiries,
+          bookings: data.bookings,
+          audit: data.audit,
+          drafts: data.drafts,
+          prefs: data.prefs,
+        });
+      })
+      .catch((err: unknown) => console.warn("[workspace] local re-read failed", err));
+    return () => {
+      live = false;
+    };
+  }, [demoMode, hydrate]);
+  return <>{children}</>;
 }
 
 /** Kept as the previous name so existing route files read unchanged. */
