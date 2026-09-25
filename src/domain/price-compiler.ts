@@ -1,3 +1,4 @@
+import { formatMajorAmount } from "./money-format.ts";
 import { pluraliseUnit, ruleFingerprint, type BusinessRule } from "./business-rule.ts";
 import { amountMinorFor, parseQuantity, type QuantityProblem } from "./quantity.ts";
 
@@ -52,6 +53,10 @@ export type PriceOutcome =
       rule: BusinessRule;
       /** How the number was reached, in the operator's language. */
       workings: string;
+      /** A quote with more than one thing on it: each line, main job first. */
+      lines?: { label: string; amountMinor: number; detail?: string }[];
+      /** Every amount the extra lines imply (their totals and rates). */
+      alsoImplied?: number[];
     }
   | {
       /**
@@ -298,7 +303,7 @@ export function compilePrice(
         rule,
       };
     }
-    return priced(amountMinor, `${rule.service} is a fixed $${rule.amount}.`);
+    return priced(amountMinor, `${rule.service} is a fixed ${formatMajorAmount(rule.amount)}.`);
   }
 
   const read = quantityFrom(facts, rule.quantityField, rule.unit);
@@ -331,7 +336,7 @@ export function compilePrice(
       field: rule.quantityField,
       value: String(quantity),
       problem: "too_large",
-      reason: `${billable} ${pluraliseUnit(rule.unit, billable)} at $${rule.amount} each is larger than Enquiry will price automatically. Quote this one by hand.`,
+      reason: `${billable} ${pluraliseUnit(rule.unit, billable)} at ${formatMajorAmount(rule.amount)} each is larger than Enquiry will price automatically. Quote this one by hand.`,
       rule,
     };
   }
@@ -340,8 +345,8 @@ export function compilePrice(
   return priced(
     amountMinor,
     appliedMinimum
-      ? `${count(quantity)} ${pluraliseUnit(rule.unit, quantity)}, billed at the ${rule.minimumQuantity} ${rule.unit} minimum, at $${rule.amount} each.`
-      : `${count(billable)} ${pluraliseUnit(rule.unit, billable)} at $${rule.amount} each.`,
+      ? `${count(quantity)} ${pluraliseUnit(rule.unit, quantity)}, billed at the ${rule.minimumQuantity} ${rule.unit} minimum, at ${formatMajorAmount(rule.amount)} each.`
+      : `${count(billable)} ${pluraliseUnit(rule.unit, billable)} at ${formatMajorAmount(rule.amount)} each.`,
   );
 }
 
@@ -364,6 +369,10 @@ export function impliedAmountsMinor(outcome: PriceOutcome): number[] {
   if (outcome.kind !== "EXACT" && outcome.kind !== "PROVISIONAL") return [];
   const rule = outcome.rule;
   const out = new Set<number>([outcome.amountMinor]);
+  if (outcome.kind === "EXACT") {
+    for (const line of outcome.lines ?? []) out.add(line.amountMinor);
+    for (const n of outcome.alsoImplied ?? []) out.add(n);
+  }
   const rate = amountMinorFor(rule.amount, 1);
   if (rate !== null) out.add(rate);
   if (rule.kind === "per_unit" && rule.minimumQuantity) {

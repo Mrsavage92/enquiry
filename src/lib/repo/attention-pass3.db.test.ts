@@ -166,7 +166,11 @@ test("a count the customer wrote is read as inferred and never asked for again",
   assert.equal(r.decision_snapshot.recommendation.label, "Check the number of square metres");
   assert.doesNotMatch(r.decision_snapshot.draft.body, /how many|let me know/i);
   // The date question is answered honestly: nothing checks availability.
-  assert.match(r.decision_snapshot.draft.body, /I'll confirm whether Saturday 3 October works\./);
+  // Only read from their message, so it is quoted in their words, never stated.
+  assert.match(
+    r.decision_snapshot.draft.body,
+    /You mentioned Saturday 3 October - I'll confirm whether that day works\./,
+  );
   assert.equal(r.customer_name, "Karen Mills");
 
   // The owner confirms their reading: now it prices.
@@ -198,7 +202,8 @@ test("a price added later reads the count from the message, for its own business
 
   const before = await row(pg, priya.enquiryId);
   assert.equal(before.customer_name, "Priya", "the dash sign-off gives the name");
-  assert.match(before.decision_snapshot.draft.body, /^Hi Priya,/);
+  // A name read from the sign-off waits for the owner before the reply uses it.
+  assert.match(before.decision_snapshot.draft.body, /^Hi there,/);
   assert.deepEqual(await liveFacts(pg, priya.enquiryId, "bedrooms"), []);
 
   const saved = await saveRule(pg, a.businessId, PER_BEDROOM);

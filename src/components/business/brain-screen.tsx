@@ -97,7 +97,7 @@ export function BrainScreen() {
   } | null>(null);
   const [savingPrices, setSavingPrices] = useState(false);
   const firstBeta = useFirstBetaActions();
-  const search = useSearch({ strict: false }) as { section?: string };
+  const search = useSearch({ strict: false }) as { section?: string; service?: string };
   const pricingRef = useRef<HTMLDivElement>(null);
   const tellRef = useRef<HTMLTextAreaElement>(null);
   const focusComposer = usePrototype((s) => s.brainFocusComposer);
@@ -148,7 +148,14 @@ export function BrainScreen() {
     // A real business lands on the sentence box, open and focused: writing
     // "Interior painting $30 per square metre" is the quickest way in.
     setComposerOpen(!demoMode);
-  }, [deepLinkPricing, setTab, demoMode]);
+    // "Add a price for oven cleaning": the box starts with its name.
+    const named = search.service?.trim();
+    if (named && !demoMode) {
+      setInput((current) =>
+        current.trim() ? current : `${named.charAt(0).toUpperCase()}${named.slice(1)} $`,
+      );
+    }
+  }, [deepLinkPricing, setTab, demoMode, search.service]);
   useEffect(() => {
     if (!deepLinkPricing || tab !== "pricing" || !detailOpen || !demoMode) return;
     pricingRef.current?.scrollIntoView({ block: "start" });
@@ -704,9 +711,19 @@ export function BrainScreen() {
                           livePrices.prices.map((p) => p.rule),
                         );
                         const updated = res.updatedEnquiries > 0;
+                        // Only what was saved leaves the box. Lines Enquiry
+                        // could not read stay, with the reason beside them.
+                        const left = livePrices.unread;
                         setLivePrices(null);
-                        setInput("");
-                        setComposerOpen(false);
+                        if (left.length > 0) {
+                          setInput(left.map((u) => u.line).join("\n"));
+                          setTellError(
+                            `Not saved yet: ${left.map((u) => `"${u.line}" - ${u.reason}`).join(" ")}`,
+                          );
+                        } else {
+                          setInput("");
+                          setComposerOpen(false);
+                        }
                         toast.success(
                           updated
                             ? "Saved. Open enquiries that were waiting on these prices have been worked out again."

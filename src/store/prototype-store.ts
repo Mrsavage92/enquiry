@@ -111,6 +111,12 @@ type PrototypeState = {
   lastArrivalId: string | null;
   arrivalPlayed: boolean;
   voiceNotice: VoiceNotice;
+  /**
+   * The voice question already answered for an enquiry, per edit: the same
+   * proposal is never asked twice ("This enquiry only" used to be followed by
+   * the same question again on the next blur).
+   */
+  voiceDecided: Record<string, string>;
   prefs: WorkspacePrefs;
   audit: AuditEvent[];
   undo: Snapshot | null;
@@ -295,6 +301,7 @@ const seed = (): Omit<PrototypeState, never> => ({
   lastArrivalId: null,
   arrivalPlayed: false,
   voiceNotice: null,
+  voiceDecided: {},
   prefs: defaultPrefs(),
   audit: [],
   undo: null,
@@ -612,6 +619,7 @@ export const usePrototype = create<PrototypeState & Actions>()(
           if (s.voiceNotice?.enquiryId === enquiryId) set({ voiceNotice: null });
           return;
         }
+        if (s.voiceDecided[enquiryId] === `${proposal.reason}|${proposal.to}`) return;
         set({
           voiceNotice: {
             enquiryId,
@@ -629,7 +637,13 @@ export const usePrototype = create<PrototypeState & Actions>()(
         if (!notice) return;
         get().track(notice.enquiryId, scope === "teach" ? "voice_teach" : "voice_enquiry");
         if (scope === "teach") get().setVoice(notice.businessId, notice.patch);
-        set({ voiceNotice: null });
+        set({
+          voiceNotice: null,
+          voiceDecided: {
+            ...s.voiceDecided,
+            [notice.enquiryId]: `${notice.reason}|${notice.to}`,
+          },
+        });
       },
       approve: (enquiryId, opts) => {
         const s = get();

@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { readPriceLine, readPriceSentences } from "./price-sentence.ts";
+import { describeRule } from "./business-rule.ts";
 
 test("a flat price in the owner's own words becomes a fixed-price rule", () => {
   const read = readPriceLine("Exterior repaint will be $5,500.");
@@ -105,4 +106,49 @@ test("the simple forms still read", () => {
     assert.ok("rule" in read, `${line} was refused`);
     if ("rule" in read) assert.equal(read.rule.amount, amount);
   }
+});
+
+// Review pass 4, item 6.
+test("area units read as square metres, singular and plural, never 'm' or 'sqms'", () => {
+  for (const line of [
+    "Interior wall painting $28 per sqm",
+    "Interior wall painting $28 per sqms",
+    "Interior wall painting $28/m2",
+    "Interior wall painting $28 per m²",
+    "Interior wall painting $28 per sq m",
+    "Interior wall painting $28 per square meter",
+  ]) {
+    const read = readPriceLine(line);
+    assert.ok("rule" in read, line);
+    if (!("rule" in read) || read.rule.kind !== "per_unit") continue;
+    assert.equal(read.rule.unit, "square metre", line);
+    assert.equal(read.rule.quantityField, "square metres", line);
+  }
+  const deck = readPriceLine("Deck staining $40 per m");
+  assert.ok("rule" in deck && deck.rule.kind === "per_unit" && deck.rule.unit === "metre");
+});
+
+test("'flat' is filler, not the end of the service name", () => {
+  const read = readPriceLine("Feature wall - flat $450");
+  assert.ok("rule" in read);
+  if ("rule" in read) assert.equal(read.rule.service, "Feature wall");
+  const rate = readPriceLine("Feature wall flat rate $450");
+  assert.ok("rule" in rate && rate.rule.service === "Feature wall");
+});
+
+test("a conditional price is refused as conditional, not called approximate", () => {
+  const read = readPriceLine("Oven clean $120 if it is really dirty");
+  assert.ok(!("rule" in read));
+  if (!("rule" in read)) {
+    assert.match(read.reason, /conditional/);
+    assert.doesNotMatch(read.reason, /approximate/i);
+  }
+  const under = readPriceLine("Small room $150 if under 20 sqm");
+  assert.ok(!("rule" in under) && /conditional/.test(under.reason));
+});
+
+test("cents are always shown to two places", () => {
+  const read = readPriceLine("Window clean $4.5 per pane");
+  assert.ok("rule" in read);
+  if ("rule" in read) assert.equal(describeRule(read.rule), "Window clean: $4.50 per pane");
 });

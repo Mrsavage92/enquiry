@@ -1,6 +1,5 @@
 import { Link } from "@tanstack/react-router";
 import { LastingUndo } from "./waiting-summary";
-import { firstName } from "@/domain/customer-name";
 import { useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -184,10 +183,8 @@ export function WaitingDesk({ enquiry, onDone }: { enquiry: Enquiry; onDone?: ()
       {phone || demoMode ? null : <LastingUndo enquiry={enquiry} />}
       {phone ? (
         <>
-          <p className="text-sm text-ink-2">
-            {sent ? `Sent ${sent.when}. ` : "Sent. "}Waiting on {firstName(enquiry)}.{" "}
-            {comesBackCue(enquiry, prefs)}
-          </p>
+          {/* What was sent, and when it comes back, is at the top of the
+              screen (WaitingSummary); saying it again here was noise. */}
           <button
             type="button"
             className="min-h-11 w-full text-sm text-stone"
@@ -243,7 +240,7 @@ export function WaitingDesk({ enquiry, onDone }: { enquiry: Enquiry; onDone?: ()
               onDone?.();
             }}
           >
-            They accepted off-channel
+            They said yes
           </Button>
           {embedNav ? null : (
             <Button asChild variant="ghost" className="min-h-9 w-full">
@@ -278,7 +275,7 @@ export function WaitingDesk({ enquiry, onDone }: { enquiry: Enquiry; onDone?: ()
                 onDone?.();
               }}
             >
-              They accepted off-channel
+              They said yes
             </Button>
             {asked ? (
               <Button

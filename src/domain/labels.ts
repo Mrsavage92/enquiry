@@ -16,7 +16,7 @@ import { firstName } from "./customer-name.ts";
  * Text, not a colour swatch - `Badge` already carries its own tone, but the
  * label itself is what a screen reader announces and what survives someone
  * being colour-blind. Shared between `intelligence.tsx` and
- * `answer-blocker.tsx` so an "Inferred" fact reads the same wherever its
+ * `answer-blocker.tsx` so a fact read from the message reads the same wherever its
  * value is echoed.
  */
 export function factStatusLabel(status: EnquiryFact["status"]): string {
@@ -24,7 +24,8 @@ export function factStatusLabel(status: EnquiryFact["status"]): string {
     case "confirmed":
       return "Confirmed";
     case "inferred":
-      return "Inferred";
+      // Read from what the customer wrote, not yet checked by the owner.
+      return "From their message";
     case "check_this":
       return "Check this";
     case "range":
@@ -46,6 +47,33 @@ export function factStatusTone(status: EnquiryFact["status"]): "neutral" | "ok" 
     default:
       return "neutral";
   }
+}
+
+/** Field names people read, capitalised: "bedrooms" -> "Bedrooms". */
+const FIELD_NAMES: Record<string, string> = {
+  date: "Job date",
+  not_available: "Not available",
+  name: "Name",
+  phone: "Phone",
+  email: "Email",
+  service: "Service",
+};
+
+/**
+ * A stored fact field as a label on screen: "bedrooms" -> "Bedrooms",
+ * "extra:oven cleaning" -> "Also asked for oven cleaning", "not_available" ->
+ * "Not available". Never a raw key.
+ */
+export function fieldLabel(field: string): string {
+  const raw = field.trim();
+  if (/^extra:/i.test(raw)) return `Also asked for ${raw.slice(6).trim().toLowerCase()}`;
+  const known = FIELD_NAMES[raw.toLowerCase()];
+  if (known) return known;
+  const words = raw
+    .replace(/([a-z])([A-Z])/g, "$1 $2")
+    .replace(/[_-]+/g, " ")
+    .trim();
+  return words ? words.charAt(0).toUpperCase() + words.slice(1) : raw;
 }
 
 /**
@@ -131,13 +159,24 @@ export function promiseVerdict(enquiry: Enquiry): { word: PromiseWord; line: str
       ? v(PROMISE_WORDS.yes, "your quote is with them")
       : v(PROMISE_WORDS.notYet, "waiting on their answer");
   }
+  const extra = enquiry.decision?.extraPending;
+  if (extra) return v(PROMISE_WORDS.notYet, `they also asked for ${extra.label.toLowerCase()}`);
   const blocking = enquiry.decision?.missing?.find((m) => m.blocking);
   if (blocking?.inferred) return v(PROMISE_WORDS.notYet, "check one detail they gave");
   if (decision === "NEEDS_INFORMATION") return v(PROMISE_WORDS.notYet, "one detail decides it");
   const setup = setupStep(enquiry);
   if (isPricingStep(setup)) return v(PROMISE_WORDS.notYet, "your prices decide it");
   if (setup || needsOneDetail(enquiry)) return v(PROMISE_WORDS.notYet, "say which service");
-  if (decision === "ACTION_READY") return v(PROMISE_WORDS.yes, "reply ready");
+  if (decision === "ACTION_READY") {
+    // The reply asks about a day that has passed or does not match its weekday.
+    const dateToCheck = (enquiry.facts ?? []).some(
+      (f) =>
+        !f.superseded &&
+        f.field.trim().toLowerCase() === "date" &&
+        (f.status === "conflict" || f.status === "check_this"),
+    );
+    return v(PROMISE_WORDS.yes, dateToCheck ? "reply ready, one date to check" : "reply ready");
+  }
   if (decision === "BOOKING_PENDING") return v(PROMISE_WORDS.yes, "confirm the booking");
   return v(PROMISE_WORDS.notYet, "your call");
 }
@@ -181,7 +220,12 @@ export function derivedLabel(state: CompositeState, enquiry?: Enquiry): StatusWo
 }
 
 /** Reason codes for an escalation whose way forward is one detail from the owner. */
-const ONE_DETAIL_CODES = new Set(["CHOOSE_SERVICE", "CONFIRM_SERVICE", "CHOOSE_BETWEEN"]);
+const ONE_DETAIL_CODES = new Set([
+  "CHOOSE_SERVICE",
+  "CONFIRM_SERVICE",
+  "CHOOSE_BETWEEN",
+  "CHECK_EXTRA",
+]);
 const ONE_DETAIL_LABELS = new Set(["Confirm the service", "Choose the service"]);
 
 /** Whether an escalation is waiting on one detail rather than on judgment. */
@@ -201,6 +245,15 @@ export function waitingForPhrase(enquiry: Enquiry): string {
   return quoted ? "their answer to your quote" : "their answer";
 }
 
+/** The amount of the quote they are answering, as sent: "$880". */
+export function sentQuoteAmount(enquiry: Enquiry): string | null {
+  const quoted = enquiry.state.commercial === "QUOTED" || enquiry.state.commercial === "ESTIMATED";
+  if (!quoted) return null;
+  const sentQuote = [...enquiry.decision.quotes].reverse().find((q) => q.sentAt);
+  const total = enquiry.valueExact?.amount ?? sentQuote?.total?.amount;
+  return typeof total === "number" ? formatAud(total) : null;
+}
+
 /**
  * The owner's next step for one enquiry, in their words: what they would do,
  * not what the customer said. Used to lead rows and the "Start here" card.
@@ -209,6 +262,8 @@ export function nextStepLabel(enquiry: Enquiry): string {
   if (enquiry.state.lifecycle !== "OPEN") return "Nothing to do";
   if (enquiry.state.decision === "EVALUATING") return "Enquiry is reading it";
   if (enquiry.followUpDue) return "Decide whether to follow up";
+  const extra = enquiry.decision?.extraPending;
+  if (extra?.kind === "check") return `Add or leave out ${extra.label.toLowerCase()}`;
   const blocking = enquiry.decision?.missing?.find((m) => m.blocking);
   if (enquiry.state.decision === "NEEDS_INFORMATION" && blocking?.inferred) {
     // They already said it: the owner checks the reading, never asks again.
@@ -454,7 +509,9 @@ export function formatAud(amount: number): string {
   return new Intl.NumberFormat("en-AU", {
     style: "currency",
     currency: "AUD",
-    maximumFractionDigits: 0,
+    // Whole dollars stay whole; cents always show two places ("$4.50").
+    minimumFractionDigits: Number.isInteger(amount) ? 0 : 2,
+    maximumFractionDigits: Number.isInteger(amount) ? 0 : 2,
   }).format(amount);
 }
 

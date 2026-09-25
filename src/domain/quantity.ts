@@ -49,6 +49,9 @@ const SINGLE_NUMBER = /^\d{1,9}(?:\.\d{1,4})?$/;
  */
 const TRAILING_UNIT = /^[a-z][a-z\s.'-]*$/;
 
+/** Words after the number that make it approximate or fractional. */
+const FRACTION_TAIL = /\b(?:and|half|quarter|bit|odd|so)\b/;
+
 /**
  * Text that means "more than one possible quantity" rather than a quantity.
  *
@@ -131,6 +134,16 @@ export function parseQuantity(raw: string, unit = "", field = "answer"): Quantit
   const match = /^(\S+)(?:\s+(.*))?$/.exec(text);
   const head = match?.[1] ?? text;
   const tail = (match?.[2] ?? "").trim().toLowerCase();
+
+  // "2 and a half", "3 and a bit", "4 odd": not one exact number. Refused with
+  // the reason rather than stored as the whole number in front.
+  if (tail && FRACTION_TAIL.test(tail)) {
+    return {
+      ok: false,
+      problem: "malformed",
+      message: `"${text}" is not one exact ${unit || field}. Enter the exact number you are quoting for, for example 3.`,
+    };
+  }
 
   if (tail && !TRAILING_UNIT.test(tail)) {
     return {

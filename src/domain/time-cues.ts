@@ -133,8 +133,32 @@ export function withFollowUpDue(
   return {
     ...enquiry,
     followUpDue: true,
-    followUpReason: `Your reply went out ${concreteWhen(lastOut, now, tz)}. No answer since. Silence is not a no.`,
+    followUpReason: followUpReason(enquiry, lastOut, now, tz),
   };
+}
+
+/**
+ * "No reply for 3 days since the quote. It went out Tue 10:00am." The day
+ * count is calendar days in the business's own time zone, never fewer than 1.
+ */
+export function followUpReason(
+  enquiry: Pick<Enquiry, "state">,
+  lastOutIso: string,
+  now = new Date(),
+  tz = DEFAULT_ZONE,
+): string {
+  const sentWall = wall(new Date(lastOutIso), tz);
+  const nowWall = wall(now, tz);
+  const days =
+    sentWall && nowWall
+      ? Math.max(
+          1,
+          Math.round((startOfDay(nowWall).getTime() - startOfDay(sentWall).getTime()) / 86_400_000),
+        )
+      : 1;
+  const quoted = enquiry.state.commercial === "QUOTED" || enquiry.state.commercial === "ESTIMATED";
+  const what = quoted ? "the quote" : "your reply";
+  return `No reply for ${days} day${days === 1 ? "" : "s"} since ${what}. It went out ${concreteWhen(lastOutIso, now, tz)}.`;
 }
 
 /**
@@ -226,6 +250,27 @@ export function catchUpSince(
 }
 
 /** "Later" choices: later today, tomorrow morning, after the weekend. */
+/** Leave at least this long before "later today" is worth offering. */
+const LATER_TODAY_MIN_MINUTES = 60;
+
+/**
+ * "Later today" inside the owner's working hours, or nothing. Three hours on,
+ * pulled back to the end of the working day when that comes first; never on a
+ * day they do not work, and never after they finish. At 4:30pm with a 5:30pm
+ * finish that is 5:30pm; at 5pm there is no "later today" at all.
+ */
+export function laterTodayTime(today: Date, prefs: WorkspacePrefs): Date | null {
+  if (!isWorkingDay(today.getDay(), prefs.workingDays || "Monday to Friday")) return null;
+  const start = parseHm(prefs.hoursStart || "08:00");
+  const end = parseHm(prefs.hoursEnd || "17:30");
+  const nowMins = today.getHours() * 60 + today.getMinutes();
+  const target = Math.min(Math.max(nowMins + 3 * 60, start), end);
+  if (target - nowMins < LATER_TODAY_MIN_MINUTES) return null;
+  const at = startOfDay(today);
+  at.setHours(Math.floor(target / 60), target % 60, 0, 0);
+  return dayKeyFromDate(at) === dayKeyFromDate(today) ? at : null;
+}
+
 export function laterChoices(
   now = new Date(),
   prefs: WorkspacePrefs,
@@ -241,9 +286,13 @@ export function laterChoices(
   };
   const toIso = (wallDate: Date) => new Date(wallDate.getTime() - offsetMs).toISOString();
   const choices: { id: string; label: string; until: string }[] = [];
-  const inThree = new Date(today.getTime() + 3 * 60 * MINUTE);
-  if (dayKeyFromDate(inThree) === dayKeyFromDate(today)) {
-    choices.push({ id: "today", label: `Later today, ${clock(inThree)}`, until: toIso(inThree) });
+  const laterToday = laterTodayTime(today, prefs);
+  if (laterToday) {
+    choices.push({
+      id: "today",
+      label: `Later today, ${clock(laterToday)}`,
+      until: toIso(laterToday),
+    });
   }
   const tomorrow = morning(addCalendarDays(today, 1));
   choices.push({

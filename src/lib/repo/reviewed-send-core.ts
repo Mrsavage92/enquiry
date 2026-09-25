@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import type { Sql } from "../db.ts";
 import type { Channel, DecisionPrice, EvaluatorResult } from "../../domain/types.ts";
 import { dollarAmounts } from "../../domain/voice-detect.ts";
+import { formatMinorAud } from "../../domain/money-format.ts";
 import { isClosed, lockEnquiry } from "./decision-apply.ts";
 
 /**
@@ -74,7 +75,48 @@ export type PrepareReviewResult =
         | "practice"
         | "unconfirmed_reading";
       message: string;
+      /**
+       * For `amount_mismatch`: which figures in the text the decision does not
+       * imply, and the total it does - so the owner is told exactly which
+       * amount differs and can put the total back or add the missing line.
+       */
+      amounts?: { named: number[]; expectedMinor: number | null };
     };
+
+/** The figures in the text (in minor units) that the decision does not imply. */
+export function mismatchAmounts(
+  body: string,
+  price: DecisionPrice | null,
+  impliedMinor: number[] = [],
+): { named: number[]; expectedMinor: number | null } {
+  const expectedMinor = price?.kind === "EXACT" ? price.amountMinor : null;
+  const allowed = new Set<number>([
+    ...impliedMinor,
+    ...(expectedMinor !== null ? [expectedMinor] : []),
+  ]);
+  const named = [...new Set(dollarAmounts(body).map((n) => Math.round(n * 100)))].filter(
+    (n) => !allowed.has(n),
+  );
+  return { named, expectedMinor };
+}
+
+/** "Your reply says $880, but the quote Enquiry worked out is $760." */
+export function mismatchMessage(
+  body: string,
+  price: DecisionPrice | null,
+  impliedMinor: number[] = [],
+): string {
+  const { named, expectedMinor } = mismatchAmounts(body, price, impliedMinor);
+  const total = expectedMinor !== null ? formatMinorAud(expectedMinor) : null;
+  const says = named.map((n) => formatMinorAud(n)).join(" and ");
+  if (!total) {
+    return "Your reply names an amount, but Enquiry has no price on file for this enquiry yet. Take the amount out, or add the price first.";
+  }
+  if (says) {
+    return `Your reply says ${says}, but the quote Enquiry worked out is ${total}. Use the prepared total, or add a line for what the difference is.`;
+  }
+  return `Your reply no longer names the quote total, ${total}. Use the prepared total, or add a line for what changed.`;
+}
 
 /** Normalised so trivial line-ending or trailing-space differences are one text. */
 export function normalizeBody(body: string): string {
@@ -283,8 +325,8 @@ export async function prepareReviewedSendInTransaction(
     return {
       ok: false,
       reason: "amount_mismatch",
-      message:
-        "The message names a different amount to the one Enquiry worked out. Change the price through the decision, or put the prepared figure back - a quote cannot be recorded saying two different things.",
+      message: mismatchMessage(input.body, price, enq.implied_amounts ?? []),
+      amounts: mismatchAmounts(input.body, price, enq.implied_amounts ?? []),
     };
   }
 

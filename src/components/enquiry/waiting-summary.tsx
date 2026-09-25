@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { waitingForPhrase } from "@/domain/labels";
+import { sentQuoteAmount, waitingForPhrase } from "@/domain/labels";
 import { decidingPhrase } from "@/domain/price-compiler";
 import { comesBackCue, lastSent } from "@/domain/time-cues";
 import { firstName, sentence } from "@/domain/customer-name";
@@ -70,6 +70,7 @@ export function WaitingSummary({ enquiry }: { enquiry: Enquiry }) {
   const sent = lastSent(enquiry, new Date(), prefs.timezone || undefined);
   const waitingFor = enquiry.decision.missing.find((m) => m.blocking)?.label;
   const phrase = waitingFor ? decidingPhrase(waitingFor.toLowerCase()) : null;
+  const amount = sentQuoteAmount(enquiry);
   return (
     <section
       className="border-b border-line bg-raised px-5 py-4"
@@ -77,9 +78,12 @@ export function WaitingSummary({ enquiry }: { enquiry: Enquiry }) {
     >
       <p className="text-base font-semibold text-ink">{sentence(`Waiting on ${first}`)}</p>
       <p className="mt-1 text-sm leading-relaxed text-ink-2">
-        {sentence(`for ${waitingForPhrase(enquiry)}.`)} {comesBackCue(enquiry, prefs)}
+        {amount
+          ? `For their answer to your ${amount} quote.`
+          : sentence(`for ${waitingForPhrase(enquiry)}.`)}{" "}
+        {comesBackCue(enquiry, prefs)}
       </p>
-      {sent ? <p className="mt-1 text-sm text-stone">You sent your reply {sent.when}.</p> : null}
+      {sent ? <p className="mt-1 text-sm text-ink-2">You sent it {sent.when}.</p> : null}
       {demoMode ? null : <LastingUndo enquiry={enquiry} />}
       {phrase && !demoMode ? (
         <AnswerBlocker

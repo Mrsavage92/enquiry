@@ -38,7 +38,13 @@ export function enableFollowUp(enquiry: Enquiry): Enquiry {
   next.followUpDue = true;
   next.atRisk = true;
   next.snoozedUntil = undefined;
-  next.followUpReason = "No reply since the quote went out. Silence is not a decline.";
+  const lastOut = [...next.conversation].reverse().find((m) => m.direction === "outbound")?.at;
+  const days = lastOut
+    ? Math.max(1, Math.round((Date.now() - Date.parse(lastOut)) / 86_400_000))
+    : null;
+  next.followUpReason = days
+    ? `No reply for ${days} day${days === 1 ? "" : "s"} since the quote went out.`
+    : "No reply since the quote went out.";
   next.state.decision = "WAITING_ON_CLIENT";
   next.state.responsibility = "CUSTOMER";
   next.decision.recommendation = {

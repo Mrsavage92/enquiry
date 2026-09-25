@@ -1,5 +1,8 @@
 import type { Sql } from "../db.ts";
 import { insertManualEnquiry } from "./manual-enquiry-core.ts";
+import { activeRules } from "../../domain/decide.ts";
+import { pluraliseUnit, type BusinessRule } from "../../domain/business-rule.ts";
+import { tradeExamples } from "../../domain/trade-examples.ts";
 
 /**
  * A practice enquiry a new owner can try before a real customer arrives
@@ -18,7 +21,26 @@ import { insertManualEnquiry } from "./manual-enquiry-core.ts";
  * The practice customer asks about a Saturday a couple of weeks out, written
  * the way customers write it, so the owner sees the job date read from words.
  */
-export function practiceMessage(now = new Date()): string {
+/**
+ * What the practice customer asks for: one of the owner's own priced services
+ * (a per-unit one with the count written in, so the owner sees a reading
+ * checked in one tap), or - with no prices yet - a job in their trade, whose
+ * next step is adding prices. Never another trade's job.
+ */
+export type PracticeJob = { service: string; count?: string };
+
+export function practiceJob(rules: BusinessRule[], industry = ""): PracticeJob {
+  const sorted = [...rules].sort((a, b) => a.service.localeCompare(b.service));
+  const perUnit = sorted.find((r) => r.kind === "per_unit");
+  if (perUnit && perUnit.kind === "per_unit") {
+    const n = /square|metre|meter/i.test(perUnit.unit) ? 40 : 3;
+    return { service: perUnit.service, count: `${n} ${pluraliseUnit(perUnit.unit, n)}` };
+  }
+  if (sorted[0]) return { service: sorted[0].service };
+  return { service: tradeExamples(industry).service };
+}
+
+export function practiceMessage(now = new Date(), job?: PracticeJob): string {
   const day = new Date(now.getTime() + 14 * 86_400_000);
   day.setDate(day.getDate() + ((6 - day.getDay() + 7) % 7));
   const n = day.getDate();
@@ -34,7 +56,10 @@ export function practiceMessage(now = new Date()): string {
             ? "rd"
             : "th";
   const month = day.toLocaleString("en-AU", { month: "long" });
-  return `Hi, could you give me a price for the job and let me know if Saturday the ${n}${sfx} of ${month} works? We are in Kedron. Thanks, Sam`;
+  const what = job
+    ? `a price for ${job.service.toLowerCase()}${job.count ? ` - it's ${job.count}` : ""}`
+    : "a price for the job";
+  return `Hi, could you give me ${what}, and let me know if Saturday the ${n}${sfx} of ${month} works? We are in Kedron. Thanks, Sam`;
 }
 
 export const PRACTICE_NAME = "Sam";
@@ -54,9 +79,19 @@ export async function createPracticeEnquiryInTransaction(
     limit 1
   `;
   if (existing) return { enquiryId: existing.id, existing: true };
+  const knowledge = await sql<{ state: string; rule_payload: unknown }>`
+    select state, rule_payload from knowledge_item
+    where business_id = ${input.businessId} and rule_payload is not null
+  `;
+  const [biz] = await sql<{ industry: string | null }>`
+    select industry from business where id = ${input.businessId}
+  `;
+  const rules = activeRules({
+    knowledge: knowledge.map((k) => ({ state: k.state, rulePayload: k.rule_payload })),
+  });
   const { enquiryId } = await insertManualEnquiry(sql, {
     businessId: input.businessId,
-    body: practiceMessage(input.now),
+    body: practiceMessage(input.now, practiceJob(rules, biz?.industry ?? "")),
     customerName: PRACTICE_NAME,
     customerEmail: "",
     customerPhone: "",
