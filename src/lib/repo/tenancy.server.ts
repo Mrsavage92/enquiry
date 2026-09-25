@@ -1,5 +1,8 @@
 import { getSql } from "@/lib/db";
 
+/** The app's query surface; injectable so the boundary can be proven against a real database in tests. */
+type Sql = Awaited<ReturnType<typeof getSql>>;
+
 /**
  * The tenancy boundary (server-only).
  *
@@ -31,10 +34,7 @@ export class ForbiddenError extends Error {
  * can carry real foreign keys without reaching into the auth schema. Idempotent
  * - safe to call on every request.
  */
-export async function ensureAppUser(
-  userId: string,
-  email: string | null,
-): Promise<void> {
+export async function ensureAppUser(userId: string, email: string | null): Promise<void> {
   const sql = await getSql();
   await sql`
     insert into app_user (id, email, updated_at)
@@ -46,8 +46,8 @@ export async function ensureAppUser(
 }
 
 /** Every business id this user belongs to. Empty when they belong to none. */
-export async function listUserBusinessIds(userId: string): Promise<string[]> {
-  const sql = await getSql();
+export async function listUserBusinessIds(userId: string, db?: Sql): Promise<string[]> {
+  const sql = db ?? (await getSql());
   const rows = await sql<{ business_id: string }>`
     select business_id from business_member where user_id = ${userId}
   `;
@@ -62,8 +62,9 @@ export async function listUserBusinessIds(userId: string): Promise<string[]> {
 export async function requireBusinessAccess(
   userId: string,
   businessId: string,
+  db?: Sql,
 ): Promise<string> {
-  const sql = await getSql();
+  const sql = db ?? (await getSql());
   const rows = await sql<{ business_id: string }>`
     select business_id from business_member
     where user_id = ${userId} and business_id = ${businessId}
@@ -85,8 +86,9 @@ export async function requireBusinessAccess(
 export async function requireEnquiryAccess(
   userId: string,
   enquiryId: string,
+  db?: Sql,
 ): Promise<{ enquiryId: string; businessId: string }> {
-  const sql = await getSql();
+  const sql = db ?? (await getSql());
   const rows = await sql<{ id: string; business_id: string }>`
     select e.id, e.business_id
     from enquiry e
@@ -104,8 +106,9 @@ export async function requireEnquiryAccess(
 export async function requireBookingAccess(
   userId: string,
   bookingId: string,
+  db?: Sql,
 ): Promise<{ bookingId: string; businessId: string }> {
-  const sql = await getSql();
+  const sql = db ?? (await getSql());
   const rows = await sql<{ id: string; business_id: string }>`
     select b.id, b.business_id
     from booking b
