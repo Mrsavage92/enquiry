@@ -57,6 +57,9 @@ const WORD_NUMBERS = Object.keys(NUMBER_WORDS).join("|");
 const NUM_RAW = String.raw`\d{1,3}(?:,\d{3})+(?:\.\d{1,2})?|\d{1,3}(?: \d{3})+(?![\d,])|\d{1,6}(?:\.\d{1,2})?|${NUMBER_PHRASE}`;
 const NUM = `(${NUM_RAW})`;
 
+/** "12 Bedroom St" is an address, not twelve bedrooms. */
+const NOT_A_STREET = String.raw`(?!\s+(?:st|street|rd|road|ave|avenue|court|ct|place|pl|lane|ln|drive|dr|cres|crescent|way|parade|pde|close|cl|tce|terrace|blvd|boulevard|hwy|highway|grove|gr)\b)`;
+
 /** Hedges: the customer means about this many. Kept and shown, never dropped. */
 const APPROX = String.raw`(?:roughly|about|around|approximately|approx\.?|~|circa|nearly|almost|close to|maybe|give or take)`;
 
@@ -201,7 +204,9 @@ function tieOf(text: string, index: number, spanLength: number, context: Quantit
   );
   const clauses = clausesBefore(text, index);
   // The clause the number sits in also runs on after it: "45 sqm of ceiling".
-  const tail = text.slice(index + spanLength).split(CLAUSE_BREAK)[0] ?? "";
+  // It stops at the end of its own sentence: "Ceilings 45 sqm. Walls 120 sqm".
+  const sentenceTail = text.slice(index + spanLength).split(/[.!?\n]/)[0] ?? "";
+  const tail = sentenceTail.split(CLAUSE_BREAK)[0] ?? "";
   if (clauses[0] !== undefined) clauses[0] = `${clauses[0]}${tail}`;
   for (const clause of clauses) {
     const isMine = mentionsAny(clause, mine);
@@ -228,7 +233,7 @@ export function readQuantityFromMessage(
   // Not after a word character, a decimal point, a dollar sign, a thousands
   // comma or a digit and space, so no number is ever read from its own tail.
   const forward = new RegExp(
-    String.raw`(?:\b(${APPROX})\s+)?(?<![\w.$,])(?<!\d )${NUM}(ish)?\s*(?:x\s*)?-?\s*${words}(?![a-z])`,
+    String.raw`(?:\b(${APPROX})\s+)?(?<![\w.$,])(?<!\d )${NUM}(ish)?\s*(?:x\s*)?-?\s*${words}(?![a-z])${NOT_A_STREET}`,
     "gi",
   );
   // "bedrooms: 3", "bedrooms - 3".

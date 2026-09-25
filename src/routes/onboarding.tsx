@@ -147,6 +147,7 @@ function Onboarding() {
   // typed here would be dropped on submit, so the owner is told first and
   // sent to where their details can actually be changed.
   const [existing, setExisting] = useState<string | null>(null);
+  const [workspaceCheckError, setWorkspaceCheckError] = useState<string | null>(null);
   useEffect(() => {
     let live = true;
     refetchWorkspace()
@@ -154,8 +155,16 @@ function Onboarding() {
         const first = (ws as { businesses?: { name?: string }[] } | null)?.businesses?.[0];
         if (live && first) setExisting(first.name?.trim() || "your business");
       })
-      .catch(() => {
-        // No workspace to read (or no session yet): the form is the right screen.
+      .catch((err: unknown) => {
+        // Say so: setup still works, and creating twice never makes a second
+        // workspace - it would say "You already have a workspace".
+        if (live) {
+          setWorkspaceCheckError(
+            err instanceof Error && err.message
+              ? `Could not check for an existing workspace (${err.message}). You can still continue.`
+              : "Could not check for an existing workspace. You can still continue.",
+          );
+        }
       });
     return () => {
       live = false;
@@ -271,6 +280,11 @@ function Onboarding() {
 
   return (
     <AuthLayout wide>
+      {workspaceCheckError ? (
+        <p className="mb-4 text-sm text-warn" role="status">
+          {workspaceCheckError}
+        </p>
+      ) : null}
       <div className="onboarding-progress">
         <p className="text-sm text-stone">
           {stage === 1 ? "Your business" : "Review and create"} · {stage} of 2

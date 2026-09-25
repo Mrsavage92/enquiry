@@ -139,6 +139,7 @@ async function row(pg: PGlite, id: string) {
   const res = await pg.query<{
     decision_state: string;
     decision_snapshot: Snap;
+    decision_revision: number;
     customer_name: string;
     date_label: string | null;
   }>("select * from enquiry where id = $1", [id]);
@@ -165,11 +166,15 @@ test("SERIOUS 1: a past day is not the job date, is never echoed, and 'asap' is 
   assert.equal(r.date_label, "ASAP", "no 'Wed 22 Sep' on the row or the header");
   const date = await live(pg, bree.enquiryId, "date");
   assert.equal(date?.value, "asap");
-  assert.equal(date?.status, "inferred");
+  assert.equal(date?.status, "check_this", "one date for the owner to check");
   assert.match(date?.display_value ?? "", /last Tuesday 22 September.*already passed/);
   const body = r.decision_snapshot.draft.body;
-  assert.doesNotMatch(body, /22 September|Wednesday|2027/);
-  assert.match(body, /I'll let you know the soonest day I can do it\./);
+  // Quoted back in their words and asked about - never rolled to 2027.
+  assert.doesNotMatch(body, /Wednesday|2027|I'll confirm whether/);
+  assert.match(
+    body,
+    /You mentioned 22 September, which has passed - I'll let you know the soonest day I can do it\./,
+  );
   assert.match(body, /\$120/);
 });
 
@@ -188,7 +193,12 @@ test("SERIOUS 1: a weekday that disagrees with its date is flagged, and no date 
   const date = await live(pg, e.enquiryId, "date");
   assert.equal(date?.status, "conflict");
   assert.equal(date?.display_value, "They wrote Wednesday 8 October - that date is a Thursday.");
-  assert.doesNotMatch(r.decision_snapshot.draft.body, /October|Wednesday|Thursday/);
+  // The reply asks which day they meant, quoting them; it never picks one.
+  assert.match(
+    r.decision_snapshot.draft.body,
+    /You mentioned Wednesday 8 October - the 8th is a Thursday\. Which day did you mean\?/,
+  );
+  assert.doesNotMatch(r.decision_snapshot.draft.body, /I'll confirm whether/);
 });
 
 test("SERIOUS 2: a day ruled out never becomes the job date and is recorded as not available", async () => {
@@ -248,12 +258,19 @@ test("SERIOUS 3 + HIGH 5: the oven is never dropped from the total; the sign-off
   );
   assert.equal(refused.ok, false);
 
-  // Another tenant cannot settle A's extra: refused, and nothing lands.
-  await assert.rejects(
-    answer(pg, "user-b", mel.enquiryId, "extra:oven cleaning", "leave_out"),
-    ForbiddenError,
-  );
+  // Another tenant cannot settle A's extra: refused, and nothing lands - not
+  // the fact, not the snapshot, not the revision.
+  const beforeCross = await row(pg, mel.enquiryId);
+  for (const choice of ["leave_out", "not_asked", "include"]) {
+    await assert.rejects(
+      answer(pg, "user-b", mel.enquiryId, "extra:oven cleaning", choice),
+      ForbiddenError,
+    );
+  }
   assert.equal((await live(pg, mel.enquiryId, "extra:oven cleaning"))?.status, "inferred");
+  const afterCross = await row(pg, mel.enquiryId);
+  assert.equal(afterCross.decision_revision, beforeCross.decision_revision);
+  assert.deepEqual(afterCross.decision_snapshot, beforeCross.decision_snapshot);
 
   // A price for the oven arrives: the extra is priced but still the owner's call.
   await saveRule(pg, a.businessId, OVEN);
@@ -342,7 +359,17 @@ test("HIGH 9: a written answer is stored as digits; another tenant's answer is F
     "End of lease clean please, how much? Jo",
     "End of lease clean",
   );
+  const untouched = await row(pg, e.enquiryId);
   await assert.rejects(answer(pg, "user-b", e.enquiryId, "bedrooms", "3"), ForbiddenError);
+  assert.equal(await live(pg, e.enquiryId, "bedrooms"), undefined);
+  const still = await row(pg, e.enquiryId);
+  assert.equal(still.decision_revision, untouched.decision_revision);
+  assert.deepEqual(still.decision_snapshot, untouched.decision_snapshot);
+  // "two and a half" is refused inline, never stored as 2.
+  await assert.rejects(
+    answer(pg, "user-a", e.enquiryId, "bedrooms", "two and a half"),
+    /not one exact/,
+  );
   assert.equal(await live(pg, e.enquiryId, "bedrooms"), undefined);
   const res = await answer(pg, "user-a", e.enquiryId, "bedrooms", "three");
   assert.equal(res.value, "3");
@@ -403,4 +430,58 @@ test("HIGH 12: the practice enquiry names the owner's own service and is priced 
     (await row(pg, none.enquiryId)).decision_snapshot.recommendation.label,
     "Add your prices",
   );
+});
+
+test("P1: a read name is not in the greeting until the owner confirms it; titles and suburbs are never names", async () => {
+  const pg = await freshDb();
+  const a = await tenant(pg, "user-a", "Alpha Cleaning");
+  const b = await tenant(pg, "user-b", "Bravo Cleaning");
+  await saveRule(pg, a.businessId, OVEN);
+  const mel = await enquiry(pg, a.businessId, MEL, "Oven clean");
+  const first = await row(pg, mel.enquiryId);
+  assert.equal(first.customer_name, "Mel Tran", "shown to the owner as a reading");
+  assert.match(first.decision_snapshot.draft.body, /^Hi there,/);
+  // Another tenant cannot confirm it.
+  await assert.rejects(answer(pg, "user-b", mel.enquiryId, "name", "Mel Tran"), ForbiddenError);
+  assert.equal((await live(pg, mel.enquiryId, "name"))?.status, "inferred");
+  await answer(pg, "user-a", mel.enquiryId, "name", "Mel Tran");
+  assert.match((await row(pg, mel.enquiryId)).decision_snapshot.draft.body, /^Hi Mel,/);
+
+  for (const [text, want] of [
+    ["Oven clean please.\nThanks\nChermside", ""],
+    ["Oven clean please.\nThanks,\nOffice Manager", ""],
+    ["Oven clean please.\nPriya Shah\nOffice Manager", "Priya Shah"],
+    ["Oven clean please.\nkind regards\nMount Gravatt", ""],
+    ["Need a quote for an oven clean. Paddington", ""],
+    ["Oven clean please - Brisbane", ""],
+    ["Oven clean please.\ncheers\nBest Cleaning Co", ""],
+  ] as const) {
+    const e = await enquiry(pg, b.businessId, text, "Oven clean");
+    const r = await row(pg, e.enquiryId);
+    assert.equal(r.customer_name, want, text);
+    assert.match(r.decision_snapshot.draft.body, /^Hi there,/, text);
+  }
+});
+
+test("P2: a fraction is never a job date and never reaches the reply", async () => {
+  const pg = await freshDb();
+  const a = await tenant(pg, "user-a", "Alpha Cleaning");
+  await saveRule(pg, a.businessId, OVEN);
+  const e = await enquiry(pg, a.businessId, "Can you do 3/4 of the oven? - Jo", "Oven clean");
+  const r = await row(pg, e.enquiryId);
+  assert.equal(r.date_label, null);
+  assert.doesNotMatch(r.decision_snapshot.draft.body, /April|confirm whether/);
+});
+
+test("H1: 'They didn't ask for this' clears the extra and the reply says nothing about it", async () => {
+  const pg = await freshDb();
+  const a = await tenant(pg, "user-a", "Alpha Cleaning");
+  await saveRule(pg, a.businessId, EOL);
+  const e = await enquiry(pg, a.businessId, MEL, "End of lease clean");
+  await answer(pg, "user-a", e.enquiryId, "bedrooms", "4");
+  await answer(pg, "user-a", e.enquiryId, "extra:oven cleaning", "not_asked");
+  const r = await row(pg, e.enquiryId);
+  assert.equal(r.decision_state, "ACTION_READY");
+  assert.equal(r.decision_snapshot.price?.amountMinor, 76000);
+  assert.doesNotMatch(r.decision_snapshot.draft.body, /oven|haven't included/i);
 });

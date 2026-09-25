@@ -1,5 +1,6 @@
 import type { Sql } from "../db.ts";
 import { activeRules, decideEnquiry } from "../../domain/decide.ts";
+import { ASAP_VALUE, replyContextFromFacts } from "../../domain/reply-context.ts";
 import { snapshotFromDecision, stateFromDecision } from "../../domain/decision-snapshot.ts";
 import type { Decision } from "../../domain/decide.ts";
 import {
@@ -12,7 +13,7 @@ import {
 const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;
 
 /** The stored value of a date fact that says "as soon as possible". */
-export const ASAP_VALUE = "asap";
+export { ASAP_VALUE };
 
 /** They asked for it as soon as possible (a date fact read as "asap"). */
 export function asapFrom(facts: LiveFact[]): boolean {
@@ -181,13 +182,15 @@ function decideFrom(
       facts: facts.map((f) => ({ ...f, displayValue: f.display_value ?? undefined })) as never,
     },
   );
-  const snapshot = snapshotFromDecision(decision, {
-    customerName: enquiry.customerName,
-    ownerFirstName: inputs.ownerFirstName,
-    serviceLabel: enquiry.serviceLabel,
-    jobDateIso: jobDateIsoFrom(facts),
-    asap: asapFrom(facts),
-  });
+  // A name or day only read from their message is never stated as fact.
+  const snapshot = snapshotFromDecision(
+    decision,
+    replyContextFromFacts(facts, {
+      customerName: enquiry.customerName,
+      ownerFirstName: inputs.ownerFirstName,
+      serviceLabel: enquiry.serviceLabel,
+    }),
+  );
   return { decision, snapshot, state: stateFromDecision(decision) };
 }
 
@@ -201,7 +204,8 @@ async function workOutDecision(
   input: { enquiryId: string; businessId: string; serviceLabel: string; customerName: string },
 ): Promise<WorkedDecision> {
   const facts = await sql<LiveFact>`
-    select field, value, status, display_value, provenance->>'asked' as date_asked
+    select field, value, status, display_value, provenance->>'asked' as date_asked,
+      provenance->>'span' as date_span, provenance->'issue' as date_issue
     from enquiry_fact
     where enquiry_id = ${input.enquiryId} and superseded = false
   `;
@@ -301,7 +305,8 @@ export async function redecideOpenEnquiries(sql: Sql, businessId: string): Promi
   if (rows.length === 0) return [];
   const ids = rows.map((r) => r.id);
   const facts = await sql<LiveFact & { enquiry_id: string }>`
-    select enquiry_id, field, value, status, display_value, provenance->>'asked' as date_asked
+    select enquiry_id, field, value, status, display_value, provenance->>'asked' as date_asked,
+      provenance->>'span' as date_span, provenance->'issue' as date_issue
     from enquiry_fact
     where enquiry_id = any(${ids}::uuid[]) and superseded = false
   `;
@@ -314,6 +319,8 @@ export async function redecideOpenEnquiries(sql: Sql, businessId: string): Promi
       status: f.status,
       display_value: f.display_value,
       date_asked: f.date_asked,
+      date_span: f.date_span,
+      date_issue: f.date_issue,
     });
     factsById.set(f.enquiry_id, list);
   }

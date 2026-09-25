@@ -67,10 +67,12 @@ import { toastRecordedSend } from "@/lib/workspace/send-undo";
 import { PracticeBadge, PracticeNote } from "./practice-note";
 import { ExtraDecision } from "./extra-decision";
 import { DateNotes } from "./date-notes";
+import { NameCheck } from "./name-check";
 import { formatMinorAud } from "@/domain/money-format";
 import { activeRules } from "@/domain/decide";
 import { describeRule } from "@/domain/business-rule";
-import { EXTRA_CHOICE, extraField } from "@/domain/extras";
+import { EXTRA_CHOICE } from "@/domain/extras";
+import { lineChoicesFor } from "@/domain/line-choices";
 
 export function Intelligence({
   enquiry,
@@ -364,16 +366,13 @@ export function Intelligence({
   const preview = previewFor({ enquiry, business, draft: draftBody, decision: enquiry.decision });
   // Saved prices that could be the line an edited total added: every one
   // except the main job and anything already on the quote.
-  const onQuote = new Set(
-    [
-      enquiry.serviceLabel,
-      ...(enquiry.decision.price?.kind === "EXACT"
-        ? (enquiry.decision.price.lines ?? []).map((l) => l.label)
-        : []),
-    ].map((s) => s.trim().toLowerCase()),
-  );
-  const lineChoices = activeRules(business ?? {}).filter(
-    (r) => !onQuote.has(r.service.trim().toLowerCase()),
+  const lineChoices = lineChoicesFor(
+    activeRules(business ?? {}),
+    enquiry.facts,
+    enquiry.serviceLabel,
+    enquiry.decision.price?.kind === "EXACT"
+      ? (enquiry.decision.price.lines ?? []).map((l) => l.label)
+      : [],
   );
   // Desktop-only: the compact (mobile sheet) scroller never overflows the
   // same way, and its own overflow-hidden wrapper isn't the scrolling
@@ -588,6 +587,7 @@ export function Intelligence({
                           </span>
                         </p>
                       ) : null}
+                      {demoMode ? null : <NameCheck enquiry={enquiry} />}
                       {demoMode ? null : <DateNotes enquiry={enquiry} />}
                       {demoMode ? null : <ExtraDecision enquiry={enquiry} />}
                       {/* On the phone the card holds one heading and one
@@ -1344,23 +1344,24 @@ export function Intelligence({
           reviewMismatch && !demoMode
             ? {
                 onUsePrepared: () => {
-                  // Their words stay; only the figure that differs changes.
+                  // Their words stay and only the one figure that differs
+                  // changes; anything ambiguous puts the prepared reply back.
                   const next =
-                    reviewMismatch.named.length > 0 && reviewMismatch.expectedMinor !== null
+                    (reviewMismatch.expectedMinor !== null
                       ? replaceAmounts(
                           draftBody,
                           reviewMismatch.named,
                           reviewMismatch.expectedMinor,
                         )
-                      : enquiry.decision.draft.body;
+                      : null) ?? enquiry.decision.draft.body;
                   editDraft(enquiry.id, next);
                   void openReview(next);
                 },
-                lines: lineChoices.map((rule) => ({
+                lines: lineChoices.map(({ rule, field }) => ({
                   label: `Add ${rule.service.toLowerCase()} (${describeRule(rule).split(": ")[1] ?? ""})`,
                   onAdd: () => {
                     void firstBeta
-                      .answerFact(enquiry.id, extraField(rule.service), EXTRA_CHOICE.include)
+                      .answerFact(enquiry.id, field, EXTRA_CHOICE.include)
                       .then(() => {
                         setSendConfirm(false);
                         toast.success(

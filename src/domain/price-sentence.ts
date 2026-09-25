@@ -44,10 +44,6 @@ const PER_AREA =
  */
 const NOT_A_SET_PRICE: [RegExp, string][] = [
   [
-    /\b(?:if|when|unless|depending|depends|provided|only for|except)\b/i,
-    'It only applies in some cases ("if ..."), so it is a conditional price, not one set price. Save the plain price on its own line and handle the condition yourself.',
-  ],
-  [
     /\b(?:from|starting at|starts at|start at)\s*\$/i,
     'A "from" price is not a set price, so Enquiry cannot quote it.',
   ],
@@ -70,7 +66,11 @@ const NOT_A_SET_PRICE: [RegExp, string][] = [
   ],
 ];
 
-const LEAD_FILLER = /^(?:and\s+|also\s+|our\s+|my\s+|the\s+|a\s+|an\s+)+/i;
+const LEAD_FILLER =
+  /^(?:and\s+|also\s+|our\s+|my\s+|the\s+|a\s+|an\s+|fixed price\s+|fixed\s+|flat rate\s+|flat fee\s+|flat\s+)+/i;
+
+/** "$120 if it is really dirty", "$40 per pet (dogs only)": a price with a condition. */
+const CONDITIONAL = /\b(?:if|when|unless|depending|depends|provided|only|except)\b/i;
 // Whole words only: "flat" is not "fl" + "at".
 const TRAIL_FILLER =
   /(?:(?:^|\s+)(?:will be|would be|is|are|costs?|charged at|priced at|at|for|flat rate|flat fee|flat|fixed price|fixed)|\s*(?:=|:|-|–))\s*$/i;
@@ -116,6 +116,14 @@ function unitWord(raw: string): string {
 }
 
 export function readPriceLine(line: string): ReadPrice | UnreadLine {
+  const condition = CONDITIONAL.exec(line);
+  if (condition) {
+    const word = condition[0].replace(/[()]/g, "").trim().toLowerCase() || "only";
+    return {
+      line,
+      reason: `It only applies in some cases ("${word} ..."), so it is a conditional price, not one set price. Save the plain price on its own line and handle the condition yourself.`,
+    };
+  }
   for (const [pattern, reason] of NOT_A_SET_PRICE) {
     if (pattern.test(line)) return { line, reason };
   }

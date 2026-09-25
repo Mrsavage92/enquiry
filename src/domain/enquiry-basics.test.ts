@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
+  dateQuestion,
   readContact,
   readCustomerName,
   readDates,
@@ -203,4 +204,89 @@ test("a phone number and an email are read as written", () => {
   });
   assert.deepEqual(readContact("a 3 bedroom house, 120 sqm, $450 budget"), {});
   assert.equal(readContact("call +61 412 555 019 anytime").phone, "+61 412 555 019");
+});
+
+// Review of PR #70: every repro is a test.
+test("M1: a negation elsewhere in the clause does not rule the day out", () => {
+  for (const text of [
+    "I'm not fussy about times but could you do 5 October?",
+    "I don't mind which day but 5 October is ideal",
+    "Not sure if you're free on 5 October?",
+  ]) {
+    const r = readDates(text, SAT_26_SEP);
+    assert.equal(r.unavailable.length, 0, text);
+    assert.equal(r.jobDate?.iso, "2026-10-05", text);
+  }
+  for (const text of [
+    "Not on 5 October please",
+    "We can't do 5 October",
+    "5 October doesn't suit",
+    "5 October is no good",
+    "Not Monday 5 October",
+  ]) {
+    const r = readDates(text, SAT_26_SEP);
+    assert.equal(r.jobDate, undefined, text);
+    assert.deepEqual(
+      r.unavailable.map((d) => d.iso),
+      ["2026-10-05"],
+      text,
+    );
+  }
+});
+
+test("M2: 'not urgent' is not asap", () => {
+  assert.equal(readDates("It's not urgent, whenever suits", SAT_26_SEP).asap, false);
+  assert.equal(readDates("Nothing urgent", SAT_26_SEP).asap, false);
+  assert.equal(readDates("No rush - not asap", SAT_26_SEP).asap, false);
+  assert.equal(readDates("Need it asap please", SAT_26_SEP).asap, true);
+});
+
+test("P2: fractions and 'may' are not dates; a date months away is a date to check", () => {
+  assert.equal(readJobDate("Can you do 3/4 of the lawn?", SAT_26_SEP), undefined);
+  assert.equal(readJobDate("1/2 day clean please", SAT_26_SEP), undefined);
+  assert.equal(readJobDate("the dog 3 may need a bath", SAT_26_SEP), undefined);
+  assert.equal(readJobDate("Is 14/11 free?", SAT_26_SEP)?.iso, "2026-11-14");
+  assert.equal(readJobDate("Moving on 3 May 2027", SAT_26_SEP)?.iso, "2027-05-03");
+  const far = readDates("Could you do 3 April?", SAT_26_SEP);
+  assert.equal(far.jobDate, undefined, "rolled more than six months ahead");
+  assert.equal(far.issue?.kind, "check_date");
+});
+
+test("P1: suburbs, job titles and business names are never read as the customer's name", () => {
+  const none = [
+    "Can you quote this?\nThanks\nChermside",
+    "Can you quote this?\nThanks,\nOffice Manager",
+    "Can you quote this?\nkind regards\nMount Gravatt",
+    "Need a quote. Paddington",
+    "Need a quote - Brisbane",
+    "Can you quote this?\ncheers\nBest Cleaning Co",
+    "Can you quote this?\nThanks\nMel",
+  ];
+  for (const text of none) assert.equal(readCustomerName(text), undefined, text);
+  assert.equal(readCustomerName("Can you quote this?\nPriya Shah\nOffice Manager"), "Priya Shah");
+  assert.equal(
+    readCustomerName("Quote please.\nThanks\nKedron", { place: "Kedron, Brisbane" }),
+    undefined,
+  );
+  assert.equal(readCustomerName("Quote please. Thanks, Priya"), "Priya");
+});
+
+test("a doubtful day is asked about in the customer's own words, never stated", () => {
+  const conflict = readDates("Can you do Wednesday 8 October?", SAT_26_SEP).issue!;
+  assert.equal(
+    dateQuestion(conflict),
+    "You mentioned Wednesday 8 October - the 8th is a Thursday. Which day did you mean?",
+  );
+  const past = readDates("I needed it by last Tuesday 22 September", SAT_26_SEP).issue!;
+  assert.equal(
+    dateQuestion(past),
+    "You mentioned 22 September, which has passed - what day suits you?",
+  );
+});
+
+test("a thank-you sentence is not a sign-off that hides the real one", () => {
+  assert.equal(
+    readCustomerName("Thanks for getting back to me.\nCan you do Friday?\n- Priya"),
+    "Priya",
+  );
 });

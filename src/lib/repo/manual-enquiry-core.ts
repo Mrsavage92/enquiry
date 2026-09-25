@@ -7,7 +7,7 @@ import { applyDecision, isClosed, lockEnquiry } from "./decision-apply.ts";
 import type { EnquiryInterpreter, InterpretFailureReason } from "../interpret/types.ts";
 import { readEnquiryBasics, type DateReading } from "../../domain/enquiry-basics.ts";
 import { blockedQuantity, findQuantityInMessages, newExtraRequests } from "./quantity-inference.ts";
-import { ASAP_VALUE } from "./decision-apply.ts";
+import { ASAP_VALUE, replyContextFromFacts } from "../../domain/reply-context.ts";
 
 /**
  * Creating a real enquiry, as pure SQL logic - deliberately separate from
@@ -52,8 +52,8 @@ export async function insertManualEnquiry(
     select state, rule_payload from knowledge_item
     where business_id = ${input.businessId} and rule_payload is not null
   `;
-  const [owner] = await sql<{ owner_first_name: string | null }>`
-    select owner_first_name from business where id = ${input.businessId}
+  const [owner] = await sql<{ owner_first_name: string | null; base_location: string | null }>`
+    select owner_first_name, base_location from business where id = ${input.businessId}
   `;
   const listed = await sql<{ customer_label: string | null; name: string | null }>`
     select customer_label, name from business_service where business_id = ${input.businessId}
@@ -66,7 +66,9 @@ export async function insertManualEnquiry(
   // The name, contact details and job date the customer wrote plainly, read
   // without a model so they are there even when no interpreter is configured.
   // What the owner typed always wins; anything read this way is `inferred`.
-  const basics = readEnquiryBasics(input.body, input.now ?? new Date());
+  const basics = readEnquiryBasics(input.body, input.now ?? new Date(), undefined, {
+    place: owner?.base_location ?? "",
+  });
   const typedName = input.customerName.trim();
   const customerName = typedName || basics.customerName || "";
   const business = {
@@ -141,13 +143,26 @@ export async function insertManualEnquiry(
     facts.push(readFact("email", basics.contact.email, basics.contact.email, basics.contact.email));
   }
 
-  const snapshot = snapshotFromDecision(decision, {
-    customerName,
-    ownerFirstName: owner?.owner_first_name ?? undefined,
-    serviceLabel: input.serviceLabel,
-    jobDateIso: basics.jobDate?.asked ? basics.jobDate.iso : undefined,
-    asap: !basics.jobDate && basics.dates.asap,
-  });
+  // The reply only states what the owner typed or confirmed: a read name
+  // waits for their tap, and a read day is quoted in the customer's words.
+  const snapshot = snapshotFromDecision(
+    decision,
+    replyContextFromFacts(
+      facts.map((f) => ({
+        field: f.field,
+        value: f.value,
+        status: f.status,
+        date_asked: f.provenance.asked as boolean | undefined,
+        date_span: (f.provenance.span as string | undefined) ?? null,
+        date_issue: f.provenance.issue,
+      })),
+      {
+        customerName,
+        ownerFirstName: owner?.owner_first_name ?? undefined,
+        serviceLabel: input.serviceLabel,
+      },
+    ),
+  );
   const state = stateFromDecision(decision);
   const dateLabel = basics.jobDate?.label ?? (basics.dates.asap ? "ASAP" : null);
 
@@ -258,31 +273,33 @@ function dateFacts(dates: DateReading): ArrivalFact[] {
         asked: d.asked,
       },
     });
-  } else if (dates.issue?.kind === "weekday_conflict") {
-    out.push(
-      readFact(
-        "date",
-        dates.issue.span,
-        dates.issue.note,
-        dates.issue.span,
-        "Job date",
-        "conflict",
-      ),
-    );
-  } else if (dates.asap) {
-    const note = dates.issue ? `As soon as possible. ${dates.issue.note}` : "As soon as possible";
-    out.push(readFact("date", ASAP_VALUE, note, dates.issue?.span ?? "asap", "Job date"));
   } else if (dates.issue) {
-    out.push(
-      readFact(
+    // A day that has passed, disagrees with its weekday or is months away: the
+    // owner checks it, and the reply asks in the customer's own words.
+    const issue = dates.issue;
+    const asap = dates.asap && issue.kind === "past";
+    out.push({
+      ...readFact(
         "date",
-        dates.issue.span,
-        dates.issue.note,
-        dates.issue.span,
+        asap ? ASAP_VALUE : issue.span,
+        asap ? `As soon as possible. ${issue.note}` : issue.note,
+        issue.span,
         "Job date",
-        "check_this",
+        issue.kind === "weekday_conflict" ? "conflict" : "check_this",
       ),
-    );
+      provenance: {
+        kind: "message",
+        label: "Read from the customer's message",
+        span: issue.span,
+        issue: {
+          kind: issue.kind,
+          mention: issue.mention,
+          ...(issue.actualDay ? { actualDay: issue.actualDay } : {}),
+        },
+      },
+    });
+  } else if (dates.asap) {
+    out.push(readFact("date", ASAP_VALUE, "As soon as possible", "asap", "Job date"));
   }
   if (dates.unavailable.length) {
     const labels = dates.unavailable.map((d) => d.label).join(", ");

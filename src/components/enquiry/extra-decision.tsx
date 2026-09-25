@@ -31,7 +31,9 @@ export function ExtraDecision({ enquiry }: { enquiry: Enquiry }) {
       toast.success(
         choice === EXTRA_CHOICE.include
           ? `Added ${extra.label.toLowerCase()} to the quote.`
-          : `Left out. The reply tells them ${extra.label.toLowerCase()} is not included.`,
+          : choice === EXTRA_CHOICE.notAsked
+            ? "Removed. Nothing about it goes in the reply."
+            : `Left out. The reply tells them ${extra.label.toLowerCase()} is not included.`,
       );
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not save that. Try again.");
@@ -67,6 +69,14 @@ export function ExtraDecision({ enquiry }: { enquiry: Enquiry }) {
           onClick={() => void choose(EXTRA_CHOICE.leaveOut)}
         >
           {saving === EXTRA_CHOICE.leaveOut ? "Saving…" : "Leave it out and tell them"}
+        </Button>
+        <Button
+          className="min-h-11"
+          variant="ghost"
+          disabled={saving !== null}
+          onClick={() => void choose(EXTRA_CHOICE.notAsked)}
+        >
+          {saving === EXTRA_CHOICE.notAsked ? "Saving…" : "They didn't ask for this"}
         </Button>
       </div>
       {error ? (

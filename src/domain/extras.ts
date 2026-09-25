@@ -20,7 +20,12 @@ import { distinctiveStems, mentionsAny, serviceWords, stem, stemsOf } from "./se
 export const EXTRA_PREFIX = "extra:";
 
 /** The owner's choice about one extra. */
-export const EXTRA_CHOICE = { include: "include", leaveOut: "leave_out" } as const;
+export const EXTRA_CHOICE = {
+  include: "include",
+  leaveOut: "leave_out",
+  /** Enquiry misread the message: nothing is added and the reply says nothing. */
+  notAsked: "not_asked",
+} as const;
 
 export type ExtraRequest = {
   /** How it is named: the saved service ("Oven clean") or the customer's thing ("oven cleaning"). */
@@ -54,11 +59,114 @@ export function splitExtraQuantityField(field: string): { field: string; service
   return m ? { field: m[1]!, service: m[2]! } : null;
 }
 
-/** "no oven", "don't need the oven", "without the carpets". */
-const DECLINED = /\b(?:no|not|don'?t|do not|without|except|skip|minus)\b[^,.;!?\n]*$/i;
+/**
+ * A sentence that turns the thing down or talks about it rather than asking:
+ * "The carpets are fine, no carpet clean needed", "don't need the oven",
+ * "the window cleaner came last week".
+ */
+const DECLINED = /\b(?:no|not|don'?t|do not|doesn'?t|without|except|skip|minus|fine|already)\b/i;
+const NOT_A_REQUEST =
+  /\b(?:came|did|was|were|had|last (?:week|time|month|year)|yesterday|ago|already|previously|used to)\b/i;
 
 const CONNECTOR =
   /\b(?:plus|as well as|along with|and also|also\s+(?:clean|need|want|get|include|add|quote(?:\s+for)?)|(?:can|could)\s+(?:you|u)\s+(?:also\s+)?(?:add|include|throw\s+in))\s+(?:(?:the|a|an|my|our|your|some)\s+)?([a-z][a-z'-]*(?:\s+[a-z][a-z'-]*){0,2})/gi;
+
+/**
+ * What a real extra ends on: the end of the sentence, "please", "too", "as
+ * well", a sign-off. "plus my partner will let you in" runs on into a verb and
+ * is not a thing to price.
+ */
+const EXTRA_END =
+  /^\s*(?:$|[.,!?;\n)]|please\b|pls\b|too\b|as well\b|thanks?\b|thx\b|cheers\b|if (?:you|u) can\b)/i;
+
+/**
+ * Things a customer asks to have done on top of the main job. A phrase that
+ * names none of these (and no saved service) is read as nothing, never as an
+ * extra - "the kids", "us moving out", "Saturday morning".
+ */
+const SERVICE_NOUNS = new Set([
+  "oven",
+  "ovens",
+  "rangehood",
+  "fridge",
+  "fridges",
+  "freezer",
+  "microwave",
+  "dishwasher",
+  "carpet",
+  "carpets",
+  "rug",
+  "rugs",
+  "upholstery",
+  "couch",
+  "couches",
+  "sofa",
+  "mattress",
+  "mattresses",
+  "curtain",
+  "curtains",
+  "blind",
+  "blinds",
+  "window",
+  "windows",
+  "flyscreen",
+  "flyscreens",
+  "screens",
+  "tracks",
+  "wall",
+  "walls",
+  "ceiling",
+  "ceilings",
+  "skirting",
+  "skirtings",
+  "skirting boards",
+  "trim",
+  "doors",
+  "door",
+  "frames",
+  "architraves",
+  "deck",
+  "decking",
+  "fence",
+  "fences",
+  "gate",
+  "eaves",
+  "gutter",
+  "gutters",
+  "roof",
+  "garage",
+  "shed",
+  "balcony",
+  "patio",
+  "driveway",
+  "pavers",
+  "tiles",
+  "grout",
+  "bbq",
+  "barbecue",
+  "pool",
+  "lawn",
+  "lawns",
+  "hedge",
+  "hedges",
+  "garden",
+  "gardens",
+  "walls",
+  "facade",
+  "cabinets",
+  "cupboards",
+  "wardrobes",
+  "vents",
+  "fans",
+  "lights",
+  "brows",
+  "lashes",
+  "nails",
+  "makeup",
+  "hair",
+  "tan",
+  "trial",
+]);
 
 /** Where a thing asked for ends: "oven please", "carpets if you can". */
 const STOP_WORDS = new Set([
@@ -114,6 +222,26 @@ const STOP_WORDS = new Set([
   "want",
   "my",
   "our",
+  "us",
+  "me",
+  "they",
+  "he",
+  "she",
+  "will",
+  "be",
+  "let",
+  "moving",
+  "home",
+  "who",
+  "which",
+  "was",
+  "were",
+  "had",
+  "going",
+  "coming",
+  "leaving",
+  "there",
+  "here",
 ]);
 
 /** Never a thing to price on its own: units, fees and filler. */
@@ -193,6 +321,15 @@ function sentenceAround(text: string, index: number): string {
   return text.slice(start, endRel === -1 ? text.length : index + endRel).trim();
 }
 
+/** The whole sentence (to . ! ? or a new line) around an index. */
+function wholeSentence(text: string, index: number): string {
+  const before = text.slice(0, index);
+  const start = Math.max(...[".", "!", "?", "\n"].map((b) => before.lastIndexOf(b))) + 1;
+  const rest = text.slice(index);
+  const endRel = rest.search(/[.!?\n]/);
+  return text.slice(start, endRel === -1 ? text.length : index + endRel);
+}
+
 /** The clause holding the first mention of one of these stems. */
 function mentionAt(text: string, stems: readonly string[]): number {
   const re = /[a-z]+/gi;
@@ -229,7 +366,8 @@ export function readExtraRequests(
     if (own.length === 0 || !mentionsAny(text, own)) continue;
     const at = mentionAt(text, own);
     const clause = sentenceAround(text, at);
-    if (DECLINED.test(text.slice(Math.max(0, text.lastIndexOf(clause)), at))) continue;
+    const sentence = wholeSentence(text, at);
+    if (DECLINED.test(sentence) || NOT_A_REQUEST.test(sentence)) continue;
     // A service whose name sits inside the main one ("Clean" beside "End of
     // lease clean") is the main job, not a second one.
     if (own.every((s) => stemsOf(main).includes(s))) continue;
@@ -250,6 +388,12 @@ export function readExtraRequests(
     if (words.length === 0) continue;
     if (words.some((w) => NOT_AN_EXTRA.has(w) || /^\d/.test(w))) continue;
     const thing = words.join(" ");
+    // The phrase has to end where a request ends, not run on into a verb.
+    const phraseAt = (m.index ?? 0) + m[0].length - raw.length;
+    const afterPhrase = text.slice(phraseAt + thing.length);
+    if (!EXTRA_END.test(afterPhrase)) continue;
+    const sentence = wholeSentence(text, m.index ?? 0);
+    if (NOT_A_REQUEST.test(sentence)) continue;
     // The main job again ("plus the clean"): not an extra.
     if (serviceWords(thing).every((w) => mainStems.has(stem(w)))) continue;
     // Already found as a saved service.
@@ -263,8 +407,10 @@ export function readExtraRequests(
       }
       continue;
     }
-    const label =
-      activity && !/ing$|s$/.test(words[words.length - 1]!) ? `${thing} ${activity}` : thing;
+    // Only something a business does: never "the kids" or "Saturday morning".
+    const head = words[words.length - 1]!;
+    if (!SERVICE_NOUNS.has(head) && !SERVICE_NOUNS.has(thing)) continue;
+    const label = activity && !/ing$|s$/.test(head) ? `${thing} ${activity}` : thing;
     if (seen.has(label)) continue;
     seen.add(label);
     out.push({ label, span: m[0].trim() });

@@ -344,18 +344,21 @@ function decideExtras(
     },
   ];
   const implied: number[] = [];
-  const leftOut: string[] = [];
+  const leftOut: { label: string; service?: string }[] = [];
+  const key = (service: string) => service.trim().toLowerCase();
+  const lined = () => new Set(lines.map((l) => key(l.label)));
   for (const extra of extras) {
-    if (extra.confirmed && extra.choice === EXTRA_CHOICE.leaveOut) {
-      leftOut.push(extra.label);
-      continue;
-    }
+    // "They didn't ask for this": Enquiry misread it. No line, no reply line.
+    if (extra.confirmed && extra.choice === EXTRA_CHOICE.notAsked) continue;
     const match = matchRule(rules, extra.label);
     const rule = match.kind === "one" ? match.rule : undefined;
-    // The main job asked for twice is not a second line.
-    if (rule && rule.service.trim().toLowerCase() === mainRule.service.trim().toLowerCase()) {
+    if (extra.confirmed && extra.choice === EXTRA_CHOICE.leaveOut) {
+      leftOut.push({ label: extra.label, ...(rule ? { service: rule.service } : {}) });
       continue;
     }
+    // The main job asked for twice, or one priced thing recorded under two
+    // names, is one line - never a duplicate $120.
+    if (rule && lined().has(key(rule.service))) continue;
     if (!rule) {
       return {
         ...primary,
@@ -418,7 +421,13 @@ function decideExtras(
     });
     implied.push(...impliedAmountsMinor(line));
   }
-  if (lines.length === 1) return leftOut.length ? { ...primary, leftOut } : primary;
+  // Left out, then added after all (under another name): it is on the quote,
+  // so the reply must not also say it was left out.
+  const onQuote = lined();
+  const stillOut = leftOut
+    .filter((l) => !(l.service && onQuote.has(key(l.service))))
+    .map((l) => l.label);
+  if (lines.length === 1) return stillOut.length ? { ...primary, leftOut: stillOut } : primary;
   const total = lines.reduce((sum, l) => sum + l.amountMinor, 0);
   const workings = lines
     .map((l) => `${l.label}: ${formatMinorAud(l.amountMinor)}${l.detail ? ` (${l.detail})` : ""}.`)
@@ -434,7 +443,7 @@ function decideExtras(
     },
     explanation: workings,
     lines,
-    ...(leftOut.length ? { leftOut } : {}),
+    ...(stillOut.length ? { leftOut: stillOut } : {}),
   };
 }
 

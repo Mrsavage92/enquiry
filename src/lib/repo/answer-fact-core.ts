@@ -27,6 +27,7 @@ export type AnswerFactResult = {
 /** How an owner's choice about an extra reads back in the case file. */
 function displayFor(field: string, value: string): string {
   if (!isExtraField(field)) return value;
+  if (value === EXTRA_CHOICE.notAsked) return "They didn't ask for this";
   return value === EXTRA_CHOICE.leaveOut ? "Left out - the reply says so" : "Added to the quote";
 }
 
@@ -60,7 +61,8 @@ export async function answerFactForUser(
   if (
     isExtraField(input.field) &&
     value !== EXTRA_CHOICE.include &&
-    value !== EXTRA_CHOICE.leaveOut
+    value !== EXTRA_CHOICE.leaveOut &&
+    value !== EXTRA_CHOICE.notAsked
   ) {
     throw new Error("Choose whether to add it to the quote or leave it out.");
   }
@@ -93,12 +95,18 @@ export async function answerFactForUser(
         ${true}
       )
     `;
+    // Confirming (or correcting) the name read from their message is what
+    // lets the reply greet them by it.
+    const isName = input.field.trim().toLowerCase() === "name";
+    if (isName) {
+      await tx`update enquiry set customer_name = ${value}, updated_at = now() where id = ${enquiryId}`;
+    }
     return applyDecision(tx, {
       enquiryId,
       businessId,
       // Re-read under the lock rather than trusting the value read before it.
       serviceLabel: locked.serviceLabel,
-      customerName: locked.customerName,
+      customerName: isName ? value : locked.customerName,
     });
   });
   return { businessId, enquiryId, value, decision: result.decision, revision: result.revision };

@@ -23,6 +23,10 @@ export type LiveFact = {
   display_value?: string | null;
   /** For a date fact: the customer asked about the day (provenance.asked). */
   date_asked?: string | boolean | null;
+  /** For a date fact: the customer's words (provenance.span). */
+  date_span?: string | null;
+  /** For a date fact: a day that has passed or disagrees (provenance.issue). */
+  date_issue?: unknown;
 };
 
 export type InboundBody = { id: string; body: string };

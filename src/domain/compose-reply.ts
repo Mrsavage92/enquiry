@@ -2,6 +2,7 @@ import { format } from "date-fns";
 import { enAU } from "date-fns/locale";
 import type { Decision } from "./decide.ts";
 import { formatMinorAud } from "./money-format.ts";
+import { dateQuestion, type DateIssue } from "./enquiry-basics.ts";
 
 export type ReplyContext = {
   customerName?: string;
@@ -18,6 +19,15 @@ export type ReplyContext = {
    * says the owner will come back with the soonest day, never a date.
    */
   asap?: boolean;
+  /**
+   * The customer's own words for the day ("Saturday 3 October"). An inferred
+   * day is only ever quoted back in their words, never stated as the job date.
+   */
+  jobDateSpan?: string;
+  /** The owner confirmed the day, so the reply may state it. */
+  jobDateConfirmed?: boolean;
+  /** A day that has passed or whose weekday disagrees: the reply asks. */
+  dateIssue?: Pick<DateIssue, "kind" | "mention" | "actualDay">;
 };
 
 /** "2026-10-03" -> "Saturday 3 October", or null for anything else. */
@@ -29,10 +39,30 @@ export function spokenDate(iso: string | undefined): string | null {
   return format(date, "EEEE d MMMM", { locale: enAU });
 }
 
-/** The line that answers a date question honestly when nothing checks availability. */
-export function dateLine(iso: string | undefined): string | null {
+/**
+ * The line that answers a date question honestly when nothing checks
+ * availability. A day the owner confirmed may be stated; a day only read from
+ * their message is quoted back in their own words.
+ */
+export function dateLine(iso: string | undefined, span?: string, confirmed = true): string | null {
   const day = spokenDate(iso);
-  return day ? `I'll confirm whether ${day} works.` : null;
+  if (!day) return null;
+  if (confirmed || !span?.trim()) {
+    return confirmed ? `I'll confirm whether ${day} works.` : null;
+  }
+  return `You mentioned ${span.trim()} - I'll confirm whether that day works.`;
+}
+
+/** The one date sentence a reply carries, if any. */
+function dateSentence(opts: ReplyContext): string | null {
+  if (opts.dateIssue) return dateQuestion(opts.dateIssue, opts.asap);
+  const line = dateLine(
+    opts.jobDateIso,
+    opts.jobDateSpan,
+    opts.jobDateConfirmed ?? !opts.jobDateSpan,
+  );
+  if (line) return line;
+  return opts.asap ? "I'll let you know the soonest day I can do it." : null;
 }
 
 /**
@@ -120,9 +150,7 @@ export function askFor(field: string): string {
 export function composeReply(decision: Decision, opts: ReplyContext = {}): string {
   const first = (opts.customerName ?? "").trim().split(/\s+/)[0] ?? "";
   const greeting = first ? `Hi ${first},` : "Hi there,";
-  const date =
-    dateLine(opts.jobDateIso) ??
-    (opts.asap ? "I'll let you know the soonest day I can do it." : null);
+  const date = dateSentence(opts);
   const dateBlock = date ? [date, ""] : [];
   const signOff = opts.ownerFirstName?.trim() ? `Thanks,\n${opts.ownerFirstName.trim()}` : "Thanks";
   const service = (opts.serviceLabel ?? "").trim();

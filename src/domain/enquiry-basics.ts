@@ -42,11 +42,15 @@ export type JobDateRead = {
  *    October" when the 8th is a Thursday). Enquiry does not pick one.
  */
 export type DateIssue = {
-  kind: "past" | "weekday_conflict";
+  kind: "past" | "weekday_conflict" | "check_date";
   /** The customer's words, weekday included: "last Tuesday 22 September". */
   span: string;
+  /** What a reply may quote back: "22 September", "Wednesday 8 October". */
+  mention: string;
   /** One sentence for the owner. */
   note: string;
+  /** For a weekday conflict: "the 8th is a Thursday". */
+  actualDay?: string;
 };
 
 export type DateReading = {
@@ -128,18 +132,50 @@ const WEEKDAY_BEFORE =
 const PAST_MARKER =
   /\b(?:last|past|already|was|were|yesterday|ago|previous|previously|needed|had|missed|gone)\b/i;
 
-/** Ruling a day out, before it: "except", "not", "away on", "can't do". */
+/**
+ * Ruling a day out, directly before it: "except 5 October", "not on the 5th",
+ * "can't do Monday 5 October", "we're away 3 October". The negation has to
+ * govern the date itself - "I'm not fussy about times but could you do 5
+ * October?" is a request for the 5th, not a refusal of it.
+ */
 const EXCLUDE_BEFORE =
-  /\b(?:except|excluding|other than|apart from|not|never|unavailable|away|busy)\b|n't\b|\bcan ?not\b|\bcannot\b|\bno good\b/i;
-/** Ruling a day out, after it: "5 October - that day is no good". */
+  /(?:\bexcept(?:\s+for)?|\bexcluding|\bother than|\bapart from|\bnot(?:\s+(?:available|free|around|home))?(?:\s+on)?|\bnever(?:\s+on)?|n't\s+(?:do|make|manage|come)(?:\s+it)?(?:\s+on)?|\bcan ?not\s+(?:do|make|come)(?:\s+it)?(?:\s+on)?|\bunavailable(?:\s+on)?|\baway(?:\s+on)?|\bbusy(?:\s+on)?|\bbooked(?:\s+up)?(?:\s+on)?)\s+(?:the\s+)?(?:(?:mon|tue|wed|thu|fri|sat|sun)[a-z]*\.?,?\s+(?:the\s+)?)?$/i;
+/** Ruling a day out, directly after it: "5 October - that day is no good", "3 October won't work". */
 const EXCLUDE_AFTER =
-  /\b(?:no good|(?:won'?t|will not|doesn'?t|does not|don'?t|do not) (?:work|suit)|is out|isn'?t (?:good|possible)|not (?:good|possible|available)|unavailable|can'?t do|cannot do|is booked|busy)\b/i;
+  /^\s*(?:[,–-]\s*)?(?:(?:that|this)(?:\s+day)?\s+|which\s+|it\s+)?(?:(?:is|'s)\s+(?:no good|out|not good|not possible|booked|no)\b|isn'?t\s+(?:good|possible)\b|(?:won'?t|will not|doesn'?t|does not|don'?t|do not)\s+(?:work|suit)\b|(?:is\s+)?no good\b)/i;
 /** A boundary rather than an exclusion: "away until 3 October" means free from then. */
 const BOUNDARY_BEFORE =
   /\b(?:until|till|til|after|from|since|before|back|returning)\b[^,;.!?\n]*$/i;
 
 const ASAP =
-  /\b(?:asap|a\.s\.a\.p|as soon as (?:possible|you can|poss)|urgent(?:ly)?|straight away|right away|soonest)\b/i;
+  /\b(?:asap|a\.s\.a\.p|as soon as (?:possible|you can|poss)|urgent(?:ly)?|straight away|right away|soonest)\b/gi;
+/** "not urgent", "no rush, not asap", "nothing urgent": the opposite of asap. */
+const ASAP_NEGATED = /\b(?:not|no|isn'?t|nothing|never|non)[\s-]+(?:\w+\s+)?$/i;
+
+/** Whether they asked for it as soon as possible, not "it's not urgent". */
+export function asksForAsap(text: string): boolean {
+  for (const m of text.matchAll(ASAP)) {
+    const before = text.slice(Math.max(0, (m.index ?? 0) - 20), m.index ?? 0);
+    if (!ASAP_NEGATED.test(before)) return true;
+  }
+  return false;
+}
+
+/**
+ * A slash date needs a reason to be a date: "Is 14/11 free?", "moving on
+ * 30/9". "3/4 of the lawn", "1/2 day clean" and "a 1/2 tank" are fractions.
+ */
+const SLASH_FRACTION_AFTER =
+  /^\s*(?:of|day|days|hr|hrs|hour|hours|the|tank|tanks|cup|cups|inch|inches|in|mm|cm|m|kg|l|litre|litres|a|an|price|off|full|size|done)\b/i;
+const SLASH_DATE_CUE =
+  /\b(?:on|by|until|till|from|before|after|free|available|avail|date|move|moving|keys|book|booked|come|due|this|next|is|do|suit|suits|works?)\b/i;
+
+/** "3 may need a bath": "may" as a verb, not the month. */
+const MAY_AS_VERB =
+  /^\s+(?:i|we|you|he|she|they|it|need|be|have|want|not|also|take|get|require|come|go|like|do|just|still|or|want|well|as|help|able)\b/i;
+
+/** A date rolled into next year this far out is doubtful, not a job date. */
+const FAR_FUTURE_DAYS = 183;
 
 /**
  * Past days within this many days are the day that just went, not the same day
@@ -203,6 +239,8 @@ function collectHits(text: string): DateHit[] {
   for (const m of text.matchAll(DAY_MONTH)) {
     const month = monthIndex(m[2]!);
     if (month === undefined) continue;
+    const at = (m.index ?? 0) + m[0].length;
+    if (/^may$/i.test(m[2]!) && !m[3] && MAY_AS_VERB.test(text.slice(at))) continue;
     const year = m[3] ? Number(m[3]) : undefined;
     hits.push({ index: m.index ?? 0, length: m[0].length, day: Number(m[1]), month, year });
   }
@@ -213,9 +251,14 @@ function collectHits(text: string): DateHit[] {
     hits.push({ index: m.index ?? 0, length: m[0].length, day: Number(m[2]), month, year });
   }
   for (const m of text.matchAll(NUMERIC)) {
+    const index = m.index ?? 0;
+    const after = text.slice(index + m[0].length);
+    if (!m[3] && SLASH_FRACTION_AFTER.test(after)) continue;
+    const near = `${text.slice(Math.max(0, index - 30), index)} ${after.slice(0, 20)}`;
+    if (!m[3] && !SLASH_DATE_CUE.test(near)) continue;
     const year = m[3] ? Number(m[3]) : undefined;
     hits.push({
-      index: m.index ?? 0,
+      index,
       length: m[0].length,
       day: Number(m[1]),
       month: Number(m[2]) - 1,
@@ -245,6 +288,7 @@ function readOf(date: Date, span: string, asked: boolean): JobDateRead {
 type Resolved =
   | { kind: "date"; date: Date }
   | { kind: "past"; date: Date }
+  | { kind: "far"; date: Date }
   | { kind: "conflict"; date: Date; weekdayWritten: number }
   | { kind: "invalid" };
 
@@ -256,6 +300,7 @@ function resolveHit(hit: DateHit, before: string, today: Date): Resolved {
   const weekdayWritten = weekdayMatch ? weekdayIndex(weekdayMatch[1]!) : undefined;
   const startToday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
   let date = new Date(y, hit.month, hit.day);
+  let rolled = false;
   if (date < startToday) {
     if (hit.year !== undefined) return { kind: "past", date };
     const daysAgo = Math.round((startToday.getTime() - date.getTime()) / 86_400_000);
@@ -267,10 +312,15 @@ function resolveHit(hit: DateHit, before: string, today: Date): Resolved {
     // No year and long gone: the next time that day comes round.
     if (!validDay(y + 1, hit.month, hit.day)) return { kind: "invalid" };
     date = new Date(y + 1, hit.month, hit.day);
+    rolled = true;
   }
   if (weekdayWritten !== undefined && weekdayWritten !== date.getDay()) {
     return { kind: "conflict", date, weekdayWritten };
   }
+  // Rolled into next year and still months away: probably not what they
+  // meant ("the 2nd of March" in September). The owner checks it.
+  const daysAway = Math.round((date.getTime() - startToday.getTime()) / 86_400_000);
+  if (rolled && daysAway > FAR_FUTURE_DAYS) return { kind: "far", date };
   return { kind: "date", date };
 }
 
@@ -284,15 +334,23 @@ function writtenSpan(text: string, hit: DateHit, before: string): string {
     .trim();
 }
 
+/** "8" -> "8th", "22" -> "22nd". */
+function ordinal(n: number): string {
+  const tens = n % 100;
+  if (tens >= 11 && tens <= 13) return `${n}th`;
+  return `${n}${n % 10 === 1 ? "st" : n % 10 === 2 ? "nd" : n % 10 === 3 ? "rd" : "th"}`;
+}
+
 /** Every date in the message, sorted into the job date, a problem, and days ruled out. */
 export function readDates(text: string, now = new Date(), tz = "Australia/Brisbane"): DateReading {
   const today = wallNow(now, tz);
-  const reading: DateReading = { unavailable: [], asap: ASAP.test(text) };
+  const reading: DateReading = { unavailable: [], asap: asksForAsap(text) };
   for (const hit of collectHits(text)) {
     const { before, after } = clauseAround(text, hit.index, hit.length);
     const resolved = resolveHit(hit, before, today);
     if (resolved.kind === "invalid") continue;
     const span = writtenSpan(text, hit, before);
+    const written = text.slice(hit.index, hit.index + hit.length).trim();
     const boundary = BOUNDARY_BEFORE.test(before);
     const excluded = (EXCLUDE_BEFORE.test(before) || EXCLUDE_AFTER.test(after)) && !boundary;
     if (excluded) {
@@ -307,28 +365,59 @@ export function readDates(text: string, now = new Date(), tz = "Australia/Brisba
       reading.issue ??= {
         kind: "past",
         span,
+        mention: written,
         note: `They wrote "${span}" - that day has already passed.`,
+      };
+      continue;
+    }
+    if (resolved.kind === "far") {
+      reading.issue ??= {
+        kind: "check_date",
+        span,
+        mention: span,
+        note: `They wrote "${span}" - Enquiry reads that as ${format(resolved.date, "EEE d MMM yyyy", { locale: enAU })}, months away. Check the date with them.`,
       };
       continue;
     }
     if (resolved.kind === "conflict") {
       const actual = WEEKDAY_NAMES[resolved.date.getDay()]!;
-      const written = WEEKDAY_NAMES[resolved.weekdayWritten]!;
+      const writtenDay = WEEKDAY_NAMES[resolved.weekdayWritten]!;
       const day = format(resolved.date, "d MMMM", { locale: enAU });
       reading.issue ??= {
         kind: "weekday_conflict",
         span,
-        note: `They wrote ${capitalise(written)} ${day} - that date is a ${capitalise(actual)}.`,
+        mention: span,
+        note: `They wrote ${capitalise(writtenDay)} ${day} - that date is a ${capitalise(actual)}.`,
+        actualDay: `the ${ordinal(resolved.date.getDate())} is a ${capitalise(actual)}`,
       };
       continue;
     }
     // The first plain date written is the one the customer led with.
     reading.jobDate ??= readOf(resolved.date, span, asksAboutDate(text, hit.index));
   }
-  // A weekday that disagrees with its date makes the day doubtful; the owner
-  // settles it rather than Enquiry picking one.
-  if (reading.issue?.kind === "weekday_conflict") delete reading.jobDate;
+  // A date problem makes the day doubtful; the owner settles it rather than
+  // Enquiry picking one.
+  if (reading.issue && reading.issue.kind !== "past") delete reading.jobDate;
   return reading;
+}
+
+/**
+ * The one line a reply may say about a doubtful day, quoting the customer and
+ * asking - never stating a date Enquiry worked out on its own.
+ */
+export function dateQuestion(
+  issue: Pick<DateIssue, "kind" | "mention" | "actualDay">,
+  asap = false,
+): string {
+  if (issue.kind === "weekday_conflict") {
+    return `You mentioned ${issue.mention} - ${issue.actualDay ?? "that date and day do not match"}. Which day did you mean?`;
+  }
+  if (issue.kind === "past") {
+    return asap
+      ? `You mentioned ${issue.mention}, which has passed - I'll let you know the soonest day I can do it.`
+      : `You mentioned ${issue.mention}, which has passed - what day suits you?`;
+  }
+  return `You mentioned ${issue.mention} - can you confirm the date you mean?`;
 }
 
 export function readJobDate(
@@ -419,14 +508,216 @@ const TRAILING_NAME = new RegExp(
 );
 /** "... can u do the 1st? - Priya", "-- Priya", "~ Priya", an en or em dash too. */
 const DASH_NAME = new RegExp(
-  String.raw`(?:^|\s)(?:-{1,2}|–|—|~)\s*${NAME}${KISS}\s*[.!]?${CONTACT_TAIL}\s*$`,
+  String.raw`(?:^|\s)(?:-{1,2}|–|\u2014|~)\s*${NAME}${KISS}\s*[.!]?${CONTACT_TAIL}\s*$`,
 );
 /** "My name is Sam", "this is Sam from ...". */
 const INTRO = new RegExp(String.raw`\b(?:my name is|my name's|this is)\s+${NAME}`, "i");
 /** A name line on its own: "Mel Tran", "Liam O'Connor", "Priya x". */
 const NAME_LINE = new RegExp(String.raw`^${NAME}${KISS}\s*[.!]?${CONTACT_TAIL}\s*$`);
 
-function acceptName(raw: string | undefined): string | undefined {
+/** Job titles: "Office Manager" is who they are, not their name. */
+const TITLE_WORDS = new Set([
+  "manager",
+  "director",
+  "owner",
+  "admin",
+  "administrator",
+  "coordinator",
+  "co-ordinator",
+  "assistant",
+  "officer",
+  "reception",
+  "receptionist",
+  "secretary",
+  "supervisor",
+  "president",
+  "ceo",
+  "cfo",
+  "founder",
+  "partner",
+  "principal",
+  "agent",
+  "landlord",
+  "tenant",
+  "property",
+  "team",
+  "lead",
+  "head",
+  "executive",
+  "accounts",
+  "office",
+]);
+
+/** Business words: "Best Cleaning Co", "Acme Pty Ltd". */
+const COMPANY_WORDS = new Set([
+  "co",
+  "company",
+  "pty",
+  "ltd",
+  "limited",
+  "inc",
+  "group",
+  "services",
+  "service",
+  "cleaning",
+  "painting",
+  "solutions",
+  "realty",
+  "real",
+  "estate",
+  "dental",
+  "clinic",
+  "studio",
+  "salon",
+  "cafe",
+  "store",
+  "shop",
+  "centre",
+  "center",
+  "trust",
+  "holdings",
+  "enterprises",
+  "construction",
+  "builders",
+  "plumbing",
+  "electrical",
+]);
+
+/** The first word of many place names: "Mount Gravatt", "North Lakes". */
+const PLACE_PREFIX = new Set([
+  "mount",
+  "mt",
+  "port",
+  "point",
+  "pt",
+  "north",
+  "south",
+  "east",
+  "west",
+  "upper",
+  "lower",
+  "new",
+  "fortitude",
+  "surfers",
+  "gold",
+  "sunshine",
+]);
+
+/** Common Australian cities and suburbs that turn up alone on a sign-off line. */
+const PLACES = new Set(
+  [
+    "brisbane",
+    "sydney",
+    "melbourne",
+    "perth",
+    "adelaide",
+    "hobart",
+    "darwin",
+    "canberra",
+    "cairns",
+    "townsville",
+    "toowoomba",
+    "ipswich",
+    "logan",
+    "redcliffe",
+    "caboolture",
+    "newcastle",
+    "wollongong",
+    "geelong",
+    "ballarat",
+    "bendigo",
+    "launceston",
+    "chermside",
+    "paddington",
+    "kedron",
+    "nundah",
+    "toowong",
+    "indooroopilly",
+    "bulimba",
+    "carindale",
+    "ascot",
+    "hamilton",
+    "clayfield",
+    "wilston",
+    "windsor",
+    "lutwyche",
+    "aspley",
+    "stafford",
+    "everton",
+    "ashgrove",
+    "bardon",
+    "auchenflower",
+    "milton",
+    "woolloongabba",
+    "annerley",
+    "yeronga",
+    "sherwood",
+    "graceville",
+    "corinda",
+    "kenmore",
+    "chapel",
+    "springwood",
+    "capalaba",
+    "cleveland",
+    "wynnum",
+    "manly",
+    "sandgate",
+    "redbank",
+    "forest",
+    "parramatta",
+    "bondi",
+    "newtown",
+    "chatswood",
+    "mosman",
+    "randwick",
+    "coogee",
+    "richmond",
+    "fitzroy",
+    "carlton",
+    "brunswick",
+    "hawthorn",
+    "prahran",
+    "subiaco",
+    "fremantle",
+    "glenelg",
+    "noosa",
+    "maroochydore",
+    "caloundra",
+    "southport",
+    "robina",
+    "nerang",
+  ].map((w) => w.toLowerCase()),
+);
+
+export type NameContext = {
+  /** The business's own base location, so its suburb is never a customer name. */
+  place?: string;
+};
+
+function isPlace(words: string[], ctx: NameContext): boolean {
+  const lower = words.map((w) => w.toLowerCase());
+  const own = (ctx.place ?? "")
+    .toLowerCase()
+    .split(/[^a-z]+/)
+    .filter((w) => w.length >= 3);
+  if (lower.some((w) => own.includes(w))) return true;
+  if (PLACE_PREFIX.has(lower[0]!)) return true;
+  return lower.length === 1 && PLACES.has(lower[0]!);
+}
+
+/** A line that says who they are or where from, not their name. */
+function isRoleOrPlaceLine(line: string, ctx: NameContext): boolean {
+  const words = line.replace(/[,.]/g, " ").split(/\s+/).filter(Boolean);
+  if (words.length === 0) return false;
+  const lower = words.map((w) => w.toLowerCase());
+  return (
+    lower.some((w) => TITLE_WORDS.has(w) || COMPANY_WORDS.has(w)) ||
+    isPlace(words, ctx) ||
+    /\b(?:qld|nsw|vic|wa|sa|tas|act|nt)\b|\b\d{4}\b/i.test(line)
+  );
+}
+
+function acceptName(raw: string | undefined, ctx: NameContext = {}): string | undefined {
   if (!raw) return undefined;
   // Case-insensitive patterns can run on into "Sam and"; a name is only the
   // capitalised words it starts with.
@@ -437,6 +728,9 @@ function acceptName(raw: string | undefined): string | undefined {
   }
   if (words.length === 0) return undefined;
   if (words.some((w) => NOT_A_NAME.has(w.toLowerCase()))) return undefined;
+  const lower = words.map((w) => w.toLowerCase());
+  if (lower.some((w) => TITLE_WORDS.has(w) || COMPANY_WORDS.has(w))) return undefined;
+  if (isPlace(words, ctx)) return undefined;
   const name = words.join(" ");
   return name.length >= 2 ? name : undefined;
 }
@@ -450,36 +744,70 @@ function acceptName(raw: string | undefined): string | undefined {
  *   0412 555 019
  *
  * The name is the line straight after the sign-off, not the last line of the
- * message - that can be a suburb ("Chermside") or a business name.
+ * message - that can be a suburb ("Chermside") or a business name. A single
+ * word alone on the last line is not enough to be sure of ("Thanks\nKedron"):
+ * it is only taken when something follows it, or it is two words.
  */
-function nameFromSignOffLines(text: string): string | undefined {
+function nameFromSignOffLines(text: string, ctx: NameContext): string | null | undefined {
   const lines = text
     .split(/\n/)
     .map((l) => l.trim())
     .filter(Boolean);
-  let end = lines.length;
+  const total = lines.length;
+  let end = total;
   while (end > 0 && CONTACT_LINE.test(lines[end - 1]!)) end -= 1;
   for (let i = end - 1; i >= Math.max(0, end - 4); i -= 1) {
     const m = SIGN_OFF_LINE.exec(lines[i]!);
     if (!m) continue;
     const rest = (m[1] ?? "").trim();
-    if (rest) return acceptName(NAME_LINE.exec(rest)?.[1]);
+    // "Thanks for getting back to me." is a sentence, not a sign-off.
+    if (rest && !NAME_LINE.test(rest)) continue;
+    // A sign-off line settles it: whatever it gives (or does not) is final.
+    if (rest) return acceptName(NAME_LINE.exec(rest)?.[1], ctx) ?? null;
     const next = lines[i + 1];
-    if (next && i + 1 < end) return acceptName(NAME_LINE.exec(next)?.[1]);
-    return undefined;
+    if (!next || i + 1 >= end) return null;
+    const name = acceptName(NAME_LINE.exec(next)?.[1], ctx);
+    if (!name) return null;
+    const single = !name.includes(" ");
+    if (single && i + 2 >= total) return null;
+    return name;
   }
   return undefined;
 }
 
-export function readCustomerName(text: string): string | undefined {
+/**
+ * "Priya Shah\nOffice Manager\nNorthside Dental": the name is the line above
+ * the role and business lines, not the last line.
+ */
+function nameAboveRoleLines(text: string, ctx: NameContext): string | undefined {
+  const lines = text
+    .split(/\n/)
+    .map((l) => l.trim())
+    .filter(Boolean);
+  let i = lines.length - 1;
+  while (i >= 0 && CONTACT_LINE.test(lines[i]!)) i -= 1;
+  let skipped = 0;
+  while (i >= 0 && isRoleOrPlaceLine(lines[i]!, ctx)) {
+    i -= 1;
+    skipped += 1;
+  }
+  if (skipped === 0 || i < 0) return undefined;
+  const m = NAME_LINE.exec(lines[i]!);
+  const name = acceptName(m?.[1], ctx);
+  return name && name.includes(" ") ? name : undefined;
+}
+
+export function readCustomerName(text: string, ctx: NameContext = {}): string | undefined {
   const trimmed = text.trim();
-  const fromLines = nameFromSignOffLines(trimmed);
+  const fromLines = nameFromSignOffLines(trimmed, ctx);
   if (fromLines) return fromLines;
+  if (fromLines === null) return nameAboveRoleLines(trimmed, ctx);
   return (
-    acceptName(SIGN_OFF.exec(trimmed)?.[1]) ??
-    acceptName(DASH_NAME.exec(trimmed)?.[1]) ??
-    acceptName(TRAILING_NAME.exec(trimmed)?.[1]) ??
-    acceptName(INTRO.exec(trimmed)?.[1])
+    nameAboveRoleLines(trimmed, ctx) ??
+    acceptName(SIGN_OFF.exec(trimmed)?.[1], ctx) ??
+    acceptName(DASH_NAME.exec(trimmed)?.[1], ctx) ??
+    acceptName(TRAILING_NAME.exec(trimmed)?.[1], ctx) ??
+    acceptName(INTRO.exec(trimmed)?.[1], ctx)
   );
 }
 
@@ -507,10 +835,11 @@ export function readEnquiryBasics(
   text: string,
   now = new Date(),
   tz = "Australia/Brisbane",
+  ctx: NameContext = {},
 ): EnquiryBasics {
   const dates = readDates(text, now, tz);
   return {
-    customerName: readCustomerName(text),
+    customerName: readCustomerName(text, ctx),
     jobDate: dates.jobDate,
     dates,
     contact: readContact(text),

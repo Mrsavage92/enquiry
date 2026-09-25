@@ -167,7 +167,16 @@ export function promiseVerdict(enquiry: Enquiry): { word: PromiseWord; line: str
   const setup = setupStep(enquiry);
   if (isPricingStep(setup)) return v(PROMISE_WORDS.notYet, "your prices decide it");
   if (setup || needsOneDetail(enquiry)) return v(PROMISE_WORDS.notYet, "say which service");
-  if (decision === "ACTION_READY") return v(PROMISE_WORDS.yes, "reply ready");
+  if (decision === "ACTION_READY") {
+    // The reply asks about a day that has passed or does not match its weekday.
+    const dateToCheck = (enquiry.facts ?? []).some(
+      (f) =>
+        !f.superseded &&
+        f.field.trim().toLowerCase() === "date" &&
+        (f.status === "conflict" || f.status === "check_this"),
+    );
+    return v(PROMISE_WORDS.yes, dateToCheck ? "reply ready, one date to check" : "reply ready");
+  }
   if (decision === "BOOKING_PENDING") return v(PROMISE_WORDS.yes, "confirm the booking");
   return v(PROMISE_WORDS.notYet, "your call");
 }

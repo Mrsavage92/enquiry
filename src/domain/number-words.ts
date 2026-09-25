@@ -110,5 +110,13 @@ export function digitsForWrittenNumber(value: string): string {
   if (!m) return text;
   const n = wordsToNumber(m[1]!);
   if (n === null) return text;
-  return `${n}${m[2] ?? ""}`.trim();
+  // Only a whole number phrase, optionally followed by the unit: "three
+  // bedrooms". "two and a half" or "three or so" are left exactly as typed, so
+  // the quantity check refuses them rather than storing 2 or 3.
+  const rest = (m[2] ?? "").trim();
+  if (rest && (!/^[a-z][a-z\s'-]*$/i.test(rest) || NOT_A_UNIT.test(rest))) return text;
+  return `${n}${rest ? ` ${rest}` : ""}`;
 }
+
+/** What follows a number but is not its unit: "and a half", "or so", "ish". */
+const NOT_A_UNIT = /\b(?:and|half|quarter|bit|or|ish|odd|so|plus|more|less|few|couple)\b/i;
