@@ -11,6 +11,8 @@ import {
   commercialValue,
   filteredEnquiries,
   formatAud,
+  needsYouSentence,
+  QUEUE_NAMES,
   queueFilterHasMatch,
   queueSection,
   queueSummary,
@@ -19,9 +21,9 @@ import {
 import { CommercialValueMark } from "@/components/ui/commercial-value";
 import { enquirySituation, queueSituationLabel } from "@/domain/situation";
 import { statusTone } from "@/domain/status-tone";
-import { formatRelative } from "@/domain/format";
+import { rowTimeCue } from "@/domain/time-cues";
 import { channelLabel } from "@/domain/channel";
-import type { Enquiry } from "@/domain/types";
+import type { Enquiry, WorkspacePrefs } from "@/domain/types";
 import { usePrototype } from "@/store/prototype-store";
 import { BUSINESS_BY_ID } from "@/fixtures";
 import { AddEnquiry } from "@/components/enquiry/add-enquiry";
@@ -30,18 +32,18 @@ import { QueueBriefing } from "./briefing";
 import { Notices } from "@/components/shell/notices";
 
 const FILTERS = [
-  { id: "needs_you", label: "Needs you" },
-  { id: "waiting", label: "Waiting" },
-  { id: "at_risk", label: "At risk" },
-  { id: "closed", label: "Closed" },
-  { id: "all", label: "All" },
+  { id: "needs_you", label: QUEUE_NAMES.needs_you },
+  { id: "waiting", label: QUEUE_NAMES.waiting },
+  { id: "at_risk", label: QUEUE_NAMES.at_risk },
+  { id: "closed", label: QUEUE_NAMES.closed },
+  { id: "all", label: QUEUE_NAMES.all },
 ] as const;
 
 const PHONE_FILTERS = [
-  { id: "needs_you", label: "You" },
-  { id: "waiting", label: "Waiting" },
-  { id: "at_risk", label: "Risk" },
-  { id: "closed", label: "Done" },
+  { id: "needs_you", label: QUEUE_NAMES.needs_you },
+  { id: "waiting", label: QUEUE_NAMES.waiting },
+  { id: "at_risk", label: QUEUE_NAMES.at_risk },
+  { id: "closed", label: QUEUE_NAMES.closed },
 ] as const;
 
 function matchesQuery(e: Enquiry, q: string, businessName?: string) {
@@ -50,11 +52,9 @@ function matchesQuery(e: Enquiry, q: string, businessName?: string) {
   return hay.includes(q);
 }
 
-function queueTime(e: Enquiry) {
-  if (e.state.decision === "EVALUATING") return "Just now";
-  const t = Date.parse(e.receivedAt);
-  if (Number.isFinite(t) && Date.now() - t < 90_000) return "Just now";
-  return formatRelative(e.receivedAt);
+function queueTime(e: Enquiry, prefs: WorkspacePrefs) {
+  if (e.state.decision === "EVALUATING") return "Reading now";
+  return rowTimeCue(e, prefs);
 }
 
 function ArrivalStrip() {
@@ -107,6 +107,7 @@ export function Queue({ activeId, phone = false }: { activeId?: string; phone?: 
   const setQueueFilter = usePrototype((s) => s.setQueueFilter);
   const lastArrivalId = usePrototype((s) => s.lastArrivalId);
   const demoMode = usePrototype((s) => s.demoMode);
+  const prefs = usePrototype((s) => s.prefs);
   const [query, setQuery] = useState("");
   const [findOpen, setFindOpen] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
@@ -163,13 +164,6 @@ export function Queue({ activeId, phone = false }: { activeId?: string; phone?: 
       !queueFilterHasMatch(enquiries, businessFilter, listFilter) &&
       !(lastArrivalId && visible.some((v) => v.id === lastArrivalId)));
   const summary = queueSummary(scoped);
-  const counts = {
-    needs_you: summary.needsYou,
-    waiting: summary.waiting,
-    at_risk: summary.atRisk,
-    closed: scoped.filter((e) => e.state.lifecycle !== "OPEN").length,
-    all: scoped.length,
-  };
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -243,11 +237,8 @@ export function Queue({ activeId, phone = false }: { activeId?: string; phone?: 
               {queueHeadline(summary)}
             </p>
             <p className="mt-2 text-sm text-stone">
-              {summary.waiting} waiting
-              {summary.atRisk ? ` · ${summary.atRisk} at risk` : ""}
-              {summary.exactCount > 0
-                ? ` · ${summary.exactCount} exact ${formatAud(summary.exactValue)}`
-                : ""}
+              {needsYouSentence(summary.needsYou)}
+              {summary.exactCount > 0 ? ` ${formatAud(summary.exactValue)} in exact quotes.` : ""}
             </p>
             <QueueBriefing />
           </>
@@ -283,7 +274,6 @@ export function Queue({ activeId, phone = false }: { activeId?: string; phone?: 
               options={(phone ? PHONE_FILTERS : FILTERS).map((f) => ({
                 id: f.id,
                 label: f.label,
-                count: counts[f.id],
               }))}
             />
           </div>
@@ -303,7 +293,7 @@ export function Queue({ activeId, phone = false }: { activeId?: string; phone?: 
                   : queueFilter === "waiting"
                     ? "Nobody is waiting"
                     : queueFilter === "at_risk"
-                      ? "Nothing at risk"
+                      ? "Nothing needs a look"
                       : queueFilter === "closed"
                         ? "Nothing closed yet"
                         : "No enquiries in this workspace"}
@@ -397,7 +387,7 @@ export function Queue({ activeId, phone = false }: { activeId?: string; phone?: 
                           {" · "}
                           {channelLabel(e.source)}
                           {" · "}
-                          {queueTime(e)}
+                          {queueTime(e, prefs)}
                         </span>
                       </p>
                       {/*
@@ -443,7 +433,7 @@ export function Queue({ activeId, phone = false }: { activeId?: string; phone?: 
                         ) : (
                           <span />
                         )}
-                        <span className="shrink-0">{queueTime(e)}</span>
+                        <span className="min-w-0 truncate text-right">{queueTime(e, prefs)}</span>
                       </div>
                       {situation && situation.kind !== "evaluating" ? (
                         <p className="mt-1 text-2xs text-warn-on-paper-2">

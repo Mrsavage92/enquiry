@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Check, ChevronDown, CircleHelp, Pencil } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -52,6 +52,10 @@ import { HearLetter } from "./hear-letter";
 import { SendPreview, type SendPreviewCopyState } from "./send-preview";
 import { DeclineConfirm } from "./decline-confirm";
 import { isWaitingForInformation } from "./reply-presentation";
+import { useDraftSaver, useDraftSaveState } from "@/lib/workspace/owner-sync";
+import { comesBackCue, lastSent } from "@/domain/time-cues";
+import { STATUS } from "@/domain/labels";
+import { LaterChoices } from "./later-choices";
 
 export function Intelligence({
   enquiry,
@@ -74,6 +78,7 @@ export function Intelligence({
   const setEvidenceOpen = onDetailsOpenChange ?? setInternalEvidenceOpen;
   const [correcting, setCorrecting] = useState<EnquiryFact | null>(null);
   const [draftOpen, setDraftOpen] = useState(!compact && !inline);
+  const [laterOpen, setLaterOpen] = useState(false);
   const [sendConfirm, setSendConfirm] = useState(false);
   // The server-frozen artefact this preview is about, and why the server would
   // not let it proceed. Both cleared every time the preview is opened afresh.
@@ -87,7 +92,10 @@ export function Intelligence({
   // Persisted write-through: a note about a customer must survive a reload.
   const enq = useLiveEnquiryMutations();
   const drafts = usePrototype((s) => s.drafts);
-  const editDraft = usePrototype((s) => s.editDraft);
+  // Edits are kept on the server as they are typed, so an interrupted reply
+  // is still there after a reload or on another device.
+  const editDraft = useDraftSaver();
+  const prefs = usePrototype((s) => s.prefs);
   const considerVoice = usePrototype((s) => s.considerVoice);
   const decideVoice = usePrototype((s) => s.decideVoice);
   const voiceNotice = usePrototype((s) => s.voiceNotice);
@@ -121,6 +129,18 @@ export function Intelligence({
   const situation = enquirySituation(enquiry, business);
   const evaluating = situation?.kind === "evaluating";
   const draftBody = drafts[enquiry.id] ?? enquiry.decision.draft.body;
+  // The owner changed the prepared reply and has not sent it: resuming means
+  // putting that text back in front of them, not the original.
+  const hasOwnEdit =
+    drafts[enquiry.id] !== undefined && drafts[enquiry.id] !== enquiry.decision.draft.body;
+  const resumedEdit = useRef(false);
+  useEffect(() => {
+    if (!hasOwnEdit || resumedEdit.current || compact) return;
+    resumedEdit.current = true;
+    setDraftOpen(true);
+  }, [hasOwnEdit, compact]);
+  const sent = lastSent(enquiry);
+  const waitingFor = enquiry.decision.missing.find((m) => m.blocking)?.label;
   const priceDrift = detectPriceDrift(enquiry.decision.draft.body, draftBody);
   const sheets = quoteSheets(enquiry);
   const focusQuote =
@@ -384,7 +404,7 @@ export function Intelligence({
               className={cn("border-b border-line px-5", compact ? "py-3" : "py-4")}
               role="status"
             >
-              <p className="text-sm font-medium">Follow-up ready</p>
+              <p className="text-sm font-medium">{STATUS.followUp}</p>
               <p className="mt-1 text-sm leading-relaxed text-ink-2">{enquiry.followUpReason}</p>
             </div>
           ) : null}
@@ -436,7 +456,11 @@ export function Intelligence({
                         aria-expanded={draftOpen}
                       >
                         <Pencil className="size-4" aria-hidden />
-                        {draftOpen ? "Finish editing" : "Read & edit reply"}
+                        {draftOpen
+                          ? "Finish editing"
+                          : hasOwnEdit
+                            ? "Continue your reply"
+                            : "Read & edit reply"}
                       </button>
                     ) : null}
                     {inline && !compact ? <HearLetter text={draftBody} /> : null}
@@ -700,16 +724,22 @@ export function Intelligence({
                     </div>
                   ) : null}
                   {draftOpen ? (
-                    <label className="mt-3 block">
-                      <span className="sr-only">Draft message</span>
-                      <textarea
-                        value={draftBody}
-                        onChange={(e) => editDraft(enquiry.id, e.target.value)}
-                        onBlur={() => considerVoice(enquiry.id)}
-                        rows={inline ? 7 : short ? 5 : 10}
-                        className={cn("field leading-relaxed", short ? "font-sans" : "font-serif")}
-                      />
-                    </label>
+                    <>
+                      <label className="mt-3 block">
+                        <span className="sr-only">Draft message</span>
+                        <textarea
+                          value={draftBody}
+                          onChange={(e) => editDraft(enquiry.id, e.target.value)}
+                          onBlur={() => considerVoice(enquiry.id)}
+                          rows={inline ? 7 : short ? 5 : 10}
+                          className={cn(
+                            "field leading-relaxed",
+                            short ? "font-sans" : "font-serif",
+                          )}
+                        />
+                      </label>
+                      <DraftSaveNote enquiryId={enquiry.id} live={!demoMode} />
+                    </>
                   ) : inline ? (
                     <p className="inline-reply-body">{draftBody || "No reply prepared."}</p>
                   ) : null}
@@ -790,7 +820,15 @@ export function Intelligence({
             </span>
             <div className="reply-waiting-copy">
               <p>Waiting on {enquiry.customerName.split(" ")[0]}</p>
-              <p>Your reply is on record. Waiting for their response.</p>
+              <p>
+                {sent
+                  ? `You sent this ${sent.when}: "${sent.excerpt}"`
+                  : "Your reply is on record."}
+              </p>
+              <p>
+                {waitingFor ? `Waiting for: ${waitingFor.toLowerCase()}. ` : ""}
+                {comesBackCue(enquiry, prefs)}
+              </p>
             </div>
             <button type="button" className="ui-text-link" onClick={() => setWhyOpen(true)}>
               Why this reply?
@@ -902,13 +940,9 @@ export function Intelligence({
                     size="sm"
                     variant="ghost"
                     className="min-h-11"
-                    onClick={() => {
-                      void enq.snooze(enquiry.id, (m) => toast.error(m));
-                      toastUndo("Snoozed for two days.");
-                      onDone?.();
-                    }}
+                    onClick={() => setLaterOpen(true)}
                   >
-                    Snooze
+                    {STATUS.later}
                   </Button>
                   <Button
                     size="sm"
@@ -1134,6 +1168,18 @@ export function Intelligence({
         </Panel>
       </Dialog>
 
+      <LaterChoices
+        open={laterOpen}
+        onOpenChange={setLaterOpen}
+        compact={compact}
+        onChoose={(until, label) => {
+          void enq.snooze(enquiry.id, (m) => toast.error(m), until);
+          setLaterOpen(false);
+          toastUndo(`Later: ${label}. It comes back to Needs you then.`);
+          onDone?.();
+        }}
+      />
+
       {compact ? (
         <Dialog open={draftOpen} onOpenChange={setDraftOpen}>
           <SheetContent title={short ? "Message" : "Reply"}>
@@ -1145,6 +1191,7 @@ export function Intelligence({
               rows={short ? 6 : 10}
               className="field min-h-24 max-h-[40dvh] font-sans leading-relaxed"
             />
+            <DraftSaveNote enquiryId={enquiry.id} live={!demoMode} />
             {grounded ? <p className="mt-2 text-xs text-stone">Grounded in {grounded}.</p> : null}
             <div className="mt-4 flex items-center gap-4">
               <HearLetter text={draftBody} compact />
@@ -1456,5 +1503,24 @@ function CorrectDialog({
         )}
       </Panel>
     </Dialog>
+  );
+}
+
+/** Says plainly whether the reply being edited is kept. Live workspaces only. */
+function DraftSaveNote({ enquiryId, live }: { enquiryId: string; live: boolean }) {
+  const state = useDraftSaveState((s) => s.byId[enquiryId]);
+  if (!live || !state) return null;
+  return (
+    <span
+      className={cn("mt-1.5 block text-xs", state === "failed" ? "text-warn" : "text-stone")}
+      role="status"
+      aria-live="polite"
+    >
+      {state === "saving"
+        ? "Saving your changes..."
+        : state === "saved"
+          ? "Saved. It will be here when you come back, on any device."
+          : "Not saved yet. Keep this open and check your connection."}
+    </span>
   );
 }

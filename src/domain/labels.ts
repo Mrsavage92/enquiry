@@ -65,41 +65,89 @@ export function integrationStatusLabel(status: IntegrationHealth["status"]): str
   }
 }
 
-export function derivedLabel(state: CompositeState, enquiry?: Enquiry): string {
-  if (state.lifecycle === "BOOKED") return "Booked";
-  if (state.lifecycle === "LOST") return "Lost";
-  if (state.lifecycle === "DECLINED") return "Declined";
-  if (state.lifecycle === "CANCELLED") return "Cancelled";
-  if (enquiry?.source === "comment" && state.lifecycle === "OPEN") return "Public comment";
-  if (enquiry?.snoozedUntil && Date.parse(enquiry.snoozedUntil) > Date.now()) return "Snoozed";
-  if (enquiry?.followUpDue) return "Follow-up ready";
-  if (enquiry?.atRisk) return "At risk";
-  if (state.decision === "EVALUATING") return "Reading";
-  if (state.decision === "NEEDS_INFORMATION") return "Needs info";
-  if (state.decision === "BOOKING_PENDING") return "Booking pending";
-  if (
-    state.decision === "WAITING_ON_CLIENT" &&
-    (state.commercial === "QUOTED" || state.commercial === "ESTIMATED")
-  ) {
-    return "Sent";
+/**
+ * The owner-facing status vocabulary. One small plain set, and the only place
+ * any of these words is written: every badge, filter and heading in the app
+ * reads from here, and `status-vocabulary.test.ts` fails on a status word
+ * hard-coded anywhere else.
+ *
+ * The promise itself is always Yes / No / Not yet (see PROMISE_WORDS). These
+ * are the words for where an enquiry stands.
+ */
+export const STATUS = {
+  reading: "Reading",
+  needsDetail: "Needs a detail",
+  yourCall: "Your call",
+  replyReady: "Reply ready",
+  waiting: "Waiting",
+  followUp: "Follow up",
+  later: "Later",
+  needsLook: "Needs a look",
+  bookingToConfirm: "Booking to confirm",
+  publicComment: "Public comment",
+  booked: "Booked",
+  declined: "Declined",
+  lost: "Lost",
+  cancelled: "Cancelled",
+  open: "Open",
+} as const;
+
+export type StatusWord = (typeof STATUS)[keyof typeof STATUS];
+
+/** The three answers to "can I safely promise this?". */
+export const PROMISE_WORDS = { yes: "Yes", no: "No", notYet: "Not yet" } as const;
+
+/** Queue and tab names. "Needs you" is only ever the name of the queue, never a badge. */
+export const QUEUE_NAMES = {
+  needs_you: "Needs you",
+  waiting: STATUS.waiting,
+  at_risk: STATUS.needsLook,
+  closed: "Closed",
+  all: "All",
+} as const;
+
+export function derivedLabel(state: CompositeState, enquiry?: Enquiry): StatusWord {
+  if (state.lifecycle === "BOOKED") return STATUS.booked;
+  if (state.lifecycle === "LOST") return STATUS.lost;
+  if (state.lifecycle === "DECLINED") return STATUS.declined;
+  if (state.lifecycle === "CANCELLED") return STATUS.cancelled;
+  if (enquiry?.source === "comment" && state.lifecycle === "OPEN") return STATUS.publicComment;
+  if (enquiry?.snoozedUntil && Date.parse(enquiry.snoozedUntil) > Date.now()) return STATUS.later;
+  if (enquiry?.followUpDue) return STATUS.followUp;
+  if (enquiry?.atRisk) return STATUS.needsLook;
+  if (state.decision === "EVALUATING") return STATUS.reading;
+  if (state.decision === "NEEDS_INFORMATION") return STATUS.needsDetail;
+  if (state.decision === "BOOKING_PENDING") return STATUS.bookingToConfirm;
+  if (state.decision === "WAITING_ON_CLIENT") return STATUS.waiting;
+  if (state.decision === "NEEDS_HUMAN") return STATUS.yourCall;
+  if (state.decision === "ACTION_READY") return STATUS.replyReady;
+  return STATUS.open;
+}
+
+/**
+ * The owner's next step for one enquiry, in their words: what they would do,
+ * not what the customer said. Used to lead rows and the "Start here" card.
+ */
+export function nextStepLabel(enquiry: Enquiry): string {
+  if (enquiry.state.lifecycle !== "OPEN") return "Nothing to do";
+  if (enquiry.state.decision === "EVALUATING") return "Enquiry is reading it";
+  if (enquiry.followUpDue) return "Decide whether to follow up";
+  const blocking = enquiry.decision?.missing?.find((m) => m.blocking);
+  if (enquiry.state.decision === "NEEDS_INFORMATION" && blocking) {
+    return `Add the ${blocking.label.toLowerCase()}`;
   }
-  if (state.decision === "WAITING_ON_CLIENT") return "Waiting on client";
-  if (state.decision === "NEEDS_HUMAN") return "Needs you";
-  if (
-    state.decision === "ACTION_READY" &&
-    enquiry?.decision.recommendation.action === "SEND_QUOTE"
-  ) {
-    return "Ready to quote";
-  }
-  if (state.decision === "ACTION_READY") return "Needs you";
-  return "Open";
+  if (enquiry.state.decision === "WAITING_ON_CLIENT") return "Nothing until they answer";
+  const label = enquiry.decision?.recommendation?.label?.trim();
+  return label || "Open it and decide";
 }
 
 export function queueSection(enquiry: Enquiry): "needs_you" | "waiting" | "at_risk" | "recent" {
   if (enquiry.state.lifecycle !== "OPEN") return "recent";
   if (enquiry.snoozedUntil && Date.parse(enquiry.snoozedUntil) > Date.now()) return "waiting";
+  // A follow-up that has come due is a decision due now, with its reason on
+  // the row: it belongs with everything else that needs the owner.
+  if (enquiry.followUpDue) return "needs_you";
   if (enquiry.atRisk) return "at_risk";
-  if (enquiry.followUpDue) return "at_risk";
   if (
     enquiry.state.decision === "WAITING_ON_CLIENT" &&
     enquiry.state.responsibility === "CUSTOMER"
@@ -204,7 +252,7 @@ export const ACTION_LABELS: Record<RecommendationAction, string> = {
   FOLLOW_UP: "Send follow-up",
   WAIT: "Wait",
   DECLINE: "Decline enquiry",
-  ESCALATE_HUMAN: "Needs you",
+  ESCALATE_HUMAN: "Your call",
   NO_ACTION: "No action",
 };
 
@@ -349,6 +397,13 @@ export function queueSummary(enquiries: Enquiry[]): QueueSummary {
   };
 }
 
+/** The queue's heading. Words, not a large number: what is next, not what is behind. */
 export function queueHeadline(summary: QueueSummary): string {
-  return summary.needsYou === 0 ? "Caught up" : `${summary.needsYou} need you`;
+  return summary.needsYou === 0 ? "Caught up" : QUEUE_NAMES.needs_you;
+}
+
+/** One plain sentence with the count only for what needs action today. */
+export function needsYouSentence(count: number): string {
+  if (count === 0) return "Nothing needs you right now.";
+  return count === 1 ? "1 enquiry needs you today." : `${count} enquiries need you today.`;
 }

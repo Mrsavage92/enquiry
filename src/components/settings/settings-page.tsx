@@ -18,6 +18,8 @@ import { toast } from "sonner";
 import { InstallAppBlock } from "@/components/shell/install-app";
 import { integrationStatusLabel } from "@/domain/labels";
 import { useLiveTrustMutations } from "@/lib/workspace/live-mutations";
+import { usePrefsSaver } from "@/lib/workspace/owner-sync";
+import { isTimeZone, WORKING_DAY_CHOICES } from "@/domain/workspace-prefs";
 
 export function SettingsPage() {
   const businesses = usePrototype((s) => s.businesses);
@@ -27,7 +29,9 @@ export function SettingsPage() {
   const demoMode = usePrototype((s) => s.demoMode);
   const startSetup = usePrototype((s) => s.startSetup);
   const prefs = usePrototype((s) => s.prefs);
-  const setPrefs = usePrototype((s) => s.setPrefs);
+  // Kept on the server per business, so hours and notice choices follow the
+  // owner to any device instead of living in one browser tab.
+  const setPrefs = usePrefsSaver();
   const connect = usePrototype((s) => s.connectIntegration);
   const id = filter === "all" ? businesses[0]?.id : filter;
   const current = businesses.find((b) => b.id === id);
@@ -47,18 +51,32 @@ export function SettingsPage() {
             <div className="mt-4 grid gap-4 sm:grid-cols-2">
               <label className="text-sm">
                 <span className="mb-2 block text-stone">Days</span>
-                <input
+                <select
                   className="field h-11"
                   value={prefs.workingDays}
                   onChange={(e) => setPrefs({ workingDays: e.target.value })}
-                />
+                >
+                  {(WORKING_DAY_CHOICES as readonly string[]).includes(prefs.workingDays) ? null : (
+                    <option value={prefs.workingDays}>{prefs.workingDays}</option>
+                  )}
+                  {WORKING_DAY_CHOICES.map((choice) => (
+                    <option key={choice} value={choice}>
+                      {choice}
+                    </option>
+                  ))}
+                </select>
               </label>
               <label className="text-sm">
                 <span className="mb-2 block text-stone">Time zone</span>
                 <input
                   className="field h-11"
-                  value={prefs.timezone ?? "Australia/Brisbane"}
-                  onChange={(e) => setPrefs({ timezone: e.target.value })}
+                  defaultValue={prefs.timezone ?? "Australia/Brisbane"}
+                  onBlur={(e) => {
+                    const zone = e.target.value.trim();
+                    if (zone === prefs.timezone) return;
+                    if (isTimeZone(zone)) setPrefs({ timezone: zone });
+                    else toast.error("That time zone was not recognised. Try Australia/Sydney.");
+                  }}
                 />
               </label>
               <label className="text-sm">
@@ -83,16 +101,24 @@ export function SettingsPage() {
           </SettingsGroup>
           <SettingsGroup
             icon={Bell}
-            title="Notifications"
-            description="New enquiries, follow-ups and details to review"
+            title="Notices"
+            description={
+              prefs.notifyArrival || prefs.notifyFollowUp || prefs.notifyLearning
+                ? "On for the choices below"
+                : "Off. Nothing interrupts you until you turn one on"
+            }
           >
+            <p>
+              Notices show in the bell inside Enquiry, during the day. They are off until you turn
+              them on. Nothing is sent to your phone or email.
+            </p>
             <Toggle
               label="A new enquiry arrives"
               checked={prefs.notifyArrival}
               onChange={(v) => setPrefs({ notifyArrival: v })}
             />
             <Toggle
-              label="Follow-up is due"
+              label="A customer has not answered and it comes back to you"
               checked={prefs.notifyFollowUp}
               onChange={(v) => setPrefs({ notifyFollowUp: v })}
             />

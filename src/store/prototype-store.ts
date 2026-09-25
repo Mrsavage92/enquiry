@@ -40,6 +40,8 @@ import {
   snoozeEnquiry as buildSnooze,
 } from "@/domain/commercial";
 import { shouldReleaseFollowUp } from "@/domain/working-hours";
+import { withFollowUpDue } from "@/domain/time-cues";
+import { DEFAULT_PREFS } from "@/domain/workspace-prefs";
 import { DEMO_ACCEPT_REPLY, detectClientIntent } from "@/domain/client-intent";
 import { bookingDraftFromEnquiry } from "@/domain/calendar";
 import { toast } from "sonner";
@@ -102,7 +104,19 @@ type PrototypeState = {
   lastAutomated: AutomatedSend | null;
   dismissedNotices: string[];
   installDismissed: boolean;
+  /**
+   * The owner's previous visit, as the server recorded it before this one.
+   * Session-only: it is what Today's "since you were last here" line reads.
+   */
+  lastSeenPrevious: string | null;
 };
+
+/**
+ * Enquiry ids whose reply text has been typed but not yet confirmed saved on
+ * the server. A server refresh must not overwrite those with an older copy;
+ * everything else in `drafts` is replaced by what the server holds.
+ */
+export const unsavedDraftIds = new Set<string>();
 
 type Snapshot = {
   enquiries: Enquiry[];
@@ -145,7 +159,10 @@ type Actions = {
     enquiries: Enquiry[];
     bookings: Booking[];
     audit: AuditEvent[];
+    drafts?: Record<string, string>;
+    prefs?: Record<string, WorkspacePrefs>;
   }) => void;
+  setLastSeenPrevious: (iso: string | null) => void;
   startSetup: () => void;
   enterSample: () => void;
   restoreFixture: (enquiryId: string) => void;
@@ -193,7 +210,8 @@ type Actions = {
   undoLast: () => void;
   releaseFollowUp: (enquiryId: string) => void;
   proposeRevision: (enquiryId: string) => void;
-  snooze: (enquiryId: string) => void;
+  /** Park an enquiry until a given time (defaults to two days). */
+  snooze: (enquiryId: string, untilIso?: string) => void;
   setNote: (enquiryId: string, note: string) => void;
   declineLetter: (enquiryId: string) => void;
   /** Live-mode decline: closes the enquiry honestly - no fabricated letter,
@@ -250,18 +268,12 @@ const seed = (): Omit<PrototypeState, never> => ({
   lastAutomated: null,
   dismissedNotices: [],
   installDismissed: false,
+  lastSeenPrevious: null,
 });
 
+/** Notices default OFF; the owner opts in (src/domain/workspace-prefs.ts). */
 function defaultPrefs(): WorkspacePrefs {
-  return {
-    hoursStart: "08:00",
-    hoursEnd: "17:30",
-    workingDays: "Monday–Friday",
-    timezone: "Australia/Brisbane",
-    notifyArrival: true,
-    notifyFollowUp: true,
-    notifyLearning: true,
-  };
+  return { ...DEFAULT_PREFS };
 }
 
 function snapshotOf(s: {
@@ -313,11 +325,31 @@ export const usePrototype = create<PrototypeState & Actions>()(
         }
         set({ ...seed(), onboarded: get().onboarded });
       },
-      hydrateFromServer: ({ businesses, enquiries, bookings, audit }) =>
+      setLastSeenPrevious: (iso) => set({ lastSeenPrevious: iso }),
+      hydrateFromServer: ({ businesses, enquiries, bookings, audit, drafts, prefs }) =>
         set((s) => ({
           businesses,
           enquiries,
           bookings,
+          // The server's saved replies win, except for text typed in this tab
+          // that has not been confirmed saved yet - that is newer than anything
+          // the server could hold. Ids that no longer exist are dropped.
+          drafts: (() => {
+            const next: Record<string, string> = { ...(drafts ?? {}) };
+            for (const id of unsavedDraftIds) {
+              if (enquiries.some((e) => e.id === id) && s.drafts[id] !== undefined) {
+                next[id] = s.drafts[id]!;
+              }
+            }
+            return next;
+          })(),
+          prefs: (() => {
+            if (!prefs) return s.prefs;
+            const pick =
+              (s.businessFilter !== "all" && prefs[s.businessFilter]) ||
+              (businesses[0] && prefs[businesses[0].id]);
+            return pick ? { ...defaultPrefs(), ...pick } : s.prefs;
+          })(),
           // Real server audit replaces the fixture audit outright. Merging the
           // two would produce a history the operator cannot trust, which
           // defeats the point of having one.
@@ -1421,11 +1453,11 @@ export const usePrototype = create<PrototypeState & Actions>()(
         });
         get().track(enquiry.fixtureId, "propose_revision");
       },
-      snooze: (enquiryId) => {
+      snooze: (enquiryId, untilIso) => {
         const s = get();
         const enquiry = s.enquiries.find((e) => e.id === enquiryId);
         if (!enquiry) return;
-        const next = buildSnooze(enquiry, daysFromNow(2));
+        const next = buildSnooze(enquiry, untilIso ?? daysFromNow(2));
         set({
           enquiries: bump(s.enquiries, next),
           undo: snapshotOf(s),
@@ -1662,6 +1694,14 @@ export const usePrototype = create<PrototypeState & Actions>()(
         const s = get();
         let changed = false;
         const next = s.enquiries.map((enquiry) => {
+          if (!s.demoMode) {
+            // Live: the same attention-only rule the server applies on every
+            // read (loadWorkspace). The stored decision is left alone, so a
+            // long-open tab cannot offer a send the server would refuse.
+            const due = withFollowUpDue(enquiry, s.prefs);
+            if (due !== enquiry) changed = true;
+            return due;
+          }
           if (!shouldReleaseFollowUp(enquiry, s.prefs)) return enquiry;
           changed = true;
           return buildFollowUp(enquiry);

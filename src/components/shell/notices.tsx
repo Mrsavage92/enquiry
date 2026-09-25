@@ -1,6 +1,6 @@
 import { Bell } from "lucide-react";
 import { useMemo, useState } from "react";
-import { useNavigate } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import * as Popover from "@radix-ui/react-popover";
 import { briefing } from "@/domain/briefing";
 import { cn } from "@/lib/utils";
@@ -37,10 +37,10 @@ export function Notices({ inverse }: { inverse?: boolean }) {
     if (prefs.notifyFollowUp && b.followUp) {
       list.push({
         id: "followups",
-        title: `${b.followUp} follow-up${b.followUp === 1 ? "" : "s"} ready`,
-        body: "Silence is not a decline.",
+        title: `${b.followUp} back to you, no answer yet`,
+        body: "Silence is not a no. Decide whether to follow up.",
         go: () => {
-          setQueue("at_risk");
+          setQueue("needs_you");
           void navigate({ to: "/enquiries" });
         },
       });
@@ -59,7 +59,7 @@ export function Notices({ inverse }: { inverse?: boolean }) {
     if (lastAutomated) {
       list.push({
         id: `auto-${lastAutomated.enquiryId}-${lastAutomated.at}`,
-        title: `Autopilot sent to ${lastAutomated.customerName}`,
+        title: `Sample workspace: reply recorded for ${lastAutomated.customerName}`,
         body: lastAutomated.reason,
         go: () =>
           void navigate({
@@ -84,6 +84,7 @@ export function Notices({ inverse }: { inverse?: boolean }) {
   ]);
 
   const count = items.length;
+  const noticesOff = !prefs.notifyArrival && !prefs.notifyFollowUp && !prefs.notifyLearning;
 
   return (
     <Popover.Root open={open} onOpenChange={setOpen}>
@@ -113,7 +114,17 @@ export function Notices({ inverse }: { inverse?: boolean }) {
         >
           <p className="eyebrow">Today</p>
           {items.length === 0 ? (
-            <p className="mt-3 text-sm text-stone">Nothing waiting on you here.</p>
+            noticesOff ? (
+              <p className="mt-3 text-sm text-stone">
+                Notices are off, so nothing interrupts you. Turn them on in{" "}
+                <Link to="/settings" className="font-medium text-mark-strong underline">
+                  Settings
+                </Link>
+                .
+              </p>
+            ) : (
+              <p className="mt-3 text-sm text-stone">Nothing waiting on you here.</p>
+            )
           ) : (
             <ul className="mt-2">
               {items.map((item) => (

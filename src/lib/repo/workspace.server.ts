@@ -1,5 +1,8 @@
 import { getSql } from "@/lib/db";
-import type { AuditEvent, Booking, Business, Enquiry } from "@/domain/types";
+import type { AuditEvent, Booking, Business, Enquiry, WorkspacePrefs } from "@/domain/types";
+import { withFollowUpDue } from "@/domain/time-cues";
+import { withDefaults } from "@/domain/workspace-prefs";
+import { loadOwnerState } from "./owner-state-core";
 import {
   toActionPolicy,
   toAuditEvent,
@@ -54,9 +57,20 @@ export type WorkspaceData = {
    * untrustworthy (R2B s7).
    */
   audit: AuditEvent[];
+  /** enquiryId -> the reply the owner was part-way through, still valid for the current decision. */
+  drafts: Record<string, string>;
+  /** businessId -> working hours and notice choices. */
+  prefs: Record<string, WorkspacePrefs>;
 };
 
-const EMPTY: WorkspaceData = { businesses: [], enquiries: [], bookings: [], audit: [] };
+const EMPTY: WorkspaceData = {
+  businesses: [],
+  enquiries: [],
+  bookings: [],
+  audit: [],
+  drafts: {},
+  prefs: {},
+};
 
 /** Group rows by a key, preserving arrival order within each group. */
 function groupBy<T>(rows: T[], key: (row: T) => string): Map<string, T[]> {
@@ -84,7 +98,7 @@ export async function loadWorkspace(
 
   const sql = db ?? (await getSql());
 
-  // Ten statements, fixed, regardless of how many businesses or enquiries exist.
+  // Ten statements (plus two for owner state), fixed, regardless of how many businesses or enquiries exist.
   const [
     businessRows,
     serviceRows,
@@ -153,12 +167,22 @@ export async function loadWorkspace(
     }),
   );
 
+  const owner = await loadOwnerState(sql, businessIds);
+
+  // A quiet customer comes back to the owner from what is on record - the
+  // last reply sent and the business's own working hours - on every read, on
+  // every device. Not from whichever browser tab happened to be open.
+  const now = new Date();
   const enquiries = enquiryRows.map((e) =>
-    toEnquiry(e, {
-      facts: (factsBy.get(e.id) ?? []).map(toFact),
-      conversation: (messagesBy.get(e.id) ?? []).map(toMessage),
-      quotes: (quotesBy.get(e.id) ?? []).map(toQuote),
-    }),
+    withFollowUpDue(
+      toEnquiry(e, {
+        facts: (factsBy.get(e.id) ?? []).map(toFact),
+        conversation: (messagesBy.get(e.id) ?? []).map(toMessage),
+        quotes: (quotesBy.get(e.id) ?? []).map(toQuote),
+      }),
+      owner.prefs[e.business_id] ?? withDefaults({}),
+      now,
+    ),
   );
 
   return {
@@ -166,5 +190,7 @@ export async function loadWorkspace(
     enquiries,
     bookings: bookingRows.map(toBooking),
     audit: auditRows.map(toAuditEvent),
+    drafts: owner.drafts,
+    prefs: owner.prefs,
   };
 }

@@ -11,7 +11,7 @@ const WEEKDAY: Record<string, number> = {
   Sat: 6,
 };
 
-function parseHm(hm: string): number {
+export function parseHm(hm: string): number {
   const [h, m] = hm.split(":").map(Number);
   return (h ?? 0) * 60 + (m ?? 0);
 }
@@ -30,8 +30,9 @@ function zoned(date: Date, timeZone = ZONE): { day: number; mins: number } {
   return { day: WEEKDAY[weekday] ?? 1, mins: hour * 60 + minute };
 }
 
-function isWorkingDay(day: number, workingDays: string): boolean {
+export function isWorkingDay(day: number, workingDays: string): boolean {
   if (/seven|every day|daily/i.test(workingDays)) return true;
+  if (/saturday/i.test(workingDays) && /monday/i.test(workingDays)) return day >= 1 && day <= 6;
   if (/weekend/i.test(workingDays) && !/weekday|monday/i.test(workingDays)) {
     return day === 0 || day === 6;
   }
@@ -71,7 +72,8 @@ export function shouldReleaseFollowUp(
   if (enquiry.followUpDue) return false;
   if (enquiry.snoozedUntil && Date.parse(enquiry.snoozedUntil) > now.getTime()) return false;
   if (enquiry.state.decision !== "WAITING_ON_CLIENT") return false;
-  if (enquiry.state.commercial !== "QUOTED" && enquiry.state.commercial !== "ESTIMATED") return false;
+  if (enquiry.state.commercial !== "QUOTED" && enquiry.state.commercial !== "ESTIMATED")
+    return false;
   const lastOut = [...enquiry.conversation].reverse().find((m) => m.direction === "outbound");
   if (!lastOut) return false;
   return workingMinutesBetween(new Date(lastOut.at), now, prefs) >= FOLLOW_UP_AFTER_MINUTES;

@@ -4,7 +4,8 @@ import { useState } from "react";
 import { Dialog } from "@/components/ui/dialog";
 import { SheetContent } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
-import { nextNeedsYou } from "@/domain/labels";
+import { nextNeedsYou, STATUS } from "@/domain/labels";
+import { LaterChoices } from "./later-choices";
 import type { Enquiry } from "@/domain/types";
 import { toast } from "sonner";
 import { usePrototype } from "@/store/prototype-store";
@@ -23,6 +24,7 @@ export function PhoneDesk({ enquiry }: { enquiry: Enquiry }) {
   const [noteOpen, setNoteOpen] = useState(false);
   const [declineOpen, setDeclineOpen] = useState(false);
   const [declining, setDeclining] = useState(false);
+  const [laterOpen, setLaterOpen] = useState(false);
   const navigate = useNavigate();
   const embedNav = useEmbedNav();
   const demoMode = usePrototype((s) => s.demoMode);
@@ -82,9 +84,9 @@ export function PhoneDesk({ enquiry }: { enquiry: Enquiry }) {
           </h1>
           <p className="truncate text-2xs text-stone">
             {enquiry.state.lifecycle === "BOOKED"
-              ? "Booked"
+              ? STATUS.booked
               : inChat
-                ? "Sent"
+                ? STATUS.waiting
                 : [enquiry.serviceLabel, enquiry.dateLabel].filter(Boolean).join(" · ")}
           </p>
         </div>
@@ -136,13 +138,11 @@ export function PhoneDesk({ enquiry }: { enquiry: Enquiry }) {
               variant="secondary"
               className="min-h-12 w-full"
               onClick={() => {
-                void enq.snooze(enquiry.id, (m) => toast.error(m));
                 setMore(false);
-                toastUndo("Later. Two days.");
-                advance();
+                setLaterOpen(true);
               }}
             >
-              Later
+              {STATUS.later}
             </Button>
             <Button
               variant="ghost"
@@ -202,6 +202,17 @@ export function PhoneDesk({ enquiry }: { enquiry: Enquiry }) {
               else toast.success("Declined.");
               advance();
             });
+        }}
+      />
+      <LaterChoices
+        open={laterOpen}
+        onOpenChange={setLaterOpen}
+        compact
+        onChoose={(until, label) => {
+          void enq.snooze(enquiry.id, (m) => toast.error(m), until);
+          setLaterOpen(false);
+          toastUndo(`Later: ${label}. It comes back to Needs you then.`);
+          advance();
         }}
       />
       <TeachDialog />

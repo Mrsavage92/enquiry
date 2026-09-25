@@ -8,17 +8,17 @@ import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Segmented } from "@/components/ui/segmented";
 import { channelLabel } from "@/domain/channel";
-import { formatRelative } from "@/domain/format";
-import { derivedLabel, filteredEnquiries, queueSummary } from "@/domain/labels";
+import { rowTimeCue } from "@/domain/time-cues";
+import { derivedLabel, filteredEnquiries, QUEUE_NAMES } from "@/domain/labels";
 import { statusTone } from "@/domain/status-tone";
 import { usePrototype, type QueueFilter } from "@/store/prototype-store";
 
 const FILTERS: { id: QueueFilter; label: string }[] = [
-  { id: "all", label: "All" },
-  { id: "needs_you", label: "Needs you" },
-  { id: "waiting", label: "Waiting" },
-  { id: "at_risk", label: "At risk" },
-  { id: "closed", label: "Closed" },
+  { id: "all", label: QUEUE_NAMES.all },
+  { id: "needs_you", label: QUEUE_NAMES.needs_you },
+  { id: "waiting", label: QUEUE_NAMES.waiting },
+  { id: "at_risk", label: QUEUE_NAMES.at_risk },
+  { id: "closed", label: QUEUE_NAMES.closed },
 ];
 
 export function EnquiriesListPage() {
@@ -54,14 +54,7 @@ export function EnquiriesListPage() {
           .includes(q),
       )
     : filtered;
-  const summary = queueSummary(scoped);
-  const counts = {
-    all: scoped.length,
-    needs_you: summary.needsYou,
-    waiting: summary.waiting,
-    at_risk: summary.atRisk,
-    closed: scoped.filter((enquiry) => enquiry.state.lifecycle !== "OPEN").length,
-  };
+  const prefs = usePrototype((s) => s.prefs);
 
   return (
     <div className="ui-page-scroll">
@@ -102,10 +95,7 @@ export function EnquiriesListPage() {
             ariaLabel="Enquiry filter"
             value={queueFilter}
             onChange={setQueueFilter}
-            options={FILTERS.map((filter) => ({
-              ...filter,
-              count: counts[filter.id],
-            }))}
+            options={FILTERS}
           />
         </div>
 
@@ -115,7 +105,7 @@ export function EnquiriesListPage() {
             <span>Service</span>
             <span>Date</span>
             <span>Status</span>
-            <span className="enquiries-updated">Updated</span>
+            <span className="enquiries-updated">When</span>
             <span />
           </div>
           {scoped.length === 0 ? (
@@ -183,13 +173,9 @@ export function EnquiriesListPage() {
                       <Badge tone={statusTone(enquiry)}>
                         {derivedLabel(enquiry.state, enquiry)}
                       </Badge>
-                      <time
-                        dateTime={enquiry.updatedAt}
-                        className="enquiries-updated text-xs text-stone"
-                        title={enquiry.updatedAt}
-                      >
-                        {formatRelative(enquiry.updatedAt)}
-                      </time>
+                      <span className="enquiries-updated text-xs text-stone">
+                        {rowTimeCue(enquiry, prefs)}
+                      </span>
                       <ChevronRight size={16} className="text-stone" aria-hidden />
                     </Link>
                   </li>

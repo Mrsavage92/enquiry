@@ -152,13 +152,15 @@ test("nextNeedsYou skips the current card", () => {
 test("queue summary is attention-first and does not require a commercial aggregate", () => {
   const all = queueSummary(ENQUIRIES);
   assert.ok(all.needsYou >= 0);
-  assert.equal(queueHeadline(all), all.needsYou === 0 ? "Caught up" : `${all.needsYou} need you`);
+  assert.equal(queueHeadline(all), all.needsYou === 0 ? "Caught up" : "Needs you");
+  // No large count in the headline: what is next, not what is behind.
+  assert.doesNotMatch(queueHeadline(all), /\d/);
   assert.doesNotMatch(queueHeadline(all), /Open exact|\$/);
 
   const rowanOnly = queueSummary([byId("f17")]);
   assert.equal(rowanOnly.exactCount, 0);
   assert.equal(rowanOnly.exactValue, 0);
-  assert.equal(queueHeadline(rowanOnly), `${rowanOnly.needsYou} need you`);
+  assert.equal(queueHeadline(rowanOnly), "Needs you");
   assert.ok(rowanOnly.needsYou >= 1);
 });
 

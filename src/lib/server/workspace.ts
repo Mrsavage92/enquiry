@@ -159,7 +159,7 @@ export const snoozeEnquiry = createServerFn({ method: "POST" })
     if (!enquiryId) throw new Error("An enquiry id is required.");
     const until = typeof d.until === "string" && d.until ? d.until : null;
     if (until && Number.isNaN(Date.parse(until))) {
-      throw new Error("Snooze time is not a valid date.");
+      throw new Error("That time is not a valid date.");
     }
     return { enquiryId, until };
   })
@@ -174,7 +174,7 @@ export const snoozeEnquiry = createServerFn({ method: "POST" })
     `;
     await recordAudit(businessId, {
       actor: context.userId,
-      summary: data.until ? "Enquiry snoozed" : "Snooze cleared",
+      summary: data.until ? "Set for later" : "Brought back from later",
       detail: data.until ?? undefined,
       objectType: "enquiry",
       objectId: enquiryId,

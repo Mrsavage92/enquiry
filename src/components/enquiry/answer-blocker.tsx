@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { factStatusLabel, factStatusTone } from "@/domain/labels";
 import { useFirstBetaActions } from "@/lib/workspace/live-mutations";
 import type { Enquiry, EnquiryFact } from "@/domain/types";
+import { blockerInput } from "@/domain/blocker-input";
 
 /**
  * Answer the one thing standing between this enquiry and a price.
@@ -41,6 +42,9 @@ export function AnswerBlocker({ enquiry }: { enquiry: Enquiry }) {
   const inferred = missing ? findInferredFact(enquiry, missing.factField) : undefined;
   const [value, setValue] = useState(inferred?.value ?? "");
   const [saving, setSaving] = useState(false);
+  // What the last answer did, kept on screen: a toast disappears before an
+  // interrupted owner looks back, and "did that save?" should not need memory.
+  const [result, setResult] = useState<string | null>(null);
 
   useEffect(() => {
     setValue(inferred?.value ?? "");
@@ -50,14 +54,27 @@ export function AnswerBlocker({ enquiry }: { enquiry: Enquiry }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [inferred?.id, missing?.factField]);
 
-  if (!missing) return null;
+  if (!missing) {
+    return result ? (
+      <section className="border-b border-line px-5 py-4" role="status">
+        <p className="text-sm text-ink-2">{result}</p>
+      </section>
+    ) : null;
+  }
+  const input = blockerInput(missing.factField, missing.label);
 
   const submit = async () => {
     if (!value.trim()) return toast.error(`Enter the ${missing.factField}.`);
     setSaving(true);
     try {
-      const res = await actions.answerFact(enquiry.id, missing.factField, value.trim());
-      toast.success(res.action === "SEND_QUOTE" ? "Priced. The reply is ready." : res.explanation);
+      const answered = value.trim();
+      const res = await actions.answerFact(enquiry.id, missing.factField, answered);
+      const outcome =
+        res.action === "SEND_QUOTE"
+          ? "Priced. The reply below is ready to check."
+          : res.explanation;
+      setResult(`Saved ${missing.label.toLowerCase()}: ${answered}. ${outcome}`);
+      toast.success(outcome);
       setValue("");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Could not save that.");
@@ -69,6 +86,11 @@ export function AnswerBlocker({ enquiry }: { enquiry: Enquiry }) {
   return (
     <section className="border-b border-line px-5 py-5">
       <p className="eyebrow">Needed to price this</p>
+      {result ? (
+        <p className="mt-2 text-sm text-ink-2" role="status">
+          {result}
+        </p>
+      ) : null}
       <p className="mt-2 text-sm leading-relaxed text-ink-2">{missing.reason}</p>
       {inferred ? (
         <div className="mt-2 flex items-center gap-2">
@@ -88,7 +110,8 @@ export function AnswerBlocker({ enquiry }: { enquiry: Enquiry }) {
             onKeyDown={(e) => {
               if (e.key === "Enter") void submit();
             }}
-            placeholder="4"
+            placeholder={input.placeholder}
+            inputMode={input.inputMode}
           />
         </label>
         <Button className="min-h-11" disabled={saving} onClick={() => void submit()}>

@@ -127,15 +127,19 @@ export function useLiveEnquiryMutations() {
       if (!live) return true;
       return writeThrough("Note", () => setEnquiryNote({ data: { enquiryId, note } }), onFailure);
     },
-    snooze: async (enquiryId: string, onFailure: (m: string) => void): Promise<boolean> => {
-      snoozeLocal(enquiryId);
+    snooze: async (
+      enquiryId: string,
+      onFailure: (m: string) => void,
+      untilIso?: string,
+    ): Promise<boolean> => {
+      snoozeLocal(enquiryId, untilIso);
       if (!live) return true;
       // The store computes the snooze date itself, so read back what it decided
       // rather than recomputing here - two independent "+2 days" calculations
       // would drift and the server would hold a different date to the screen.
       const until =
         usePrototype.getState().enquiries.find((e) => e.id === enquiryId)?.snoozedUntil ?? null;
-      return writeThrough("Snooze", () => snoozeEnquiry({ data: { enquiryId, until } }), onFailure);
+      return writeThrough("Later", () => snoozeEnquiry({ data: { enquiryId, until } }), onFailure);
     },
     /**
      * Decline an enquiry. Demo mode still narrates a decline letter
@@ -199,6 +203,8 @@ export function useFirstBetaActions() {
         enquiries: data.enquiries,
         bookings: data.bookings,
         audit: data.audit,
+        drafts: data.drafts,
+        prefs: data.prefs,
       });
     }
   };

@@ -13,6 +13,7 @@ import { toastUndo } from "@/lib/toast-undo";
 import { useEmbedNav } from "@/lib/use-embed-nav";
 import { useFirstBetaActions } from "@/lib/workspace/live-mutations";
 import { previewFor } from "@/domain/send-preview";
+import { comesBackCue, lastSent } from "@/domain/time-cues";
 import { SendPreview, type SendPreviewCopyState } from "./send-preview";
 
 export function WaitingDesk({ enquiry, onDone }: { enquiry: Enquiry; onDone?: () => void }) {
@@ -24,6 +25,8 @@ export function WaitingDesk({ enquiry, onDone }: { enquiry: Enquiry; onDone?: ()
   const proposeRevision = usePrototype((s) => s.proposeRevision);
   const recordDeposit = usePrototype((s) => s.recordDeposit);
   const booking = usePrototype((s) => s.bookings.find((b) => b.enquiryId === enquiry.id));
+  const prefs = usePrototype((s) => s.prefs);
+  const sent = lastSent(enquiry, new Date(), prefs.timezone || undefined);
   const rec = enquiry.decision.recommendation;
   const followUpReady =
     rec.action === "FOLLOW_UP" && rec.primaryEnabled && isSendableAction(rec.action);
@@ -165,15 +168,19 @@ export function WaitingDesk({ enquiry, onDone }: { enquiry: Enquiry; onDone?: ()
     <div className="space-y-2">
       {phone ? null : (
         <p className="text-sm text-ink-2">
-          {isShortChannel(ch)
-            ? `Sent on ${channelLabel(ch)}. Silence is not a decline.`
-            : "Sent. The quote is with them. Silence is not a decline."}
+          {sent
+            ? `You sent it ${sent.when}${isShortChannel(ch) ? ` on ${channelLabel(ch)}` : ""}. `
+            : isShortChannel(ch)
+              ? `Sent on ${channelLabel(ch)}. `
+              : "Sent. The quote is with them. "}
+          {comesBackCue(enquiry, prefs) || "Silence is not a decline."}
         </p>
       )}
       {phone ? (
         <>
           <p className="text-sm text-ink-2">
-            Sent. Waiting on {enquiry.customerName.split(" ")[0]}.
+            {sent ? `Sent ${sent.when}. ` : "Sent. "}Waiting on {enquiry.customerName.split(" ")[0]}
+            . {comesBackCue(enquiry, prefs)}
           </p>
           <button
             type="button"
