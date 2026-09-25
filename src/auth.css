@@ -257,6 +257,15 @@
     animation: none;
   }
 }
+/* The ADHD promise sits directly under the /early-access heading: ink-2
+   #4f4b55 on the white card measures 8.5:1. */
+.auth-adhd {
+  margin-top: 10px;
+  color: var(--color-ink-2);
+  font-size: 15px;
+  font-weight: 500;
+  line-height: 1.6;
+}
 .auth-description {
   margin-top: 10px;
   color: var(--auth-muted);

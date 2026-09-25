@@ -92,9 +92,10 @@ test("capacity and next action change; price is not the payoff", () => {
   assert.match(text.nextAction, /extra crew/i);
   const formCap = form.checks.find((c) => c.id === "capacity");
   const textCap = text.checks.find((c) => c.id === "capacity");
-  assert.match(formCap?.value ?? "", /Provisional/);
+  assert.match(formCap?.value ?? "", /to be confirmed/);
   assert.match(formCap?.value ?? "", /two-person/i);
   assert.match(textCap?.value ?? "", /condition/);
+  assert.match(textCap?.value ?? "", /48 hours notice/);
   assert.match(textCap?.value ?? "", /third contractor/i);
   assert.equal(textCap?.changed, true);
   const blob = `${form.nextAction} ${text.nextAction} ${form.want} ${text.want}`;
@@ -153,6 +154,26 @@ test("one changed fact moves each business's answer for its own reason", () => {
   assert.doesNotMatch(blob, /\$\d/);
 });
 
+test("the Ridge follow-up never says yes and leaves the date open in the same breath", () => {
+  // Critique round 4: the verdict said "Yes, with a condition" while the body
+  // said availability still needed confirming. The yes is now conditional on
+  // the named contractor, and only the price stays open.
+  const text = signatureState("text", "ridge");
+  assert.match(text.verdict, /^Yes by the \d{1,2}(st|nd|rd|th), if /);
+  assert.match(text.nextReason, /Book the third contractor \(48 hours notice\) before you confirm/);
+  assert.match(text.nextReason, /price stays open until the site measure/);
+  assert.doesNotMatch(`${text.verdict} ${text.nextReason}`, /availability/i);
+});
+
+test("the demo's check labels are plain questions, not app jargon", () => {
+  for (const business of SIGNATURE_BUSINESSES)
+    for (const scene of ["form", "text"] as const)
+      for (const check of signatureState(scene, business.id).checks)
+        assert.doesNotMatch(check.label, /Eligibility|Capacity|Scope/, check.label);
+  assert.equal(signatureState("form").checks[0]?.label, "Do we do this job?");
+  assert.equal(signatureState("form").checks[0]?.value, "Yes");
+});
+
 test("an unknown business id falls back to Ridge rather than throwing", () => {
   assert.equal(signatureState("form", "nope" as never).nextAction, SIGNATURE_DEMO.form.nextAction);
 });
@@ -170,7 +191,10 @@ test("every business x scene combination carries a plain Yes / No / Not yet verd
     }
   }
   assert.equal(SIGNATURE_DEMO.form.verdict, "Not yet - measure first");
-  assert.equal(SIGNATURE_DEMO.text.verdict, "Yes, with a condition");
+  assert.equal(
+    SIGNATURE_DEMO.text.verdict,
+    `Yes by the ${SIGNATURE_DEMO.textDeadlineDay}, if the third contractor is free`,
+  );
   assert.equal(signatureState("form", "harbour").verdict, "Not yet - measure first, hold the week");
   // The day is the one the customer's text names, so the copy never
   // contradicts the message above it; the answer itself is fixed.
@@ -191,7 +215,7 @@ test("each check's tone matches what its value says", () => {
         const where = `${business.id}/${scene}/${check.id}`;
         if (/not possible|not offered/i.test(check.value))
           assert.equal(check.tone, "block", `${where} rules the request out`);
-        if (/provisional|need a measure/i.test(check.value))
+        if (/provisional|to be confirmed|need a measure/i.test(check.value))
           assert.equal(check.tone, "check", `${where} holds only after a check`);
         if (check.tone === "ok")
           assert.doesNotMatch(check.value, /provisional|measure|not /i, `${where} is really clear`);
@@ -274,7 +298,10 @@ test("the Yes / No / Not yet verdicts never move when the dates do", () => {
     const businesses = buildSignatureBusinesses(demo);
     const harbour = businesses.find((b) => b.id === "harbour")!;
     assert.equal(demo.form.verdict, "Not yet - measure first");
-    assert.equal(demo.text.verdict, "Yes, with a condition");
+    assert.equal(
+      demo.text.verdict,
+      `Yes by the ${demo.textDeadlineDay}, if the third contractor is free`,
+    );
     assert.equal(harbour.form.verdict, "Not yet - measure first, hold the week");
     assert.equal(
       harbour.text.verdict,

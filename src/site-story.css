@@ -58,28 +58,21 @@
   gap: 10px;
   margin-bottom: 14px;
 }
-.story-progress-track:has(> svg)::after {
+/* A plain inline timeline (critique round 4): the step number as type and
+   one hairline to the next step, no filled circles or arrows. #69519d on the
+   #f8f6fc band measures 6.00:1. */
+.story-progress li:not(:last-child) .story-progress-track::after {
   content: "";
   height: 1px;
   flex: 1;
   background: #d9cfec;
-  order: 1;
-}
-.story-progress-track > svg {
-  order: 2;
-  color: #ac97cd;
 }
 .story-number {
-  display: grid;
-  place-items: center;
-  width: 28px;
-  height: 28px;
   flex-shrink: 0;
-  border-radius: 50%;
-  background: #7053c3;
-  color: white;
-  font-size: 12px;
+  color: #69519d;
+  font-size: 13px;
   font-weight: 600;
+  font-variant-numeric: tabular-nums;
 }
 .story-progress h2,
 .story-progress h3 {
@@ -261,12 +254,12 @@
   font-size: 12px;
   color: #654ac2;
 }
-.story-next .public-button {
+/* A text link, not a filled button: #543aab on the #f1ecfa panel, 7.05:1. */
+.story-next .story-demo-link {
   margin-top: auto;
-  width: 100%;
-  font-size: 13px;
-  min-height: 42px;
-  padding: 10px 14px;
+  font-size: 15px;
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }
 .story-ending {
   display: flex;
@@ -653,7 +646,7 @@
   align-items: center;
   min-height: 44px;
   padding: 8px 12px;
-  border-left: 2px solid #ede7f4;
+  border-left: 1px solid #ede7f4;
   font-size: 13px;
   color: #68656d;
   line-height: 1.5;
@@ -714,9 +707,11 @@
     grid-template-columns: minmax(0, 1fr);
     gap: 20px;
   }
-  .story-progress-track > svg,
-  .story-progress-track:has(> svg)::after {
+  .story-progress li .story-progress-track::after {
     display: none;
+  }
+  .story-number {
+    padding-top: 5px;
   }
   .story-progress li {
     display: grid;
@@ -742,9 +737,8 @@
     grid-template-columns: minmax(0, 1fr);
     gap: 18px;
   }
-  .story-next .public-button {
-    width: auto;
-    margin-top: 16px;
+  .story-next .story-demo-link {
+    margin-top: 12px;
   }
   /* The conversation wrapper dissolves so its messages lead, the verdict and
      next step follow, and the business context (on /demo) closes the column. */
@@ -1148,4 +1142,133 @@
     padding-left: 0;
     border-left: 0;
   }
+}
+
+/* Critique round 4: the message control reads as a sequence (01 then 02),
+   not as a second segmented toggle. Numbered steps joined by an arrow; the
+   pressed step fills its number and sets its label in ink at 600, so the
+   state never rests on colour alone. Measured: label #4f4b55 on the #f7f5fa band
+   7.85:1; unpressed number #68656d on #fff 5.72:1; pressed #fff on #654ac2
+   6.34:1. Anchor: 21st sean0205 c-stepper-1 (29925), numbered circles with a
+   separator, rebuilt on the existing buttons. */
+.decision-demo .scene-steps {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 12px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #ded7e9;
+}
+.decision-demo .scene-steps button {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  padding: 6px 4px;
+  background: none;
+  border: 0;
+  font-size: 14px;
+  font-weight: 500;
+  color: #4f4b55;
+}
+.decision-demo .scene-steps button:hover {
+  color: #1c1b1f;
+}
+.scene-step-number {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  border: 1px solid #cbc5d3;
+  background: #fff;
+  color: #68656d;
+  font-size: 12px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.decision-demo .scene-steps button[aria-pressed="true"] {
+  color: #1c1b1f;
+  font-weight: 600;
+}
+.decision-demo .scene-steps button[aria-pressed="true"] .scene-step-number {
+  background: #654ac2;
+  border-color: #654ac2;
+  color: #fff;
+}
+.scene-step-arrow {
+  color: #8f88a0;
+  flex-shrink: 0;
+}
+.decision-demo .scene-steps + .business-toggle {
+  margin-top: 14px;
+}
+
+/* "Why?" reads as a link: #543aab underlined, with a chevron that turns when
+   open. Measured 7.37:1 on both the warn tint #fff2d8 and the danger
+   tint #fff0ed. */
+.demo-why-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 44px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #543aab;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.demo-why-link:hover {
+  color: #342268;
+}
+.demo-why-chevron {
+  transition: transform 150ms ease-out;
+}
+.demo-why-link[aria-expanded="true"] .demo-why-chevron {
+  transform: rotate(180deg);
+}
+@media (prefers-reduced-motion: reduce) {
+  .demo-why-chevron {
+    transition: none;
+  }
+}
+
+@media (max-width: 860px) {
+  .decision-demo .scene-steps .business-toggle-label {
+    flex-basis: 100%;
+    margin-bottom: 0;
+  }
+  /* On /demo the verdict sits directly under the controls, so a tap on either
+     control changes an answer that is already on screen. */
+  .decision-demo:not(.decision-demo-summary) .demo-workspace > .demo-verdict {
+    order: 0;
+    margin-top: 0;
+    padding: 14px 16px;
+    background: #fff;
+    border: 1px solid #e4dfeb;
+    border-radius: 8px;
+  }
+}
+
+/* /demo: sign-in is a plain text link under Join, not a second button.
+   Measured on the #f7f5fa band: #4f4b55 7.85:1, the link #543aab 7.55:1. */
+.demo-signin {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  font-size: 15px;
+  color: #4f4b55;
+}
+.demo-signin a {
+  color: #543aab;
+  font-weight: 550;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* The newly arrived message: a full 1px stronger hairline, not a side stripe. */
+.decision-demo .demo-message.demo-message-incoming {
+  border-color: #cbc5d3;
 }

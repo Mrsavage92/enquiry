@@ -5,6 +5,7 @@ import { Wordmark } from "@/components/ui/wordmark";
 import { captureAttribution, currentTouch, launchSessionId } from "@/lib/launch/session";
 import { trackLaunchEvent } from "@/lib/launch/api";
 import { SUPPORT_EMAIL, SUPPORT_MAILTO } from "@/lib/site/contact";
+import { FOUNDING_PRICE } from "@/lib/site/offer";
 
 const NAV = [
   { to: "/how", label: "How it works" },
@@ -12,6 +13,9 @@ const NAV = [
   { to: "/roadmap", label: "Roadmap" },
   { to: "/updates", label: "Updates" },
 ] as const;
+
+/** Height of the sticky phone header on home (public-site.css, <=600px). */
+const HOME_HEADER_PX = 72;
 
 /** Desktop header carries three destinations; Updates lives in the footer and the mobile menu. */
 const DESKTOP_NAV = NAV.filter((item) => item.to !== "/updates");
@@ -30,8 +34,11 @@ export function SiteShell({ children }: { children: ReactNode }) {
     if (pathname !== "/" || typeof IntersectionObserver === "undefined") return;
     const heroJoin = document.querySelector(".brand-hero-join");
     if (!heroJoin) return;
-    const observer = new IntersectionObserver(([entry]) =>
-      setHeroJoinVisible(entry.isIntersecting),
+    // The top margin is the sticky phone header: a hero Join tucked under it
+    // counts as gone, so the header Join is back before it is needed.
+    const observer = new IntersectionObserver(
+      ([entry]) => setHeroJoinVisible(entry.isIntersecting),
+      { rootMargin: `-${HOME_HEADER_PX}px 0px 0px 0px` },
     );
     observer.observe(heroJoin);
     return () => observer.disconnect();
@@ -84,7 +91,7 @@ export function SiteShell({ children }: { children: ReactNode }) {
   }
 
   return (
-    <div className="public-site">
+    <div className={pathname === "/" ? "public-site public-site-home" : "public-site"}>
       <a className="public-skip" href="#site-main">
         Skip to content
       </a>
@@ -149,6 +156,17 @@ export function SiteShell({ children }: { children: ReactNode }) {
           ))}
           <Link to="/login" onClick={() => setOpen(false)}>
             Sign in
+          </Link>
+          <Link
+            to="/early-access"
+            className="public-mobile-join"
+            onClick={() => {
+              trackJoin();
+              setOpen(false);
+            }}
+          >
+            Join early access
+            <small>Founding price {FOUNDING_PRICE} a month</small>
           </Link>
         </nav>
       </header>

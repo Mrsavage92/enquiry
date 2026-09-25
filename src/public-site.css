@@ -103,6 +103,16 @@
    (not display) keeps the header from shifting; without JS the class is never
    added and the button stays visible. */
 @media (max-width: 600px) {
+  /* Home only: the header stays in reach on a phone, so once the hero's own
+     Join scrolls away the header Join fades in above the page. Visibility,
+     not display, so nothing shifts. Other pages keep a static header. */
+  .public-site-home .public-nav {
+    position: sticky;
+    top: 0;
+  }
+  .public-site-home [id] {
+    scroll-margin-top: 84px;
+  }
   .public-nav-join {
     transition:
       opacity 150ms ease-out,
@@ -684,6 +694,29 @@
   .public-mobile-menu a[aria-current] {
     color: #654ac2;
   }
+  /* The join path in the menu: full width, primary. White on #654ac2
+     measures 6.34:1; the price line under it, #f1edf7 on #654ac2, 5.49:1. */
+  .public-mobile-menu a.public-mobile-join {
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: center;
+    gap: 2px;
+    margin-top: 12px;
+    padding: 12px 16px;
+    min-height: 56px;
+    border-radius: 8px;
+    background: #654ac2;
+    color: #fff;
+    font-weight: 600;
+  }
+  .public-mobile-menu a.public-mobile-join:hover {
+    background: #583ac0;
+  }
+  .public-mobile-join small {
+    font-size: 13px;
+    font-weight: 500;
+    color: #f1edf7;
+  }
   .public-benefits,
   .public-process {
     gap: 24px;
@@ -1259,6 +1292,49 @@
   margin-top: 28px;
 }
 
+/* Critique round 4: the three answers are the labels, set as type rather
+   than tinted icon chips. The longest answer gets the wider column. Measured
+   on white: ink 17.13:1, the line #68656d 5.72:1. */
+.public-benefits.public-answers {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.45fr);
+}
+.public-answers .public-benefit.public-answer,
+.public-answers .public-benefit.public-answer:first-child {
+  display: block;
+  padding: 30px 28px 32px;
+}
+.public-answer h3 {
+  margin-top: 0;
+  font-size: 30px;
+  line-height: 1.2;
+  font-weight: 650;
+  color: #1c1b1f;
+}
+.public-answer p,
+.public-answers .public-benefit.public-answer:first-child p {
+  margin-top: 12px;
+  font-size: 17px;
+}
+@media (max-width: 820px) {
+  .public-benefits.public-answers {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+@media (max-width: 600px) {
+  .public-answers .public-benefit.public-answer,
+  .public-answers .public-benefit.public-answer:first-child {
+    padding: 22px 20px 24px;
+  }
+  .public-answer h3 {
+    font-size: 26px;
+  }
+  .public-answer p,
+  .public-answers .public-benefit.public-answer:first-child p {
+    margin-top: 8px;
+    font-size: 16px;
+  }
+}
+
 /* Walkthrough stage as a phone (critique round 7): the 390px capture at 1:1
    is readable where the desktop capture at 640px was not. This column
    override was unscoped and unconditional, so it outranked the 860px
@@ -1344,7 +1420,10 @@
   width: 100%;
   max-width: 300px;
 }
+/* The capture's content ends about three quarters down; the frame stops
+   there (object-position top) instead of showing a band of empty white. */
 .public-adhd-shot {
+  aspect-ratio: 390 / 460;
   border: 1px solid #ded9e8;
   border-radius: 8px;
   overflow: hidden;
@@ -1353,7 +1432,9 @@
 .public-adhd-figure img {
   display: block;
   width: 100%;
-  height: auto;
+  height: 100%;
+  object-fit: cover;
+  object-position: top;
   background: #fff;
 }
 .public-adhd-figure figcaption {

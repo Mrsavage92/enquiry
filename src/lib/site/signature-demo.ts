@@ -106,6 +106,16 @@ function formatLongDate(d: Date): string {
   return format(d, "d MMMM", { locale: enAU });
 }
 
+/**
+ * Plain questions for the demo's "Why this step?" rows. Demo-only: the app's
+ * own check labels live in src/domain/labels.ts and are not changed here.
+ */
+const CHECK_LABELS = {
+  eligibility: "Do we do this job?",
+  scope: "Size of job",
+  capacity: "Crew",
+} as const;
+
 type SignatureDemoContent = {
   business: string;
   owner: string;
@@ -128,6 +138,7 @@ type SignatureDemoContent = {
  */
 export function buildSignatureDemo(now: Date = new Date()): SignatureDemoContent {
   const dates = buildSignatureDates(now);
+  const textDeadlineDay = format(dates.deadlineText, "do", { locale: enAU });
 
   const form: SignatureState = {
     scene: "form",
@@ -141,17 +152,17 @@ export function buildSignatureDemo(now: Date = new Date()): SignatureDemoContent
       { id: "deadline", label: "Deadline", value: formatShortDate(dates.deadlineForm) },
     ],
     checks: [
-      { id: "eligibility", label: "Eligibility", value: "Offered", tone: "ok" },
+      { id: "eligibility", label: CHECK_LABELS.eligibility, value: "Yes", tone: "ok" },
       {
         id: "scope",
-        label: "Scope",
+        label: CHECK_LABELS.scope,
         value: "Living areas need a measure before a final quote",
         tone: "check",
       },
       {
         id: "capacity",
-        label: "Capacity",
-        value: "Provisional - two-person crew can cover this window",
+        label: CHECK_LABELS.capacity,
+        value: "A two-person crew fits it, to be confirmed after the measure",
         tone: "check",
         why: RIDGE_CREW_WINDOW_RULE.body,
       },
@@ -185,26 +196,26 @@ export function buildSignatureDemo(now: Date = new Date()): SignatureDemoContent
       },
     ],
     checks: [
-      { id: "eligibility", label: "Eligibility", value: "Offered", tone: "ok" },
+      { id: "eligibility", label: CHECK_LABELS.eligibility, value: "Yes", tone: "ok" },
       {
         id: "scope",
-        label: "Scope",
+        label: CHECK_LABELS.scope,
         value: "Living areas still need a measure",
         tone: "check",
       },
       {
         id: "capacity",
-        label: "Capacity",
-        value: "Feasible with condition - third contractor required",
+        label: CHECK_LABELS.capacity,
+        value: "Yes, on one condition: the third contractor (48 hours notice)",
         tone: "warn",
         changed: true,
         why: RIDGE_CREW_WINDOW_RULE.body,
       },
     ],
-    verdict: "Yes, with a condition",
-    nextAction: "Confirm the extra crew option and keep the site measure",
+    verdict: `Yes by the ${textDeadlineDay}, if the third contractor is free`,
+    nextAction: "Confirm the extra crew, then keep the site measure",
     nextReason:
-      "The earlier deadline plus ceilings needs the third contractor. Keep the site measure - the quote still isn’t final until then.",
+      "Book the third contractor (48 hours notice) before you confirm. The price stays open until the site measure.",
     commercialNote: "Final quote follows site measure.",
     link: {
       label: "Linked to Maya’s existing enquiry",
@@ -224,7 +235,7 @@ export function buildSignatureDemo(now: Date = new Date()): SignatureDemoContent
       "Enquiry doesn’t just keep the messages together. It keeps the business decision current.",
     form,
     text,
-    textDeadlineDay: format(dates.deadlineText, "do", { locale: enAU }),
+    textDeadlineDay,
   };
 }
 
@@ -274,17 +285,17 @@ export function buildSignatureBusinesses(
   const harbourForm: SignatureState = {
     ...demo.form,
     checks: [
-      { id: "eligibility", label: "Eligibility", value: "Offered", tone: "ok" },
+      { id: "eligibility", label: CHECK_LABELS.eligibility, value: "Yes", tone: "ok" },
       {
         id: "scope",
-        label: "Scope",
+        label: CHECK_LABELS.scope,
         value: "Living areas need a measure before a final quote",
         tone: "check",
       },
       {
         id: "capacity",
-        label: "Capacity",
-        value: "Fits exactly - five weekdays for this scope, working alone",
+        label: CHECK_LABELS.capacity,
+        value: "One painter fits it exactly, using all five weekdays",
         tone: "ok",
         why: HARBOUR_SOLO_RULE.body,
       },
@@ -300,22 +311,22 @@ export function buildSignatureBusinesses(
     checks: [
       {
         id: "eligibility",
-        label: "Eligibility",
-        value: "Ceilings are not offered here - partner referral",
+        label: CHECK_LABELS.eligibility,
+        value: "Walls yes. Ceilings are not offered here, so they go to a partner",
         tone: "block",
         changed: true,
         why: HARBOUR_SOLO_RULE.body,
       },
       {
         id: "scope",
-        label: "Scope",
+        label: CHECK_LABELS.scope,
         value: "Living areas still need a measure",
         tone: "check",
       },
       {
         id: "capacity",
-        label: "Capacity",
-        value: "Not possible - three weekdays is short of the five this scope needs solo",
+        label: CHECK_LABELS.capacity,
+        value: "Not possible: one painter needs five weekdays, and this is three",
         tone: "block",
         changed: true,
         why: HARBOUR_SOLO_RULE.body,

@@ -3,11 +3,12 @@ import { Link } from "@tanstack/react-router";
 import { ArrowRight, ChevronDown, LoaderCircle, MessageSquare, ThumbsUp } from "lucide-react";
 import {
   ROADMAP_LEGEND,
+  ROADMAP_SECTIONS,
   ROADMAP_WRITTEN,
   NON_GOALS,
   STAGES,
+  type RoadmapSectionId,
   type RoadmapStage,
-  type RoadmapStatus,
 } from "@/lib/launch/roadmap";
 import {
   listMyRoadmapNeeds,
@@ -193,15 +194,67 @@ function StageBlock({
   busy,
   onNeed,
   error,
+  showHorizon,
 }: {
   stage: RoadmapStage;
   needed: boolean;
   busy: boolean;
   onNeed: (id: string) => Promise<void>;
   error: string;
+  /** In the merged "Further out" list, each item names its own horizon. */
+  showHorizon: boolean;
 }) {
+  const horizon = ROADMAP_LEGEND.find((item) => item.id === stage.status);
+  const detail = (
+    <div className="roadmap-detail">
+      {stage.details.map((line) => (
+        <p key={line}>{line}</p>
+      ))}
+      <p className="roadmap-boundary">{stage.boundary}</p>
+      {stage.status === "now" ? (
+        <Link to="/demo" className="roadmap-text-action">
+          See the sample demo <ArrowRight size={15} aria-hidden="true" />
+        </Link>
+      ) : (
+        <Feedback stage={stage} needed={needed} busy={busy} onNeed={onNeed} />
+      )}
+      {error && (
+        <p className="roadmap-error" role="alert">
+          {error}
+        </p>
+      )}
+    </div>
+  );
+
+  // What is in early access now is shown in full: nothing to open.
+  if (stage.status === "now") {
+    return (
+      <article
+        className="roadmap-item roadmap-item-open"
+        id={`stage-${stage.id}`}
+        data-stage={stage.id}
+      >
+        <div className="roadmap-item-summary">
+          <span className="roadmap-feature-icon">
+            <RoadmapIcon id={stage.id} />
+          </span>
+          <span className="roadmap-item-heading">
+            <h3>{stage.title}</h3>
+            <span className="roadmap-summary">{stage.summary}</span>
+          </span>
+        </div>
+        {detail}
+      </article>
+    );
+  }
+
   return (
-    <article className="roadmap-item" id={`stage-${stage.id}`} data-stage={stage.id}>
+    <article
+      className="roadmap-item"
+      id={`stage-${stage.id}`}
+      data-stage={stage.id}
+      data-tone={showHorizon ? stage.status : undefined}
+    >
       <details
         // Native open state can be restored or toggled before hydration.
         suppressHydrationWarning
@@ -214,6 +267,9 @@ function StageBlock({
             <RoadmapIcon id={stage.id} />
           </span>
           <span className="roadmap-item-heading">
+            {showHorizon && horizon ? (
+              <span className="roadmap-item-horizon">{horizon.hint}</span>
+            ) : null}
             <h3>{stage.title}</h3>
             <span className="roadmap-summary">{stage.summary}</span>
             <span className="roadmap-detail-label">
@@ -223,27 +279,15 @@ function StageBlock({
             </span>
           </span>
         </summary>
-        <div className="roadmap-detail">
-          {stage.details.map((detail) => (
-            <p key={detail}>{detail}</p>
-          ))}
-          <p className="roadmap-boundary">{stage.boundary}</p>
-          {stage.status === "now" ? (
-            <Link to="/demo" className="roadmap-text-action">
-              See the sample demo <ArrowRight size={15} aria-hidden="true" />
-            </Link>
-          ) : (
-            <Feedback stage={stage} needed={needed} busy={busy} onNeed={onNeed} />
-          )}
-          {error && (
-            <p className="roadmap-error" role="alert">
-              {error}
-            </p>
-          )}
-        </div>
+        {detail}
       </details>
     </article>
   );
+}
+
+/** "Further out" wears the Later tone; the other sections keep their own. */
+function sectionTone(id: RoadmapSectionId) {
+  return id === "further" ? "later" : id;
 }
 
 export function RoadmapBoard() {
@@ -252,7 +296,7 @@ export function RoadmapBoard() {
   const [error, setError] = useState<{ id: string; text: string } | null>(null);
   const [loadFailed, setLoadFailed] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [active, setActive] = useState<RoadmapStatus>("now");
+  const [active, setActive] = useState<RoadmapSectionId>("now");
   const voting = useRef(false);
 
   async function loadInterest() {
@@ -285,7 +329,7 @@ export function RoadmapBoard() {
         const firstVisible = Array.from(
           document.querySelectorAll<HTMLElement>(".customer-roadmap [data-horizon]"),
         ).find((node) => node.getBoundingClientRect().bottom > 71);
-        if (firstVisible) setActive(firstVisible.dataset.horizon as RoadmapStatus);
+        if (firstVisible) setActive(firstVisible.dataset.horizon as RoadmapSectionId);
       },
       { rootMargin: "-70px 0px -65% 0px", threshold: 0 },
     );
@@ -327,11 +371,11 @@ export function RoadmapBoard() {
     <div className="customer-roadmap">
       <nav className="roadmap-horizon-nav" aria-label="Roadmap horizons">
         <div className="public-container">
-          {ROADMAP_LEGEND.map((horizon) => (
+          {ROADMAP_SECTIONS.map((horizon) => (
             <a
               key={horizon.id}
               href={`#horizon-${horizon.id}`}
-              data-tone={horizon.id}
+              data-tone={sectionTone(horizon.id)}
               aria-current={active === horizon.id ? "location" : undefined}
             >
               <span aria-hidden="true" />
@@ -349,19 +393,19 @@ export function RoadmapBoard() {
           </button>
         </div>
       )}
-      {ROADMAP_LEGEND.map((horizon) => (
+      {ROADMAP_SECTIONS.map((horizon) => (
         <section
           key={horizon.id}
           id={`horizon-${horizon.id}`}
           className="roadmap-horizon"
           data-horizon={horizon.id}
-          data-tone={horizon.id}
+          data-tone={sectionTone(horizon.id)}
           aria-labelledby={`title-${horizon.id}`}
         >
           <div className="public-container roadmap-horizon-inner">
             <header className="roadmap-horizon-heading">
               <span className="roadmap-horizon-icon">
-                <RoadmapIcon id={horizon.id} />
+                <RoadmapIcon id={sectionTone(horizon.id)} />
               </span>
               <div>
                 <h2 id={`title-${horizon.id}`}>{horizon.label}</h2>
@@ -370,17 +414,20 @@ export function RoadmapBoard() {
               </div>
             </header>
             <div className="roadmap-outcomes">
-              {STAGES.filter((stage) => stage.status === horizon.id).map((stage) => (
+              {STAGES.filter((stage) => horizon.statuses.includes(stage.status)).map((stage) => (
                 <StageBlock
                   key={stage.id}
                   stage={stage}
+                  showHorizon={horizon.statuses.length > 1}
                   needed={needed.has(stage.id)}
                   busy={busy !== null || loading || loadFailed}
                   onNeed={onNeed}
                   error={error?.id === stage.id ? error.text : ""}
                 />
               ))}
-              {STAGES.some((stage) => stage.status === horizon.id && stage.id === "native-apps") ? (
+              {STAGES.some(
+                (stage) => horizon.statuses.includes(stage.status) && stage.id === "native-apps",
+              ) ? (
                 <PocketConcept />
               ) : null}
             </div>

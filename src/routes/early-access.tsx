@@ -39,8 +39,8 @@ function EarlyAccess() {
         <div className="auth-offer-card">
           <div className="auth-offer-head">
             <span className="auth-offer-pill">Founding member</span>
-            <h2 id="offer-title">One price, kept for as long as you stay.</h2>
-            <p>{OFFER.start}</p>
+            <h2 id="offer-title">What happens when you join</h2>
+            <p>{OFFER.payWhen}</p>
           </div>
           <div className="auth-offer-price">
             <p className="auth-offer-value">

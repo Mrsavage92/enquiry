@@ -28,8 +28,7 @@ export function EnquiryStory({ compact = false }: { compact?: boolean }) {
         {STAGES.map((stage, index) => (
           <li key={stage.title}>
             <span className="story-progress-track" aria-hidden="true">
-              <span className="story-number">{index + 1}</span>
-              {index < STAGES.length - 1 ? <ArrowRight size={14} /> : null}
+              <span className="story-number">{String(index + 1).padStart(2, "0")}</span>
             </span>
             <Heading>{stage.title}</Heading>
             <p>{stage.detail}</p>
@@ -90,9 +89,7 @@ export function EnquiryStory({ compact = false }: { compact?: boolean }) {
             <Users size={17} aria-hidden="true" /> Next step
           </span>
           <h3>{demo.text.nextAction}</h3>
-          <p>
-            Availability and the final price still need confirming. Nothing has been sent or booked.
-          </p>
+          <p>{demo.text.nextReason} Nothing has been sent or booked.</p>
           {!compact ? (
             <details>
               <summary>
@@ -101,8 +98,8 @@ export function EnquiryStory({ compact = false }: { compact?: boolean }) {
               <p>{RIDGE_CREW_WINDOW_RULE.body}</p>
             </details>
           ) : null}
-          <Link to="/demo" className="public-button">
-            Explore the sample <ArrowRight size={16} aria-hidden="true" />
+          <Link to="/demo" className="public-text-link story-demo-link">
+            Try both businesses in the demo <ArrowRight size={16} aria-hidden="true" />
           </Link>
         </article>
       </div>

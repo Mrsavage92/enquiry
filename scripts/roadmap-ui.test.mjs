@@ -24,6 +24,11 @@ test("roadmap uses native disclosures, real feedback and explicit failure states
   ])
     assert.ok(board.includes(text), text);
   assert.match(board, /stage.status === "now"/);
+  // Now is shown in full; only later items keep a disclosure, and each item in
+  // the merged list names its own horizon.
+  assert.match(board, /roadmap-item-open/);
+  assert.match(board, /ROADMAP_SECTIONS\.map/);
+  assert.match(board, /roadmap-item-horizon/);
   assert.match(board, /stage-\$\{stage.id\}/);
   assert.doesNotMatch(
     board,

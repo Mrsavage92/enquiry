@@ -440,6 +440,8 @@ export function WaitlistForm({
             <label className="block">
               <span className="sr-only">Or describe it</span>
               <input
+                id="waitlist-business-type"
+                name="business_type"
                 className="field h-12"
                 value={businessType}
                 onChange={(e) => setBusinessType(e.target.value)}
@@ -450,6 +452,8 @@ export function WaitlistForm({
           <label className="block text-sm">
             <span className="mb-2 block text-stone">Enquiries a month</span>
             <select
+              id="waitlist-volume"
+              name="volume"
               className="field h-12"
               value={volume}
               onChange={(e) => setVolume(e.target.value)}
@@ -474,6 +478,8 @@ export function WaitlistForm({
                   <label key={c} className="waitlist-choice">
                     <input
                       type="checkbox"
+                      name="channels"
+                      value={c}
                       checked={on}
                       onChange={() =>
                         setChannels((prev) => (on ? prev.filter((x) => x !== c) : [...prev, c]))
@@ -493,6 +499,8 @@ export function WaitlistForm({
                     <label key={c} className="waitlist-choice">
                       <input
                         type="checkbox"
+                        name="channels"
+                        value={c}
                         checked={on}
                         onChange={() =>
                           setChannels((prev) => (on ? prev.filter((x) => x !== c) : [...prev, c]))
@@ -508,6 +516,8 @@ export function WaitlistForm({
           <label className="block text-sm">
             <span className="mb-1 block text-stone">Biggest pain handling enquiries</span>
             <textarea
+              id="waitlist-pain"
+              name="pain"
               className="field min-h-24"
               rows={3}
               value={pain}
@@ -585,6 +595,10 @@ export function WaitlistForm({
       {entry ? (
         <div className="auth-form-heading">
           <h1 className="auth-title">{OFFER.entryHeadline}</h1>
+          <p className="auth-adhd">
+            Built for owners with ADHD: one enquiry at a time, one next step, nothing sends until
+            you say so.
+          </p>
           <p className="auth-description">{OFFER.entrySub}</p>
         </div>
       ) : null}
@@ -621,6 +635,8 @@ export function WaitlistForm({
         <label>
           Leave this field empty
           <input
+            id="waitlist-hp"
+            name="hp_field"
             type="text"
             tabIndex={-1}
             autoComplete="off"
@@ -661,7 +677,7 @@ export function WaitlistForm({
         }
       >
         We’ll only email about Enquiry access.{" "}
-        <Link to="/privacy" className="underline-offset-4 hover:underline">
+        <Link to="/privacy" className="underline underline-offset-[3px]">
           Privacy
         </Link>
         .
