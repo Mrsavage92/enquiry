@@ -81,7 +81,7 @@ test("Brand hero copy and opaque primary action meet AA on their base surfaces",
   for (const [foreground, background] of [
     ["#292136", "#f0eef5"],
     ["#64586d", "#f0eef5"],
-    ["#ffffff", "#30213f"],
+    ["#ffffff", "#654ac2"],
   ]) {
     assert.ok(heroCss.includes(foreground === "#ffffff" ? "#fff" : foreground));
     assert.ok(heroCss.includes(background));

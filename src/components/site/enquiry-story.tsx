@@ -80,6 +80,10 @@ export function EnquiryStory({ compact = false }: { compact?: boolean }) {
           </dl>
         </article>
         <article className="story-next">
+          <p className="story-verdict">
+            <span>Verdict</span>
+            <strong>{SIGNATURE_DEMO.text.verdict}.</strong>
+          </p>
           <span className="story-next-label">
             <Users size={17} aria-hidden="true" /> Next step
           </span>

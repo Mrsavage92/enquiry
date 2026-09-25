@@ -242,7 +242,6 @@ function StageBlock({
           )}
         </div>
       </details>
-      {stage.id === "native-apps" && <PocketConcept />}
     </article>
   );
 }
@@ -381,6 +380,9 @@ export function RoadmapBoard() {
                   error={error?.id === stage.id ? error.text : ""}
                 />
               ))}
+              {STAGES.some((stage) => stage.status === horizon.id && stage.id === "native-apps") ? (
+                <PocketConcept />
+              ) : null}
             </div>
           </div>
         </section>

@@ -1,10 +1,23 @@
 import { useEffect, useId, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { useArrowGroup } from "@/components/site/use-arrow-group";
-import { CalendarDays, MessageSquareText, Settings2 } from "lucide-react";
+import { CalendarDays, CircleCheck, MessageSquareText, Settings2 } from "lucide-react";
 import { BrowserFrame } from "@/components/site/device-frame";
+import { CrossChannelDecisionDemo } from "@/components/site/cross-channel-decision-demo";
 
+/**
+ * The first view is the live sample decision (the same data as /demo), so the
+ * Yes / No / Not yet answer is visible on home without a click. The other
+ * three are real captures of the app.
+ */
 const VIEWS = [
+  {
+    id: "decision",
+    label: "The answer",
+    icon: CircleCheck,
+    caption: "Same message, two businesses. Switch either toggle and the answer moves with it.",
+    alt: "",
+  },
   {
     id: "today",
     label: "Your day",
@@ -37,7 +50,7 @@ export function ProductShowcase({
 }) {
   const initialIndex = Math.max(
     0,
-    VIEWS.findIndex((item) => item.id === (initialView ?? "enquiry")),
+    VIEWS.findIndex((item) => item.id === (initialView ?? "decision")),
   );
   const [selected, setSelected] = useState(initialIndex);
 
@@ -45,12 +58,13 @@ export function ProductShowcase({
     if (typeof window === "undefined") return;
     const url = new URL(window.location.href);
     const id = VIEWS[selected].id;
-    if (id === "enquiry") url.searchParams.delete("view");
+    if (id === "decision") url.searchParams.delete("view");
     else url.searchParams.set("view", id);
     window.history.replaceState(window.history.state, "", url);
   }, [selected]);
   const panelId = useId();
   const view = VIEWS[selected];
+  const live = view.id === "decision";
   const { onKeyDown, bind } = useArrowGroup(VIEWS.length, selected, setSelected);
   return (
     <section id="product-preview" className="public-showcase" aria-label="Explore the actual app">
@@ -81,30 +95,40 @@ export function ProductShowcase({
         ))}
       </div>
       <figure id={panelId} className="public-product-figure">
+        <div className="public-decision-panel" hidden={selected !== 0}>
+          <CrossChannelDecisionDemo summary />
+        </div>
         <BrowserFrame
           tone="light"
           url={`Sample workspace · ${view.label}`}
-          className="public-product-frame"
+          className={live ? "public-product-frame hidden" : "public-product-frame"}
         >
           <div className="public-product-media">
-            {VIEWS.map((item, index) => (
-              <picture key={item.id} hidden={selected !== index}>
-                <source media="(max-width: 600px)" srcSet={`/product/ui1/${item.id}-mobile.jpg`} />
-                <img
-                  src={`/product/ui1/${item.id}-desktop.jpg`}
-                  alt={item.alt}
-                  width="1440"
-                  height="960"
-                  loading={index === 1 ? "eager" : "lazy"}
-                  fetchPriority="auto"
-                />
-              </picture>
-            ))}
+            {VIEWS.slice(1).map((item, offset) => {
+              const index = offset + 1;
+              return (
+                <picture key={item.id} hidden={selected !== index}>
+                  <source
+                    media="(max-width: 600px)"
+                    srcSet={`/product/ui1/${item.id}-mobile.jpg`}
+                  />
+                  <img
+                    src={`/product/ui1/${item.id}-desktop.jpg`}
+                    alt={item.alt}
+                    width="1440"
+                    height="960"
+                    loading="lazy"
+                  />
+                </picture>
+              );
+            })}
           </div>
         </BrowserFrame>
         <figcaption>
           <span aria-live="polite">{view.caption}</span>
-          <span className="public-sample-label">Actual app · sample workspace</span>
+          <span className="public-sample-label">
+            {live ? "Sample demo · not a real customer" : "Actual app · sample workspace"}
+          </span>
         </figcaption>
       </figure>
     </section>

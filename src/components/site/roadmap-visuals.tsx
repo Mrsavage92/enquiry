@@ -51,7 +51,10 @@ export function PocketConcept() {
         height={400}
         loading="lazy"
       />
-      <figcaption>Planned concept · Not yet available</figcaption>
+      <figcaption>
+        <strong>Enquiry in your pocket</strong>
+        Planned concept · Not yet available
+      </figcaption>
     </figure>
   );
 }

@@ -20,6 +20,22 @@ export function SiteShell({ children }: { children: ReactNode }) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const [open, setOpen] = useState(false);
   const menuButton = useRef<HTMLButtonElement>(null);
+  // True while the home hero's own Join button is on screen; the header copy
+  // steps aside on phones (CSS scopes it to <=600px). Starts false, so the
+  // header button shows until JS has measured.
+  const [heroJoinVisible, setHeroJoinVisible] = useState(false);
+
+  useEffect(() => {
+    setHeroJoinVisible(false);
+    if (pathname !== "/" || typeof IntersectionObserver === "undefined") return;
+    const heroJoin = document.querySelector(".brand-hero-join");
+    if (!heroJoin) return;
+    const observer = new IntersectionObserver(([entry]) =>
+      setHeroJoinVisible(entry.isIntersecting),
+    );
+    observer.observe(heroJoin);
+    return () => observer.disconnect();
+  }, [pathname]);
 
   useEffect(() => {
     captureAttribution();
@@ -96,7 +112,11 @@ export function SiteShell({ children }: { children: ReactNode }) {
             <Link to="/login" className="public-signin">
               Sign in
             </Link>
-            <Link to="/early-access" className="public-nav-join" onClick={trackJoin}>
+            <Link
+              to="/early-access"
+              className={heroJoinVisible ? "public-nav-join is-deferred" : "public-nav-join"}
+              onClick={trackJoin}
+            >
               Join early access
             </Link>
             <button

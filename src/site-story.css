@@ -206,6 +206,28 @@
   flex-direction: column;
   align-items: flex-start;
 }
+/* The verdict leads the step: #69519d kicker on #f1ecfa is 5.55:1, ink 14.78:1. */
+.story-verdict {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 14px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid #ddd3ee;
+}
+.story-verdict span {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #69519d;
+}
+.story-verdict strong {
+  font-size: 24px;
+  line-height: 1.25;
+  font-weight: 650;
+  color: #1c1b1f;
+}
 .story-next-label {
   display: flex;
   align-items: center;
@@ -328,12 +350,32 @@
   background: #f5f0ff;
   border-color: #ded3f4;
 }
+/* The verdict is the answer, so it is the largest text in the result. It sits
+   at the top of the action column on desktop and directly under the toggles
+   on narrow screens, before the message card. */
 .demo-workspace {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  gap: 36px;
+  grid-template-areas:
+    "conversation verdict"
+    "conversation action";
+  grid-template-rows: auto 1fr;
+  column-gap: 36px;
   margin-top: 24px;
   align-items: start;
+}
+.demo-workspace > .demo-verdict {
+  grid-area: verdict;
+  border-left: 1px solid #e5deee;
+  padding: 0 0 18px 36px;
+  align-self: stretch;
+}
+.demo-workspace > .demo-conversation {
+  grid-area: conversation;
+}
+.demo-workspace > .demo-action {
+  grid-area: action;
+  align-self: stretch;
 }
 .demo-conversation {
   display: flex;
@@ -379,11 +421,9 @@
 }
 .demo-verdict {
   display: flex;
-  align-items: baseline;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-bottom: 14px;
-  font-size: 15px;
+  flex-direction: column;
+  gap: 6px;
+  scroll-margin: 16px;
 }
 .demo-verdict-kicker {
   font-size: 12px;
@@ -393,8 +433,26 @@
   color: #69519d;
 }
 .demo-verdict strong {
+  font-size: 28px;
+  line-height: 1.25;
   font-weight: 650;
   color: #1c1b1f;
+  text-wrap: balance;
+}
+.demo-message-time {
+  font-variant-numeric: tabular-nums;
+}
+.demo-summary-foot {
+  margin-top: 16px;
+  font-size: 14px;
+  line-height: 1.7;
+  color: #4f4b55;
+}
+.demo-summary-foot .public-text-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
 }
 .demo-next {
   background: #f0eaf9;
@@ -639,8 +697,32 @@
 }
 @media (max-width: 860px) {
   .story-progress {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 24px;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 20px;
+  }
+  .story-progress-track > svg,
+  .story-progress-track:has(> svg)::after {
+    display: none;
+  }
+  .story-progress li {
+    display: grid;
+    grid-template-columns: 28px minmax(0, 1fr);
+    column-gap: 14px;
+  }
+  .story-progress-track {
+    grid-row: 1 / span 2;
+    align-self: start;
+    margin-bottom: 0;
+  }
+  .story-progress li > :not(.story-progress-track) {
+    grid-column: 2;
+  }
+  .story-progress li > h2,
+  .story-progress li > h3 {
+    padding-top: 4px;
+  }
+  .story-progress p {
+    max-width: 52ch;
   }
   .story-surfaces {
     grid-template-columns: minmax(0, 1fr);
@@ -651,10 +733,25 @@
     margin-top: 16px;
   }
   .demo-workspace {
-    gap: 24px;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      "verdict"
+      "conversation"
+      "action";
+    grid-template-rows: none;
+    row-gap: 24px;
+    margin-top: 20px;
+  }
+  .demo-workspace > .demo-verdict {
+    border-left: 0;
+    padding: 0;
+  }
+  .demo-verdict strong {
+    font-size: 24px;
   }
   .demo-action {
-    padding-left: 24px;
+    padding: 0;
+    border: 0;
   }
   .demo-next {
     padding: 20px;
@@ -720,14 +817,6 @@
   .story-ending {
     align-items: flex-start;
     line-height: 1.6;
-  }
-  .demo-workspace {
-    grid-template-columns: minmax(0, 1fr);
-    gap: 28px;
-  }
-  .demo-action {
-    padding: 0;
-    border: 0;
   }
   .decision-demo .scene-toggle {
     display: flex;
@@ -816,8 +905,8 @@
   background: #ffffff;
   color: #1c1b1f;
   border: 1px solid #cbc5d3;
-  font-family: var(--font-mono);
   font-size: 12px;
+  font-variant-numeric: tabular-nums;
 }
 @media (max-width: 600px) {
   .enquiry-story-compact .story-progress {

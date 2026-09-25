@@ -7,14 +7,17 @@ import { EarlyAccessInvite } from "@/components/site/early-access-invite";
 import { BrandHero } from "@/components/site/brand-hero";
 import { CrossMark } from "@/components/site/cross-mark";
 import { SUPPORT_EMAIL, SUPPORT_MAILTO } from "@/lib/site/contact";
-import { OFFER_FAQ } from "@/lib/site/offer";
+import { OFFER, OFFER_FAQ } from "@/lib/site/offer";
 
-type HomeSearch = { view?: "today" | "enquiry" | "business" };
+type HomeSearch = { view?: "decision" | "today" | "enquiry" | "business" };
 
 export const Route = createFileRoute("/")({
   component: Home,
   validateSearch: (search: Record<string, unknown>): HomeSearch =>
-    search.view === "today" || search.view === "enquiry" || search.view === "business"
+    search.view === "decision" ||
+    search.view === "today" ||
+    search.view === "enquiry" ||
+    search.view === "business"
       ? { view: search.view }
       : {},
   head: () =>
@@ -26,42 +29,21 @@ export const Route = createFileRoute("/")({
     }),
 });
 
-const QUESTION_GROUPS = [
-  {
-    title: "About early access",
-    items: [
-      [
-        "Who is Enquiry for?",
-        "Owner-run service businesses: the people answering customers, organising the work and making the final call. Early access is opening in small groups so we can learn from real workflows.",
-      ],
-      [
-        "What does joining early access mean?",
-        `It puts you on the list, not into a paid subscription. ${OFFER_FAQ.joining}`,
-      ],
-      ["What does it cost?", OFFER_FAQ.cost],
-      [
-        "What if I decide not to continue?",
-        `Nothing is charged and nothing needs cancelling. Joining the list creates no account or subscription. If early access is not for you, reply to any email from us or write to ${SUPPORT_EMAIL} and we remove you. ${OFFER_FAQ.leaving}`,
-      ],
-    ],
-  },
-  {
-    title: "About how it works",
-    items: [
-      [
-        "Will it connect to my email and messages?",
-        "Early access starts with you bringing the enquiry and new messages into Enquiry. Connected channels are on the roadmap. The demo shows a sample conversation, not a live connection to your inbox.",
-      ],
-      [
-        "Does Enquiry send replies for me?",
-        "You review the prepared reply. Copying a reply is not sending it, and recording an action is not delivery. Enquiry keeps those states separate; it does not silently send a message on your behalf.",
-      ],
-      [
-        "What if a price or date is uncertain?",
-        "The uncertainty stays visible. Enquiry can prepare a question or flag a detail for you to check instead of presenting an unsupported price or availability as confirmed.",
-      ],
-    ],
-  },
+/** The four questions that decide whether to join. The rest live on /early-access. */
+const QUESTIONS = [
+  ["What does it cost?", OFFER_FAQ.cost],
+  [
+    "What does joining early access mean?",
+    `It puts you on the list, not into a paid subscription. ${OFFER.next} ${OFFER_FAQ.joining}`,
+  ],
+  [
+    "Does Enquiry send replies for me?",
+    "You review the prepared reply. Copying a reply is not sending it, and recording an action is not delivery. Enquiry keeps those states separate; it does not silently send a message on your behalf.",
+  ],
+  [
+    "What if I decide not to continue?",
+    `Nothing is charged and nothing needs cancelling. Joining the list creates no account or subscription. If early access is not for you, reply to any email from us or write to ${SUPPORT_EMAIL} and we remove you. ${OFFER_FAQ.leaving}`,
+  ],
 ] as const;
 
 function Home() {
@@ -121,17 +103,34 @@ function Home() {
           </Link>
         </p>
       </section>
-      <section className="public-section public-container" aria-labelledby="adhd-title">
-        <div className="public-section-heading">
-          <p className="public-kicker">Built for busy heads</p>
-          <h2 id="adhd-title">Made for owners who juggle everything, including ADHD.</h2>
+      <section className="public-section public-container public-adhd" aria-labelledby="adhd-title">
+        <div>
+          <div className="public-section-heading">
+            <p className="public-kicker">Built for busy heads</p>
+            <h2 id="adhd-title">
+              Built for owners with ADHD, and anyone running the business from their phone.
+            </h2>
+          </div>
+          <ul className="public-plain-list">
+            <li>It opens on what needs you, not a dashboard to decode.</li>
+            <li>One enquiry, one next step. The reply is prepared; you decide.</li>
+            <li>It keeps the details, so you don't have to hold them between jobs.</li>
+            <li>Nothing sends until you say so.</li>
+            <li>One enquiry on screen at a time. The rest waits quietly until you're ready.</li>
+          </ul>
         </div>
-        <ul className="public-plain-list">
-          <li>It opens on what needs you, not a dashboard to decode.</li>
-          <li>One enquiry, one next step. The reply is prepared; you decide.</li>
-          <li>It keeps the details, so you don't have to hold them between jobs.</li>
-          <li>Nothing sends until you say so.</li>
-        </ul>
+        <figure className="public-adhd-figure">
+          <div className="public-adhd-shot">
+            <img
+              src="/product/ui1/enquiry-mobile.jpg"
+              alt="One enquiry open on a phone in the sample workspace: Maya's message, what changed, and the suggested next step."
+              width="390"
+              height="600"
+              loading="lazy"
+            />
+          </div>
+          <figcaption className="public-sample-label">Actual app · sample workspace</figcaption>
+        </figure>
       </section>
       <section
         className="public-container public-section public-faq"
@@ -141,7 +140,13 @@ function Home() {
         <CrossMark position="bottom-end" />
         <div className="public-section-heading public-faq-intro">
           <h2 id="questions-title">Before you join.</h2>
-          <p>A few things worth knowing about early access.</p>
+          <p>
+            The four that decide it. More answers are on the{" "}
+            <Link to="/early-access" hash="more-questions" className="public-text-link">
+              early-access page
+            </Link>
+            .
+          </p>
           <div className="public-faq-contact">
             <span className="public-icon public-icon-violet" aria-hidden="true">
               <Mail size={20} strokeWidth={1.7} />
@@ -155,30 +160,27 @@ function Home() {
           </div>
         </div>
         <div className="public-faq-list">
-          {QUESTION_GROUPS.map((group) => (
-            <div key={group.title} className="public-faq-group">
-              <h3>{group.title}</h3>
-              {group.items.map(([question, answer]) => (
-                <details
-                  key={question}
-                  id={question
-                    .toLowerCase()
-                    .replace(/[^a-z0-9]+/g, "-")
-                    .replace(/^-|-$/g, "")}
-                  open={question === "What does it cost?" ? true : undefined}
-                >
-                  <summary>
-                    {question}
-                    <ChevronDown size={19} aria-hidden="true" />
-                  </summary>
-                  <p>{answer}</p>
-                </details>
-              ))}
-            </div>
-          ))}
+          <div className="public-faq-group">
+            {QUESTIONS.map(([question, answer]) => (
+              <details
+                key={question}
+                id={question
+                  .toLowerCase()
+                  .replace(/[^a-z0-9]+/g, "-")
+                  .replace(/^-|-$/g, "")}
+                open={question === "What does it cost?" ? true : undefined}
+              >
+                <summary>
+                  {question}
+                  <ChevronDown size={19} aria-hidden="true" />
+                </summary>
+                <p>{answer}</p>
+              </details>
+            ))}
+          </div>
         </div>
       </section>
-      <EarlyAccessInvite />
+      <EarlyAccessInvite reassure={false} />
     </SiteShell>
   );
 }

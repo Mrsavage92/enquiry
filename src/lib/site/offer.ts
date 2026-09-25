@@ -27,8 +27,11 @@ export const FOUNDING_PAYMENT_LINK = "";
 
 export const paymentsOpen = FOUNDING_PAYMENT_LINK !== "";
 
-/** Appended to a sentence that already ends in a full stop, e.g. `${OFFER.short}${NO_CARD_TODAY}`. */
-const NO_CARD_TODAY = " No card today.";
+/**
+ * The one sentence about when money changes hands, used everywhere while
+ * payments are not open. Do not restate it in other words on any page.
+ */
+const PAYMENT_TIMING = `No card today. You pay ${FOUNDING_PRICE} from the day you start using it, and your first month is refundable.`;
 
 export const OFFER = {
   name: "Founding member",
@@ -41,17 +44,19 @@ export const OFFER = {
     ? `Open until ${FOUNDING_CLOSES}.`
     : "Open until we launch publicly. We'll give at least 14 days' notice before it closes.",
   refund: "Not earning its keep? We refund your first month, no questions. Cancel any time.",
-  start: paymentsOpen
-    ? "Pay today and you're in today."
-    : `Join the list now and the founding price is yours. You pay nothing until you start using it.`,
+  start: paymentsOpen ? "Pay today and you're in today." : PAYMENT_TIMING,
+  /** What happens after joining the list, in order. Only what is true today. */
+  next: "We email you when your place opens, and everyone on the list keeps the founding price.",
+  /** The invite band lede: the two prices, nothing else. */
+  band: `${FOUNDING_PRICE} a month while you stay. ${STANDARD_PRICE} after launch.`,
   gst: "Prices include GST.",
   /** Appended to OFFER.short on the hero note while payments are not open. */
-  noteSuffix: NO_CARD_TODAY,
-  /** The small reassurance line under the invite-band form while payments are not open. */
-  reassure: "No card today. First month refundable when you start. A person helps you set up.",
+  noteSuffix: ` ${PAYMENT_TIMING}`,
+  /** The small line under the invite-band form while payments are not open. */
+  reassure: PAYMENT_TIMING,
   /** The /early-access page heading, once payments are not open. */
   entryHeadline: `Lock in ${FOUNDING_PRICE} a month.`,
-  entrySub: `Founding price, kept for as long as you stay. ${STANDARD_PRICE} for everyone after launch.${paymentsOpen ? "" : NO_CARD_TODAY}`,
+  entrySub: `Founding price, kept for as long as you stay. ${STANDARD_PRICE} for everyone after launch.`,
 } as const;
 
 /** The promises card on /early-access. */
@@ -73,7 +78,7 @@ export const OFFER_PROMISES = [
 
 /** FAQ answers that state the offer. */
 export const OFFER_FAQ = {
-  cost: `${OFFER.short} ${OFFER.gst} ${OFFER.refund}`,
+  cost: `${OFFER.short} ${OFFER.gst} ${paymentsOpen ? OFFER.refund : OFFER.start}`,
   joining: `${OFFER.start} ${OFFER.window}`,
   leaving:
     "Once you are paying, cancel any time, no call or reason needed. If it hasn't earned its keep in your first month, we refund that month.",
