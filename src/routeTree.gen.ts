@@ -35,6 +35,7 @@ import { Route as AppSupportRouteImport } from './routes/_app/support'
 import { Route as AppTodayRouteImport } from './routes/_app/today'
 import { Route as AppTrustRouteRouteImport } from './routes/_app/trust/route'
 import { Route as AppUsageRouteImport } from './routes/_app/usage'
+import { Route as ApiStripeWebhookRouteImport } from './routes/api/stripe-webhook'
 import { Route as AuthCompleteRouteImport } from './routes/auth.complete'
 import { Route as BookBookingIdRouteImport } from './routes/book/$bookingId'
 import { Route as QEnquiryIdRouteImport } from './routes/q/$enquiryId'
@@ -174,6 +175,11 @@ const AppUsageRoute = AppUsageRouteImport.update({
   path: '/usage',
   getParentRoute: () => AppRoute,
 } as any)
+const ApiStripeWebhookRoute = ApiStripeWebhookRouteImport.update({
+  id: '/api/stripe-webhook',
+  path: '/api/stripe-webhook',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthCompleteRoute = AuthCompleteRouteImport.update({
   id: '/auth/complete',
   path: '/auth/complete',
@@ -246,6 +252,7 @@ export interface FileRoutesByFullPath {
   '/support': typeof AppSupportRoute
   '/today': typeof AppTodayRoute
   '/usage': typeof AppUsageRoute
+  '/api/stripe-webhook': typeof ApiStripeWebhookRoute
   '/auth/complete': typeof AuthCompleteRoute
   '/book/$bookingId': typeof BookBookingIdRoute
   '/q/$enquiryId': typeof QEnquiryIdRoute
@@ -280,6 +287,7 @@ export interface FileRoutesByTo {
   '/support': typeof AppSupportRoute
   '/today': typeof AppTodayRoute
   '/usage': typeof AppUsageRoute
+  '/api/stripe-webhook': typeof ApiStripeWebhookRoute
   '/auth/complete': typeof AuthCompleteRoute
   '/book/$bookingId': typeof BookBookingIdRoute
   '/q/$enquiryId': typeof QEnquiryIdRoute
@@ -318,6 +326,7 @@ export interface FileRoutesById {
   '/_app/support': typeof AppSupportRoute
   '/_app/today': typeof AppTodayRoute
   '/_app/usage': typeof AppUsageRoute
+  '/api/stripe-webhook': typeof ApiStripeWebhookRoute
   '/auth/complete': typeof AuthCompleteRoute
   '/book/$bookingId': typeof BookBookingIdRoute
   '/q/$enquiryId': typeof QEnquiryIdRoute
@@ -356,6 +365,7 @@ export interface FileRouteTypes {
     | '/support'
     | '/today'
     | '/usage'
+    | '/api/stripe-webhook'
     | '/auth/complete'
     | '/book/$bookingId'
     | '/q/$enquiryId'
@@ -390,6 +400,7 @@ export interface FileRouteTypes {
     | '/support'
     | '/today'
     | '/usage'
+    | '/api/stripe-webhook'
     | '/auth/complete'
     | '/book/$bookingId'
     | '/q/$enquiryId'
@@ -427,6 +438,7 @@ export interface FileRouteTypes {
     | '/_app/support'
     | '/_app/today'
     | '/_app/usage'
+    | '/api/stripe-webhook'
     | '/auth/complete'
     | '/book/$bookingId'
     | '/q/$enquiryId'
@@ -452,6 +464,7 @@ export interface RootRouteChildren {
   SignupRoute: typeof SignupRoute
   TermsRoute: typeof TermsRoute
   UpdatesRoute: typeof UpdatesRoute
+  ApiStripeWebhookRoute: typeof ApiStripeWebhookRoute
   AuthCompleteRoute: typeof AuthCompleteRoute
   BookBookingIdRoute: typeof BookBookingIdRoute
   QEnquiryIdRoute: typeof QEnquiryIdRoute
@@ -641,6 +654,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppUsageRouteImport
       parentRoute: typeof AppRoute
     }
+    '/api/stripe-webhook': {
+      id: '/api/stripe-webhook'
+      path: '/api/stripe-webhook'
+      fullPath: '/api/stripe-webhook'
+      preLoaderRoute: typeof ApiStripeWebhookRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/auth/complete': {
       id: '/auth/complete'
       path: '/auth/complete'
@@ -786,6 +806,7 @@ const rootRouteChildren: RootRouteChildren = {
   SignupRoute: SignupRoute,
   TermsRoute: TermsRoute,
   UpdatesRoute: UpdatesRoute,
+  ApiStripeWebhookRoute: ApiStripeWebhookRoute,
   AuthCompleteRoute: AuthCompleteRoute,
   BookBookingIdRoute: BookBookingIdRoute,
   QEnquiryIdRoute: QEnquiryIdRoute,

@@ -1,3 +1,4 @@
+import { OFFER, paymentsOpen } from "@/lib/site/offer";
 import { WaitlistForm } from "@/components/site/waitlist-form";
 
 export function EarlyAccessInvite() {
@@ -8,14 +9,12 @@ export function EarlyAccessInvite() {
           <p className="public-kicker">Help shape what comes next</p>
           <h2 id="invite-title">Stop guessing at the reply.</h2>
           <p>
-            Join the list. We will invite businesses in small groups as early access opens.
-            Indicative pricing is from A$29 per month inc GST, with 30% off the first 12 months for
-            founding members.
+            {OFFER.short} {OFFER.start}
           </p>
         </div>
         <div className="public-invite-action">
           <WaitlistForm compact />
-          <p>No payment to join the list.</p>
+          <p>{paymentsOpen ? OFFER.refund : "No payment to join the list."}</p>
         </div>
       </div>
     </section>

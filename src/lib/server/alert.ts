@@ -140,6 +140,24 @@ export async function sendAlert(
   }
 }
 
+/**
+ * A good-news message to the owner through the same relay, such as a new
+ * founding member. Never throws, never awaited.
+ */
+export function notifyOwner(text: string, options: AlertOptions = {}): void {
+  void (async () => {
+    console.log(`[notify] ${text}`);
+    const url = await resolveWebhookUrl(options);
+    if (!url) return;
+    const fetchImpl = options.fetchImpl ?? fetch;
+    await fetchImpl(url, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ text, content: text }),
+    });
+  })().catch(() => undefined);
+}
+
 /** Fire-and-forget form for request handlers. Never throws, never awaited. */
 export function reportServerError(input: AlertInput): void {
   void sendAlert(input).catch(() => undefined);

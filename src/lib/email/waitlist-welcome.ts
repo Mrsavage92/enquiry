@@ -1,3 +1,4 @@
+import { FOUNDING_PRICE } from "@/lib/site/offer";
 /**
  * The email a business receives the moment it joins the early-access list.
  *
@@ -41,13 +42,14 @@ export function waitlistWelcomeText(siteOrigin: string): string {
     "What happens next: we invite businesses in small groups, as the product is",
     "ready for them. When it is your turn you will get an email with a sign-in",
     "link. Joining the list is not an account and not a subscription, and there",
-    "is nothing to pay.",
+    "is nothing to pay. Everyone on the list keeps the founding price of",
+    `${FOUNDING_PRICE} a month for as long as they stay subscribed.`,
     "",
     "One thing that helps: reply to this email and tell us what you do, for",
     "example painting, cleaning, mobile makeup, photography. When your",
-    "invitation comes we will set your services and prices up with you on a",
-    "20-minute call, so your first real enquiry lands in a workspace that",
-    "already knows your business.",
+    "invitation comes we will help you set your services and prices up, so",
+    "your first real enquiry lands in a workspace that already knows your",
+    "business.",
     "",
     `See what we are building: ${siteOrigin}/roadmap`,
     "",
@@ -98,10 +100,10 @@ export function waitlistWelcomeHtml(siteOrigin: string): string {
                 <h1 class="email-ink email-title" style="margin:0 0 16px;color:#1c1b1f;font-size:30px;line-height:38px;font-weight:700">You are on the list.</h1>
                 <p class="email-muted" style="margin:0 0 20px;color:#68656d;font-size:16px;line-height:26px">Thanks for joining Enquiry early access.</p>
                 <p class="email-muted" style="margin:0 0 20px;color:#68656d;font-size:16px;line-height:26px">
-                  <strong class="email-ink" style="color:#1c1b1f">What happens next.</strong> We invite businesses in small groups, as the product is ready for them. When it is your turn you will get an email with a sign-in link. Joining the list is not an account and not a subscription, and there is nothing to pay.
+                  <strong class="email-ink" style="color:#1c1b1f">What happens next.</strong> We invite businesses in small groups, as the product is ready for them. When it is your turn you will get an email with a sign-in link. Joining the list is not an account and not a subscription, and there is nothing to pay. Everyone on the list keeps the founding price of ${FOUNDING_PRICE} a month for as long as they stay subscribed.
                 </p>
                 <p class="email-muted" style="margin:0 0 24px;color:#68656d;font-size:16px;line-height:26px">
-                  <strong class="email-ink" style="color:#1c1b1f">One thing that helps.</strong> Reply to this email and tell us what you do, for example painting, cleaning, mobile makeup, photography. When your invitation comes we will set your services and prices up with you on a 20-minute call, so your first real enquiry lands in a workspace that already knows your business.
+                  <strong class="email-ink" style="color:#1c1b1f">One thing that helps.</strong> Reply to this email and tell us what you do, for example painting, cleaning, mobile makeup, photography. When your invitation comes we will help you set your services and prices up, so your first real enquiry lands in a workspace that already knows your business.
                 </p>
                 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
                   <tr>

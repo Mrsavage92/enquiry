@@ -1,3 +1,4 @@
+import { OFFER } from "@/lib/site/offer";
 import { useEffect, useRef, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { ArrowDown, ArrowUpRight, Pause, Play } from "lucide-react";
@@ -79,9 +80,7 @@ export function BrandHero() {
             Explore the demo <ArrowUpRight size={17} aria-hidden="true" />
           </Link>
         </div>
-        <p className="brand-hero-note">
-          Indicative pricing from A$29 a month. The first 20 businesses get 30% off for 12 months.
-        </p>
+        <p className="brand-hero-note">{OFFER.short}</p>
       </div>
       <div className="brand-hero-footer">
         <a href="#product-preview" className="brand-hero-explore">

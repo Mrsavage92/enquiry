@@ -15,6 +15,7 @@ import { EarlyAccessInvite } from "@/components/site/early-access-invite";
 import { BrandHero } from "@/components/site/brand-hero";
 import { CrossMark } from "@/components/site/cross-mark";
 import { SUPPORT_EMAIL, SUPPORT_MAILTO } from "@/lib/site/contact";
+import { OFFER_FAQ } from "@/lib/site/offer";
 
 type HomeSearch = { view?: "today" | "enquiry" | "business" };
 
@@ -43,15 +44,12 @@ const QUESTION_GROUPS = [
       ],
       [
         "What does joining early access mean?",
-        "It puts you on the list for an invitation, not into a paid subscription. Invited businesses get a 20-minute setup call and the founding offer: 30% off your first 12 months once billing begins, with at least 30 days of notice before anyone pays. Final plan prices and access timing are not yet announced.",
+        `It puts you on the list, not into a paid subscription. ${OFFER_FAQ.joining}`,
       ],
-      [
-        "What does it cost?",
-        "Indicative pricing is A$29 a month inc GST, and founding members keep 30% off for the first 12 months. There is no higher tier in early access. It is provisional: the final figure is confirmed in writing before any paid access begins, with at least 30 days of notice.",
-      ],
+      ["What does it cost?", OFFER_FAQ.cost],
       [
         "What if I decide not to continue?",
-        `Nothing is charged and nothing needs cancelling. Joining the list creates no account or subscription. If early access is not for you, reply to any email from us or write to ${SUPPORT_EMAIL} and we remove you.`,
+        `Nothing is charged and nothing needs cancelling. Joining the list creates no account or subscription. If early access is not for you, reply to any email from us or write to ${SUPPORT_EMAIL} and we remove you. ${OFFER_FAQ.leaving}`,
       ],
     ],
   },
