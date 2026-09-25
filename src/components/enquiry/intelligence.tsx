@@ -63,6 +63,9 @@ import { LaterChoices } from "./later-choices";
 import { isPricingStep, setupStep } from "@/domain/next-action";
 import { toastRecordedSend } from "@/lib/workspace/send-undo";
 import { PracticeBadge, PracticeNote } from "./practice-note";
+import { ExtraDecision } from "./extra-decision";
+import { DateNotes } from "./date-notes";
+import { formatMinorAud } from "@/domain/money-format";
 
 export function Intelligence({
   enquiry,
@@ -337,7 +340,8 @@ export function Intelligence({
     !blocked &&
     !rec.blockedReason &&
     ((sendable && readingToCheck && !demoMode) ||
-      (!sendable && Boolean(setup) && !isPricingStep(setup)));
+      (!sendable && Boolean(setup) && !isPricingStep(setup)) ||
+      (!demoMode && enquiry.decision.extraPending?.kind === "check"));
   const short = isShortChannel(reply);
   const integ = integrationForChannel(business, reply, enquiry);
   const Panel = compact ? SheetContent : DialogContent;
@@ -547,6 +551,16 @@ export function Intelligence({
                             : nextStepLabel(enquiry)
                           : rec.label}
                       </p>
+                      {sendable && enquiry.decision.price?.kind === "EXACT" ? (
+                        <p className="mt-1 text-sm text-ink-2">
+                          Priced:{" "}
+                          <span className="font-semibold tabular-nums text-ink">
+                            {formatMinorAud(enquiry.decision.price.amountMinor)}
+                          </span>
+                        </p>
+                      ) : null}
+                      {demoMode ? null : <DateNotes enquiry={enquiry} />}
+                      {demoMode ? null : <ExtraDecision enquiry={enquiry} />}
                       {/* On the phone the card holds one heading and one
                           control; the reasoning is behind Why?. */}
                       {inline || recReasonIsMissingReason ? null : (
@@ -1047,7 +1061,14 @@ export function Intelligence({
                     asChild
                     className={cn("w-full", compact ? "min-h-14 text-base" : "min-h-11")}
                   >
-                    <Link to="/business" search={{ section: "pricing" }}>
+                    <Link
+                      to="/business"
+                      search={
+                        enquiry.decision.extraPending?.kind === "no_price"
+                          ? { section: "pricing", service: enquiry.decision.extraPending.label }
+                          : { section: "pricing" }
+                      }
+                    >
                       {setup.label}
                     </Link>
                   </Button>
@@ -1055,7 +1076,9 @@ export function Intelligence({
                     This enquiry updates as soon as you save a price.
                   </p>
                 </>
-              ) : setup ? null : situation ? (
+              ) : setup ? null : enquiry.decision.extraPending ? (
+                <p className="text-sm text-ink-2">Add or leave out what else they asked for above.</p>
+              ) : situation ? (
                 <p className="text-sm text-ink-2">Settle the detail above first.</p>
               ) : serviceUnconfirmed ? (
                 <p className="text-sm text-ink-2">Confirm the service above first.</p>

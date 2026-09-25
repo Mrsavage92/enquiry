@@ -12,13 +12,16 @@
  * compiler refuses it until the owner confirms (`price-compiler.ts`,
  * `quantityFrom`). Deliberately narrow and deterministic, no model:
  *
- *  - one number, written as digits or as a word from one to twelve;
+ *  - one number, written as digits or in words ("one hundred and twenty");
  *  - directly beside a word for the unit the price needs;
  *  - a range ("3-4 bedrooms", "3 or 4 bedrooms") or two different counts is
  *    no reading at all, never the nearer number;
  *  - an approximate marker ("roughly", "about", "~") is kept, so the owner
  *    sees exactly how the customer put it before confirming.
  */
+
+import { NUMBER_PHRASE, wordsToNumber } from "./number-words.ts";
+import { distinctiveStems, mentionsAny } from "./service-words.ts";
 
 export type MessageQuantity = {
   /** Digits only, ready to confirm: "120", "2". */
@@ -51,7 +54,7 @@ const WORD_NUMBERS = Object.keys(NUMBER_WORDS).join("|");
  * twelve. Grouped thousands come first so "1,200" is never read as its last
  * three digits.
  */
-const NUM_RAW = String.raw`\d{1,3}(?:,\d{3})+(?:\.\d{1,2})?|\d{1,3}(?: \d{3})+(?![\d,])|\d{1,6}(?:\.\d{1,2})?|\b(?:${WORD_NUMBERS})\b`;
+const NUM_RAW = String.raw`\d{1,3}(?:,\d{3})+(?:\.\d{1,2})?|\d{1,3}(?: \d{3})+(?![\d,])|\d{1,6}(?:\.\d{1,2})?|${NUMBER_PHRASE}`;
 const NUM = `(${NUM_RAW})`;
 
 /** Hedges: the customer means about this many. Kept and shown, never dropped. */
@@ -139,17 +142,86 @@ export function unitWordsFor(field: string, unit = ""): string | null {
 function toNumber(raw: string): number | null {
   const lower = raw.toLowerCase().trim();
   if (lower in NUMBER_WORDS) return NUMBER_WORDS[lower]!;
+  if (/^[a-z]/.test(lower)) {
+    const n = wordsToNumber(lower);
+    return n !== null && n > 0 ? n : null;
+  }
   // Thousands separators are grouping, not decimals: "1,200" and "1 200" are 1200.
   const n = Number(lower.replace(/[, ]/g, ""));
   return Number.isFinite(n) && n > 0 ? n : null;
+}
+
+/**
+ * Which service a count belongs to, when the message asks for more than one
+ * priced by the same unit: "120 square metres of wall, plus the ceilings in
+ * the lounge, about 45 sqm". A count belongs to the service named in its own
+ * clause, or failing that in the nearest clause before it in the same
+ * sentence ("plus the ceilings ..., about 45 sqm").
+ */
+export type QuantityContext = {
+  /** The service this count is being read for. */
+  service: string;
+  /** Other services the message asks for, priced by the same kind of count. */
+  others: readonly string[];
+};
+
+type Tie = "this" | "other" | "both" | "none";
+
+const CLAUSE_BREAK = /[,;]|\s-\s|\s–\s|\bplus\b|\bas well as\b|\balso\b|\balong with\b/gi;
+
+function clausesBefore(text: string, index: number): string[] {
+  const start =
+    Math.max(
+      text.lastIndexOf(".", index - 1),
+      text.lastIndexOf("!", index - 1),
+      text.lastIndexOf("?", index - 1),
+      text.lastIndexOf("\n", index - 1),
+    ) + 1;
+  const endRel = text.slice(index).search(/[.!?\n](?!\d)/);
+  const end = endRel === -1 ? text.length : index + endRel;
+  const sentence = text.slice(start, end);
+  const at = index - start;
+  const cuts = [0];
+  for (const m of sentence.matchAll(CLAUSE_BREAK)) cuts.push(m.index ?? 0);
+  cuts.push(sentence.length);
+  const clauses: { from: number; to: number }[] = [];
+  for (let i = 0; i < cuts.length - 1; i += 1) clauses.push({ from: cuts[i]!, to: cuts[i + 1]! });
+  const own = clauses.findIndex((c) => at >= c.from && at < c.to);
+  // Own clause first, then the ones before it, nearest first.
+  return clauses
+    .slice(0, own + 1)
+    .reverse()
+    .map((c) => sentence.slice(c.from, c.to));
+}
+
+function tieOf(text: string, index: number, spanLength: number, context: QuantityContext): Tie {
+  const mine = distinctiveStems(context.service, context.others);
+  const theirs = context.others.map((o) =>
+    distinctiveStems(o, [context.service, ...context.others.filter((x) => x !== o)]),
+  );
+  const clauses = clausesBefore(text, index);
+  // The clause the number sits in also runs on after it: "45 sqm of ceiling".
+  const tail = text.slice(index + spanLength).split(CLAUSE_BREAK)[0] ?? "";
+  if (clauses[0] !== undefined) clauses[0] = `${clauses[0]}${tail}`;
+  for (const clause of clauses) {
+    const isMine = mentionsAny(clause, mine);
+    const isTheirs = theirs.some((stems) => mentionsAny(clause, stems));
+    if (isMine && isTheirs) return "both";
+    if (isMine) return "this";
+    if (isTheirs) return "other";
+  }
+  return "none";
 }
 
 export function readQuantityFromMessage(
   text: string,
   field: string,
   unit = "",
+  context?: QuantityContext,
 ): MessageQuantity | undefined {
-  const words = unitWordsFor(field, unit);
+  // "square metres for ceilings" is the count for one of several services;
+  // the unit words are the same as for "square metres".
+  const words = unitWordsFor(field.replace(/\s+for\s+.*$/i, ""), unit);
   if (!words || !text.trim()) return undefined;
 
   // "roughly 120 square metres", "2 bed", "4 x bedrooms", "3-bedroom", "120m2".
@@ -165,7 +237,7 @@ export function readQuantityFromMessage(
     "gi",
   );
 
-  const reads: MessageQuantity[] = [];
+  const reads: (MessageQuantity & { index: number; length: number })[] = [];
   let ranged = false;
   for (const m of text.matchAll(forward)) {
     const index = m.index ?? 0;
@@ -190,17 +262,52 @@ export function readQuantityFromMessage(
       // Exactly what the customer wrote, so the owner confirms their words.
       span: m[0].trim(),
       approximate: Boolean(m[1] || m[3]),
+      index,
+      length: m[0].length,
     });
   }
   for (const m of text.matchAll(labelled)) {
     const n = toNumber(m[2]!);
     if (n === null) continue;
-    reads.push({ value: String(n), span: m[0].trim(), approximate: Boolean(m[1]) });
+    reads.push({
+      value: String(n),
+      span: m[0].trim(),
+      approximate: Boolean(m[1]),
+      index: m.index ?? 0,
+      length: m[0].length,
+    });
   }
 
   if (ranged) return undefined;
-  const values = new Set(reads.map((r) => r.value));
+  let candidates = reads;
+  if (context && context.others.length > 0) {
+    // Several services priced by this unit: a count counts only when it is
+    // tied to this one. Anything untied or tied to both is a question.
+    const ties = reads.map((r) => tieOf(text, r.index, r.length, context));
+    if (ties.some((t) => t === "both")) return undefined;
+    candidates = reads.filter((_, i) => ties[i] === "this");
+  }
+  const values = new Set(candidates.map((r) => r.value));
   // Two different counts for the same thing: the customer has not said which.
   if (values.size !== 1) return undefined;
-  return reads[0];
+  const { value, span, approximate } = candidates[0]!;
+  return { value, span, approximate };
+}
+
+/**
+ * The tie context for reading one service's count: only the other services
+ * this message actually names count as competitors. A message that names
+ * none of them reads exactly as before.
+ */
+export function quantityContextFor(
+  text: string,
+  service: string,
+  knownServices: readonly string[],
+): QuantityContext | undefined {
+  const main = service.trim();
+  if (!main) return undefined;
+  const others = [
+    ...new Set(knownServices.map((s) => s.trim()).filter((s) => s && s.toLowerCase() !== main.toLowerCase())),
+  ].filter((o) => mentionsAny(text, distinctiveStems(o, [main])));
+  return others.length ? { service: main, others } : undefined;
 }

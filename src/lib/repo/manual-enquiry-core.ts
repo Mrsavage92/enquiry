@@ -5,8 +5,13 @@ import { describeRule } from "../../domain/business-rule.ts";
 import { snapshotFromDecision, stateFromDecision } from "../../domain/decision-snapshot.ts";
 import { applyDecision, isClosed, lockEnquiry } from "./decision-apply.ts";
 import type { EnquiryInterpreter, InterpretFailureReason } from "../interpret/types.ts";
-import { readEnquiryBasics } from "../../domain/enquiry-basics.ts";
-import { blockedQuantity, findQuantityInMessages } from "./quantity-inference.ts";
+import { readEnquiryBasics, type DateReading } from "../../domain/enquiry-basics.ts";
+import {
+  blockedQuantity,
+  findQuantityInMessages,
+  newExtraRequests,
+} from "./quantity-inference.ts";
+import { ASAP_VALUE } from "./decision-apply.ts";
 
 /**
  * Creating a real enquiry, as pure SQL logic - deliberately separate from
@@ -54,59 +59,101 @@ export async function insertManualEnquiry(
   const [owner] = await sql<{ owner_first_name: string | null }>`
     select owner_first_name from business where id = ${input.businessId}
   `;
+  const listed = await sql<{ customer_label: string | null; name: string | null }>`
+    select customer_label, name from business_service where business_id = ${input.businessId}
+  `;
   // An owner who typed the service into the intake form has confirmed it - that
   // IS the deliberate authoritative act, and it is recorded as one below. The
   // decision is computed from the same fact the row will carry, so the stored
   // snapshot and the stored facts cannot disagree from the first moment.
   const ownerConfirmedService = input.serviceLabel.trim();
-  // The name and job date the customer wrote plainly, read without a model so
-  // they are there even when no interpreter is configured. What the owner typed
-  // always wins; a date read this way is `inferred`, never confirmed.
+  // The name, contact details and job date the customer wrote plainly, read
+  // without a model so they are there even when no interpreter is configured.
+  // What the owner typed always wins; anything read this way is `inferred`.
   const basics = readEnquiryBasics(input.body, input.now ?? new Date());
-  const customerName = input.customerName.trim() || basics.customerName || "";
-  const seedFacts = ownerConfirmedService
+  const typedName = input.customerName.trim();
+  const customerName = typedName || basics.customerName || "";
+  const business = {
+    knowledge: knowledge.map((k) => ({ state: k.state, rulePayload: k.rule_payload })),
+  };
+  const services = [
+    ...new Set(
+      [
+        ...activeRules(business).map((r) => r.service),
+        ...listed.map((s) => s.customer_label || s.name || ""),
+      ]
+        .map((s) => s.trim())
+        .filter(Boolean),
+    ),
+  ];
+  const facts: ArrivalFact[] = ownerConfirmedService
     ? [
         {
           field: "service",
           value: ownerConfirmedService,
-          status: "confirmed" as const,
+          displayValue: ownerConfirmedService,
+          status: "confirmed",
+          confidence: "High",
+          assertedBy: "user",
+          provenance: { kind: "user", label: "Entered by the owner" },
         },
       ]
     : [];
-  const business = {
-    knowledge: knowledge.map((k) => ({ state: k.state, rulePayload: k.rule_payload })),
-  };
-  let decision = decideEnquiry(business, {
-    serviceLabel: input.serviceLabel,
-    facts: seedFacts as never,
-  });
+  // Everything else they asked for beside the main job, read now so no total
+  // is ever prepared that silently leaves it off.
+  for (const extra of newExtraRequests(
+    [{ id: "", body: input.body }],
+    input.serviceLabel,
+    services,
+    facts,
+  )) {
+    facts.push(readFact(extra.field, "include", extra.span, extra.span, extra.label));
+  }
+  const decide = () =>
+    decideEnquiry(business, {
+      serviceLabel: input.serviceLabel,
+      facts: facts.map((f) => ({ ...f })) as never,
+    });
+  let decision = decide();
   // The count the price needs, when the message already gives it: read now,
   // stored as inferred below, so the first next step is "check it".
   const wantQuantity = blockedQuantity(decision);
   const quantityRead = wantQuantity
-    ? findQuantityInMessages([{ id: "", body: input.body }], wantQuantity.field, wantQuantity.unit)
+    ? findQuantityInMessages(
+        [{ id: "", body: input.body }],
+        wantQuantity.field,
+        wantQuantity.unit,
+        wantQuantity.service,
+        wantQuantity.knownServices,
+      )
     : null;
   if (wantQuantity && quantityRead) {
-    decision = decideEnquiry(business, {
-      serviceLabel: input.serviceLabel,
-      facts: [
-        ...seedFacts,
-        {
-          field: wantQuantity.field,
-          value: quantityRead.value,
-          status: "inferred" as const,
-          displayValue: quantityRead.span,
-        },
-      ] as never,
+    facts.push({
+      ...readFact(wantQuantity.field, quantityRead.value, quantityRead.span, quantityRead.span),
+      confidence: quantityRead.approximate ? "Medium" : "High",
     });
+    decision = decide();
   }
+  facts.push(...dateFacts(basics.dates));
+  if (!typedName && basics.customerName) {
+    facts.push(readFact("name", basics.customerName, basics.customerName, basics.customerName));
+  }
+  if (!input.customerPhone.trim() && basics.contact.phone) {
+    facts.push(readFact("phone", basics.contact.phone, basics.contact.phone, basics.contact.phone));
+  }
+  if (!input.customerEmail.trim() && basics.contact.email) {
+    facts.push(readFact("email", basics.contact.email, basics.contact.email, basics.contact.email));
+  }
+
   const snapshot = snapshotFromDecision(decision, {
     customerName,
     ownerFirstName: owner?.owner_first_name ?? undefined,
     serviceLabel: input.serviceLabel,
     jobDateIso: basics.jobDate?.asked ? basics.jobDate.iso : undefined,
+    asap: !basics.jobDate && basics.dates.asap,
   });
   const state = stateFromDecision(decision);
+  const dateLabel = basics.jobDate?.label ?? (basics.dates.asap ? "ASAP" : null);
 
   const rows = await sql<{ id: string }>`
     insert into enquiry (
@@ -117,7 +164,7 @@ export async function insertManualEnquiry(
     ) values (
       ${input.businessId}, ${customerName}, ${input.customerEmail},
       ${input.customerPhone || null}, ${"manual"}, ${input.serviceLabel},
-      ${basics.jobDate?.label ?? null},
+      ${dateLabel},
       ${"OPEN"}, ${state.decisionState}, ${state.commercialState},
       ${state.responsibility},
       ${input.intakeNote || null}, ${JSON.stringify(snapshot)}::jsonb, ${1},
@@ -141,67 +188,104 @@ export async function insertManualEnquiry(
   const messageId = msgRows[0]?.id;
   if (!messageId) throw new Error("Could not record the inbound message.");
 
-  if (basics.jobDate) {
+  // The service the owner typed is recorded as an owner-asserted confirmed
+  // fact rather than left as a bare `service_label` string. A nonblank label
+  // alone proves nothing about who decided it - the model can write that
+  // column too (see `interpretAndApply`, which writes `check_this`) - so the
+  // authority has to be persisted separately from the value, in the same
+  // transaction that creates the enquiry. Every reading carries the message it
+  // came from.
+  for (const f of facts) {
+    const provenance =
+      f.assertedBy === "user" ? f.provenance : { ...f.provenance, messageId };
     await sql`
       insert into enquiry_fact
         (enquiry_id, field, label, value, display_value, status, confidence,
          asserted_by, provenance, customer_specific)
       values (
-        ${enquiryId}, ${"date"}, ${"Job date"}, ${basics.jobDate.iso},
-        ${basics.jobDate.label}, ${"inferred"}, ${"Medium"}, ${"system"},
-        ${JSON.stringify({
-          kind: "message",
-          label: "Read from the customer's message",
-          messageId,
-          span: basics.jobDate.span,
-          asked: basics.jobDate.asked,
-        })}::jsonb,
-        ${true}
-      )
-    `;
-  }
-
-  if (wantQuantity && quantityRead) {
-    await sql`
-      insert into enquiry_fact
-        (enquiry_id, field, label, value, display_value, status, confidence,
-         asserted_by, provenance, customer_specific)
-      values (
-        ${enquiryId}, ${wantQuantity.field}, ${wantQuantity.field}, ${quantityRead.value},
-        ${quantityRead.span}, ${"inferred"}, ${quantityRead.approximate ? "Medium" : "High"},
-        ${"system"},
-        ${JSON.stringify({
-          kind: "message",
-          label: "Read from the customer's message",
-          messageId,
-          span: quantityRead.span,
-        })}::jsonb,
-        ${true}
-      )
-    `;
-  }
-
-  // The service the owner typed, recorded as an owner-asserted confirmed fact
-  // rather than left as a bare `service_label` string. A nonblank label alone
-  // proves nothing about who decided it - the model can write that column too
-  // (see `interpretAndApply`, which writes `check_this`) - so the authority has
-  // to be persisted separately from the value, in the same transaction that
-  // creates the enquiry.
-  if (ownerConfirmedService) {
-    await sql`
-      insert into enquiry_fact
-        (enquiry_id, field, label, value, display_value, status, confidence,
-         asserted_by, provenance, customer_specific)
-      values (
-        ${enquiryId}, ${"service"}, ${"service"}, ${ownerConfirmedService},
-        ${ownerConfirmedService}, ${"confirmed"}, ${"High"}, ${"user"},
-        ${JSON.stringify({ kind: "user", label: "Entered by the owner" })}::jsonb,
-        ${true}
+        ${enquiryId}, ${f.field}, ${f.label ?? f.field}, ${f.value}, ${f.displayValue},
+        ${f.status}, ${f.confidence}, ${f.assertedBy},
+        ${JSON.stringify(provenance)}::jsonb, ${true}
       )
     `;
   }
 
   return { enquiryId, messageId };
+}
+
+type ArrivalFact = {
+  field: string;
+  label?: string;
+  value: string;
+  displayValue: string;
+  status: FactStatus;
+  confidence: ConfidenceBand;
+  assertedBy: "user" | "system";
+  provenance: Record<string, unknown>;
+};
+
+/** A reading of the customer's own words: `inferred`, never confirmed. */
+function readFact(
+  field: string,
+  value: string,
+  display: string,
+  span: string,
+  label?: string,
+  status: FactStatus = "inferred",
+): ArrivalFact {
+  return {
+    field,
+    ...(label ? { label } : {}),
+    value,
+    displayValue: display,
+    status,
+    confidence: "Medium",
+    assertedBy: "system",
+    provenance: { kind: "message", label: "Read from the customer's message", span },
+  };
+}
+
+/**
+ * The date facts a message gives: the job date, or - when the day written has
+ * passed or its weekday disagrees with it - a note the owner sees instead, and
+ * the days they ruled out. None of the notes is ever a date the reply echoes.
+ */
+function dateFacts(dates: DateReading): ArrivalFact[] {
+  const out: ArrivalFact[] = [];
+  if (dates.jobDate) {
+    const d = dates.jobDate;
+    out.push({
+      ...readFact("date", d.iso, d.label, d.span, "Job date"),
+      provenance: {
+        kind: "message",
+        label: "Read from the customer's message",
+        span: d.span,
+        asked: d.asked,
+      },
+    });
+  } else if (dates.issue?.kind === "weekday_conflict") {
+    out.push(readFact("date", dates.issue.span, dates.issue.note, dates.issue.span, "Job date", "conflict"));
+  } else if (dates.asap) {
+    const note = dates.issue ? `As soon as possible. ${dates.issue.note}` : "As soon as possible";
+    out.push(readFact("date", ASAP_VALUE, note, dates.issue?.span ?? "asap", "Job date"));
+  } else if (dates.issue) {
+    out.push(
+      readFact("date", dates.issue.span, dates.issue.note, dates.issue.span, "Job date", "check_this"),
+    );
+  }
+  if (dates.unavailable.length) {
+    const labels = dates.unavailable.map((d) => d.label).join(", ");
+    out.push(
+      readFact(
+        "not_available",
+        dates.unavailable.map((d) => d.iso).join(","),
+        labels,
+        dates.unavailable.map((d) => d.span).join("; "),
+        "Not available",
+      ),
+    );
+  }
+  return out;
 }
 
 export type InterpretAndApplyInput = {

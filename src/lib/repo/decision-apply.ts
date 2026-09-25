@@ -1,10 +1,25 @@
 import type { Sql } from "../db.ts";
-import { decideEnquiry } from "../../domain/decide.ts";
+import { activeRules, decideEnquiry } from "../../domain/decide.ts";
 import { snapshotFromDecision, stateFromDecision } from "../../domain/decision-snapshot.ts";
 import type { Decision } from "../../domain/decide.ts";
-import { inboundBodies, inferBlockedQuantity, type LiveFact } from "./quantity-inference.ts";
+import {
+  inboundBodies,
+  inferBlockedQuantity,
+  inferExtras,
+  type LiveFact,
+} from "./quantity-inference.ts";
 
 const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;
+
+/** The stored value of a date fact that says "as soon as possible". */
+export const ASAP_VALUE = "asap";
+
+/** They asked for it as soon as possible (a date fact read as "asap"). */
+export function asapFrom(facts: LiveFact[]): boolean {
+  return facts.some(
+    (f) => f.field.trim().toLowerCase() === "date" && String(f.value ?? "").trim() === ASAP_VALUE,
+  );
+}
 
 /** The day the customer asked about, when one was read or confirmed. */
 export function jobDateIsoFrom(facts: LiveFact[]): string | undefined {
@@ -122,6 +137,8 @@ type WorkedDecision = {
 type DecisionInputs = {
   knowledge: { state: string; rulePayload: unknown }[];
   ownerFirstName?: string;
+  /** Every service the business prices or lists, for reading extras. */
+  services: string[];
 };
 
 /** The business half of a decision: its rules and owner, read once. */
@@ -133,9 +150,22 @@ async function businessInputs(sql: Sql, businessId: string): Promise<DecisionInp
   const [owner] = await sql<{ owner_first_name: string | null }>`
     select owner_first_name from business where id = ${businessId}
   `;
+  const listed = await sql<{ customer_label: string | null; name: string | null }>`
+    select customer_label, name from business_service where business_id = ${businessId}
+  `;
+  const knowledgeRows = knowledge.map((k) => ({ state: k.state, rulePayload: k.rule_payload }));
+  const priced = activeRules({ knowledge: knowledgeRows }).map((r) => r.service);
+  const services = [
+    ...new Set(
+      [...priced, ...listed.map((s) => s.customer_label || s.name || "")]
+        .map((s) => s.trim())
+        .filter(Boolean),
+    ),
+  ];
   return {
-    knowledge: knowledge.map((k) => ({ state: k.state, rulePayload: k.rule_payload })),
+    knowledge: knowledgeRows,
     ownerFirstName: owner?.owner_first_name ?? undefined,
+    services,
   };
 }
 
@@ -156,6 +186,7 @@ function decideFrom(
     ownerFirstName: inputs.ownerFirstName,
     serviceLabel: enquiry.serviceLabel,
     jobDateIso: jobDateIsoFrom(facts),
+    asap: asapFrom(facts),
   });
   return { decision, snapshot, state: stateFromDecision(decision) };
 }
@@ -175,12 +206,38 @@ async function workOutDecision(
     where enquiry_id = ${input.enquiryId} and superseded = false
   `;
   const inputs = await businessInputs(sql, input.businessId);
-  const worked = decideFrom(inputs, input, facts);
-  // Blocked on a count the customer already wrote: record the reading, then
-  // decide again so the next step is "check it", not "ask for it".
   const messages = (await inboundBodies(sql, [input.enquiryId])).get(input.enquiryId) ?? [];
-  const read = await inferBlockedQuantity(sql, input.enquiryId, worked.decision, facts, messages);
-  return read ? decideFrom(inputs, input, [...facts, read]) : worked;
+  return readAndDecide(sql, input.enquiryId, inputs, input, facts, messages);
+}
+
+/**
+ * Decide, recording on the way what the customer already wrote: the other
+ * things they asked for, and the count the price is blocked on. Each is an
+ * `inferred` reading the owner checks; the decision is taken again after each
+ * so the next step is "check it", never "ask for it".
+ */
+async function readAndDecide(
+  sql: Sql,
+  enquiryId: string,
+  inputs: DecisionInputs,
+  who: { serviceLabel: string; customerName: string },
+  known: LiveFact[],
+  messages: { id: string; body: string }[],
+): Promise<WorkedDecision> {
+  let facts = known;
+  const extras = await inferExtras(
+    sql,
+    enquiryId,
+    who.serviceLabel,
+    inputs.services,
+    facts,
+    messages,
+  );
+  facts = [...facts, ...extras];
+  let worked = decideFrom(inputs, who, facts);
+  const read = await inferBlockedQuantity(sql, enquiryId, worked.decision, facts, messages);
+  if (read) worked = decideFrom(inputs, who, [...facts, read]);
+  return worked;
 }
 
 async function writeDecision(sql: Sql, enquiryId: string, worked: WorkedDecision): Promise<number> {
@@ -267,16 +324,9 @@ export async function redecideOpenEnquiries(sql: Sql, businessId: string): Promi
   for (const row of rows) {
     const who = { serviceLabel: row.service_label ?? "", customerName: row.customer_name ?? "" };
     const known = factsById.get(row.id) ?? [];
-    let worked = decideFrom(inputs, who, known);
-    // A new price per bedroom over a message that said "2 bed": read it now.
-    const read = await inferBlockedQuantity(
-      sql,
-      row.id,
-      worked.decision,
-      known,
-      bodies.get(row.id) ?? [],
-    );
-    if (read) worked = decideFrom(inputs, who, [...known, read]);
+    // A new price per bedroom over a message that said "2 bed", or a new
+    // price for the oven they also asked for: read it now.
+    const worked = await readAndDecide(sql, row.id, inputs, who, known, bodies.get(row.id) ?? []);
     if (stable(worked.snapshot) === stable(row.decision_snapshot ?? null)) continue;
     await writeDecision(sql, row.id, worked);
     changed.push(row.id);

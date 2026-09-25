@@ -28,6 +28,12 @@ export type SendPreviewData = {
    * agree on who it went to.
    */
   recipient: string;
+  /**
+   * With nothing on file: a phone number or email read from their message,
+   * shown as a reading the owner checks before using it. Never used as the
+   * recipient on its own.
+   */
+  recipientRead?: string;
   body: string;
   amountLabel: string | null;
   reason: string;
@@ -78,6 +84,19 @@ function recipientFor(enquiry: Enquiry): string {
   return enquiry.customerEmail || enquiry.customerPhone || enquiry.customerHandle || "";
 }
 
+/** A phone or email read from the customer's message and not yet confirmed. */
+export function contactReadFrom(enquiry: Enquiry): string | undefined {
+  const read = (enquiry.facts ?? []).filter(
+    (f) =>
+      !f.superseded &&
+      (f.field === "phone" || f.field === "email") &&
+      f.status !== "confirmed" &&
+      String(f.value ?? "").trim(),
+  );
+  const values = read.map((f) => String(f.value).trim());
+  return values.length ? values.join(" or ") : undefined;
+}
+
 export function previewFor(input: SendPreviewInput): SendPreviewData {
   const { enquiry, draft, decision } = input;
   const preparedText = decision.draft?.body ?? "";
@@ -85,6 +104,7 @@ export function previewFor(input: SendPreviewInput): SendPreviewData {
   return {
     channelLabel: channelLabel(replyChannel(enquiry)),
     recipient: recipientFor(enquiry),
+    ...(recipientFor(enquiry) ? {} : { recipientRead: contactReadFrom(enquiry) }),
     body: draft,
     amountLabel: amountLabelFor(enquiry, decision),
     reason: decision.recommendation.reason,

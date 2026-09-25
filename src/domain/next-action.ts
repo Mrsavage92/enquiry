@@ -42,7 +42,13 @@ export function setupStep(enquiry: Pick<Enquiry, "state" | "decision">): SetupSt
   if (!rec || rec.action !== "ESCALATE_HUMAN") return null;
   const code = (rec.reasonCodes ?? []).map((c) => CODES[c]).find(Boolean);
   const kind = code ?? (LEGACY_NO_PRICES.test(rec.reason ?? "") ? "add_prices" : undefined);
-  return kind ? { kind, label: LABELS[kind] } : null;
+  if (!kind) return null;
+  // A second thing they asked for that nothing prices: the step names it.
+  const extra = enquiry.decision?.extraPending;
+  if (kind === "add_price" && extra?.kind === "no_price") {
+    return { kind, label: `Add a price for ${extra.label.toLowerCase()}` };
+  }
+  return { kind, label: LABELS[kind] };
 }
 
 /** Whether the step is done on the business pricing screen. */

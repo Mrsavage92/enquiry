@@ -380,7 +380,13 @@ export type ChangeDiff = {
  * that lets a live, un-sent enquiry read from data rather than staying blank.
  */
 export type DecisionPrice =
-  | { kind: "EXACT"; amountMinor: number; currency: "AUD" }
+  | {
+      kind: "EXACT";
+      amountMinor: number;
+      currency: "AUD";
+      /** A quote with more than one thing on it: each line, main job first. */
+      lines?: { label: string; amountMinor: number; detail?: string }[];
+    }
   | { kind: "RANGE"; minMinor: number; maxMinor: number; currency: "AUD" };
 
 export type DecisionSnapshot = {
@@ -425,6 +431,20 @@ export type DecisionSnapshot = {
    * only the structured total is allowed.
    */
   impliedAmountsMinor?: number[];
+  /**
+   * Something else the customer asked for that the owner has not settled:
+   * add it (or a price for it), or leave it out and tell them. While this is
+   * set nothing is ready to send, so no total can silently drop it.
+   */
+  extraPending?: {
+    field: string;
+    label: string;
+    kind: "check" | "no_price";
+    amountMinor?: number;
+    span?: string;
+  };
+  /** Extras the owner chose to leave out; the reply says so. */
+  leftOut?: string[];
 };
 
 export type WhyItem = {

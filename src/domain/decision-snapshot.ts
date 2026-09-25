@@ -57,6 +57,12 @@ export const SETUP_REASON = {
 } as const;
 
 function recommendationLabel(decision: Decision): string {
+  if (decision.extraPending?.kind === "no_price") {
+    return `Add a price for ${decision.extraPending.label.toLowerCase()}`;
+  }
+  if (decision.extraPending) {
+    return `Add or leave out ${decision.extraPending.label.toLowerCase()}`;
+  }
   if (decision.action === "SEND_QUOTE") return "Send the quote";
   if (decision.blocker?.inferred) return `Check ${decidingPhrase(decision.blocker.field)}`;
   if (decision.action === "REQUEST_INFORMATION") return "Ask for what's missing";
@@ -77,8 +83,12 @@ export function snapshotFromDecision(decision: Decision, who: ReplyContext = {})
     reason: decision.explanation,
     // Nothing is ever sent without the owner, so approval is always required.
     requiredApproval: true,
-    reasonCodes: decision.setup
-      ? [SETUP_REASON[decision.setup]]
+    reasonCodes: decision.extraPending
+      ? decision.extraPending.kind === "no_price"
+        ? [SETUP_REASON.add_price, "EXTRA"]
+        : ["CHECK_EXTRA"]
+      : decision.setup
+        ? [SETUP_REASON[decision.setup]]
       : decision.provisional
         ? ["CONFIRM_SERVICE"]
         : decision.serviceChoices?.length
@@ -122,13 +132,16 @@ export function snapshotFromDecision(decision: Decision, who: ReplyContext = {})
     // never-sent enquiry's figure lives, since `quote_version` (and so
     // `quotes` above) is only written once a send actually happens.
     price:
-      decision.price.kind === "EXACT"
+      decision.price.kind === "EXACT" && !decision.extraPending
         ? {
             kind: "EXACT",
             amountMinor: decision.price.amountMinor,
             currency: decision.price.currency,
+            ...(decision.lines?.length ? { lines: decision.lines } : {}),
           }
         : undefined,
+    ...(decision.extraPending ? { extraPending: decision.extraPending } : {}),
+    ...(decision.leftOut?.length ? { leftOut: decision.leftOut } : {}),
     // Shown to the owner as a provisional figure, never as a decided one. The
     // send path reads `price`, which stays undefined until the service premise
     // is confirmed, so a provisional amount cannot become a sent quote.
@@ -146,7 +159,7 @@ export function snapshotFromDecision(decision: Decision, who: ReplyContext = {})
     // What the reviewed message is allowed to say about money. Stored with the
     // decision because it is derived from the rule that produced the price, not
     // from the text of any particular draft.
-    impliedAmountsMinor: impliedAmountsMinor(decision.price),
+    impliedAmountsMinor: decision.extraPending ? [] : impliedAmountsMinor(decision.price),
   };
 }
 

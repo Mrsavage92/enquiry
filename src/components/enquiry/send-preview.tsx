@@ -105,6 +105,13 @@ export function SendPreview({
             <p className="eyebrow">Recipient</p>
             {preview.recipient ? (
               <p className="mt-1 text-sm">{preview.recipient}</p>
+            ) : preview.recipientRead ? (
+              <p className="mt-1 text-sm">
+                {preview.recipientRead}
+                <span className="block text-ink-2">
+                  From their message. Check it before you use it.
+                </span>
+              </p>
             ) : (
               <p className="mt-1 text-sm text-warn">
                 No recipient on file - you will need to reach them yourself.

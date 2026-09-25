@@ -28,6 +28,14 @@ const ALL_AMOUNTS = /\$\s?\d/g;
 const PER =
   /^\s*(?:(?:per|a|an|each|every)\b|\/)\s*([a-z][a-z-]*(?:\s+metres?|\s+meters?|\s+feet)?)/i;
 const MINIMUM = /(?:minimum(?:\s+of)?|min\.?|at least)\s+(\d+)/i;
+/**
+ * Area written the ways owners write it: "per sqm", "/m2", "per m²", "per
+ * sq m", "per square meter". All of it is one unit, "square metre", so the
+ * question to the customer reads "the number of square metres", never "the
+ * number of sqms" or "ms".
+ */
+const PER_AREA =
+  /^\s*(?:(?:per|a|an|each|every)\b|\/)\s*(?:m²|m2\b|sq\.?\s*m(?:s|etres?|eters?)?\b|sqms?\b|square\s+(?:metre|meter)s?\b|(?:metre|meter)s?\s+squared\b)/i;
 
 /**
  * Wording that makes the amount something other than one set price. Each is
@@ -35,6 +43,10 @@ const MINIMUM = /(?:minimum(?:\s+of)?|min\.?|at least)\s+(\d+)/i;
  * owner did not mean is worse than no price.
  */
 const NOT_A_SET_PRICE: [RegExp, string][] = [
+  [
+    /\b(?:if|when|unless|depending|depends|provided|only for|except)\b/i,
+    'It only applies in some cases ("if ..."), so it is a conditional price, not one set price. Save the plain price on its own line and handle the condition yourself.',
+  ],
   [
     /\b(?:from|starting at|starts at|start at)\s*\$/i,
     'A "from" price is not a set price, so Enquiry cannot quote it.',
@@ -59,8 +71,9 @@ const NOT_A_SET_PRICE: [RegExp, string][] = [
 ];
 
 const LEAD_FILLER = /^(?:and\s+|also\s+|our\s+|my\s+|the\s+|a\s+|an\s+)+/i;
+// Whole words only: "flat" is not "fl" + "at".
 const TRAIL_FILLER =
-  /\s*(?:will be|would be|is|are|costs?|charged at|priced at|at|for|=|:|-|–)\s*$/i;
+  /(?:(?:^|\s+)(?:will be|would be|is|are|costs?|charged at|priced at|at|for|flat rate|flat fee|flat|fixed price|fixed)|\s*(?:=|:|-|–))\s*$/i;
 
 /** What Enquiry must learn from an enquiry to count the unit. */
 export function quantityFieldFor(unit: string): string {
@@ -87,6 +100,21 @@ function splitLines(text: string): string[] {
     .filter(Boolean);
 }
 
+/** Short unit spellings as a customer would read them back: "m" is "metre". */
+const UNIT_WORDS: Record<string, string> = {
+  m: "metre",
+  lm: "linear metre",
+  hr: "hour",
+  hrs: "hour",
+  h: "hour",
+  rm: "room",
+};
+
+function unitWord(raw: string): string {
+  const u = raw.trim().toLowerCase();
+  return UNIT_WORDS[u] ?? u;
+}
+
 export function readPriceLine(line: string): ReadPrice | UnreadLine {
   for (const [pattern, reason] of NOT_A_SET_PRICE) {
     if (pattern.test(line)) return { line, reason };
@@ -105,15 +133,17 @@ export function readPriceLine(line: string): ReadPrice | UnreadLine {
   const service = cleanService(before) || cleanService(forService);
   if (!service) return { line, reason: "It does not say which service the price is for." };
 
-  const per = PER.exec(after);
-  const raw = per
+  const area = PER_AREA.test(after);
+  const per = area ? null : PER.exec(after);
+  const unit = area ? "square metre" : unitWord(per?.[1] ?? "");
+  const raw = unit
     ? {
         kind: "per_unit",
         service,
         amount,
         currency: "AUD",
-        unit: per[1]!.trim().toLowerCase(),
-        quantityField: quantityFieldFor(per[1]!),
+        unit,
+        quantityField: quantityFieldFor(unit),
         minimumQuantity: MINIMUM.exec(after) ? Number(MINIMUM.exec(after)![1]) : undefined,
       }
     : { kind: "fixed_price", service, amount, currency: "AUD" };

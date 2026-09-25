@@ -131,6 +131,8 @@ export function promiseVerdict(enquiry: Enquiry): { word: PromiseWord; line: str
       ? v(PROMISE_WORDS.yes, "your quote is with them")
       : v(PROMISE_WORDS.notYet, "waiting on their answer");
   }
+  const extra = enquiry.decision?.extraPending;
+  if (extra) return v(PROMISE_WORDS.notYet, `they also asked for ${extra.label.toLowerCase()}`);
   const blocking = enquiry.decision?.missing?.find((m) => m.blocking);
   if (blocking?.inferred) return v(PROMISE_WORDS.notYet, "check one detail they gave");
   if (decision === "NEEDS_INFORMATION") return v(PROMISE_WORDS.notYet, "one detail decides it");
@@ -181,7 +183,12 @@ export function derivedLabel(state: CompositeState, enquiry?: Enquiry): StatusWo
 }
 
 /** Reason codes for an escalation whose way forward is one detail from the owner. */
-const ONE_DETAIL_CODES = new Set(["CHOOSE_SERVICE", "CONFIRM_SERVICE", "CHOOSE_BETWEEN"]);
+const ONE_DETAIL_CODES = new Set([
+  "CHOOSE_SERVICE",
+  "CONFIRM_SERVICE",
+  "CHOOSE_BETWEEN",
+  "CHECK_EXTRA",
+]);
 const ONE_DETAIL_LABELS = new Set(["Confirm the service", "Choose the service"]);
 
 /** Whether an escalation is waiting on one detail rather than on judgment. */
@@ -209,6 +216,8 @@ export function nextStepLabel(enquiry: Enquiry): string {
   if (enquiry.state.lifecycle !== "OPEN") return "Nothing to do";
   if (enquiry.state.decision === "EVALUATING") return "Enquiry is reading it";
   if (enquiry.followUpDue) return "Decide whether to follow up";
+  const extra = enquiry.decision?.extraPending;
+  if (extra?.kind === "check") return `Add or leave out ${extra.label.toLowerCase()}`;
   const blocking = enquiry.decision?.missing?.find((m) => m.blocking);
   if (enquiry.state.decision === "NEEDS_INFORMATION" && blocking?.inferred) {
     // They already said it: the owner checks the reading, never asks again.
@@ -454,7 +463,9 @@ export function formatAud(amount: number): string {
   return new Intl.NumberFormat("en-AU", {
     style: "currency",
     currency: "AUD",
-    maximumFractionDigits: 0,
+    // Whole dollars stay whole; cents always show two places ("$4.50").
+    minimumFractionDigits: Number.isInteger(amount) ? 0 : 2,
+    maximumFractionDigits: Number.isInteger(amount) ? 0 : 2,
   }).format(amount);
 }
 

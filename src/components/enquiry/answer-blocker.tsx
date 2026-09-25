@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -8,6 +8,7 @@ import type { Enquiry, EnquiryFact } from "@/domain/types";
 import { blockerInput } from "@/domain/blocker-input";
 import { decidingPhrase } from "@/domain/price-compiler";
 import { quantityPhrase } from "@/domain/compose-reply";
+import { formatMinorAud } from "@/domain/money-format";
 
 /**
  * Answer the one thing standing between this enquiry and a price.
@@ -63,6 +64,10 @@ export function AnswerBlocker({
   // What the last answer did, kept on screen: a toast disappears before an
   // interrupted owner looks back, and "did that save?" should not need memory.
   const [result, setResult] = useState<string | null>(null);
+  // A wrong answer is explained beside the field it belongs to, not in a
+  // toast that vanishes before an interrupted owner looks back.
+  const [error, setError] = useState<string | null>(null);
+  const errorId = useId();
 
   useEffect(() => {
     setValue(inferred?.value ?? "");
@@ -74,6 +79,7 @@ export function AnswerBlocker({
   }, [inferred?.id, missing?.factField]);
 
   if (!missing) {
+    // Answered: what it did stays on the card, the priced total included.
     return result ? (
       <section className="border-b border-line px-5 py-4" role="status">
         <p className="text-sm text-ink-2">{result}</p>
@@ -83,20 +89,29 @@ export function AnswerBlocker({
   const input = blockerInput(missing.factField, missing.label);
 
   const submit = async (answer = value) => {
-    if (!answer.trim()) return toast.error(`Enter the ${missing.factField}.`);
+    if (!answer.trim()) {
+      setError(`Enter the ${missing.label.toLowerCase()}, for example ${input.placeholder || "4"}.`);
+      setEditing(true);
+      return;
+    }
     setSaving(true);
     try {
       const answered = answer.trim();
       const res = await actions.answerFact(enquiry.id, missing.factField, answered);
-      const outcome =
-        res.action === "SEND_QUOTE"
-          ? "Priced. The reply below is ready to check."
-          : res.explanation;
+      const priced =
+        res.action === "SEND_QUOTE" && typeof res.amountMinor === "number"
+          ? `Priced: ${formatMinorAud(res.amountMinor)}.`
+          : null;
+      const outcome = priced ? `${priced} The reply is ready to check.` : res.explanation;
+      setError(null);
+      // Any earlier error toast is about an answer that is now settled.
+      toast.dismiss();
       setResult(`Saved ${missing.label.toLowerCase()}: ${answered}. ${outcome}`);
       toast.success(outcome);
       setValue("");
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Could not save that.");
+      setError(err instanceof Error ? err.message : "Could not save that. Try again.");
+      setEditing(true);
     } finally {
       setSaving(false);
     }
@@ -145,7 +160,12 @@ export function AnswerBlocker({
         <input
           className="field w-full"
           value={value}
-          onChange={(e) => setValue(e.target.value)}
+          aria-invalid={error ? true : undefined}
+          aria-describedby={error ? errorId : undefined}
+          onChange={(e) => {
+            setValue(e.target.value);
+            if (error) setError(null);
+          }}
           onKeyDown={(e) => {
             if (e.key === "Enter") void submit();
           }}
@@ -165,6 +185,11 @@ export function AnswerBlocker({
             ? `Confirm ${missing.label}: ${value.trim()}`
             : "Confirm"}
       </Button>
+      {error ? (
+        <p id={errorId} className="w-full text-sm text-danger" role="alert">
+          {error}
+        </p>
+      ) : null}
     </div>
   );
 

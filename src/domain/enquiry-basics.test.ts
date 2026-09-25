@@ -1,6 +1,12 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { readCustomerName, readEnquiryBasics, readJobDate } from "./enquiry-basics.ts";
+import {
+  readContact,
+  readCustomerName,
+  readDates,
+  readEnquiryBasics,
+  readJobDate,
+} from "./enquiry-basics.ts";
 
 // Fixed "now" so the year a date lands in never depends on when the suite runs.
 const NOW = new Date("2026-09-25T09:00:00+10:00");
@@ -52,11 +58,11 @@ test("a date is 'asked about' only when the customer asks, not when they mention
   assert.equal(readJobDate("Is 14/11 free?", NOW)?.asked, true);
   assert.equal(readJobDate("Are you available 3 Oct for a quote", NOW)?.asked, true);
   assert.equal(readJobDate("Our wedding is on the 14th of Feb at Sirromet.", NOW)?.asked, false);
-  assert.equal(readJobDate("Keys go back Friday 3 October. Can you help?", NOW)?.asked, false);
+  assert.equal(readJobDate("Keys go back Saturday 3 October. Can you help?", NOW)?.asked, false);
 });
 
 test("weekday, month-first and Australian numeric dates are read", () => {
-  assert.equal(readJobDate("Keys go back Friday 3 October.", NOW)?.iso, "2026-10-03");
+  assert.equal(readJobDate("Keys go back Saturday 3 October.", NOW)?.iso, "2026-10-03");
   assert.equal(readJobDate("Could you do October 12th?", NOW)?.iso, "2026-10-12");
   assert.equal(readJobDate("Is 14/11 free?", NOW)?.iso, "2026-11-14");
   assert.equal(readJobDate("Booked for 3 Oct 2027", NOW)?.iso, "2027-10-03");
@@ -79,9 +85,11 @@ test("both basics come back together", () => {
     NOW,
   );
   assert.equal(b.customerName, "Priya");
-  // 3 October 2026 is a Saturday: the label comes from the calendar, not
-  // from the weekday the customer wrote.
-  assert.equal(b.jobDate?.label, "Sat 3 Oct");
+  // 3 October 2026 is a Saturday. Enquiry does not pick between the weekday
+  // and the date: no job date, and the owner sees the conflict.
+  assert.equal(b.jobDate, undefined);
+  assert.equal(b.dates.issue?.note, "They wrote Friday 3 October - that date is a Saturday.");
+  assert.equal(b.contact.phone, "0412 555 019");
 });
 
 test("dash sign-offs, kisses and short sign-offs all give the name", () => {
@@ -104,15 +112,94 @@ test("a dash before a non-name is not a name", () => {
   assert.equal(readCustomerName("price for 3 rooms - Monday"), undefined);
 });
 
-test("a date the customer rules out, or only mentions, is never 'asked about'", () => {
+test("a date the customer rules out is never the job date, and one they only mention is never 'asked about'", () => {
   assert.equal(
-    readJobDate("We're not available on 3 October, any other day is fine.", NOW)?.asked,
-    false,
+    readJobDate("We're not available on 3 October, any other day is fine.", NOW),
+    undefined,
   );
-  assert.equal(readJobDate("We're away 3 October. Can you come after?", NOW)?.asked, false);
-  assert.equal(readJobDate("Any day except 3 October?", NOW)?.asked, false);
-  assert.equal(readJobDate("3 October won't work for us?", NOW)?.asked, false);
+  assert.equal(readJobDate("We're away 3 October. Can you come after?", NOW), undefined);
+  assert.equal(readJobDate("Any day except 3 October?", NOW), undefined);
+  assert.equal(readJobDate("3 October won't work for us?", NOW), undefined);
   assert.equal(readJobDate("Free quote please for 3 October move", NOW)?.asked, false);
   assert.equal(readJobDate("Are you free on 3 October", NOW)?.asked, true);
   assert.equal(readJobDate("Does 3 October suit", NOW)?.asked, true);
+});
+
+// Review pass 4: the repros that produced wrong customer-facing dates.
+const SAT_26_SEP = new Date("2026-09-26T09:00:00+10:00");
+
+test("a past day is never rolled on to next year, and 'asap' is the request", () => {
+  const text =
+    "I needed it done by last Tuesday 22 September - the tenant bailed. Can you still do it asap??";
+  const r = readDates(text, SAT_26_SEP);
+  assert.equal(r.jobDate, undefined, "no job date from a day that has passed");
+  assert.equal(r.issue?.kind, "past");
+  assert.match(r.issue?.note ?? "", /last Tuesday 22 September/);
+  assert.equal(r.asap, true);
+  assert.equal(readJobDate(text, SAT_26_SEP), undefined);
+});
+
+test("a recently passed day, or one whose weekday matches this year, is past even without 'last'", () => {
+  assert.equal(readDates("Could you have done 22 September?", SAT_26_SEP).issue?.kind, "past");
+  assert.equal(readDates("Needed it on Tuesday 22 September", SAT_26_SEP).jobDate, undefined);
+  assert.equal(readDates("It was booked for 1 Sept", SAT_26_SEP).issue?.kind, "past");
+  // Long gone with no year: next year's, as before.
+  assert.equal(readJobDate("the 2nd of March", SAT_26_SEP)?.iso, "2027-03-02");
+});
+
+test("a weekday that disagrees with its date is flagged, never picked", () => {
+  const r = readDates("Can you do Wednesday 8 October?", SAT_26_SEP);
+  assert.equal(r.jobDate, undefined);
+  assert.equal(r.issue?.kind, "weekday_conflict");
+  assert.equal(r.issue?.note, "They wrote Wednesday 8 October - that date is a Thursday.");
+  // A weekday that agrees is fine.
+  assert.equal(readJobDate("Can you do Thursday 8 October?", SAT_26_SEP)?.iso, "2026-10-08");
+  assert.equal(readJobDate("Can you do Thu the 8th of October?", SAT_26_SEP)?.iso, "2026-10-08");
+});
+
+test("a day ruled out is recorded as not available and never becomes the job date", () => {
+  const r = readDates(
+    "Any day except Monday 5 October - that day is no good. End of lease clean please.",
+    SAT_26_SEP,
+  );
+  assert.equal(r.jobDate, undefined);
+  assert.equal(r.unavailable.length, 1);
+  assert.equal(r.unavailable[0]!.label, "Mon 5 Oct");
+  const both = readDates("Not Monday 5 October, but Friday 9 October would be great", SAT_26_SEP);
+  assert.equal(both.jobDate?.iso, "2026-10-09");
+  assert.deepEqual(
+    both.unavailable.map((d) => d.iso),
+    ["2026-10-05"],
+  );
+  // "away until" is a boundary, not a day ruled out and not the job date.
+  const away = readDates("We're away until 3 October", SAT_26_SEP);
+  assert.equal(away.jobDate, undefined);
+  assert.equal(away.unavailable.length, 0);
+});
+
+test("sign-off names over several lines, with contact details, are read", () => {
+  const cases: [string, string][] = [
+    ["Can you quote an end of lease clean?\n\ncheers\n\nMel Tran\n0412 555 019", "Mel Tran"],
+    ["how much for a regular clean? thx Dave", "Dave"],
+    ["Quote please.\n\nThanks heaps,\nLiam O'Connor\nliam.oc@example.com", "Liam O'Connor"],
+    ["Quote please.\nCheers,\nAnne-Marie Smith-Jones", "Anne-Marie Smith-Jones"],
+    ["Quote please.\nKind regards,\nSean McDonald\nMob: 0412 555 019", "Sean McDonald"],
+    ["Quote please.\nCheers,\nMel\nChermside", "Mel"],
+  ];
+  for (const [text, want] of cases) assert.equal(readCustomerName(text), want, text);
+});
+
+test("'Cheers' alone and a suburb on its own are not names", () => {
+  assert.equal(readCustomerName("Can you quote this?\ncheers"), undefined);
+  assert.equal(readCustomerName("Can you quote this?\nCheers\n0412 555 019"), undefined);
+  assert.equal(readCustomerName("Can you quote this? Cheers"), undefined);
+});
+
+test("a phone number and an email are read as written", () => {
+  assert.deepEqual(readContact("cheers\nMel Tran\n0412 555 019"), { phone: "0412 555 019" });
+  assert.deepEqual(readContact("Thanks,\nLiam\nliam.oc@example.com."), {
+    email: "liam.oc@example.com",
+  });
+  assert.deepEqual(readContact("a 3 bedroom house, 120 sqm, $450 budget"), {});
+  assert.equal(readContact("call +61 412 555 019 anytime").phone, "+61 412 555 019");
 });

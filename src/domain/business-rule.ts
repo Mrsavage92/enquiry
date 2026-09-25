@@ -1,3 +1,4 @@
+import { formatMajorAmount } from "./money-format.ts";
 /**
  * The typed, machine-usable half of a Business Brain rule.
  *
@@ -135,12 +136,12 @@ export function pluraliseUnit(unit: string, count: number): string {
 
 export function describeRule(rule: BusinessRule): string {
   if (rule.kind === "fixed_price") {
-    return `${rule.service}: $${rule.amount}`;
+    return `${rule.service}: ${formatMajorAmount(rule.amount)}`;
   }
   const min = rule.minimumQuantity
     ? `, minimum ${rule.minimumQuantity} ${pluraliseUnit(rule.unit, rule.minimumQuantity)}`
     : "";
-  return `${rule.service}: $${rule.amount} per ${rule.unit}${min}`;
+  return `${rule.service}: ${formatMajorAmount(rule.amount)} per ${rule.unit}${min}`;
 }
 
 /**
