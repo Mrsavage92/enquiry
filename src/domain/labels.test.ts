@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { ENQUIRIES } from "../fixtures/enquiries.ts";
 import {
+  emptyTabMessage,
   commercialValue,
   factStatusLabel,
   factStatusTone,
@@ -247,4 +248,13 @@ test("a live enquiry with neither evaluators nor a value stays not_applicable, n
   bare.valueRange = undefined;
   assert.equal(pricingApplicability(bare), "not_applicable");
   assert.equal(commercialValue(bare).amountLabel, "");
+});
+
+test("each empty tab says what is true of it, never the search-miss text", () => {
+  const tabs = ["needs_you", "waiting", "at_risk", "closed", "all"];
+  const messages = tabs.map(emptyTabMessage);
+  assert.equal(emptyTabMessage("needs_you"), "Nothing needs you right now.");
+  assert.equal(emptyTabMessage("at_risk"), "No quiet enquiries.");
+  assert.equal(new Set(messages).size, tabs.length);
+  for (const m of messages) assert.doesNotMatch(m, /match/i);
 });

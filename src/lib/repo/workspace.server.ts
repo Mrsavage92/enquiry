@@ -59,6 +59,13 @@ export type WorkspaceData = {
   audit: AuditEvent[];
   /** enquiryId -> the reply the owner was part-way through, still valid for the current decision. */
   drafts: Record<string, string>;
+  /** enquiryId -> an edit made before the decision moved, for the owner to keep or drop. */
+  staleDrafts: Record<string, string>;
+  /**
+   * Where an owner books a setup call, when one is configured
+   * (launch_settings.setup_call_url). Null means no card, anywhere.
+   */
+  setupCallUrl: string | null;
   /** businessId -> working hours and notice choices. */
   prefs: Record<string, WorkspacePrefs>;
 };
@@ -69,6 +76,8 @@ const EMPTY: WorkspaceData = {
   bookings: [],
   audit: [],
   drafts: {},
+  staleDrafts: {},
+  setupCallUrl: null,
   prefs: {},
 };
 
@@ -191,6 +200,39 @@ export async function loadWorkspace(
     bookings: bookingRows.map(toBooking),
     audit: auditRows.map(toAuditEvent),
     drafts: owner.drafts,
+    staleDrafts: owner.staleDrafts,
+    setupCallUrl: await readSetupCallUrl(sql),
     prefs: owner.prefs,
   };
+}
+
+/**
+ * The setup-call booking link, only when one is configured and is a plain
+ * https URL. Anything else - no row, an empty value, another scheme - is no
+ * link, so the card never appears pointing at nothing.
+ */
+export async function readSetupCallUrl(
+  sql: Awaited<ReturnType<typeof getSql>>,
+): Promise<string | null> {
+  try {
+    const rows = await sql<{ value: string }>`
+      select value from launch_settings where key = ${"setup_call_url"} limit 1
+    `;
+    return safeBookingUrl(rows[0]?.value);
+  } catch (err) {
+    // No card is the safe answer, but say why in the server log.
+    console.error("[workspace] could not read setup_call_url:", err);
+    return null;
+  }
+}
+
+export function safeBookingUrl(raw: string | null | undefined): string | null {
+  const value = (raw ?? "").trim();
+  if (!value) return null;
+  try {
+    const url = new URL(value);
+    return url.protocol === "https:" ? url.toString() : null;
+  } catch {
+    return null;
+  }
 }

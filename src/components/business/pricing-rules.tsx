@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { tradeExamples } from "@/domain/trade-examples";
 import { useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -24,10 +25,13 @@ import type { Business } from "@/domain/types";
 export function PricingRules({
   business,
   autoOpen = false,
+  secondary = false,
 }: {
   business: Business;
   /** Arrived from "Add your prices" on an enquiry: open the form straight away. */
   autoOpen?: boolean;
+  /** The sentence box above is the main way in; this form is the second one. */
+  secondary?: boolean;
 }) {
   const demoMode = usePrototype((s) => s.demoMode);
   const actions = useFirstBetaActions();
@@ -38,8 +42,12 @@ export function PricingRules({
   const [kind, setKind] = useState<"fixed_price" | "per_unit">("per_unit");
   const [service, setService] = useState("");
   const [amount, setAmount] = useState("");
-  const [unit, setUnit] = useState("person");
-  const [quantityField, setQuantityField] = useState("guests");
+  // Starting values in the owner's own trade: a painter prices per square
+  // metre, not per guest. Only placeholders and a starting unit; the owner
+  // changes any of it before saving.
+  const examples = tradeExamples(business.industry);
+  const [unit, setUnit] = useState(examples.price.unit);
+  const [quantityField, setQuantityField] = useState(examples.price.field);
   // Follows the unit ("bedroom" -> "bedrooms") until the owner types their own.
   const [fieldTouched, setFieldTouched] = useState(false);
   const [minimumQuantity, setMinimumQuantity] = useState("");
@@ -111,7 +119,8 @@ export function PricingRules({
         {!demoMode ? (
           <Button
             size="sm"
-            variant={rules.length ? "secondary" : "primary"}
+            // Cancel is never the loud button on the screen.
+            variant={rules.length || open || secondary ? "secondary" : "primary"}
             className="min-h-11"
             onClick={() => setOpen((v) => !v)}
           >
@@ -145,7 +154,9 @@ export function PricingRules({
               variant={kind === "per_unit" ? "primary" : "secondary"}
               onClick={() => setKind("per_unit")}
             >
-              Per person / hour / item
+              {examples.price.unit === "hour"
+                ? "Per hour, person or item"
+                : `Per ${examples.price.unit}, hour or item`}
             </Button>
             <Button
               size="sm"
@@ -163,7 +174,7 @@ export function PricingRules({
                 className="field w-full"
                 value={service}
                 onChange={(e) => setService(e.target.value)}
-                placeholder="Group makeup"
+                placeholder={examples.price.service}
               />
             </label>
             <label className="block text-sm">
@@ -175,7 +186,7 @@ export function PricingRules({
                 inputMode="decimal"
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
-                placeholder="145"
+                placeholder={examples.price.amount}
               />
             </label>
 
@@ -192,7 +203,7 @@ export function PricingRules({
                         setQuantityField(quantityFieldFor(e.target.value));
                       }
                     }}
-                    placeholder="person"
+                    placeholder={examples.price.unit}
                   />
                 </label>
                 <label className="block text-sm">
@@ -206,7 +217,7 @@ export function PricingRules({
                       setFieldTouched(true);
                       setQuantityField(e.target.value);
                     }}
-                    placeholder="guests"
+                    placeholder={examples.price.field}
                   />
                   <span className="mt-1.5 block text-xs text-stone">
                     If an enquiry does not say this, Enquiry asks for it instead of guessing.
@@ -219,7 +230,7 @@ export function PricingRules({
                     inputMode="numeric"
                     value={minimumQuantity}
                     onChange={(e) => setMinimumQuantity(e.target.value)}
-                    placeholder="3"
+                    placeholder={examples.price.minimum || "Optional"}
                   />
                 </label>
               </>

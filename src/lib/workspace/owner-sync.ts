@@ -142,3 +142,28 @@ export function useMarkSeen() {
     })();
   }, [demoMode, businessId, setPrevious]);
 }
+
+/**
+ * Drop an edit the owner chose not to keep: the prepared reply shows again and
+ * the saved copy is removed on the server, so it is not offered back later.
+ */
+export async function discardSavedDraft(enquiryId: string): Promise<void> {
+  unsavedDraftIds.delete(enquiryId);
+  const timer = timers.get(enquiryId);
+  if (timer) {
+    clearTimeout(timer);
+    timers.delete(enquiryId);
+  }
+  usePrototype.setState((s) => {
+    const drafts = { ...s.drafts };
+    delete drafts[enquiryId];
+    return { drafts };
+  });
+  if (usePrototype.getState().demoMode) return;
+  const { saveReplyDraft } = await import("@/lib/server/owner-state");
+  await writeThrough(
+    "Your reply",
+    () => saveReplyDraft({ data: { enquiryId, body: "" } }),
+    (m) => toast.error(m),
+  );
+}

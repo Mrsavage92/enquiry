@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { test } from "node:test";
 import { ENQUIRIES } from "../fixtures/enquiries.ts";
 import { derivedLabel, nextStepLabel, QUEUE_NAMES, STATUS } from "./labels.ts";
+import { rowTimeCue } from "./time-cues.ts";
 import { decideEnquiry } from "./decide.ts";
 import { snapshotFromDecision } from "./decision-snapshot.ts";
 import type { CompositeState } from "./types.ts";
@@ -65,10 +66,16 @@ const RETIRED: [RegExp, string][] = [
   [/\b[Nn]eeds? a look\b/, "Gone quiet"],
   [/Autopilot sent/, "(removed: nothing sends by itself)"],
   [/Needs your attention/, "Needs you"],
+  // "Waiting" is the customer's turn; the owner's own time cue must not reuse it.
+  [/Waiting on you since/, "Your turn since"],
+  // Said nothing about what the wait is for.
+  [/Nothing until they answer/, "Waiting on Karen - for the number of bedrooms"],
 ];
 
 /** Owner-facing app code. The public marketing site is owned elsewhere. */
 const SCANNED = [
+  "src/domain/time-cues.ts",
+  "src/domain/labels.ts",
   "src/components/enquiry",
   "src/components/shell",
   "src/components/settings",
@@ -149,4 +156,95 @@ test("an enquiry waiting on the owner's prices: the chip and the next step agree
   assert.equal(nextStepLabel(e), "Add your prices");
   assert.equal(derivedLabel(e.state, e), STATUS.needsPrices);
   assert.ok(ALLOWED.has(derivedLabel(e.state, e)));
+});
+
+test("the owner's own time cue says 'Your turn since', not 'Waiting'", () => {
+  const e = ENQUIRIES.find(
+    (x) =>
+      x.state.lifecycle === "OPEN" &&
+      x.state.decision === "NEEDS_INFORMATION" &&
+      !x.followUpDue &&
+      !x.atRisk &&
+      !x.snoozedUntil,
+  )!;
+  const cue = rowTimeCue(e, { timezone: "Australia/Brisbane" } as never);
+  assert.match(cue, /^Your turn since /);
+  assert.doesNotMatch(cue, /Waiting/);
+});
+
+test("saying which service it is reads as one detail, the same word as a missing count", () => {
+  const knowledge = [
+    {
+      state: "Active",
+      rulePayload: {
+        kind: "fixed_price",
+        service: "Exterior repaint",
+        amount: 5500,
+        currency: "AUD",
+      },
+    },
+  ];
+  const base = ENQUIRIES.find((e) => e.state.lifecycle === "OPEN")!;
+  const make = (serviceLabel: string, decision: "NEEDS_HUMAN" | "NEEDS_INFORMATION") => ({
+    ...base,
+    atRisk: undefined,
+    followUpDue: undefined,
+    snoozedUntil: undefined,
+    source: "manual" as const,
+    state: { ...base.state, lifecycle: "OPEN" as const, decision },
+    decision: {
+      ...base.decision,
+      ...snapshotFromDecision(decideEnquiry({ knowledge }, { serviceLabel, facts: [] })),
+    },
+  });
+  const chooseService = make("", "NEEDS_HUMAN");
+  assert.equal(derivedLabel(chooseService.state, chooseService), STATUS.needsDetail);
+  const judgment = {
+    ...chooseService,
+    decision: {
+      ...chooseService.decision,
+      recommendation: {
+        ...chooseService.decision.recommendation,
+        reasonCodes: [],
+        label: "Your call on this one",
+      },
+    },
+  };
+  assert.equal(derivedLabel(judgment.state, judgment), STATUS.yourCall);
+});
+
+test("a waiting row says who it is waiting on and what for", () => {
+  const knowledge = [
+    {
+      state: "Active",
+      rulePayload: {
+        kind: "per_unit",
+        service: "End of lease clean",
+        amount: 190,
+        currency: "AUD",
+        unit: "bedroom",
+        quantityField: "bedrooms",
+      },
+    },
+  ];
+  const base = ENQUIRIES.find((e) => e.state.lifecycle === "OPEN")!;
+  const snap = snapshotFromDecision(
+    decideEnquiry({ knowledge }, { serviceLabel: "End of lease clean", facts: [] }),
+  );
+  const e = {
+    ...base,
+    customerName: "Karen Walsh",
+    nameUnknown: undefined,
+    followUpDue: undefined,
+    state: {
+      ...base.state,
+      lifecycle: "OPEN" as const,
+      decision: "WAITING_ON_CLIENT" as const,
+      commercial: "UNASSESSED" as const,
+    },
+    decision: { ...base.decision, ...snap },
+  };
+  assert.equal(nextStepLabel(e), "Waiting on Karen - for the number of bedrooms");
+  const unnamed = { ...e, customerName: "Customer", nameUnknown: true };
+  assert.equal(nextStepLabel(unnamed), "Waiting on the customer - for the number of bedrooms");
 });

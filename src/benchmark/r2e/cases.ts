@@ -831,7 +831,9 @@ export const BENCHMARK_CASES: BenchmarkCase[] = [
         blockerField: "vehicles",
       },
       trust: { neverConfirmedFields: ["vehicles"], primaryEnabled: true },
-      draft: { mustContain: ["vehicles"], mustNotContain: ["$"] },
+      // "just the one vehicle" is already in the message: the reply works from
+      // it and never asks the customer for it again (attention pass 3, C4).
+      draft: { mustContain: ["1 vehicle you mentioned"], mustNotContain: ["$", "how many"] },
     },
     followUps: [
       {

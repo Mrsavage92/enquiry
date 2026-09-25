@@ -1,3 +1,4 @@
+import { displayName, hasName } from "@/domain/customer-name";
 import { emptyDecisionSnapshot } from "@/domain/decision-snapshot";
 import type {
   ActionPolicy,
@@ -441,7 +442,9 @@ export function toEnquiry(
     // still be traced back to the fixture they came from.
     fixtureId: r.id,
     businessId: r.business_id,
-    customerName: r.customer_name,
+    // Never a blank header, avatar or row: see domain/customer-name.ts.
+    customerName: displayName({ customerName: r.customer_name }),
+    ...(hasName({ customerName: r.customer_name }) ? {} : { nameUnknown: true }),
     customerEmail: r.customer_email,
     customerPhone: r.customer_phone ?? undefined,
     customerHandle: r.customer_handle ?? undefined,

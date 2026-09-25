@@ -1,4 +1,6 @@
 import { Link } from "@tanstack/react-router";
+import { LastingUndo } from "./waiting-summary";
+import { firstName } from "@/domain/customer-name";
 import { useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -179,11 +181,12 @@ export function WaitingDesk({ enquiry, onDone }: { enquiry: Enquiry; onDone?: ()
           {comesBackCue(enquiry, prefs) || "Silence is not a decline."}
         </p>
       )}
+      {phone || demoMode ? null : <LastingUndo enquiry={enquiry} />}
       {phone ? (
         <>
           <p className="text-sm text-ink-2">
-            {sent ? `Sent ${sent.when}. ` : "Sent. "}Waiting on {enquiry.customerName.split(" ")[0]}
-            . {comesBackCue(enquiry, prefs)}
+            {sent ? `Sent ${sent.when}. ` : "Sent. "}Waiting on {firstName(enquiry)}.{" "}
+            {comesBackCue(enquiry, prefs)}
           </p>
           <button
             type="button"

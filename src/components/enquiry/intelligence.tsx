@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { firstName } from "@/domain/customer-name";
 import { Link } from "@tanstack/react-router";
 import { Check, ChevronDown, CircleHelp, Pencil } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -34,9 +35,11 @@ import { resolveBusiness } from "@/lib/workspace/resolve-business";
 import { SituationCard } from "./situation-card";
 import { AnswerBlocker } from "./answer-blocker";
 import { ServiceReadAs } from "./service-read-as";
+import { serviceNeedsOwner } from "@/domain/service-match";
 import { QuoteSheets } from "./quote-sheet";
 import { quoteSheets } from "@/domain/quote-sheets";
 import { WaitingDesk } from "./waiting-desk";
+import { LastingUndo } from "./waiting-summary";
 import {
   detectPriceDrift,
   detectSheetLetterMismatch,
@@ -53,9 +56,9 @@ import { HearLetter } from "./hear-letter";
 import { SendPreview, type SendPreviewCopyState } from "./send-preview";
 import { DeclineConfirm } from "./decline-confirm";
 import { isWaitingForInformation } from "./reply-presentation";
-import { useDraftSaver, useDraftSaveState } from "@/lib/workspace/owner-sync";
+import { discardSavedDraft, useDraftSaver, useDraftSaveState } from "@/lib/workspace/owner-sync";
 import { comesBackCue, lastSent, parkedUntil } from "@/domain/time-cues";
-import { nextStepLabel, STATUS } from "@/domain/labels";
+import { nextStepLabel, promiseVerdict, STATUS } from "@/domain/labels";
 import { LaterChoices } from "./later-choices";
 import { isPricingStep, setupStep } from "@/domain/next-action";
 import { toastRecordedSend } from "@/lib/workspace/send-undo";
@@ -81,7 +84,9 @@ export function Intelligence({
   const evidenceOpen = detailsOpen ?? internalEvidenceOpen;
   const setEvidenceOpen = onDetailsOpenChange ?? setInternalEvidenceOpen;
   const [correcting, setCorrecting] = useState<EnquiryFact | null>(null);
-  const [draftOpen, setDraftOpen] = useState(!compact && !inline);
+  // Closed by default everywhere: the next step leads, and the full reply is
+  // one tap away. An owner's own unsent edit reopens it (below).
+  const [draftOpen, setDraftOpen] = useState(false);
   const [laterOpen, setLaterOpen] = useState(false);
   const [sendConfirm, setSendConfirm] = useState(false);
   // The server-frozen artefact this preview is about, and why the server would
@@ -121,6 +126,16 @@ export function Intelligence({
   // the next step is an enabled link, never a disabled button.
   const setup = setupStep(enquiry);
   const blockingMissing = enquiry.decision.missing.find((m) => m.blocking);
+  // The customer already gave the deciding detail: the next step is the owner
+  // checking it, so nothing on screen offers to ask them for it again.
+  const readingToCheck = Boolean(blockingMissing?.inferred);
+  // No service named yet: on the phone the choice is made inside the next-step
+  // card, under one heading, instead of four places saying the same thing.
+  const choosingService =
+    !demoMode && setupStep(enquiry)?.kind === "choose_service" && serviceNeedsOwner(enquiry);
+  // Nothing to send yet: the next step is the owner's (check a reading, say
+  // which service, add a price), so the reply preview stays out of the way.
+  const replyOnHold = readingToCheck || choosingService || Boolean(setupStep(enquiry));
   // Worked out from prices the owner confirmed: "Confidence Low" beside that
   // would tell them to doubt their own price list.
   const ruleDerived =
@@ -148,6 +163,16 @@ export function Intelligence({
   // putting that text back in front of them, not the original.
   const hasOwnEdit =
     drafts[enquiry.id] !== undefined && drafts[enquiry.id] !== enquiry.decision.draft.body;
+  // An edit written before the facts moved: never dropped silently. The owner
+  // sees it beside the new prepared reply and chooses.
+  const staleEdit = usePrototype((s) => s.staleDrafts[enquiry.id]);
+  const resolveStaleDraft = usePrototype((s) => s.resolveStaleDraft);
+  const showStaleEdit =
+    !demoMode &&
+    staleEdit !== undefined &&
+    !hasOwnEdit &&
+    staleEdit.trim() !== "" &&
+    staleEdit !== enquiry.decision.draft.body;
   const resumedEdit = useRef(false);
   useEffect(() => {
     if (!hasOwnEdit || resumedEdit.current || compact) return;
@@ -192,6 +217,7 @@ export function Intelligence({
   const reply = replyChannel(enquiry);
   const firstBeta = useFirstBetaActions();
   const [sending, setSending] = useState(false);
+  const recordingSend = useRef(false);
 
   /**
    * Copying. Only copying.
@@ -268,6 +294,10 @@ export function Intelligence({
       toast.error("Review the message again before recording it as sent.");
       return;
     }
+    // A double tap must record once and say so once: the second tap arrives
+    // before React has re-rendered the disabled button.
+    if (recordingSend.current) return;
+    recordingSend.current = true;
     setSending(true);
     try {
       const res = await firstBeta.recordSent(enquiry.id, reviewedSendId, { staleAttestation });
@@ -289,9 +319,22 @@ export function Intelligence({
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Could not record that send.");
     } finally {
+      recordingSend.current = false;
       setSending(false);
     }
   };
+  // On the phone, a footer with nothing to press is noise: the confirm or the
+  // service choice is already in the next-step card.
+  const quietFooter =
+    compact &&
+    !evaluating &&
+    !awaitingInformation &&
+    !awaitingOutcome &&
+    !awaitingService &&
+    !blocked &&
+    !rec.blockedReason &&
+    ((sendable && readingToCheck && !demoMode) ||
+      (!sendable && Boolean(setup) && !isPricingStep(setup)));
   const short = isShortChannel(reply);
   const integ = integrationForChannel(business, reply, enquiry);
   const Panel = compact ? SheetContent : DialogContent;
@@ -412,12 +455,62 @@ export function Intelligence({
             </div>
           ) : null}
 
+          {showStaleEdit ? (
+            <section
+              className="border-b border-line px-5 py-4"
+              aria-labelledby="stale-edit-heading"
+              role="status"
+            >
+              <p id="stale-edit-heading" className="text-base font-semibold text-ink">
+                Details changed since your edit
+              </p>
+              <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                <div>
+                  <p className="text-sm font-medium text-ink">Your edit</p>
+                  <p className="mt-1 max-h-40 overflow-y-auto whitespace-pre-wrap rounded-md bg-paper-2 p-3 text-sm leading-relaxed text-ink">
+                    {staleEdit}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-ink">New reply</p>
+                  <p className="mt-1 max-h-40 overflow-y-auto whitespace-pre-wrap rounded-md bg-paper-2 p-3 text-sm leading-relaxed text-ink">
+                    {enquiry.decision.draft.body}
+                  </p>
+                </div>
+              </div>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <Button
+                  className="min-h-11"
+                  onClick={() => {
+                    resolveStaleDraft(enquiry.id);
+                    void discardSavedDraft(enquiry.id);
+                  }}
+                >
+                  Use new reply
+                </Button>
+                <Button
+                  className="min-h-11"
+                  variant="secondary"
+                  onClick={() => {
+                    resolveStaleDraft(enquiry.id);
+                    editDraft(enquiry.id, staleEdit!);
+                    setDraftOpen(true);
+                  }}
+                >
+                  Keep my edit
+                </Button>
+              </div>
+            </section>
+          ) : null}
+
           {situation ? (
             <SituationCard enquiry={enquiry} situation={situation} compact={compact} />
           ) : null}
 
           {/* The honest refusal is only useful if the owner can answer it. */}
-          {demoMode ? null : <ServiceReadAs enquiry={enquiry} />}
+          {demoMode || (inline && choosingService) ? null : (
+            <ServiceReadAs enquiry={enquiry} business={business} />
+          )}
           {demoMode || inline ? null : <AnswerBlocker enquiry={enquiry} />}
 
           {enquiry.followUpDue && enquiry.followUpReason ? (
@@ -440,17 +533,25 @@ export function Intelligence({
                     </p>
                   ) : (
                     <>
+                      {/* The promise, in the product's three words. */}
                       <p id="rec-heading" className="eyebrow-decision">
-                        {inline ? "Suggested next step" : "Recommendation"}
+                        {promiseVerdict(enquiry).line}
                       </p>
                       <p className="mt-2 text-xl font-semibold leading-snug tracking-tight">
-                        {inline ? nextStepLabel(enquiry) : rec.label}
+                        {inline
+                          ? choosingService
+                            ? "Which service is this?"
+                            : nextStepLabel(enquiry)
+                          : rec.label}
                       </p>
-                      {/* On the phone the detail the price needs is folded
-                          into this card, so its reason is said here, once. */}
-                      {recReasonIsMissingReason && !inline ? null : (
+                      {/* On the phone the card holds one heading and one
+                          control; the reasoning is behind Why?. */}
+                      {inline || recReasonIsMissingReason ? null : (
                         <p className="mt-2 text-sm leading-relaxed text-ink-2">{rec.reason}</p>
                       )}
+                      {inline && choosingService ? (
+                        <ServiceReadAs enquiry={enquiry} business={business} bare />
+                      ) : null}
                       {inline && !demoMode && blockingMissing ? (
                         <AnswerBlocker enquiry={enquiry} folded />
                       ) : null}
@@ -471,9 +572,9 @@ export function Intelligence({
                       }}
                     >
                       <CircleHelp className="size-4" aria-hidden />
-                      {inline ? "Why this reply?" : "Why?"}
+                      Why?
                     </button>
-                    {inline ? (
+                    {inline && (hasOwnEdit || (sendable && !readingToCheck)) ? (
                       <button
                         type="button"
                         className="inline-flex min-h-11 items-center gap-1.5 text-sm font-medium text-mark"
@@ -489,7 +590,7 @@ export function Intelligence({
                             : "Read & edit reply"}
                       </button>
                     ) : null}
-                    {inline && !compact ? <HearLetter text={draftBody} /> : null}
+                    {inline && !compact && !replyOnHold ? <HearLetter text={draftBody} /> : null}
                     {showConfidence && (!inline || enquiry.decision.confidence === "Low") ? (
                       <ConfidenceBadge confidence={enquiry.decision.confidence} />
                     ) : null}
@@ -555,32 +656,49 @@ export function Intelligence({
                   className={cn("border-b border-line px-5", compact ? "py-4" : "py-5")}
                   aria-labelledby="missing-heading"
                 >
-                  <p
-                    id="missing-heading"
-                    className={compact ? "text-sm font-medium" : "eyebrow-decision"}
-                  >
-                    {compact ? "Still needed" : "Blocking the next decision"}
-                  </p>
-                  <ul className="mt-3 space-y-2">
-                    {enquiry.decision.missing.map((m) => {
-                      // "Needed to price this" (AnswerBlocker) already states
-                      // this exact reason, with the input to resolve it,
-                      // whenever it is live and rendered - one fact, one place.
-                      // In demo mode AnswerBlocker never renders, so this stays
-                      // the only place the reason appears.
-                      const reasonShownElsewhere = m.blocking && !demoMode;
-                      return (
-                        <li key={m.factField} className="callout bg-warn-bg text-warn">
-                          <p className="text-sm font-medium">{m.label}</p>
-                          {compact ? null : (
-                            <p className="mt-0.5 text-sm text-ink-2">
-                              {reasonShownElsewhere ? "" : `${m.reason} `}Unlocks: {m.unlocks}.
-                            </p>
-                          )}
-                        </li>
-                      );
-                    })}
-                  </ul>
+                  {compact ? (
+                    <p id="missing-heading" className="text-sm font-medium">
+                      Still needed
+                    </p>
+                  ) : null}
+                  <details open={compact ? true : undefined} className="group">
+                    {compact ? (
+                      <summary className="sr-only">Still needed</summary>
+                    ) : (
+                      // Closed by default on desktop: the next step above
+                      // already names the one detail; this is the reference.
+                      <summary
+                        id="missing-heading"
+                        className="flex min-h-11 cursor-pointer items-center justify-between eyebrow-decision"
+                      >
+                        Blocking the next decision
+                        <ChevronDown
+                          className="size-4 text-stone transition-transform duration-150 ease-out group-open:rotate-180"
+                          aria-hidden
+                        />
+                      </summary>
+                    )}
+                    <ul className="mt-3 space-y-2">
+                      {enquiry.decision.missing.map((m) => {
+                        // "Needed to price this" (AnswerBlocker) already states
+                        // this exact reason, with the input to resolve it,
+                        // whenever it is live and rendered - one fact, one place.
+                        // In demo mode AnswerBlocker never renders, so this stays
+                        // the only place the reason appears.
+                        const reasonShownElsewhere = m.blocking && !demoMode;
+                        return (
+                          <li key={m.factField} className="callout bg-warn-bg text-warn">
+                            <p className="text-sm font-medium">{m.label}</p>
+                            {compact ? null : (
+                              <p className="mt-0.5 text-sm text-ink-2">
+                                {reasonShownElsewhere ? "" : `${m.reason} `}Unlocks: {m.unlocks}.
+                              </p>
+                            )}
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </details>
                 </section>
               ) : null}
 
@@ -766,7 +884,8 @@ export function Intelligence({
                       </label>
                       <DraftSaveNote enquiryId={enquiry.id} live={!demoMode} />
                     </>
-                  ) : inline ? (
+                  ) : inline && !replyOnHold ? (
+                    // A three-line preview; the full reply opens on request.
                     <p className="inline-reply-body">{draftBody || "No reply prepared."}</p>
                   ) : null}
                   {priceDrift ? (
@@ -831,198 +950,199 @@ export function Intelligence({
         ) : null}
       </div>
 
-      <div
-        className={cn(
-          "shrink-0 border-t border-line bg-raised px-5 py-3",
-          compact && "pb-[max(0.75rem,var(--app-safe-bottom))]",
-        )}
-      >
-        {evaluating ? (
-          <p className="text-sm text-stone">Wait until Enquiry finishes reading.</p>
-        ) : awaitingInformation && inline ? (
-          // The phone shows who you are waiting on, and when it comes back, at
-          // the top of the screen (WaitingSummary), not down here.
-          <p className="text-sm text-ink-2">Nothing to do until they answer.</p>
-        ) : awaitingInformation ? (
-          <section className="reply-waiting" aria-label="Waiting for customer" role="status">
-            <span className="reply-recorded-mark" aria-hidden>
-              <Check size={20} />
-            </span>
-            <div className="reply-waiting-copy">
-              <p>Waiting on {enquiry.customerName.split(" ")[0]}</p>
-              <p>
-                {sent
-                  ? `You sent this ${sent.when}: "${sent.excerpt}"`
-                  : "Your reply is on record."}
-              </p>
-              <p>
-                {waitingFor ? `Waiting for: ${waitingFor.toLowerCase()}. ` : ""}
-                {comesBackCue(enquiry, prefs)}
-              </p>
-            </div>
-            <button type="button" className="ui-text-link" onClick={() => setWhyOpen(true)}>
-              Why this reply?
-            </button>
-          </section>
-        ) : awaitingOutcome ? (
-          <WaitingDesk enquiry={enquiry} onDone={onDone} />
-        ) : (
-          <div className="flex flex-col gap-2">
-            {compact && !inline && sendable ? (
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <button
-                  type="button"
-                  className="inline-flex min-h-11 items-center text-sm text-stone underline-offset-4 hover:text-ink hover:underline"
-                  onClick={() => {
-                    setWhyOpen(true);
-                    track(enquiry.fixtureId, "open_why");
-                  }}
-                >
-                  Why this?
-                </button>
-                {showConfidence ? (
-                  <ConfidenceBadge confidence={enquiry.decision.confidence} />
-                ) : null}
-              </div>
-            ) : null}
-            {sendable ? (
-              <Button
-                className={cn("w-full", compact ? "min-h-14 text-base" : "min-h-11")}
-                disabled={
-                  sending ||
-                  !rec.primaryEnabled ||
-                  awaitingService ||
-                  Boolean(rec.blockedReason) ||
-                  Boolean(blocked)
-                }
-                onClick={() => {
-                  // Every action reaching this button is sendable
-                  // (isSendableAction gates the branch above), so this is
-                  // always a customer-facing send - preview first, and there
-                  // is no longer any other path: nothing records a send
-                  // except the owner's attestation inside that preview. The
-                  // check stays explicit rather than unconditional so the
-                  // intent (and the invariant it depends on) is provable and
-                  // testable on its own, not just true by accident of this
-                  // component's structure.
-                  if (!isCustomerFacingSend(rec.action)) return;
-                  void openReview();
-                }}
-              >
-                {sending
-                  ? "Preparing review..."
-                  : awaitingService
-                    ? "Confirm the service first"
-                    : inline
-                      ? "Review reply"
-                      : rec.label}
-              </Button>
-            ) : setup && isPricingStep(setup) ? (
-              <>
-                <Button
-                  asChild
-                  className={cn("w-full", compact ? "min-h-14 text-base" : "min-h-11")}
-                >
-                  <Link to="/business" search={{ section: "pricing" }}>
-                    {setup.label}
-                  </Link>
-                </Button>
-                <p className="text-xs text-stone">
-                  This enquiry updates as soon as you save a price.
+      {quietFooter ? null : (
+        <div
+          className={cn(
+            "shrink-0 border-t border-line bg-raised px-5 py-3",
+            compact && "pb-[max(0.75rem,var(--app-safe-bottom))]",
+          )}
+        >
+          {evaluating ? (
+            <p className="text-sm text-stone">Wait until Enquiry finishes reading.</p>
+          ) : awaitingInformation && inline ? (
+            // The phone shows who you are waiting on, and when it comes back, at
+            // the top of the screen (WaitingSummary), not down here.
+            <p className="text-sm text-ink-2">Nothing to do until they answer.</p>
+          ) : awaitingInformation ? (
+            <section className="reply-waiting" aria-label="Waiting for customer" role="status">
+              <span className="reply-recorded-mark" aria-hidden>
+                <Check size={20} />
+              </span>
+              <div className="reply-waiting-copy">
+                <p>Waiting on {firstName(enquiry)}</p>
+                <p>
+                  {sent
+                    ? `You sent this ${sent.when}: "${sent.excerpt}"`
+                    : "Your reply is on record."}
                 </p>
-              </>
-            ) : setup ? (
-              <p className="text-sm text-ink-2">Say which service this is, above.</p>
-            ) : situation ? (
-              <p className="text-sm text-ink-2">Settle the detail above first.</p>
-            ) : serviceUnconfirmed ? (
-              <p className="text-sm text-ink-2">Confirm the service above first.</p>
-            ) : (
-              // Nothing Enquiry can prepare: say so plainly. A disabled button
-              // here was the dead end the owner could not get past.
-              <p className="text-sm text-ink-2">
-                This one is your call. Reply to them yourself, or use {STATUS.later} to come back to
-                it.
-              </p>
-            )}
-            {awaitingService ? (
-              <p className="text-sm text-warn">
-                Confirm what this enquiry is for before quoting it. Enquiry will not send a price
-                for a service nobody has agreed to.
-              </p>
-            ) : blocked ? (
-              <div className="space-y-2">
-                <p className="text-sm text-warn">{blocked}</p>
-                {integ && integ.status !== "connected" && business ? (
-                  <Button
-                    size="sm"
-                    variant="secondary"
-                    className="min-h-11 w-full"
+                <p>
+                  {waitingFor ? `Waiting for: ${waitingFor.toLowerCase()}. ` : ""}
+                  {comesBackCue(enquiry, prefs)}
+                </p>
+                {demoMode ? null : <LastingUndo enquiry={enquiry} />}
+              </div>
+              <button type="button" className="ui-text-link" onClick={() => setWhyOpen(true)}>
+                Why this reply?
+              </button>
+            </section>
+          ) : awaitingOutcome ? (
+            <WaitingDesk enquiry={enquiry} onDone={onDone} />
+          ) : (
+            <div className="flex flex-col gap-2">
+              {compact && !inline && sendable ? (
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <button
+                    type="button"
+                    className="inline-flex min-h-11 items-center text-sm text-stone underline-offset-4 hover:text-ink hover:underline"
                     onClick={() => {
-                      connect(business.id, integ.id);
-                      toast(`${integ.provider} connected. Enquiry will keep reading.`);
+                      setWhyOpen(true);
+                      track(enquiry.fixtureId, "open_why");
                     }}
                   >
-                    Connect {integ.provider}
-                  </Button>
-                ) : null}
-              </div>
-            ) : rec.blockedReason ? (
-              <p className="text-sm text-danger">{rec.blockedReason}</p>
-            ) : sendable && !compact ? (
-              <p className="text-xs text-stone">
-                You send from your own inbox, then record it here.
-              </p>
-            ) : sendable && compact ? (
-              <p className="text-xs text-stone">
-                You send from your own inbox, then record it here.
-              </p>
-            ) : null}
-            {sendable || enquiry.state.lifecycle === "OPEN" ? (
-              compact ? null : (
-                <div className="flex flex-wrap gap-2">
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className="min-h-11"
-                    onClick={() => setNoteOpen(true)}
-                  >
-                    Note
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className="min-h-11"
-                    onClick={() => setLaterOpen(true)}
-                  >
-                    {STATUS.later}
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className="min-h-11"
-                    onClick={() => setDeclineOpen(true)}
-                  >
-                    Decline
-                  </Button>
+                    Why this?
+                  </button>
+                  {showConfidence ? (
+                    <ConfidenceBadge confidence={enquiry.decision.confidence} />
+                  ) : null}
                 </div>
-              )
-            ) : null}
-            {enquiry.id === "f14" ? (
-              <Button
-                variant="secondary"
-                className="min-h-11 w-full"
-                onClick={() => {
-                  confirmExternal(enquiry.id);
-                  onDone?.();
-                }}
-              >
-                Confirm booked externally
-              </Button>
-            ) : null}
-          </div>
-        )}
-      </div>
+              ) : null}
+              {sendable && readingToCheck && !demoMode ? null : sendable ? (
+                <Button
+                  className={cn("w-full", compact ? "min-h-14 text-base" : "min-h-11")}
+                  disabled={
+                    sending ||
+                    !rec.primaryEnabled ||
+                    awaitingService ||
+                    Boolean(rec.blockedReason) ||
+                    Boolean(blocked)
+                  }
+                  onClick={() => {
+                    // Every action reaching this button is sendable
+                    // (isSendableAction gates the branch above), so this is
+                    // always a customer-facing send - preview first, and there
+                    // is no longer any other path: nothing records a send
+                    // except the owner's attestation inside that preview. The
+                    // check stays explicit rather than unconditional so the
+                    // intent (and the invariant it depends on) is provable and
+                    // testable on its own, not just true by accident of this
+                    // component's structure.
+                    if (!isCustomerFacingSend(rec.action)) return;
+                    void openReview();
+                  }}
+                >
+                  {sending
+                    ? "Preparing review..."
+                    : awaitingService
+                      ? "Confirm the service first"
+                      : inline
+                        ? "Review reply"
+                        : rec.label}
+                </Button>
+              ) : setup && isPricingStep(setup) ? (
+                <>
+                  <Button
+                    asChild
+                    className={cn("w-full", compact ? "min-h-14 text-base" : "min-h-11")}
+                  >
+                    <Link to="/business" search={{ section: "pricing" }}>
+                      {setup.label}
+                    </Link>
+                  </Button>
+                  <p className="text-xs text-stone">
+                    This enquiry updates as soon as you save a price.
+                  </p>
+                </>
+              ) : setup ? null : situation ? (
+                <p className="text-sm text-ink-2">Settle the detail above first.</p>
+              ) : serviceUnconfirmed ? (
+                <p className="text-sm text-ink-2">Confirm the service above first.</p>
+              ) : (
+                // Nothing Enquiry can prepare: say so plainly. A disabled button
+                // here was the dead end the owner could not get past.
+                <p className="text-sm text-ink-2">
+                  This one is your call. Reply to them yourself, or use {STATUS.later} to come back
+                  to it.
+                </p>
+              )}
+              {awaitingService ? (
+                <p className="text-sm text-warn">
+                  Confirm what this enquiry is for before quoting it. Enquiry will not send a price
+                  for a service nobody has agreed to.
+                </p>
+              ) : blocked ? (
+                <div className="space-y-2">
+                  <p className="text-sm text-warn">{blocked}</p>
+                  {integ && integ.status !== "connected" && business ? (
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      className="min-h-11 w-full"
+                      onClick={() => {
+                        connect(business.id, integ.id);
+                        toast(`${integ.provider} connected. Enquiry will keep reading.`);
+                      }}
+                    >
+                      Connect {integ.provider}
+                    </Button>
+                  ) : null}
+                </div>
+              ) : rec.blockedReason ? (
+                <p className="text-sm text-danger">{rec.blockedReason}</p>
+              ) : sendable && !compact ? (
+                <p className="text-xs text-stone">
+                  You send from your own inbox, then record it here.
+                </p>
+              ) : sendable && compact ? (
+                <p className="text-xs text-stone">
+                  You send from your own inbox, then record it here.
+                </p>
+              ) : null}
+              {sendable || enquiry.state.lifecycle === "OPEN" ? (
+                compact ? null : (
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="min-h-11"
+                      onClick={() => setNoteOpen(true)}
+                    >
+                      Note
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="min-h-11"
+                      onClick={() => setLaterOpen(true)}
+                    >
+                      {STATUS.later}
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="min-h-11"
+                      onClick={() => setDeclineOpen(true)}
+                    >
+                      Decline
+                    </Button>
+                  </div>
+                )
+              ) : null}
+              {enquiry.id === "f14" ? (
+                <Button
+                  variant="secondary"
+                  className="min-h-11 w-full"
+                  onClick={() => {
+                    confirmExternal(enquiry.id);
+                    onDone?.();
+                  }}
+                >
+                  Confirm booked externally
+                </Button>
+              ) : null}
+            </div>
+          )}
+        </div>
+      )}
 
       <Dialog open={whyOpen} onOpenChange={setWhyOpen}>
         <Panel title="Why this">

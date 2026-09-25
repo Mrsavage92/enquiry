@@ -88,6 +88,13 @@ type PrototypeState = {
   brainTab: string;
   brainFocusComposer: boolean;
   drafts: Record<string, string>;
+  /**
+   * enquiryId -> the owner's edit from before the decision moved. Shown beside
+   * the new prepared reply until they keep it or drop it (intelligence.tsx).
+   */
+  staleDrafts: Record<string, string>;
+  /** The setup-call booking link, only when the server has one configured. */
+  setupCallUrl: string | null;
   teach: TeachDialog;
   duplicate: DuplicateDialog;
   brainPreview: BrainChangePreview | null;
@@ -166,8 +173,12 @@ type Actions = {
     bookings: Booking[];
     audit: AuditEvent[];
     drafts?: Record<string, string>;
+    staleDrafts?: Record<string, string>;
+    setupCallUrl?: string | null;
     prefs?: Record<string, WorkspacePrefs>;
   }) => void;
+  /** The owner chose between their earlier edit and the new reply. */
+  resolveStaleDraft: (enquiryId: string) => void;
   setLastSeenPrevious: (iso: string | null) => void;
   startSetup: () => void;
   enterSample: () => void;
@@ -250,6 +261,8 @@ function sampleWorkspace(now = new Date()) {
     enquiries: sample.enquiries,
     bookings: sample.bookings,
     drafts: Object.fromEntries(sample.enquiries.map((e) => [e.id, e.decision.draft.body])),
+    staleDrafts: {},
+    setupCallUrl: null,
   };
 }
 
@@ -346,11 +359,24 @@ export const usePrototype = create<PrototypeState & Actions>()(
         set({ ...seed(), onboarded: get().onboarded });
       },
       setLastSeenPrevious: (iso) => set({ lastSeenPrevious: iso }),
-      hydrateFromServer: ({ businesses, enquiries, bookings, audit, drafts, prefs }) =>
+      hydrateFromServer: ({
+        businesses,
+        enquiries,
+        bookings,
+        audit,
+        drafts,
+        staleDrafts,
+        setupCallUrl,
+        prefs,
+      }) =>
         set((s) => ({
+          setupCallUrl: setupCallUrl ?? null,
           businesses,
           enquiries,
           bookings,
+          staleDrafts: Object.fromEntries(
+            Object.entries(staleDrafts ?? {}).filter(([id]) => !unsavedDraftIds.has(id)),
+          ),
           // The server's saved replies win, except for text typed in this tab
           // that has not been confirmed saved yet - that is newer than anything
           // the server could hold. Ids that no longer exist are dropped.
@@ -451,6 +477,7 @@ export const usePrototype = create<PrototypeState & Actions>()(
           enquiries: [],
           bookings: [],
           drafts: {},
+          staleDrafts: {},
           confirmSent: {},
           businessFilter: "all",
           lastArrivalId: null,
@@ -484,6 +511,7 @@ export const usePrototype = create<PrototypeState & Actions>()(
           enquiries: [],
           bookings: [],
           drafts: {},
+          staleDrafts: {},
           confirmSent: {},
           prefs: {
             ...s.prefs,
@@ -560,6 +588,12 @@ export const usePrototype = create<PrototypeState & Actions>()(
           ],
         })),
       editDraft: (enquiryId, body) => set((s) => ({ drafts: { ...s.drafts, [enquiryId]: body } })),
+      resolveStaleDraft: (enquiryId) =>
+        set((s) => {
+          const next = { ...s.staleDrafts };
+          delete next[enquiryId];
+          return { staleDrafts: next };
+        }),
       considerVoice: (enquiryId) => {
         const s = get();
         const enquiry = s.enquiries.find((e) => e.id === enquiryId);

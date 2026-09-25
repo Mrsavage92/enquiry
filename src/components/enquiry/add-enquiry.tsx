@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { useFirstBetaActions } from "@/lib/workspace/live-mutations";
 import { decideEnquiry } from "@/domain/decide";
 import type { Business } from "@/domain/types";
+import { tradeExamples } from "@/domain/trade-examples";
 
 /**
  * How a real enquiry gets into Enquiry during first beta.
@@ -79,6 +80,9 @@ export function AddEnquiry({
     );
   }
 
+  // Examples in the owner's own trade, never another trade's.
+  const examples = tradeExamples(business.industry);
+
   return (
     <div className={initiallyOpen ? "" : "rounded-md bg-raised p-5 shadow-border"}>
       <p className="eyebrow">New enquiry</p>
@@ -93,7 +97,7 @@ export function AddEnquiry({
             className="field min-h-28 w-full"
             value={body}
             onChange={(e) => setBody(e.target.value)}
-            placeholder="Hi! Need makeup for me and 3 bridesmaids on the 14th. What do you charge?"
+            placeholder={examples.message}
           />
         </label>
         <div className="grid gap-3 sm:grid-cols-2">
@@ -103,7 +107,7 @@ export function AddEnquiry({
               className="field w-full"
               value={customerName}
               onChange={(e) => setCustomerName(e.target.value)}
-              placeholder="Sarah"
+              placeholder={examples.customerName}
             />
           </label>
           <label className="block text-sm">
@@ -112,7 +116,7 @@ export function AddEnquiry({
               className="field w-full"
               value={customerEmail}
               onChange={(e) => setCustomerEmail(e.target.value)}
-              placeholder="sarah@example.com"
+              placeholder={examples.customerEmail}
             />
           </label>
         </div>
@@ -122,7 +126,7 @@ export function AddEnquiry({
             className="field w-full"
             value={serviceLabel}
             onChange={(e) => setServiceLabel(e.target.value)}
-            placeholder="Group makeup"
+            placeholder={examples.service}
           />
           {preview ? (
             <span className="mt-1.5 block text-xs text-stone">
@@ -140,7 +144,7 @@ export function AddEnquiry({
             className="field w-full"
             value={intakeNote}
             onChange={(e) => setIntakeNote(e.target.value)}
-            placeholder="She rang, I typed it up"
+            placeholder={examples.intakeNote}
           />
         </label>
       </div>

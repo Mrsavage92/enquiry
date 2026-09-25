@@ -2,6 +2,20 @@ import type { Sql } from "../db.ts";
 import { decideEnquiry } from "../../domain/decide.ts";
 import { snapshotFromDecision, stateFromDecision } from "../../domain/decision-snapshot.ts";
 import type { Decision } from "../../domain/decide.ts";
+import { inboundBodies, inferBlockedQuantity, type LiveFact } from "./quantity-inference.ts";
+
+const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;
+
+/** The day the customer asked about, when one was read or confirmed. */
+export function jobDateIsoFrom(facts: LiveFact[]): string | undefined {
+  const date = facts.find(
+    (f) =>
+      f.field.trim().toLowerCase() === "date" &&
+      ISO_DAY.test(String(f.value ?? "").trim()) &&
+      String(f.date_asked) === "true",
+  );
+  return date ? String(date.value).trim() : undefined;
+}
 
 /**
  * Re-decide one enquiry and store the result, as one atomic step.
@@ -128,16 +142,20 @@ async function businessInputs(sql: Sql, businessId: string): Promise<DecisionInp
 function decideFrom(
   inputs: DecisionInputs,
   enquiry: { serviceLabel: string; customerName: string },
-  facts: { field: string; value: string; status: string }[],
+  facts: LiveFact[],
 ): WorkedDecision {
   const decision = decideEnquiry(
     { knowledge: inputs.knowledge },
-    { serviceLabel: enquiry.serviceLabel, facts: facts as never },
+    {
+      serviceLabel: enquiry.serviceLabel,
+      facts: facts.map((f) => ({ ...f, displayValue: f.display_value ?? undefined })) as never,
+    },
   );
   const snapshot = snapshotFromDecision(decision, {
     customerName: enquiry.customerName,
     ownerFirstName: inputs.ownerFirstName,
     serviceLabel: enquiry.serviceLabel,
+    jobDateIso: jobDateIsoFrom(facts),
   });
   return { decision, snapshot, state: stateFromDecision(decision) };
 }
@@ -147,11 +165,18 @@ async function workOutDecision(
   sql: Sql,
   input: { enquiryId: string; businessId: string; serviceLabel: string; customerName: string },
 ): Promise<WorkedDecision> {
-  const facts = await sql<{ field: string; value: string; status: string }>`
-    select field, value, status from enquiry_fact
+  const facts = await sql<LiveFact>`
+    select field, value, status, display_value, provenance->>'asked' as date_asked
+    from enquiry_fact
     where enquiry_id = ${input.enquiryId} and superseded = false
   `;
-  return decideFrom(await businessInputs(sql, input.businessId), input, facts);
+  const inputs = await businessInputs(sql, input.businessId);
+  const worked = decideFrom(inputs, input, facts);
+  // Blocked on a count the customer already wrote: record the reading, then
+  // decide again so the next step is "check it", not "ask for it".
+  const messages = (await inboundBodies(sql, [input.enquiryId])).get(input.enquiryId) ?? [];
+  const read = await inferBlockedQuantity(sql, input.enquiryId, worked.decision, facts, messages);
+  return read ? decideFrom(inputs, input, [...facts, read]) : worked;
 }
 
 async function writeDecision(sql: Sql, enquiryId: string, worked: WorkedDecision): Promise<number> {
@@ -214,25 +239,40 @@ export async function redecideOpenEnquiries(sql: Sql, businessId: string): Promi
   `;
   if (rows.length === 0) return [];
   const ids = rows.map((r) => r.id);
-  const facts = await sql<{ enquiry_id: string; field: string; value: string; status: string }>`
-    select enquiry_id, field, value, status from enquiry_fact
+  const facts = await sql<LiveFact & { enquiry_id: string }>`
+    select enquiry_id, field, value, status, display_value, provenance->>'asked' as date_asked
+    from enquiry_fact
     where enquiry_id = any(${ids}::uuid[]) and superseded = false
   `;
-  const factsById = new Map<string, { field: string; value: string; status: string }[]>();
+  const factsById = new Map<string, LiveFact[]>();
   for (const f of facts) {
     const list = factsById.get(f.enquiry_id) ?? [];
-    list.push({ field: f.field, value: f.value, status: f.status });
+    list.push({
+      field: f.field,
+      value: f.value,
+      status: f.status,
+      display_value: f.display_value,
+      date_asked: f.date_asked,
+    });
     factsById.set(f.enquiry_id, list);
   }
   const inputs = await businessInputs(sql, businessId);
+  const bodies = await inboundBodies(sql, ids);
 
   const changed: string[] = [];
   for (const row of rows) {
-    const worked = decideFrom(
-      inputs,
-      { serviceLabel: row.service_label ?? "", customerName: row.customer_name ?? "" },
-      factsById.get(row.id) ?? [],
+    const who = { serviceLabel: row.service_label ?? "", customerName: row.customer_name ?? "" };
+    const known = factsById.get(row.id) ?? [];
+    let worked = decideFrom(inputs, who, known);
+    // A new price per bedroom over a message that said "2 bed": read it now.
+    const read = await inferBlockedQuantity(
+      sql,
+      row.id,
+      worked.decision,
+      known,
+      bodies.get(row.id) ?? [],
     );
+    if (read) worked = decideFrom(inputs, who, [...known, read]);
     if (stable(worked.snapshot) === stable(row.decision_snapshot ?? null)) continue;
     await writeDecision(sql, row.id, worked);
     changed.push(row.id);

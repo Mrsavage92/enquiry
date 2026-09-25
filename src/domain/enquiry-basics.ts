@@ -21,7 +21,28 @@ export type JobDateRead = {
   label: string;
   /** The words it was read from, kept for the audit trail. */
   span: string;
+  /**
+   * The customer asked about the day ("Could you do Saturday 3 October?"),
+   * rather than only mentioning it. The reply answers a question; it does not
+   * volunteer a date nobody asked about.
+   */
+  asked: boolean;
 };
+
+/** Whether the sentence holding the date asks about it. */
+export function asksAboutDate(text: string, index: number): boolean {
+  const before = text.slice(0, index);
+  const start =
+    Math.max(before.lastIndexOf("."), before.lastIndexOf("!"), before.lastIndexOf("\n")) + 1;
+  const rest = text.slice(index);
+  const endRel = rest.search(/[.!?\n]/);
+  const end = endRel === -1 ? text.length : index + endRel;
+  if (text[end] === "?") return true;
+  const sentence = text.slice(start, end);
+  return /\b(?:can|could|would|will)\s+(?:you|u|ya)\b|\bavailab|\bfree\b|\bsuits?\b/i.test(
+    sentence,
+  );
+}
 
 export type EnquiryBasics = { customerName?: string; jobDate?: JobDateRead };
 
@@ -71,6 +92,7 @@ function build(
   year: number | undefined,
   today: Date,
   span: string,
+  asked = false,
 ): JobDateRead | undefined {
   let y = year ?? today.getFullYear();
   if (y < 100) y += 2000;
@@ -88,6 +110,7 @@ function build(
     iso: `${y}-${pad(month + 1)}-${pad(day)}`,
     label: format(date, "EEE d MMM", { locale: enAU }),
     span: span.trim(),
+    asked,
   };
 }
 
@@ -104,7 +127,14 @@ export function readJobDate(
     if (month !== undefined) {
       hits.push({
         index: dm.index,
-        read: build(Number(dm[1]), month, dm[3] ? Number(dm[3]) : undefined, today, dm[0]),
+        read: build(
+          Number(dm[1]),
+          month,
+          dm[3] ? Number(dm[3]) : undefined,
+          today,
+          dm[0],
+          asksAboutDate(text, dm.index),
+        ),
       });
     }
   }
@@ -114,7 +144,14 @@ export function readJobDate(
     if (month !== undefined) {
       hits.push({
         index: md.index,
-        read: build(Number(md[2]), month, md[3] ? Number(md[3]) : undefined, today, md[0]),
+        read: build(
+          Number(md[2]),
+          month,
+          md[3] ? Number(md[3]) : undefined,
+          today,
+          md[0],
+          asksAboutDate(text, md.index),
+        ),
       });
     }
   }
@@ -128,6 +165,7 @@ export function readJobDate(
         nu[3] ? Number(nu[3]) : undefined,
         today,
         nu[0],
+        asksAboutDate(text, nu.index),
       ),
     });
   }
@@ -184,14 +222,22 @@ const NOT_A_NAME = new Set(
 const NAME_WORD = String.raw`[A-Z][a-z'-]+`;
 const NAME = String.raw`(${NAME_WORD}(?:\s+${NAME_WORD})?)`;
 const PHONE_TAIL = String.raw`(?:[\s,]+(?:\+?\d[\d\s()-]{6,}\d))?`;
+/** A kiss after a name: "Priya x", "Jo xx". */
+const KISS = String.raw`(?:\s+x{1,3})?`;
 
 /** "Thanks, Karen" / "Cheers Tom" / "Kind regards, Priya Nair" at the very end. */
 const SIGN_OFF = new RegExp(
-  String.raw`(?:thanks|thank you|cheers|regards|kind regards|best|ta)[,!.]?\s+${NAME}\s*[.!]?${PHONE_TAIL}\s*$`,
+  String.raw`(?:thanks|thank you|cheers|regards|kind regards|best|ta)[,!.]?\s+${NAME}${KISS}\s*[.!]?${PHONE_TAIL}\s*$`,
   "i",
 );
 /** A bare name (and perhaps a phone number) after the last sentence: "... October. Tom" */
-const TRAILING_NAME = new RegExp(String.raw`(?:^|[.!?\n])\s*${NAME}\s*[.!]?${PHONE_TAIL}\s*$`);
+const TRAILING_NAME = new RegExp(
+  String.raw`(?:^|[.!?\n])\s*${NAME}${KISS}\s*[.!]?${PHONE_TAIL}\s*$`,
+);
+/** "... can u do the 1st? - Priya", "-- Priya", "~ Priya", an en or em dash too. */
+const DASH_NAME = new RegExp(
+  String.raw`(?:^|\s)(?:-{1,2}|\u2013|\u2014|~)\s*${NAME}${KISS}\s*[.!]?${PHONE_TAIL}\s*$`,
+);
 /** "My name is Sam", "this is Sam from ...". */
 const INTRO = new RegExp(String.raw`\b(?:my name is|my name's|this is)\s+${NAME}`, "i");
 
@@ -213,6 +259,7 @@ export function readCustomerName(text: string): string | undefined {
   const trimmed = text.trim();
   return (
     acceptName(SIGN_OFF.exec(trimmed)?.[1]) ??
+    acceptName(DASH_NAME.exec(trimmed)?.[1]) ??
     acceptName(TRAILING_NAME.exec(trimmed)?.[1]) ??
     acceptName(INTRO.exec(trimmed)?.[1])
   );

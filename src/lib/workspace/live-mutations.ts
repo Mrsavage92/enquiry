@@ -113,6 +113,11 @@ export function useLiveEnquiryMutations() {
   const declineLetterLocal = usePrototype((s) => s.declineLetter);
   const closeDeclinedLocal = usePrototype((s) => s.closeDeclined);
   const live = liveMode(demoMode);
+  // A note and a Later are kept on the server whenever there is a real
+  // workspace, exactly like a reply being edited (owner-sync.ts saves drafts on
+  // `!demoMode`). With sign-in on this is the same as `live`; with sign-in off
+  // on a local build it stops a Later or a note vanishing on reload.
+  const persist = !demoMode;
 
   return {
     live,
@@ -124,7 +129,7 @@ export function useLiveEnquiryMutations() {
       onFailure: (m: string) => void,
     ): Promise<boolean> => {
       setNoteLocal(enquiryId, note);
-      if (!live) return true;
+      if (!persist) return true;
       return writeThrough("Note", () => setEnquiryNote({ data: { enquiryId, note } }), onFailure);
     },
     snooze: async (
@@ -133,7 +138,7 @@ export function useLiveEnquiryMutations() {
       untilIso?: string,
     ): Promise<boolean> => {
       snoozeLocal(enquiryId, untilIso);
-      if (!live) return true;
+      if (!persist) return true;
       // The store computes the snooze date itself, so read back what it decided
       // rather than recomputing here - two independent "+2 days" calculations
       // would drift and the server would hold a different date to the screen.
@@ -156,7 +161,7 @@ export function useLiveEnquiryMutations() {
           e.id === enquiryId ? { ...e, snoozedUntil: undefined } : e,
         ),
       }));
-      if (!live) return true;
+      if (!persist) return true;
       return writeThrough(
         "Undo later",
         () => snoozeEnquiry({ data: { enquiryId, until: null } }),
@@ -226,6 +231,8 @@ export function useFirstBetaActions() {
         bookings: data.bookings,
         audit: data.audit,
         drafts: data.drafts,
+        staleDrafts: data.staleDrafts,
+        setupCallUrl: data.setupCallUrl,
         prefs: data.prefs,
       });
     }

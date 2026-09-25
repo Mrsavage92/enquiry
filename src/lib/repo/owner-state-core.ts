@@ -22,6 +22,12 @@ export const MAX_DRAFT_CHARS = 8000;
 export type OwnerState = {
   /** enquiryId -> the owner's own edit, only where it still matches the current decision. */
   drafts: Record<string, string>;
+  /**
+   * enquiryId -> an edit written against an earlier decision. Never dropped
+   * silently: the desk shows it beside the new prepared reply and the owner
+   * chooses which to keep.
+   */
+  staleDrafts: Record<string, string>;
   /** businessId -> preferences, defaults filled in. */
   prefs: Record<string, WorkspacePrefs>;
 };
@@ -104,25 +110,42 @@ export async function markSeenForUser(
  * decision has since moved on are left out rather than offered back.
  */
 export async function loadOwnerState(sql: Sql, businessIds: string[]): Promise<OwnerState> {
-  if (businessIds.length === 0) return { drafts: {}, prefs: {} };
+  if (businessIds.length === 0) return { drafts: {}, staleDrafts: {}, prefs: {} };
   const [draftRows, prefRows] = await Promise.all([
-    sql<{ enquiry_id: string; body: string }>`
-      select d.enquiry_id, d.body
+    // An edit is current when its decision has not moved. One whose decision
+    // has moved is still returned, as stale, unless the enquiry is waiting on
+    // the customer or a reply was recorded as sent after the edit - then the
+    // edit has been dealt with and offering it back would be noise.
+    sql<{ enquiry_id: string; body: string; current: boolean }>`
+      select d.enquiry_id, d.body, (e.decision_revision = d.decision_revision) as current
       from reply_draft d
       join enquiry e on e.id = d.enquiry_id
       where d.business_id = any(${businessIds})
         and e.business_id = d.business_id
-        and e.decision_revision = d.decision_revision
         and e.lifecycle = 'OPEN'
+        and (
+          e.decision_revision = d.decision_revision
+          or (
+            e.decision_state <> 'WAITING_ON_CLIENT'
+            and not exists (
+              select 1 from message m
+              where m.enquiry_id = e.id and m.direction = 'outbound' and m.at >= d.updated_at
+            )
+          )
+        )
     `,
     sql<{ business_id: string; prefs: unknown }>`
       select business_id, prefs from workspace_prefs where business_id = any(${businessIds})
     `,
   ]);
   const drafts: Record<string, string> = {};
-  for (const row of draftRows) drafts[row.enquiry_id] = row.body;
+  const staleDrafts: Record<string, string> = {};
+  for (const row of draftRows) {
+    if (row.current) drafts[row.enquiry_id] = row.body;
+    else staleDrafts[row.enquiry_id] = row.body;
+  }
   const prefs: Record<string, WorkspacePrefs> = {};
   for (const id of businessIds) prefs[id] = withDefaults({});
   for (const row of prefRows) prefs[row.business_id] = withDefaults(cleanPrefs(row.prefs));
-  return { drafts, prefs };
+  return { drafts, staleDrafts, prefs };
 }

@@ -290,7 +290,12 @@ export type CaseRun =
       messageId: string;
       interpretOutcome: InterpretOutcome;
       enquiryAfterInterpretation: EnquiryRow;
-      facts: { field: string; status: string; asserted_by: string }[];
+      facts: {
+        field: string;
+        status: string;
+        asserted_by: string;
+        provenance_kind: string | null;
+      }[];
       auditSummaries: string[];
       outboundMessageCount: number;
       followUps: FollowUpOutcome[];
@@ -326,8 +331,13 @@ export async function runCase(kase: BenchmarkCase, mode: RunMode): Promise<CaseR
     throw new Error(`interpretAndApply never called the interpreter for ${kase.id}`);
 
   const enquiryAfterInterpretation = await readEnquiry(pg, enquiryId);
-  const factRows = await pg.query<{ field: string; status: string; asserted_by: string }>(
-    "select field, status, asserted_by from enquiry_fact where enquiry_id = $1 and superseded = false",
+  const factRows = await pg.query<{
+    field: string;
+    status: string;
+    asserted_by: string;
+    provenance_kind: string | null;
+  }>(
+    "select field, status, asserted_by, provenance->>'kind' as provenance_kind from enquiry_fact where enquiry_id = $1 and superseded = false",
     [enquiryId],
   );
   const auditRows = await pg.query<{ summary: string }>(

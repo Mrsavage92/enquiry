@@ -7,6 +7,7 @@ import { useFirstBetaActions } from "@/lib/workspace/live-mutations";
 import type { Enquiry, EnquiryFact } from "@/domain/types";
 import { blockerInput } from "@/domain/blocker-input";
 import { decidingPhrase } from "@/domain/price-compiler";
+import { quantityPhrase } from "@/domain/compose-reply";
 
 /**
  * Answer the one thing standing between this enquiry and a price.
@@ -57,12 +58,15 @@ export function AnswerBlocker({
   const inferred = missing ? findInferredFact(enquiry, missing.factField) : undefined;
   const [value, setValue] = useState(inferred?.value ?? "");
   const [saving, setSaving] = useState(false);
+  // "Edit" on a reading opens the plain field, pre-filled with it.
+  const [editing, setEditing] = useState(false);
   // What the last answer did, kept on screen: a toast disappears before an
   // interrupted owner looks back, and "did that save?" should not need memory.
   const [result, setResult] = useState<string | null>(null);
 
   useEffect(() => {
     setValue(inferred?.value ?? "");
+    setEditing(false);
     // Re-sync only when the underlying inferred fact itself changes (a new
     // read, or the owner confirming and a fresh blocker appearing) - not on
     // every keystroke, which would fight the owner's own typing.
@@ -78,11 +82,11 @@ export function AnswerBlocker({
   }
   const input = blockerInput(missing.factField, missing.label);
 
-  const submit = async () => {
-    if (!value.trim()) return toast.error(`Enter the ${missing.factField}.`);
+  const submit = async (answer = value) => {
+    if (!answer.trim()) return toast.error(`Enter the ${missing.factField}.`);
     setSaving(true);
     try {
-      const answered = value.trim();
+      const answered = answer.trim();
       const res = await actions.answerFact(enquiry.id, missing.factField, answered);
       const outcome =
         res.action === "SEND_QUOTE"
@@ -97,6 +101,42 @@ export function AnswerBlocker({
       setSaving(false);
     }
   };
+
+  // A reading the decision itself accepts as one usable count (never a range).
+  const reading = missing.inferred;
+  if (reading && !editing) {
+    // They already said it. One tap confirms their own words; the price
+    // compiler will not use the reading until this happens.
+    const said = reading.display || reading.value;
+    const phrase = quantityPhrase(reading.value, missing.label);
+    const check = (
+      <div className={folded ? "mt-3" : "mt-2"}>
+        <p className="text-sm leading-relaxed text-ink">From their message: “{said}”. Correct?</p>
+        <div className="mt-3 flex flex-wrap gap-2">
+          <Button className="min-h-11" disabled={saving} onClick={() => void submit(reading.value)}>
+            {saving ? "Working it out…" : `Yes, ${phrase}`}
+          </Button>
+          <Button
+            className="min-h-11"
+            variant="secondary"
+            disabled={saving}
+            onClick={() => {
+              setValue(reading.value);
+              setEditing(true);
+            }}
+          >
+            Edit
+          </Button>
+        </div>
+        {result ? (
+          <p className="mt-2 text-sm text-ink-2" role="status">
+            {result}
+          </p>
+        ) : null}
+      </div>
+    );
+    return folded ? check : <section className="border-b border-line px-5 py-5">{check}</section>;
+  }
 
   const field = (
     <div className="mt-3 flex flex-wrap items-end gap-2">
@@ -136,7 +176,8 @@ export function AnswerBlocker({
             {result}
           </p>
         ) : null}
-        <details>
+        {/* Opened by "Edit" on a reading: the field is what they asked for. */}
+        <details open={editing || undefined}>
           <summary className="inline-flex min-h-11 cursor-pointer items-center text-sm font-medium text-mark-strong">
             {summary ?? `Already know ${decidingPhrase(missing.label)}? Enter it here`}
           </summary>

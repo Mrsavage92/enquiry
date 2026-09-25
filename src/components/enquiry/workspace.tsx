@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { initialsOf } from "@/domain/customer-name";
 import { ArrowLeft, ArrowRight, CircleHelp, Mail, MapPin, PanelRightOpen } from "lucide-react";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useNarrow } from "@/lib/use-narrow";
@@ -199,11 +200,7 @@ export function EnquiryWorkspace({ enquiryId }: { enquiryId?: string }) {
               <ArrowLeft size={18} />
             </Link>
             <span className="customer-avatar" aria-hidden>
-              {enquiry.customerName
-                .split(/\s+/)
-                .map((n) => n[0])
-                .slice(0, 2)
-                .join("")}
+              {initialsOf(enquiry)}
             </span>
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-3">

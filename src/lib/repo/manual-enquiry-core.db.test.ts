@@ -166,7 +166,9 @@ test("a medium-confidence fact lands as inferred, with model provenance, never c
     // operator typed the service into the intake form. That is a separate
     // invariant (CC1-03) with its own tests below.
   }>(
-    "select status, confidence, asserted_by, provenance from enquiry_fact where enquiry_id = $1 and field = 'guests'",
+    // Live rows only: the rule-based reader already read "4 people" on
+    // arrival, and the model's own reading supersedes that system row.
+    "select status, confidence, asserted_by, provenance from enquiry_fact where enquiry_id = $1 and field = 'guests' and superseded = false",
     [enquiryId],
   );
   assert.equal(facts.rows.length, 1);
@@ -670,7 +672,11 @@ test("an injection-shaped message never yields a confirmed fact, a price, or sta
     [enquiryId],
   );
   for (const row of confirmedRows.rows) {
-    assert.equal(row.asserted_by, "user", `${row.field} was confirmed by something other than the owner`);
+    assert.equal(
+      row.asserted_by,
+      "user",
+      `${row.field} was confirmed by something other than the owner`,
+    );
   }
 
   // The deterministic engine never asked for "approved" or "price" - it

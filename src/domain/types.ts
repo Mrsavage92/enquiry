@@ -143,6 +143,11 @@ export type MissingInformation = {
   reason: string;
   blocking: boolean;
   unlocks: string;
+  /**
+   * The value the customer already gave, read from their message and not yet
+   * confirmed: the owner checks it rather than asking for it again.
+   */
+  inferred?: { value: string; display: string };
 };
 
 export type EvaluatorResult = {
@@ -430,6 +435,8 @@ export type Enquiry = {
   fixtureId: string;
   businessId: string;
   customerName: string;
+  /** No name was given or read; `customerName` then holds "Customer". */
+  nameUnknown?: boolean;
   customerEmail: string;
   customerPhone?: string;
   customerHandle?: string;
@@ -502,6 +509,8 @@ export type WorkspacePrefs = {
   notifyArrival: boolean;
   notifyFollowUp: boolean;
   notifyLearning: boolean;
+  /** The owner closed the "Book a setup call" card on Today. */
+  setupCallDismissed?: boolean;
 };
 
 export type InstrumentationEvent = {

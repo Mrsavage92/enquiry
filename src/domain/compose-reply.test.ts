@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { askFor, composeReply } from "./compose-reply.ts";
+import { askFor, composeReply, spokenDate } from "./compose-reply.ts";
 import { decideEnquiry } from "./decide.ts";
 
 const perUnit = {
@@ -54,7 +54,7 @@ test("an unpriceable reply commits the business to nothing", () => {
 test("no customer name still produces a sendable message", () => {
   const decision = decideEnquiry(perUnit, { serviceLabel: "Group makeup", facts: [] });
   const body = composeReply(decision);
-  assert.match(body, /^Hi,/);
+  assert.match(body, /^Hi there,/);
   assert.ok(body.trim().length > 0);
 });
 
@@ -71,4 +71,39 @@ test("the missing-detail question reads naturally for plural and singular fields
   assert.equal(askFor("gutter_metres"), "can you let me know how many gutter metres there are?");
   assert.equal(askFor("address"), "can you let me know the address?");
   assert.equal(askFor("quantity"), "can you let me know the quantity?");
+});
+
+test("a date the customer asked about is acknowledged, never ignored or promised", () => {
+  const blocked = decideEnquiry(perUnit, { serviceLabel: "Group makeup", facts: [] });
+  const priced = decideEnquiry(perUnit, {
+    serviceLabel: "Group makeup",
+    facts: [{ field: "guests", value: "5", status: "confirmed" }],
+  } as never);
+  const none = decideEnquiry({ knowledge: [] }, { serviceLabel: "Anything", facts: [] });
+  for (const decision of [blocked, priced, none]) {
+    const body = composeReply(decision, { customerName: "Karen", jobDateIso: "2026-10-03" });
+    assert.match(body, /I'll confirm whether Saturday 3 October works\./);
+    // No availability is known, so nothing claims the day is free.
+    assert.doesNotMatch(body, /\b(is free|is available|we can do)\b/i);
+  }
+  const without = composeReply(blocked, { customerName: "Karen" });
+  assert.doesNotMatch(without, /confirm whether/);
+});
+
+test("spokenDate reads an ISO day as words and refuses anything else", () => {
+  assert.equal(spokenDate("2026-10-03"), "Saturday 3 October");
+  assert.equal(spokenDate("2026-02-30"), null);
+  assert.equal(spokenDate("Sat 3 Oct"), null);
+  assert.equal(spokenDate(undefined), null);
+});
+
+test("a count the customer already gave is never asked for again", () => {
+  const decision = decideEnquiry(perUnit, {
+    serviceLabel: "Group makeup",
+    facts: [{ field: "guests", value: "4", status: "inferred", displayValue: "4 people" }],
+  } as never);
+  assert.equal(decision.blocker?.inferred?.value, "4");
+  const body = composeReply(decision, { customerName: "Sarah" });
+  assert.doesNotMatch(body, /how many|let me know/i);
+  assert.match(body, /4 guests you mentioned/);
 });
