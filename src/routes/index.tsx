@@ -73,7 +73,7 @@ function Home() {
             <img
               src="/product/ui1/enquiry-mobile.jpg"
               srcSet={mobileCaptureSrcSet("enquiry")}
-              alt="One enquiry open on a phone in the sample workspace: Maya's message, what changed, and the suggested next step."
+              alt="One enquiry open on a phone in the sample workspace: their message, the detail still missing, and the suggested next step."
               width="390"
               height="600"
               loading="lazy"
