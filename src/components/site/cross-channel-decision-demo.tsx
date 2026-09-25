@@ -173,6 +173,10 @@ export function CrossChannelDecisionDemo({
         </div>
 
         <article className="demo-action" aria-labelledby={liveId}>
+          <p className="demo-verdict">
+            <span className="demo-verdict-kicker">Verdict</span>
+            <strong key={state.verdict}>{state.verdict}</strong>
+          </p>
           <div className="demo-next" aria-live="polite">
             <p className="demo-next-label">
               <ArrowUpRight size={18} aria-hidden="true" />

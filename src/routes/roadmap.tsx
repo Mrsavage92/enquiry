@@ -24,7 +24,7 @@ function RoadmapPage() {
         </h1>
         <p className="roadmap-lede">Less to remember. More room for your business.</p>
         <p className="roadmap-intro">
-          Our direction, not delivery dates. Early access by invitation.
+          Our direction, not delivery dates. Anyone can join the list at the founding price.
         </p>
       </header>
       <RoadmapBoard />

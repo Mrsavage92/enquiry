@@ -140,7 +140,7 @@
   box-shadow: 0 4px 14px #24153604;
 }
 .story-message:first-child {
-  border-left: 2px solid #b09bdc;
+  border: 1px solid var(--color-line-strong);
 }
 .story-message-meta {
   display: flex;
@@ -376,6 +376,25 @@
   min-width: 0;
   border-left: 1px solid #e5deee;
   padding-left: 36px;
+}
+.demo-verdict {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 14px;
+  font-size: 15px;
+}
+.demo-verdict-kicker {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #69519d;
+}
+.demo-verdict strong {
+  font-weight: 650;
+  color: #1c1b1f;
 }
 .demo-next {
   background: #f0eaf9;
