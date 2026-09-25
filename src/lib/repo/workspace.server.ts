@@ -75,11 +75,14 @@ function groupBy<T>(rows: T[], key: (row: T) => string): Map<string, T[]> {
  * Returns empty (not an error) when they belong to none - a brand new account is
  * a legitimate state, handled by provisioning rather than by throwing.
  */
-export async function loadWorkspace(userId: string): Promise<WorkspaceData> {
-  const businessIds = await listUserBusinessIds(userId);
+export async function loadWorkspace(
+  userId: string,
+  db?: Awaited<ReturnType<typeof getSql>>,
+): Promise<WorkspaceData> {
+  const businessIds = await listUserBusinessIds(userId, db);
   if (businessIds.length === 0) return EMPTY;
 
-  const sql = await getSql();
+  const sql = db ?? (await getSql());
 
   // Ten statements, fixed, regardless of how many businesses or enquiries exist.
   const [
