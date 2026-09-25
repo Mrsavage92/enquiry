@@ -22,15 +22,11 @@ export function TrustOverview() {
   // Store updates immediately; in live mode the same change is written through
   // to the server, and a failed write is surfaced rather than swallowed.
   const trust = useLiveTrustMutations();
-  const lastAutomated = usePrototype((s) => s.lastAutomated);
   // No business means a real tenant whose workspace has not been hydrated yet
   // (R2B). Falling back to businesses[0] here used to resolve to the fixture
   // "glow" studio and render its Brain/trust state as this tenant's own.
   const id = filter === "all" ? businesses[0]?.id : filter;
   const business = businesses.find((b) => b.id === id) ?? businesses[0];
-  const autoCount = (business?.actionPolicies ?? []).filter(
-    (p) => p.mode === "Automatic when safe",
-  ).length;
   const phone = useNarrow(860) !== false;
 
   // Below every hook. A real tenant with no hydrated workspace (R2B) gets a
@@ -109,7 +105,7 @@ export function TrustOverview() {
         </p>
       )}
 
-      <dl className="mt-8">
+      <dl className="mt-8 border-b border-line">
         {business.integrations.map((i) => (
           <div
             key={i.id}
@@ -121,20 +117,6 @@ export function TrustOverview() {
             </dd>
           </div>
         ))}
-        <div className="flex items-baseline justify-between gap-4 border-t border-line py-3.5">
-          <dt className="text-sm">Automatic permissions</dt>
-          <dd className="text-sm text-ink-2">
-            {autoCount} action class{autoCount === 1 ? "" : "es"} enabled
-          </dd>
-        </div>
-        <div className="flex items-baseline justify-between gap-4 border-t border-b border-line py-3.5">
-          <dt className="text-sm">Last automated action</dt>
-          <dd className="text-sm text-ink-2">
-            {lastAutomated && lastAutomated.businessId === business.id
-              ? `${lastAutomated.customerName} · ${new Date(lastAutomated.at).toLocaleTimeString("en-AU", { hour: "numeric", minute: "2-digit" })}`
-              : "none yet"}
-          </dd>
-        </div>
       </dl>
 
       <div className="mt-6 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
@@ -314,8 +296,6 @@ export function TrustAutomation() {
   const businesses = usePrototype((s) => s.businesses);
   const filter = usePrototype((s) => s.businessFilter);
   const trust = useLiveTrustMutations();
-  const lastAuto = usePrototype((s) => s.lastAutomated);
-  const demoMode = usePrototype((s) => s.demoMode);
   // Every hook is called above this line. No business means a real tenant whose
   // workspace has not been hydrated yet (R2B); falling back to businesses[0]
   // used to resolve to the fixture "glow" studio and render its trust state as
@@ -323,34 +303,12 @@ export function TrustAutomation() {
   const id = filter === "all" ? businesses[0]?.id : filter;
   const business = businesses.find((b) => b.id === id) ?? businesses[0];
   if (!business) return <WorkspaceSettingUp />;
-  const missing = business.actionPolicies.find((p) => p.action === "REQUEST_INFORMATION");
   return (
     <div className="mx-auto h-full max-w-3xl overflow-y-auto px-4 py-5 pb-8 sm:py-8">
       <PageHeader
         title="Reply permissions"
         description="Choose what needs your approval. Facts, risk and connection permissions are still checked before any action."
       />
-      {/*
-        Demo-only. These comparable counts are illustrative, and a real tenant
-        has approved nothing - showing them would be exactly the synthetic
-        automation evidence the trust model forbids. Gated on demoMode rather
-        than on a fixture id, which is the actual meaning.
-      */}
-      {demoMode ? (
-        <details className="mt-6 border-t border-line pt-5">
-          <summary className="min-h-11 cursor-pointer text-sm font-medium">
-            Sample evidence for missing-information questions
-          </summary>
-          <p className="mt-2 text-sm leading-relaxed text-ink-2">
-            Enquiry has handled 74 comparable missing-info requests. 72 approved unchanged, 2 edited
-            for wording only, 0 factual corrections, 0 pricing or capacity claims.
-          </p>
-          <p className="mt-2 text-sm leading-relaxed text-ink-2">
-            Enquiry may automatically send a question only when a configured decision-critical fact
-            is missing and no high-risk flags are present.
-          </p>
-        </details>
-      ) : null}
       <ul className="ledger mt-2">
         {business.actionPolicies.map((p) => (
           <li key={p.action}>
@@ -363,41 +321,31 @@ export function TrustAutomation() {
             <fieldset className="mt-3">
               <legend className="sr-only">Mode for {p.label}</legend>
               <div className="flex flex-wrap gap-1 rounded-lg bg-paper-2 p-1">
-                {(["Never", "Ask every time", "Automatic when safe"] as ActionPolicyMode[]).map(
-                  (m) => (
-                    <button
-                      key={m}
-                      type="button"
-                      aria-pressed={p.mode === m}
-                      disabled={p.risk === "HIGH" && m === "Automatic when safe"}
-                      onClick={() =>
-                        void trust.setActionPolicy(business.id, p.action, m, (msg) =>
-                          toast.error(msg),
-                        )
-                      }
-                      className={cn(
-                        "min-h-10 rounded-md px-3 text-xs font-medium transition-[background-color,color] duration-150 disabled:opacity-40",
-                        p.mode === m
-                          ? "bg-ink text-paper shadow-border"
-                          : "text-ink-2 hover:text-ink",
-                      )}
-                    >
-                      {m}
-                    </button>
-                  ),
-                )}
+                {(["Never", "Ask every time"] as ActionPolicyMode[]).map((m) => (
+                  <button
+                    key={m}
+                    type="button"
+                    aria-pressed={p.mode === m}
+                    onClick={() =>
+                      void trust.setActionPolicy(business.id, p.action, m, (msg) =>
+                        toast.error(msg),
+                      )
+                    }
+                    className={cn(
+                      "min-h-10 rounded-md px-3 text-xs font-medium transition-[background-color,color] duration-150 disabled:opacity-40",
+                      p.mode === m
+                        ? "bg-ink text-paper shadow-border"
+                        : "text-ink-2 hover:text-ink",
+                    )}
+                  >
+                    {m}
+                  </button>
+                ))}
               </div>
             </fieldset>
           </li>
         ))}
       </ul>
-      {missing?.mode === "Automatic when safe" ? (
-        <p className="callout mt-4 bg-ok-bg text-ok text-sm" role="status">
-          {lastAuto && lastAuto.businessId === business.id
-            ? `Enquiry sent to ${lastAuto.customerName}. ${lastAuto.reason}`
-            : "Automatic when safe is on. Runtime still checks facts, risk and send permission before anything goes out."}
-        </p>
-      ) : null}
     </div>
   );
 }

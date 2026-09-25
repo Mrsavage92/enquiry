@@ -12,7 +12,8 @@ import {
   sanitizePath,
 } from "./guard";
 import { persistRoadmapFeedback, prepareRoadmapFeedback } from "./feedback";
-import { guarded } from "@/lib/server/alert";
+import { getWaitlistAnswers, joinWaitlistRow, leaveWaitlistRow } from "./waitlist.server";
+import { guarded, notifyOwner } from "@/lib/server/alert";
 
 /** Rate-limit and cross-site rejections are user outcomes, not incidents. */
 const EXPECTED_LAUNCH_ERRORS = new Set(["Try again in a moment.", "Rejected."]);
@@ -28,6 +29,7 @@ export const joinWaitlist = createServerFn({ method: "POST" })
     if (!isEmail(email)) throw new Error("Enter a valid email.");
     return {
       email,
+      existingId: asString(d.existingId, 80),
       sessionId: asString(d.sessionId, 80),
       utm_source: asString(d.utm_source, 80),
       utm_medium: asString(d.utm_medium, 80),
@@ -62,31 +64,22 @@ export const joinWaitlist = createServerFn({ method: "POST" })
       }
       const sessionId = isUuid(data.sessionId) ? data.sessionId : crypto.randomUUID();
       const sql = await getSql();
-      const existing = await sql<{ id: string }>`
-      select id from waitlist where email = ${data.email} limit 1
-    `;
-      if (existing[0]) {
-        await sql`
-        update waitlist
-        set latest_touch = ${data.latest_touch || data.first_touch},
-            utm_source = coalesce(nullif(utm_source, ''), ${data.utm_source}),
-            linkedin_post_id = coalesce(nullif(linkedin_post_id, ''), ${data.linkedin_post_id})
-        where id = ${existing[0].id}
-      `;
-        // Never hand back another person's waitlist id.
-        return { already: true as const, id: "" };
-      }
-      const id = crypto.randomUUID();
-      await sql`
-      insert into waitlist (
-        id, email, utm_source, utm_medium, utm_campaign, utm_content,
-        referrer, linkedin_post_id, first_touch, latest_touch
-      ) values (
-        ${id}, ${data.email}, ${data.utm_source}, ${data.utm_medium},
-        ${data.utm_campaign}, ${data.utm_content}, ${data.referrer},
-        ${data.linkedin_post_id}, ${data.first_touch}, ${data.latest_touch}
-      )
-    `;
+      const result = await joinWaitlistRow(
+        {
+          email: data.email,
+          existingId: data.existingId,
+          utm_source: data.utm_source,
+          utm_medium: data.utm_medium,
+          utm_campaign: data.utm_campaign,
+          utm_content: data.utm_content,
+          referrer: data.referrer,
+          linkedin_post_id: data.linkedin_post_id,
+          first_touch: data.first_touch,
+          latest_touch: data.latest_touch,
+        },
+        sql,
+      );
+      if (!result.created) return { id: result.id, already: result.already };
       await sql`
       insert into launch_events (id, session_id, event_name, utm_source, utm_medium, utm_campaign, utm_content, referrer, landing_path)
       values (
@@ -101,7 +94,7 @@ export const joinWaitlist = createServerFn({ method: "POST" })
       const { waitlistWelcomeEmail } = await import("@/lib/email/waitlist-welcome");
       const { siteOrigin } = await import("@/lib/site/head");
       sendEmailInBackground(waitlistWelcomeEmail(data.email, siteOrigin()));
-      return { id, already: false as const };
+      return { id: result.id, already: false as const };
     }),
   );
 
@@ -118,12 +111,26 @@ export const leaveWaitlist = createServerFn({ method: "POST" })
     launchGuard("leaveWaitlist", async () => {
       const { protectLaunch } = await import("./protect.server");
       protectLaunch("qualify");
-      if (!isUuid(data.id)) return { removed: false };
-      const sql = await getSql();
-      const rows = await sql<{ id: string }>`
-        delete from waitlist where id = ${data.id} returning id
-      `;
-      return { removed: rows.length > 0 };
+      return leaveWaitlistRow(data.id);
+    }),
+  );
+
+/**
+ * The saved qualify-step answers for one waitlist row, so "Edit your
+ * answers" can open pre-filled on a fresh page load instead of blank.
+ * Knowing the id is the same proof of ownership used everywhere else here.
+ */
+export const getMyWaitlistAnswers = createServerFn({ method: "POST" })
+  .validator((raw: unknown) => {
+    const d = (raw ?? {}) as Record<string, unknown>;
+    return { id: asString(d.id, 80) };
+  })
+  .handler(async ({ data }) =>
+    launchGuard("getMyWaitlistAnswers", async () => {
+      const { protectLaunch } = await import("./protect.server");
+      protectLaunch("qualify");
+      const answers = await getWaitlistAnswers(data.id);
+      return { answers };
     }),
   );
 
@@ -293,6 +300,7 @@ export const saveRoadmapFeedback = createServerFn({ method: "POST" })
       sessionId: asString(d.sessionId, 80),
       waitlist_id: asString(d.waitlist_id, 80),
       problem_text: asString(d.problem_text, 800),
+      email: asString(d.email, 254),
       utm_source: asString(d.utm_source, 80),
       utm_medium: asString(d.utm_medium, 80),
       utm_campaign: asString(d.utm_campaign, 120),
@@ -308,6 +316,12 @@ export const saveRoadmapFeedback = createServerFn({ method: "POST" })
       if (!prepared) return { ok: true as const, saved: false as const };
       const sql = await getSql();
       await persistRoadmapFeedback(sql, prepared);
+      // Every submission is a person who took the time to write something;
+      // a person should see it, not just a row nobody reads.
+      const contact = prepared.email ? ` (${prepared.email})` : "";
+      notifyOwner(
+        `Enquiry roadmap feedback on ${prepared.featureId}${contact}: ${prepared.problemText}`,
+      );
       return { ok: true as const, saved: true as const };
     }),
   );

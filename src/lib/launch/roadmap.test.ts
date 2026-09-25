@@ -21,8 +21,9 @@ test("four horizons contain three concise customer outcomes each", () => {
   );
   assert.equal(STAGES.length, 12);
   assert.equal(new Set(STAGES.map((s) => s.id)).size, STAGES.length);
+  const counts: Record<string, number> = { now: 3, next: 2, later: 4, exploring: 3 };
   for (const horizon of ROADMAP_LEGEND)
-    assert.equal(STAGES.filter((s) => s.status === horizon.id).length, 3);
+    assert.equal(STAGES.filter((s) => s.status === horizon.id).length, counts[horizon.id]);
   for (const stage of STAGES) {
     assert.ok(stage.title.length <= 40, stage.title);
     assert.ok(stage.summary.length <= 110, stage.id);
@@ -47,14 +48,14 @@ test("now is bounded to the current product, not integrations or future automati
   assert.ok(ROADMAP_PREVIEW.every((s) => s.statusLabel === "Now"));
 });
 
-test("native apps are priority direction, with no current store listing or delivery date", () => {
-  assert.equal(find("native-apps").status, "next");
+test("native apps are planned direction, with no current store listing or delivery date", () => {
+  assert.equal(find("native-apps").status, "later");
   assert.match(find("native-apps").summary, /Planned native iPhone and Android/);
   assert.match(copy("native-apps"), /Apple App Store and Google Play/);
   assert.match(copy("native-apps"), /after development and store approval/);
   assert.match(copy("native-apps"), /not yet available/);
   assert.match(copy("native-apps"), /concept, not a native-app screenshot/);
-  assert.equal(ROADMAP_LEGEND.find((s) => s.id === "next")?.hint, "Priority direction");
+  assert.equal(ROADMAP_LEGEND.find((s) => s.id === "later")?.hint, "Planned direction");
   for (const stage of STAGES)
     assert.doesNotMatch(
       copy(stage.id),

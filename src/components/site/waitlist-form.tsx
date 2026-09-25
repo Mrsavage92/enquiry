@@ -3,7 +3,14 @@ import { SUPPORT_EMAIL, SUPPORT_MAILTO } from "@/lib/site/contact";
 import { ArrowRight, CheckCircle2, LoaderCircle } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
-import { joinWaitlist, leaveWaitlist, qualifyWaitlist, trackLaunchEvent } from "@/lib/launch/api";
+import {
+  getMyWaitlistAnswers,
+  joinWaitlist,
+  leaveWaitlist,
+  qualifyWaitlist,
+  trackLaunchEvent,
+} from "@/lib/launch/api";
+import { OFFER_FAQ } from "@/lib/site/offer";
 import {
   captureAttribution,
   clearWaitlist,
@@ -87,6 +94,7 @@ export function WaitlistForm({
   const [notice, setNotice] = useState("");
   const [confirmLeave, setConfirmLeave] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [loadingAnswers, setLoadingAnswers] = useState(false);
 
   const [businessType, setBusinessType] = useState("");
   const [volume, setVolume] = useState("");
@@ -142,6 +150,7 @@ export function WaitlistForm({
       const result = await joinWaitlist({
         data: {
           email,
+          existingId: storedWaitlistId() || "",
           website,
           elapsed_ms: Date.now() - mountedAt.current,
           sessionId: launchSessionId(),
@@ -218,6 +227,29 @@ export function WaitlistForm({
     }
   };
 
+  const editAnswers = async () => {
+    if (!waitlistId || inFlight.current) return;
+    inFlight.current = true;
+    setLoadingAnswers(true);
+    setError("");
+    try {
+      const { answers } = await getMyWaitlistAnswers({ data: { id: waitlistId } });
+      if (answers) {
+        setBusinessType(answers.business_type);
+        setVolume(answers.enquiry_volume);
+        setPain(answers.pain_text);
+        setChannels(answers.channels ? answers.channels.split(", ").filter(Boolean) : []);
+        setBeta(answers.beta_interest);
+      }
+      setStep("qualify");
+    } catch (e) {
+      setError(describeFailure(e, "Could not load your answers just then."));
+    } finally {
+      inFlight.current = false;
+      setLoadingAnswers(false);
+    }
+  };
+
   const leave = async () => {
     if (!waitlistId || inFlight.current) return;
     inFlight.current = true;
@@ -263,6 +295,9 @@ export function WaitlistForm({
           We'll email you when we're ready to invite your business. Joining the list does not create
           an account or start a subscription.
         </p>
+        <p className={entry ? "auth-description" : "mt-2 text-sm leading-relaxed text-ink-2"}>
+          {OFFER_FAQ.joining}
+        </p>
         <div className={entry ? "auth-actions" : "mt-5 flex flex-col gap-2 sm:flex-row"}>
           {compact && !storedQualified() ? (
             <Button asChild className="min-h-12">
@@ -279,16 +314,25 @@ export function WaitlistForm({
         </div>
         {!compact ? (
           <div className="mt-4 flex flex-wrap gap-x-5 gap-y-2 text-sm">
-            {storedQualified() ? (
+            {storedQualified() && waitlistId ? (
               <button
                 type="button"
                 className="text-ink-2 underline underline-offset-2"
-                onClick={() => setStep("qualify")}
+                disabled={loadingAnswers}
+                onClick={() => void editAnswers()}
               >
-                Edit your answers
+                {loadingAnswers ? "Loading…" : "Edit your answers"}
               </button>
             ) : null}
-            {confirmLeave ? (
+            {!waitlistId ? (
+              <span className="text-ink-2">
+                To be removed, email{" "}
+                <a href={SUPPORT_MAILTO} className="underline underline-offset-2">
+                  {SUPPORT_EMAIL}
+                </a>{" "}
+                from the address you joined with.
+              </span>
+            ) : confirmLeave ? (
               <span
                 className="flex flex-wrap items-center gap-x-3 gap-y-1"
                 role="group"

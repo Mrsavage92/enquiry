@@ -3,6 +3,7 @@ import { ChevronRight, Plus, Search } from "lucide-react";
 import { AddEnquiry } from "./add-enquiry";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { EmptyState } from "@/components/ui/empty-state";
 import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Segmented } from "@/components/ui/segmented";
@@ -117,7 +118,17 @@ export function EnquiriesListPage() {
             <span className="enquiries-updated">Updated</span>
             <span />
           </div>
-          {listed.length === 0 ? (
+          {scoped.length === 0 ? (
+            <EmptyState
+              title="No enquiries yet"
+              body="Add your first enquiry and it will show up here, ready to work."
+              action={
+                !demoMode && activeBusiness ? (
+                  <Button onClick={() => setCreateOpen(true)}>Add your first enquiry</Button>
+                ) : undefined
+              }
+            />
+          ) : listed.length === 0 ? (
             <div className="px-5 py-12 text-center">
               <p className="font-medium">No enquiries match.</p>
               <p className="mt-1 text-sm text-ink-2">Try a customer name, service or channel.</p>

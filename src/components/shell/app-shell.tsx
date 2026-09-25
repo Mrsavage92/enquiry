@@ -4,7 +4,6 @@ import {
   CalendarDays,
   BriefcaseBusiness,
   CircleHelp,
-  Gift,
   Inbox,
   LineChart,
   MoreHorizontal,
@@ -372,13 +371,6 @@ export function AppShell() {
                 </div>
               </Link>
               <nav aria-label="Account and support" className="grid gap-1">
-                <Link
-                  to="/refer"
-                  className="flex min-h-10 items-center gap-2 rounded-lg px-2 text-sm text-sidebar-muted hover:bg-white/70 hover:text-sidebar-fg"
-                >
-                  <Gift className="size-4" aria-hidden />
-                  Refer a friend
-                </Link>
                 <Link
                   to="/support"
                   className="flex min-h-10 items-center gap-2 rounded-lg px-2 text-sm text-sidebar-muted hover:bg-white/70 hover:text-sidebar-fg"

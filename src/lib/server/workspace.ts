@@ -192,8 +192,11 @@ export const setActionPolicyMode = createServerFn({ method: "POST" })
     const mode = typeof d.mode === "string" ? d.mode : "";
     if (!businessId || !action) throw new Error("A business and action are required.");
     // Whitelisted rather than passed through - this column decides what the
-    // system may do without asking a human.
-    const allowed = ["Never", "Ask every time", "Automatic when safe"];
+    // system may do without asking a human. "Automatic when safe" is
+    // deliberately not offered: the product promise is nothing sends without
+    // the owner's approval, so this endpoint can no longer be asked to set it,
+    // even by a client bypassing the (already-removed) UI option.
+    const allowed = ["Never", "Ask every time"];
     if (!allowed.includes(mode)) throw new Error("Unknown autonomy mode.");
     return { businessId, action, mode };
   })
