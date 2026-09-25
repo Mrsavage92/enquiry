@@ -357,6 +357,8 @@
     font-size: 15px;
     max-width: 30ch;
     margin-inline: auto;
+    border-radius: 12px;
+    text-wrap: balance;
   }
   .brand-hero {
     height: auto;

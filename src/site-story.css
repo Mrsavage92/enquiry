@@ -336,23 +336,37 @@
   padding-bottom: 16px;
   gap: 10px;
 }
+/* Unselected: outline only, #68656d text (5.7:1 on the white panel, 5.0:1 on
+   the lilac band). Selected: violet border, tint and a check, so the state
+   never rests on colour alone; #654ac2 on #f5f0ff measures 6.0:1. */
 .decision-demo .scene-toggle button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
   min-height: 44px;
   padding: 12px 20px;
   border-radius: 6px;
   font-size: 13px;
-  background: #efedf4;
-  border: 1px solid transparent;
+  background: transparent;
+  border: 1px solid #cbc5d3;
   color: #68656d;
 }
 .decision-demo .scene-toggle button[aria-pressed="true"] {
   color: #654ac2;
   background: #f5f0ff;
-  border-color: #ded3f4;
+  border-color: #654ac2;
+}
+.decision-demo .scene-toggle .toggle-check {
+  display: none;
+  flex-shrink: 0;
+}
+.decision-demo .scene-toggle button[aria-pressed="true"] .toggle-check {
+  display: block;
 }
 /* The verdict is the answer, so it is the largest text in the result. It sits
-   at the top of the action column on desktop and directly under the toggles
-   on narrow screens, before the message card. */
+   at the top of the action column on desktop. On narrow screens the column
+   reads as the story does: customer message, verdict, next step. */
 .demo-workspace {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
@@ -732,15 +746,30 @@
     width: auto;
     margin-top: 16px;
   }
+  /* The conversation wrapper dissolves so its messages lead, the verdict and
+     next step follow, and the business context (on /demo) closes the column. */
   .demo-workspace {
-    grid-template-columns: minmax(0, 1fr);
-    grid-template-areas:
-      "verdict"
-      "conversation"
-      "action";
-    grid-template-rows: none;
-    row-gap: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
     margin-top: 20px;
+  }
+  .demo-workspace > .demo-conversation {
+    display: contents;
+  }
+  .demo-workspace > .demo-conversation > * {
+    order: 1;
+  }
+  .demo-workspace > .demo-verdict {
+    order: 2;
+    margin-top: 8px;
+  }
+  .demo-workspace > .demo-action {
+    order: 3;
+  }
+  .demo-workspace > .demo-conversation > .demo-context {
+    order: 4;
+    padding-top: 8px;
   }
   .demo-workspace > .demo-verdict {
     border-left: 0;
@@ -823,8 +852,13 @@
   }
   .decision-demo .scene-toggle button {
     flex: 1;
-    padding: 12px 10px;
+    gap: 4px;
+    padding: 12px 8px;
     font-size: 12px;
+  }
+  .decision-demo .scene-toggle .toggle-check {
+    width: 12px;
+    height: 12px;
   }
   .journal-heading {
     align-items: flex-start;
@@ -1062,6 +1096,10 @@
   margin-top: 14px;
   align-items: center;
 }
+/* Home summary: the business toggle is the first control in the panel. */
+.decision-demo-summary .business-toggle {
+  margin-top: 0;
+}
 .business-toggle-label {
   font-size: 13px;
   color: #68656d;
@@ -1097,6 +1135,7 @@
   }
   .decision-demo .business-toggle {
     flex-wrap: wrap;
+    align-items: stretch;
   }
   .business-toggle-label {
     flex-basis: 100%;

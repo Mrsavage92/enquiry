@@ -108,3 +108,66 @@ test("the founding offer is stated in one place and nowhere else", () => {
     );
   }
 });
+
+test("demo toggles mirror the URL through the router without resetting scroll", () => {
+  // TanStack history patches history.replaceState into a router load, and that
+  // load scrolled the page to the top on every toggle tap (critique round 3).
+  for (const file of [
+    "src/components/site/product-showcase.tsx",
+    "src/components/site/cross-channel-decision-demo.tsx",
+  ]) {
+    const text = source(file);
+    assert.doesNotMatch(
+      text,
+      /window\.history\.(replaceState|pushState)\(/,
+      `${file} bypasses the router`,
+    );
+    assert.match(text, /replace: true,\s*resetScroll: false/, `${file} keeps the scroll position`);
+  }
+  const demo = source("src/components/site/cross-channel-decision-demo.tsx");
+  assert.match(demo, /block: "nearest"/);
+});
+
+test("the founding price number and its per-day line stay in step", () => {
+  const offer = source("src/lib/site/offer.ts");
+  const label = offer.match(/FOUNDING_PRICE = "A\$(\d+)"/)?.[1];
+  const amount = offer.match(/FOUNDING_PRICE_AMOUNT = (\d+);/)?.[1];
+  assert.equal(label, amount);
+  assert.equal(Math.round((Number(amount) / 30) * 100), 50, "A$15 over 30 days is 50c");
+  assert.match(offer, /perDay: `About \$\{perDayLabel\(FOUNDING_PRICE_AMOUNT\)\} a day\.`/);
+  assert.doesNotMatch(offer, /Your price never goes up/);
+  const page = source("src/routes/early-access.tsx");
+  assert.match(page, /OFFER\.perDay/);
+  assert.doesNotMatch(page, /OFFER\.after/);
+});
+
+test("an empty email gets its own prompt before the shape check", () => {
+  const form = source("src/components/site/waitlist-form.tsx");
+  const empty = form.indexOf("Enter your email to join.");
+  const shape = form.indexOf("That does not look like an email address.");
+  assert.ok(empty > 0 && empty < shape);
+});
+
+test("phone captures ship a real 2x file and every phone image offers it", () => {
+  const jpegSize = (bytes) => {
+    for (let i = 2; i < bytes.length;) {
+      const marker = bytes.readUInt16BE(i);
+      if (marker >= 0xffc0 && marker <= 0xffc2)
+        return [bytes.readUInt16BE(i + 7), bytes.readUInt16BE(i + 5)];
+      i += 2 + bytes.readUInt16BE(i + 2);
+    }
+    return null;
+  };
+  for (const view of ["today", "enquiry", "business"]) {
+    const path = new URL(`../public/product/ui1/${view}-mobile@2x.jpg`, import.meta.url);
+    assert.deepEqual(jpegSize(readFileSync(path)), [780, 1200], `${view} 2x size`);
+    assert.ok(statSync(path).size < 150_000, `${view}-mobile@2x exceeds its image budget`);
+  }
+  assert.match(source("src/lib/site/captures.ts"), /-mobile@2x\.jpg 2x/);
+  for (const file of [
+    "src/components/site/product-walkthrough.tsx",
+    "src/components/site/product-showcase.tsx",
+    "src/routes/index.tsx",
+  ])
+    assert.match(source(file), /mobileCaptureSrcSet\(/, `${file} serves the 2x capture`);
+});

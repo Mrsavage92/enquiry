@@ -10,6 +10,8 @@
  */
 
 export const FOUNDING_PRICE = "A$15";
+/** The same founding price as a number of dollars; a test keeps the two in step. */
+export const FOUNDING_PRICE_AMOUNT = 15;
 export const STANDARD_PRICE = "A$29";
 
 /**
@@ -31,7 +33,14 @@ export const paymentsOpen = FOUNDING_PAYMENT_LINK !== "";
  * The one sentence about when money changes hands, used everywhere while
  * payments are not open. Do not restate it in other words on any page.
  */
-const PAYMENT_TIMING = `No card today. You pay ${FOUNDING_PRICE} from the day you start using it, and your first month is refundable.`;
+const PAYMENT_TIMING =
+  "No card today. You only pay when you choose to start, and if the first month isn't worth it, we refund it.";
+
+/** The monthly price spread over a 30-day month, rounded to whole cents ("50c"). */
+export function perDayLabel(monthlyDollars: number): string {
+  const cents = Math.round((monthlyDollars / 30) * 100);
+  return cents < 100 ? `${cents}c` : `A$${(cents / 100).toFixed(2)}`;
+}
 
 export const OFFER = {
   name: "Founding member",
@@ -57,6 +66,8 @@ export const OFFER = {
   /** The /early-access page heading, once payments are not open. */
   entryHeadline: `Lock in ${FOUNDING_PRICE} a month.`,
   entrySub: `Founding price, kept for as long as you stay. ${STANDARD_PRICE} for everyone after launch.`,
+  /** The small line under the big price on /early-access. */
+  perDay: `About ${perDayLabel(FOUNDING_PRICE_AMOUNT)} a day.`,
 } as const;
 
 /** The promises card on /early-access. */
@@ -65,10 +76,6 @@ export const OFFER_PROMISES = [
   {
     t: "Setup help from a person",
     b: "Tell us your services and prices and we help you set them up, so your first real enquiry has something to price against.",
-  },
-  {
-    t: "Your price never goes up",
-    b: `While you stay subscribed you pay ${FOUNDING_PRICE} a month. No higher tier to be moved onto, and nothing else is charged.`,
   },
   {
     t: "A direct line into what we build",

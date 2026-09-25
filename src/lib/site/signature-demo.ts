@@ -11,7 +11,12 @@ export type SignatureCheck = {
   id: string;
   label: string;
   value: string;
-  tone: "ok" | "warn" | "quiet";
+  /**
+   * ok: satisfied ("Clear"). check: holds only after something is checked
+   * ("Check first"). warn: possible with a condition ("Condition"). block:
+   * rules the request, or part of it, out ("Rules it out"). quiet: noted.
+   */
+  tone: "ok" | "check" | "warn" | "block" | "quiet";
   changed?: boolean;
   why?: string;
 };
@@ -68,13 +73,13 @@ export const SIGNATURE_DEMO = {
         id: "scope",
         label: "Scope",
         value: "Living areas need a measure before a final quote",
-        tone: "quiet",
+        tone: "check",
       },
       {
         id: "capacity",
         label: "Capacity",
         value: "Provisional - two-person crew can cover this window",
-        tone: "ok",
+        tone: "check",
         why: RIDGE_CREW_WINDOW_RULE.body,
       },
     ],
@@ -102,12 +107,12 @@ export const SIGNATURE_DEMO = {
       { id: "deadline", label: "Deadline", value: "16 Sep", from: "18 Sep" },
     ],
     checks: [
-      { id: "eligibility", label: "Eligibility", value: "Offered", tone: "quiet" },
+      { id: "eligibility", label: "Eligibility", value: "Offered", tone: "ok" },
       {
         id: "scope",
         label: "Scope",
         value: "Living areas still need a measure",
-        tone: "quiet",
+        tone: "check",
       },
       {
         id: "capacity",
@@ -151,7 +156,7 @@ const HARBOUR_FORM: SignatureState = {
       id: "scope",
       label: "Scope",
       value: "Living areas need a measure before a final quote",
-      tone: "quiet",
+      tone: "check",
     },
     {
       id: "capacity",
@@ -174,7 +179,7 @@ const HARBOUR_TEXT: SignatureState = {
       id: "eligibility",
       label: "Eligibility",
       value: "Ceilings are not offered here - partner referral",
-      tone: "warn",
+      tone: "block",
       changed: true,
       why: HARBOUR_SOLO_RULE.body,
     },
@@ -182,13 +187,13 @@ const HARBOUR_TEXT: SignatureState = {
       id: "scope",
       label: "Scope",
       value: "Living areas still need a measure",
-      tone: "quiet",
+      tone: "check",
     },
     {
       id: "capacity",
       label: "Capacity",
       value: "Not possible - three weekdays is short of the five this scope needs solo",
-      tone: "warn",
+      tone: "block",
       changed: true,
       why: HARBOUR_SOLO_RULE.body,
     },
@@ -196,7 +201,7 @@ const HARBOUR_TEXT: SignatureState = {
   verdict: "No to the 16th - offer the next full week",
   nextAction: "Say no to the 16th, offer the next full week, refer the ceilings",
   nextReason:
-    "Same message, different business. Alone, the shorter window cannot fit four bedrooms plus living, and ceilings are not something Harbour does. The honest reply offers what is possible.",
+    "Same conversation, different business. Alone, the shorter window cannot fit four bedrooms plus living, and ceilings are not something Harbour does. The honest reply offers what is possible.",
   commercialNote: "No quote for work that cannot be done in the window.",
 };
 

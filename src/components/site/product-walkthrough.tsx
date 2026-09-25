@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { CalendarDays, MessageSquareText, Settings2 } from "lucide-react";
 import { PhoneFrame } from "@/components/site/device-frame";
+import { mobileCaptureSrcSet } from "@/lib/site/captures";
 import { cn } from "@/lib/utils";
 
 /**
@@ -47,7 +48,7 @@ const STEPS = [
 function Capture({ id, alt, eager = false }: { id: string; alt: string; eager?: boolean }) {
   return (
     <picture>
-      <source media="(max-width: 600px)" srcSet={`/product/ui1/${id}-mobile.jpg`} />
+      <source media="(max-width: 600px)" srcSet={mobileCaptureSrcSet(id)} />
       <img
         src={`/product/ui1/${id}-desktop.jpg`}
         alt={alt}
@@ -128,6 +129,7 @@ export function ProductWalkthrough() {
                 <div key={step.id} hidden={active !== index}>
                   <img
                     src={`/product/ui1/${step.id}-mobile.jpg`}
+                    srcSet={mobileCaptureSrcSet(step.id)}
                     alt={step.alt}
                     width="390"
                     height="600"
