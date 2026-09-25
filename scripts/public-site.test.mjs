@@ -59,7 +59,7 @@ test("public presentation has stable media, reduced motion and no animated auror
 test("marketing retains review-first and sample boundaries", () => {
   const home = source("src/routes/index.tsx");
   assert.match(home, /Copying a reply is not sending it/);
-  assert.match(home, /30% off your first 12 months/);
+  assert.match(home, /OFFER_FAQ\.cost/);
   assert.match(home, /not into a paid subscription/);
   assert.match(home, /<details/);
   assert.doesNotMatch(home, /send-phone\.mp4|poster-desk|LivePhone|PhoneFrame/);
@@ -85,4 +85,26 @@ test("share metadata and browser assets use the approved temporary UI1 identity"
     assert.equal(bytes.readUInt32BE(20), size);
   }
   assert.doesNotMatch(source("src/routes/__root.tsx"), /fonts.googleapis.com/);
+});
+
+test("the founding offer is stated in one place and nowhere else", () => {
+  const offer = source("src/lib/site/offer.ts");
+  assert.match(offer, /FOUNDING_PRICE = "A\$15"/);
+  assert.match(offer, /STANDARD_PRICE = "A\$29"/);
+  for (const file of [
+    "src/routes/index.tsx",
+    "src/routes/early-access.tsx",
+    "src/routes/terms.tsx",
+    "src/routes/onboarding.tsx",
+    "src/components/site/brand-hero.tsx",
+    "src/components/site/early-access-invite.tsx",
+    "src/lib/email/waitlist-welcome.ts",
+  ]) {
+    const text = source(file);
+    assert.doesNotMatch(
+      text,
+      /30% off|first 20|12 months|A\$\d|20-minute/,
+      `${file} restates the offer`,
+    );
+  }
 });

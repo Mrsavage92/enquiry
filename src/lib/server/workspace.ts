@@ -25,32 +25,41 @@ import { cleanOnboardingProfile } from "@/domain/onboarding-profile";
  * initial creation (R2A s1).
  */
 /** Onboarding is the one path every invited business must survive; report any throw. */
-const workspaceGuard = <R,>(scope: string, run: () => Promise<R>) => guarded(scope, run)();
+/** Shown to someone who tries to set up before paying; a user outcome, not an incident. */
+export const NOT_A_FOUNDING_MEMBER =
+  "We can't find a founding membership for this email yet. If you've just paid, give it a minute and try again.";
+
+const workspaceGuard = <R>(scope: string, run: () => Promise<R>) =>
+  guarded(
+    scope,
+    run,
+    (error) => error instanceof Error && error.message === NOT_A_FOUNDING_MEMBER,
+  )();
 
 export const fetchWorkspace = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
   .handler(async ({ context }) =>
     workspaceGuard("fetchWorkspace", async () => {
-    const { ensureAppUser } = await import("@/lib/repo/tenancy.server");
-    const { hasWorkspace } = await import("@/lib/repo/provision.server");
-    const { loadWorkspace } = await import("@/lib/repo/workspace.server");
-    const { getSessionUser } = await import("@/lib/auth/verify.server");
+      const { ensureAppUser } = await import("@/lib/repo/tenancy.server");
+      const { hasWorkspace } = await import("@/lib/repo/provision.server");
+      const { loadWorkspace } = await import("@/lib/repo/workspace.server");
+      const { getSessionUser } = await import("@/lib/auth/verify.server");
 
-    // Mirror the Supabase identity into app_user so the rest of the schema can
-    // carry real foreign keys without reaching into the auth schema. This is the
-    // person, not a tenant - it creates no business.
-    const session = await getSessionUser().catch(() => null);
-    await ensureAppUser(context.userId, session?.email ?? null);
+      // Mirror the Supabase identity into app_user so the rest of the schema can
+      // carry real foreign keys without reaching into the auth schema. This is the
+      // person, not a tenant - it creates no business.
+      const session = await getSessionUser().catch(() => null);
+      await ensureAppUser(context.userId, session?.email ?? null);
 
-    if (!(await hasWorkspace(context.userId))) {
-      return {
-        needsOnboarding: true as const,
-        businesses: [],
-        enquiries: [],
-        bookings: [],
-      };
-    }
-    return { needsOnboarding: false as const, ...(await loadWorkspace(context.userId)) };
+      if (!(await hasWorkspace(context.userId))) {
+        return {
+          needsOnboarding: true as const,
+          businesses: [],
+          enquiries: [],
+          bookings: [],
+        };
+      }
+      return { needsOnboarding: false as const, ...(await loadWorkspace(context.userId)) };
     }),
   );
 
@@ -70,23 +79,30 @@ export const completeOnboarding = createServerFn({ method: "POST" })
   .validator((raw: unknown) => cleanOnboardingProfile((raw ?? {}) as Record<string, unknown>))
   .handler(async ({ context, data }) =>
     workspaceGuard("completeOnboarding", async () => {
-    const { ensureAppUser } = await import("@/lib/repo/tenancy.server");
-    const { getSessionUser } = await import("@/lib/auth/verify.server");
-    const { createInitialWorkspace } = await import("@/lib/repo/provision.server");
+      const { ensureAppUser } = await import("@/lib/repo/tenancy.server");
+      const { getSessionUser } = await import("@/lib/auth/verify.server");
+      const { createInitialWorkspace } = await import("@/lib/repo/provision.server");
 
-    // Self-contained on purpose. business_member carries a foreign key to
-    // app_user, so onboarding reached directly - a fresh sign-in that lands on
-    // /onboarding without ever calling fetchWorkspace - would otherwise fail on
-    // that constraint. Idempotent, so the ordinary path costs nothing
-    // (R2A correction s3).
-    const session = await getSessionUser().catch(() => null);
-    await ensureAppUser(context.userId, session?.email ?? null);
+      // Self-contained on purpose. business_member carries a foreign key to
+      // app_user, so onboarding reached directly - a fresh sign-in that lands on
+      // /onboarding without ever calling fetchWorkspace - would otherwise fail on
+      // that constraint. Idempotent, so the ordinary path costs nothing
+      // (R2A correction s3).
+      const session = await getSessionUser().catch(() => null);
+      await ensureAppUser(context.userId, session?.email ?? null);
 
-    const { businessId, created } = await createInitialWorkspace({
-      ...data,
-      userId: context.userId,
-    });
-    return { ok: true as const, businessId, created };
+      // Once payments are live, only a paid (or invited) email may create a
+      // workspace. Off until launch_settings.founding_gate = 'on'.
+      const { foundingGateOn, isFoundingMember } = await import("@/lib/billing/founding.server");
+      if ((await foundingGateOn()) && !(await isFoundingMember(session?.email ?? null))) {
+        throw new Error(NOT_A_FOUNDING_MEMBER);
+      }
+
+      const { businessId, created } = await createInitialWorkspace({
+        ...data,
+        userId: context.userId,
+      });
+      return { ok: true as const, businessId, created };
     }),
   );
 
@@ -113,13 +129,8 @@ export const setEnquiryNote = createServerFn({ method: "POST" })
   })
   .handler(async ({ context, data }) => {
     const { getSql } = await import("@/lib/db");
-    const { requireEnquiryAccess, recordAudit } = await import(
-      "@/lib/repo/tenancy.server"
-    );
-    const { enquiryId, businessId } = await requireEnquiryAccess(
-      context.userId,
-      data.enquiryId,
-    );
+    const { requireEnquiryAccess, recordAudit } = await import("@/lib/repo/tenancy.server");
+    const { enquiryId, businessId } = await requireEnquiryAccess(context.userId, data.enquiryId);
     const sql = await getSql();
     await sql`
       update enquiry set notes = ${data.note || null}, updated_at = now()
@@ -154,13 +165,8 @@ export const snoozeEnquiry = createServerFn({ method: "POST" })
   })
   .handler(async ({ context, data }) => {
     const { getSql } = await import("@/lib/db");
-    const { requireEnquiryAccess, recordAudit } = await import(
-      "@/lib/repo/tenancy.server"
-    );
-    const { enquiryId, businessId } = await requireEnquiryAccess(
-      context.userId,
-      data.enquiryId,
-    );
+    const { requireEnquiryAccess, recordAudit } = await import("@/lib/repo/tenancy.server");
+    const { enquiryId, businessId } = await requireEnquiryAccess(context.userId, data.enquiryId);
     const sql = await getSql();
     await sql`
       update enquiry set snoozed_until = ${data.until}, updated_at = now()
@@ -193,9 +199,7 @@ export const setActionPolicyMode = createServerFn({ method: "POST" })
   })
   .handler(async ({ context, data }) => {
     const { getSql } = await import("@/lib/db");
-    const { requireBusinessAccess, recordAudit } = await import(
-      "@/lib/repo/tenancy.server"
-    );
+    const { requireBusinessAccess, recordAudit } = await import("@/lib/repo/tenancy.server");
     const businessId = await requireBusinessAccess(context.userId, data.businessId);
     const sql = await getSql();
     await sql`
@@ -225,9 +229,7 @@ export const setBusinessPause = createServerFn({ method: "POST" })
   })
   .handler(async ({ context, data }) => {
     const { getSql } = await import("@/lib/db");
-    const { requireBusinessAccess, recordAudit } = await import(
-      "@/lib/repo/tenancy.server"
-    );
+    const { requireBusinessAccess, recordAudit } = await import("@/lib/repo/tenancy.server");
     const businessId = await requireBusinessAccess(context.userId, data.businessId);
     const sql = await getSql();
     await sql`
@@ -266,9 +268,7 @@ export const setTrustMode = createServerFn({ method: "POST" })
   })
   .handler(async ({ context, data }) => {
     const { getSql } = await import("@/lib/db");
-    const { requireBusinessAccess, recordAudit } = await import(
-      "@/lib/repo/tenancy.server"
-    );
+    const { requireBusinessAccess, recordAudit } = await import("@/lib/repo/tenancy.server");
     const businessId = await requireBusinessAccess(context.userId, data.businessId);
     const sql = await getSql();
     await sql`

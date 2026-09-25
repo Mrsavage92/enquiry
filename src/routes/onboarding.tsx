@@ -4,7 +4,8 @@ import { Building2, ChevronLeft, MapPin } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { AuthLayout } from "@/components/auth/auth-layout";
 import { usePrototype } from "@/store/prototype-store";
-import { completeOnboarding } from "@/lib/server/workspace";
+import { completeOnboarding, NOT_A_FOUNDING_MEMBER } from "@/lib/server/workspace";
+import { FOUNDING_PAYMENT_LINK, paymentsOpen } from "@/lib/site/offer";
 import { cn } from "@/lib/utils";
 import { RequireAuth } from "@/lib/auth/gates";
 import { WorkspaceGate } from "@/components/shell/workspace-boundary";
@@ -352,7 +353,7 @@ function Onboarding() {
                 "Enquiry prepares replies. Nothing sends without your approval.",
                 "No mailbox or social account is connected yet.",
                 "Enquiry learns your prices and rules from what you confirm, and your voice from replies you approve or edit - not from a quiz.",
-                "During early access we set your services and prices up with you on a 20-minute call, so your first real enquiry has something to price against.",
+                "Tell us your services and prices and we help you set them up, so your first real enquiry has something to price against.",
               ].map((line) => (
                 <li
                   key={line}
@@ -387,6 +388,14 @@ function Onboarding() {
         {submitError ? (
           <p role="alert" className="mb-3 text-sm text-danger">
             {submitError} Your details are still here - try again.
+            {submitError === NOT_A_FOUNDING_MEMBER && paymentsOpen ? (
+              <>
+                {" "}
+                <a href={FOUNDING_PAYMENT_LINK} className="font-semibold underline">
+                  Become a founding member
+                </a>
+              </>
+            ) : null}
           </p>
         ) : null}
         <div className="flex gap-2">
