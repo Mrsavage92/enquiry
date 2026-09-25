@@ -57,7 +57,7 @@ export function ProductShowcase({
       <div className="public-showcase-heading">
         <p>One enquiry. One detail still deciding it.</p>
         <span>
-          Built in the open. Every change is posted to <Link to="/updates">Updates</Link>.
+          Built in the open. Meaningful progress is posted to <Link to="/updates">Updates</Link>.
         </span>
       </div>
       <div

@@ -18,6 +18,8 @@ import {
 import { currentTouch, launchSessionId, storedWaitlistId } from "@/lib/launch/session";
 import { PocketConcept, RoadmapIcon } from "@/components/site/roadmap-visuals";
 
+const EMAIL_SHAPE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 function touchFields() {
   const touch = currentTouch();
   return {
@@ -54,12 +56,19 @@ function Feedback({
 }) {
   const [open, setOpen] = useState(false);
   const [problem, setProblem] = useState("");
+  const [email, setEmail] = useState("");
+  const [emailHint, setEmailHint] = useState("");
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState("");
   const submitting = useRef(false);
 
   async function save() {
+    const trimmedEmail = email.trim();
+    if (trimmedEmail && !EMAIL_SHAPE.test(trimmedEmail)) {
+      setEmailHint("That does not look like an email address.");
+      return;
+    }
     if (!problem.trim() || submitting.current) return;
     submitting.current = true;
     setSaving(true);
@@ -71,12 +80,14 @@ function Feedback({
           sessionId: launchSessionId(),
           waitlist_id: storedWaitlistId() || "",
           problem_text: problem.trim(),
+          email: trimmedEmail,
           ...touchFields(),
         },
       });
       if (!result.saved) throw new Error("Your feedback was not saved. Please try again.");
       setSaved(true);
       setProblem("");
+      setEmail("");
       setOpen(false);
     } catch {
       setError("Your feedback was not saved. Please try again.");
@@ -131,6 +142,23 @@ function Feedback({
           value={problem}
           onChange={(event) => setProblem(event.target.value)}
         />
+        <label htmlFor={`feedback-email-${stage.id}`}>Email (optional, if you want a reply)</label>
+        <input
+          id={`feedback-email-${stage.id}`}
+          type="email"
+          autoComplete="email"
+          aria-describedby={emailHint ? `feedback-email-hint-${stage.id}` : undefined}
+          value={email}
+          onChange={(event) => {
+            setEmail(event.target.value);
+            if (emailHint) setEmailHint("");
+          }}
+        />
+        {emailHint && (
+          <p id={`feedback-email-hint-${stage.id}`} role="alert" className="roadmap-error">
+            {emailHint}
+          </p>
+        )}
         {error && (
           <p role="alert" className="roadmap-error">
             {error}

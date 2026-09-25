@@ -279,11 +279,24 @@ export function toIntegration(r: IntegrationRow): IntegrationHealth {
   };
 }
 
+/**
+ * "Automatic when safe" is no longer offered anywhere a business can set its
+ * autonomy mode (the settings UI dropped it, and the server endpoint that
+ * writes `action_policy.mode` no longer accepts it) - the product promise is
+ * nothing sends without the owner's approval. A row written before that
+ * change can still hold the old value, so it is normalised to the most
+ * conservative remaining mode the moment it is read, rather than trusted
+ * through to autopilot logic that would otherwise let it keep firing.
+ */
+function normalizeActionPolicyMode(mode: string): ActionPolicy["mode"] {
+  return mode === "Ask every time" ? "Ask every time" : "Never";
+}
+
 export function toActionPolicy(r: ActionPolicyRow): ActionPolicy {
   return {
     action: r.action as ActionPolicy["action"],
     label: r.label,
-    mode: r.mode as ActionPolicy["mode"],
+    mode: normalizeActionPolicyMode(r.mode),
     risk: r.risk as ActionPolicy["risk"],
     evidence: (r.evidence ?? undefined) as ActionPolicy["evidence"],
     gates: (r.gates ?? []) as ActionPolicy["gates"],
@@ -444,11 +457,7 @@ export function toEnquiry(
       responsibility: r.responsibility as Enquiry["state"]["responsibility"],
     },
     valueExact: moneyFromColumns(r.value_exact_minor, r.currency),
-    valueRange: moneyRangeFromColumns(
-      r.value_range_min_minor,
-      r.value_range_max_minor,
-      r.currency,
-    ),
+    valueRange: moneyRangeFromColumns(r.value_range_min_minor, r.value_range_max_minor, r.currency),
     facts: parts.facts,
     conversation: parts.conversation,
     decision: { ...snapshot, quotes: parts.quotes },

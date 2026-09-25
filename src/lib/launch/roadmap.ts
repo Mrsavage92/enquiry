@@ -17,7 +17,7 @@ export const ROADMAP_LEGEND: { id: RoadmapStatus; label: string; hint: string; p
       id: "next",
       label: "Next",
       hint: "Priority direction",
-    purpose: "Less catching up. More staying current.",
+      purpose: "Less catching up. More staying current.",
     },
     {
       id: "later",
@@ -85,7 +85,7 @@ export const STAGES: RoadmapStage[] = [
   },
   {
     id: "native-apps",
-    status: "next",
+    status: "later",
     title: "Enquiry in your pocket",
     summary: "Planned native iPhone and Android apps. A quick check between everything else.",
     details: [

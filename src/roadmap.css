@@ -268,7 +268,8 @@
   display: block;
   margin-bottom: 8px;
 }
-.roadmap-feedback textarea {
+.roadmap-feedback textarea,
+.roadmap-feedback input[type="email"] {
   width: 100%;
   resize: vertical;
   border: 1px solid #aaa2b9;

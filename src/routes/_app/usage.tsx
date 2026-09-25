@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/ui/page-header";
 import { CreditCard, ArrowRight, CircleHelp } from "lucide-react";
 import { WorkspaceDestination } from "@/components/ui/workspace-destination";
+import { OFFER } from "@/lib/site/offer";
 
 export const Route = createFileRoute("/_app/usage")({
   component: UsagePage,
@@ -17,9 +18,11 @@ function UsagePage() {
           <span className="account-feature-icon">
             <CreditCard size={30} strokeWidth={1.5} aria-hidden="true" />
           </span>
-          <h2>Plan information unavailable</h2>
+          <h2>You're on the founding plan</h2>
+          <p className="mt-2 text-sm text-stone">{OFFER.headline}</p>
+          <p className="mt-2 text-sm text-stone">{OFFER.refund}</p>
           <p className="mt-2 text-sm text-stone">
-            No plan or usage allowance has been set for this workspace.
+            No plan or usage allowance is tracked in this workspace yet.
           </p>
           <Button asChild variant="secondary" className="mt-5">
             <Link to="/account">

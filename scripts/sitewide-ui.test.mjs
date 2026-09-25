@@ -76,13 +76,16 @@ test("settings retain controls, sample boundaries and server-backed pause mutati
   assert.doesNotMatch(settings, /⌘Enter send|Open Business Brain|Enquiry will keep reading/);
 });
 
-test("permission controls expose selection and retain high-risk restrictions", () => {
+test("permission controls expose selection and offer no autonomous-sending option", () => {
   const trust = read("src/components/trust/trust-screen.tsx");
   assert.match(trust, /aria-pressed=\{business.trustMode === m\}/);
   assert.match(trust, /aria-pressed=\{p.mode === m\}/);
-  assert.match(trust, /disabled=\{p.risk === "HIGH" && m === "Automatic when safe"\}/);
   assert.match(trust, /useLiveTrustMutations/);
   assert.match(trust, /business\?\.id/);
+  // The product promise is nothing sends without the owner's approval, so
+  // this control offers only the two modes that keep a human in the loop.
+  assert.match(trust, /\["Never", "Ask every time"\]/);
+  assert.doesNotMatch(trust, /Automatic when safe/);
 });
 
 test("customer quote and booking routes still fail closed", () => {
@@ -119,18 +122,31 @@ test("onboarding still persists before navigation and preserves the auth boundar
   assert.match(source, /sessionStorage/);
 });
 
-test("utility pages retain truthful unavailable states and help has real filtering", () => {
-  assert.match(read("src/routes/_app/usage.tsx"), /No plan or usage allowance/);
-  assert.match(read("src/routes/_app/refer.tsx"), /no active referral programme or reward/);
+test("utility pages state the real founding terms and help has real filtering plus a live contact", () => {
+  const usage = read("src/routes/_app/usage.tsx");
+  assert.match(usage, /OFFER\.headline/);
+  assert.match(usage, /OFFER\.refund/);
+  assert.match(usage, /No plan or usage allowance is tracked/);
+  assert.doesNotMatch(
+    usage,
+    /\d+\s*(enquiries|replies|seats)\s*(a|per)\s*month/i,
+    "no invented allowance number",
+  );
   const help = read("src/routes/_app/support.tsx");
-  for (const value of [
-    'aria-label="Search help"',
-    "ANSWERS.filter",
-    "No matching answers",
-    "A support contact is not available",
-  ])
+  for (const value of ['aria-label="Search help"', "ANSWERS.filter", "No matching answers"])
     assert.ok(help.includes(value));
-  assert.doesNotMatch(help, /mailto:|24\/7|live chat/i);
+  assert.match(help, /SUPPORT_MAILTO/);
+  assert.doesNotMatch(help, /not available in this workspace/i);
+});
+
+test("refer a friend has no in-app nav entry, since there is no referral programme", () => {
+  // The route and its document-title mapping can stay (a stale bookmark
+  // should still render something coherent); what must be gone is every
+  // clickable link that would lead an operator there.
+  for (const file of ["src/components/shell/more-page.tsx", "src/components/shell/app-shell.tsx"]) {
+    const source = read(file);
+    assert.doesNotMatch(source, /to="\/refer"/);
+  }
 });
 
 test("insights keep existing scoped calculations without invented trends", () => {

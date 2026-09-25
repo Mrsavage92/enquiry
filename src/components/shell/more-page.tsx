@@ -4,7 +4,6 @@ import {
   ChevronRight,
   CircleHelp,
   Gauge,
-  Gift,
   Globe,
   LineChart,
   Settings,
@@ -94,7 +93,6 @@ export function MorePage() {
         </details>
         <ul className="more-destinations">
           <MoreLink to="/usage" icon={Gauge} label="Plan & usage" />
-          <MoreLink to="/refer" icon={Gift} label="Refer a friend" />
           <MoreLink to="/support" icon={CircleHelp} label="Help & support" />
           <MoreLink to="/settings" icon={Settings} label="Settings" />
           <MoreLink to="/account" icon={UserRound} label="Account" />
@@ -153,7 +151,7 @@ function MoreLink({
   icon: Icon,
   label,
 }: {
-  to: "/" | "/account" | "/business" | "/insights" | "/refer" | "/settings" | "/support" | "/usage";
+  to: "/" | "/account" | "/business" | "/insights" | "/settings" | "/support" | "/usage";
   icon: typeof Globe;
   label: string;
 }) {

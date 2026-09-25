@@ -3,6 +3,7 @@ import { useState } from "react";
 import { Building2, ChevronDown, CircleHelp, Plug, Search, ShieldCheck, X } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { WorkspaceDestination } from "@/components/ui/workspace-destination";
+import { SUPPORT_EMAIL, SUPPORT_MAILTO } from "@/lib/site/contact";
 
 export const Route = createFileRoute("/_app/support")({ component: SupportPage });
 
@@ -121,7 +122,13 @@ function SupportPage() {
           <CircleHelp size={18} aria-hidden="true" />
           <div>
             <h2>Contact support</h2>
-            <p>A support contact is not available in this workspace yet.</p>
+            <p>
+              Email{" "}
+              <a href={SUPPORT_MAILTO} className="underline underline-offset-2">
+                {SUPPORT_EMAIL}
+              </a>{" "}
+              and a person will reply.
+            </p>
           </div>
         </section>
       </div>

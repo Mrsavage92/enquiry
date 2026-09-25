@@ -88,6 +88,35 @@ test("invalid or unallowed feature IDs are a safe no-op", () => {
   );
 });
 
+test("optional email is normalised when valid, and rejects the submission when malformed", () => {
+  const withEmail = prepareRoadmapFeedback({
+    feature_id: "continuity",
+    sessionId: SESSION,
+    problem_text: "Would love a heads up when this ships.",
+    email: "  Owner@Example.COM ",
+  });
+  assert.ok(withEmail);
+  assert.equal(withEmail.email, "owner@example.com");
+
+  const noEmail = prepareRoadmapFeedback({
+    feature_id: "continuity",
+    sessionId: SESSION,
+    problem_text: "Still interested, no need to reply.",
+  });
+  assert.ok(noEmail);
+  assert.equal(noEmail.email, null);
+
+  assert.equal(
+    prepareRoadmapFeedback({
+      feature_id: "continuity",
+      sessionId: SESSION,
+      problem_text: "Typo'd my address.",
+      email: "not-an-email",
+    }),
+    null,
+  );
+});
+
 test("malformed waitlist id is dropped, feedback still prepares", () => {
   const prepared = prepareRoadmapFeedback({
     feature_id: "trusted-action",
@@ -122,7 +151,8 @@ test("valid feedback persists the problem text and attributed event", async () =
   assert.equal(calls[0].values[2], SESSION);
   assert.equal(calls[0].values[3], WAITLIST);
   assert.equal(calls[0].values[4], "Customers change the job on Instagram after the form.");
-  assert.equal(calls[0].values[5], "li");
+  assert.equal(calls[0].values[5], null, "no email supplied");
+  assert.equal(calls[0].values[6], "li");
 
   assert.match(calls[1].text, /insert into launch_events/i);
   assert.equal(calls[1].values[2], "roadmap_feedback_submitted");

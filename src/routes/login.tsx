@@ -41,10 +41,18 @@ function LoginPage() {
       cta="Email me a sign-in link"
       footer={
         <>
-          New to Enquiry?{" "}
-          <Link to="/early-access" className="underline underline-offset-4 hover:text-ink">
-            Join early access
-          </Link>
+          <p>
+            First time here?{" "}
+            <Link to="/signup" className="underline underline-offset-4 hover:text-ink">
+              Set up your account
+            </Link>
+          </p>
+          <p>
+            No invitation yet?{" "}
+            <Link to="/early-access" className="underline underline-offset-4 hover:text-ink">
+              Join early access
+            </Link>
+          </p>
         </>
       }
     />

@@ -94,7 +94,7 @@ export function SiteShell({ children }: { children: ReactNode }) {
           </nav>
           <div className="public-nav-actions">
             <Link to="/login" className="public-signin">
-              Invited? Sign in
+              Sign in
             </Link>
             <Link to="/early-access" className="public-nav-join" onClick={trackJoin}>
               Join early access

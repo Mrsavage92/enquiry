@@ -84,7 +84,7 @@ What it does not do yet: connect to your inbox, Instagram or SMS, take bookings,
 
 What happens next:
 1. Reply to this email with a time for a 20-minute setup call this week. I will set up your services and rules with you on the call.
-2. You sign in at https://enquiry-ashy.vercel.app/login with this email address. No password; you get a link.
+2. You set up your account at https://enquiry-ashy.vercel.app/signup with this email address. No password; you get a link. (`/login` is only for someone who already has an account - it will not email an address it has never seen.)
 3. In week one I will ask for 15 minutes of honest feedback. What you tell me shapes what gets built next, and I will publish what changed each week.
 
 The commercial side, plainly: early access is free. Enquiry will become a paid product. You will get at least 30 days of written notice before any billing starts, and as a founding business you keep 30% off the standard price for your first 12 months. Indicative pricing is [A$X-Y per month inc GST]; the final number will be confirmed before anyone pays.

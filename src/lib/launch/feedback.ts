@@ -1,9 +1,4 @@
-import {
-  asString,
-  canonicalFeatureId,
-  isAllowedFeature,
-  isUuid,
-} from "./guard.ts";
+import { asString, canonicalFeatureId, isAllowedFeature, isEmail, isUuid } from "./guard.ts";
 
 export const PROBLEM_TEXT_MAX = 800;
 
@@ -20,6 +15,7 @@ export type FeedbackInput = {
   sessionId?: unknown;
   waitlist_id?: unknown;
   problem_text?: unknown;
+  email?: unknown;
   utm_source?: unknown;
   utm_medium?: unknown;
   utm_campaign?: unknown;
@@ -32,6 +28,8 @@ export type PreparedFeedback = {
   sessionId: string;
   waitlistId: string | null;
   problemText: string;
+  /** Optional; most feedback stays anonymous beyond the session id. */
+  email: string | null;
   attribution: AttributionFields;
 };
 
@@ -67,23 +65,26 @@ export function prepareRoadmapFeedback(raw: FeedbackInput): PreparedFeedback | n
   const problemText = asString(raw.problem_text, PROBLEM_TEXT_MAX);
   if (!problemText) return null;
   const waitlistRaw = asString(raw.waitlist_id, 80);
+  const emailRaw = asString(raw.email, 254).toLowerCase();
+  if (emailRaw && !isEmail(emailRaw)) return null;
   return {
     featureId,
     sessionId,
     waitlistId: isUuid(waitlistRaw) ? waitlistRaw : null,
     problemText,
+    email: emailRaw || null,
     attribution: attributionFields(raw),
   };
 }
 
 export async function persistRoadmapFeedback(sql: SqlLike, prepared: PreparedFeedback) {
-  const { featureId, sessionId, waitlistId, problemText, attribution } = prepared;
+  const { featureId, sessionId, waitlistId, problemText, email, attribution } = prepared;
   await sql`
     insert into roadmap_feedback (
-      id, feature_id, session_id, waitlist_id, problem_text,
+      id, feature_id, session_id, waitlist_id, problem_text, email,
       utm_source, utm_medium, utm_campaign, utm_content, referrer
     ) values (
-      ${crypto.randomUUID()}, ${featureId}, ${sessionId}, ${waitlistId}, ${problemText},
+      ${crypto.randomUUID()}, ${featureId}, ${sessionId}, ${waitlistId}, ${problemText}, ${email},
       ${attribution.utm_source}, ${attribution.utm_medium}, ${attribution.utm_campaign},
       ${attribution.utm_content}, ${attribution.referrer}
     )
