@@ -23,8 +23,9 @@ function How() {
         <div>
           <h1>How Enquiry works</h1>
           <p>
-            A real example. A changing request. What you can safely promise, and what still decides
-            it.
+            A worked example. A changing request. What you can safely promise, and what still
+            decides it. One enquiry and one next step at a time, built with owners with ADHD in
+            mind.
           </p>
         </div>
       </header>

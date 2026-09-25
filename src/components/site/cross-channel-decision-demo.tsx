@@ -2,9 +2,19 @@ import { useEffect, useId, useRef, useState } from "react";
 import { useSignatureDemo } from "@/lib/site/use-signature-demo";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useArrowGroup } from "@/components/site/use-arrow-group";
-import { ArrowRight, ArrowUpRight, Check, CircleHelp, Info, Store } from "lucide-react";
+import {
+  ArrowRight,
+  ArrowUpRight,
+  Check,
+  ChevronDown,
+  CircleHelp,
+  Info,
+  Link2,
+  Store,
+} from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { decisionScrollDelta } from "@/lib/site/demo-scroll";
 import {
   signatureBusiness,
   signatureState,
@@ -79,18 +89,20 @@ export function CrossChannelDecisionDemo({
   const liveId = useId();
   const whyId = useId();
   const verdictRef = useRef<HTMLParagraphElement>(null);
+  const controlsRef = useRef<HTMLDivElement>(null);
   const firstRender = useRef(true);
 
-  // On a phone the verdict can sit below the fold once the toggles are
-  // tapped, so bring it into view after the answer changes.
+  // On a phone the verdict sits directly under the controls (CSS). After a
+  // tap, scroll only as far as the verdict needs, and never so far that the
+  // controls leave the screen (critique round 4 measured the old
+  // scroll-to-verdict pushing them 98px above the top).
   useEffect(() => {
     if (firstRender.current) {
       firstRender.current = false;
       return;
     }
     if (typeof window === "undefined" || !window.matchMedia("(max-width: 860px)").matches) return;
-    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    verdictRef.current?.scrollIntoView({ block: "nearest", behavior: reduce ? "auto" : "smooth" });
+    keepDecisionInView(controlsRef.current, verdictRef.current);
   }, [scene, business]);
 
   const state = signatureState(scene, business, businesses);
@@ -109,58 +121,62 @@ export function CrossChannelDecisionDemo({
         </header>
       )}
 
-      {summary ? null : (
-        <div
-          className={cn("scene-toggle", compact ? "" : "mt-10")}
-          role="group"
-          aria-label="Maya’s enquiry"
-          onKeyDown={sceneKeys.onKeyDown}
-        >
-          <button
-            type="button"
-            ref={sceneKeys.bind(0)}
-            aria-pressed={scene === "form"}
-            onClick={goForm}
+      <div ref={controlsRef} className={cn("demo-controls", compact || summary ? "" : "mt-10")}>
+        {summary ? null : (
+          <div
+            className="scene-steps"
+            role="group"
+            aria-label="Message"
+            onKeyDown={sceneKeys.onKeyDown}
           >
-            <ToggleCheck />
-            01 · Website form
-          </button>
-          <button
-            type="button"
-            ref={sceneKeys.bind(1)}
-            aria-pressed={scene === "text"}
-            onClick={goText}
-          >
-            <ToggleCheck />
-            02 · Then Maya texts…
-          </button>
-        </div>
-      )}
+            <span className="business-toggle-label">Message</span>
+            <button
+              type="button"
+              ref={sceneKeys.bind(0)}
+              aria-pressed={scene === "form"}
+              onClick={goForm}
+            >
+              <span className="scene-step-number">01</span>
+              Website form
+            </button>
+            <ArrowRight className="scene-step-arrow" size={16} aria-hidden="true" />
+            <button
+              type="button"
+              ref={sceneKeys.bind(1)}
+              aria-pressed={scene === "text"}
+              onClick={goText}
+            >
+              <span className="scene-step-number">02</span>
+              Then Maya texts
+            </button>
+          </div>
+        )}
 
-      <div
-        className="scene-toggle business-toggle"
-        role="group"
-        aria-label="Which business receives it"
-        onKeyDown={businessKeys.onKeyDown}
-      >
-        <span className="business-toggle-label">Received by</span>
-        {businesses.map((b, index) => (
-          <button
-            key={b.id}
-            type="button"
-            ref={businessKeys.bind(index)}
-            aria-pressed={business === b.id}
-            onClick={() => show(scene, b.id)}
-          >
-            <ToggleCheck />
-            {b.label}
-          </button>
-        ))}
+        <div
+          className="scene-toggle business-toggle"
+          role="group"
+          aria-label="Which business receives it"
+          onKeyDown={businessKeys.onKeyDown}
+        >
+          <span className="business-toggle-label">Received by</span>
+          {businesses.map((b, index) => (
+            <button
+              key={b.id}
+              type="button"
+              ref={businessKeys.bind(index)}
+              aria-pressed={business === b.id}
+              onClick={() => show(scene, b.id)}
+            >
+              <ToggleCheck />
+              {b.label}
+            </button>
+          ))}
+        </div>
+        <p className="business-toggle-rule">
+          <strong>{current.label}:</strong> {current.detail}. Rule from {current.rule.sourceLabel}:{" "}
+          {current.rule.title.toLowerCase()}.
+        </p>
       </div>
-      <p className="business-toggle-rule">
-        <strong>{current.label}:</strong> {current.detail}. Rule from {current.rule.sourceLabel}:{" "}
-        {current.rule.title.toLowerCase()}.
-      </p>
 
       <div className="demo-workspace">
         <p className="demo-verdict" ref={verdictRef} aria-live="polite" aria-atomic="true">
@@ -334,7 +350,7 @@ function MessageCard({
       className={cn(
         "demo-message",
         dense ? "rounded-md p-4" : "rounded-md p-5 sm:p-6",
-        incoming && "border-l-2 border-mark",
+        incoming && "demo-message-incoming",
       )}
     >
       <div className="flex flex-wrap items-baseline justify-between gap-2">
@@ -354,13 +370,29 @@ function MessageCard({
   );
 }
 
+/** Hairline-bordered note on the reply tint, led by a link icon: no side stripe. */
 function LinkLine({ label, reason }: { label: string; reason: string }) {
   return (
-    <div className="demo-arrive border-l-2 border-mark px-4 py-3">
-      <p className="text-sm font-medium">{label}</p>
-      <p className="mt-1 text-sm leading-relaxed text-ink-2">{reason}</p>
+    <div className="demo-arrive demo-link-line flex gap-3 rounded-lg border border-line bg-reply px-4 py-3">
+      <Link2 className="mt-0.5 shrink-0 text-mark" size={16} aria-hidden="true" />
+      <div>
+        <p className="text-sm font-medium">{label}</p>
+        <p className="mt-1 text-sm leading-relaxed text-ink-2">{reason}</p>
+      </div>
     </div>
   );
+}
+
+function keepDecisionInView(controls: HTMLElement | null, verdict: HTMLElement | null) {
+  if (!controls || !verdict) return;
+  const delta = decisionScrollDelta(
+    controls.getBoundingClientRect().top,
+    verdict.getBoundingClientRect().bottom,
+    window.innerHeight,
+  );
+  if (delta === 0) return;
+  const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  window.scrollBy({ top: delta, behavior: reduce ? "auto" : "smooth" });
 }
 
 function FactRow({ fact, later }: { fact: SignatureFact; later: boolean }) {
@@ -433,12 +465,13 @@ function CheckRow({
         <div className="mt-1">
           <button
             type="button"
-            className="min-h-11 text-sm font-medium text-ink underline-offset-4 hover:underline"
+            className="demo-why-link"
             aria-expanded={whyOpen}
             aria-controls={whyId}
             onClick={onToggleWhy}
           >
             Why?
+            <ChevronDown className="demo-why-chevron" size={15} aria-hidden="true" />
           </button>
           {whyOpen ? (
             <p id={whyId} className="mt-1 text-sm leading-relaxed text-ink-2">

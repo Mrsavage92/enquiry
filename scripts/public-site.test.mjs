@@ -125,7 +125,11 @@ test("demo toggles mirror the URL through the router without resetting scroll", 
     assert.match(text, /replace: true,\s*resetScroll: false/, `${file} keeps the scroll position`);
   }
   const demo = source("src/components/site/cross-channel-decision-demo.tsx");
-  assert.match(demo, /block: "nearest"/);
+  // Critique round 4: scrollIntoView pushed the toggles off the top; the
+  // capped delta keeps the controls and the verdict on screen together.
+  assert.match(demo, /decisionScrollDelta\(/);
+  assert.doesNotMatch(demo, /scrollIntoView/);
+  assert.match(demo, /aria-label="Message"/);
 });
 
 test("the founding price number and its per-day line stay in step", () => {

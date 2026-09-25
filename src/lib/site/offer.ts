@@ -33,8 +33,19 @@ export const paymentsOpen = FOUNDING_PAYMENT_LINK !== "";
  * The one sentence about when money changes hands, used everywhere while
  * payments are not open. Do not restate it in other words on any page.
  */
-const PAYMENT_TIMING =
-  "No card today. You only pay when you choose to start, and if the first month isn't worth it, we refund it.";
+const NO_CARD = "No card today.";
+const PAY_WHEN =
+  "You only pay when you choose to start, and if the first month isn't worth it, we refund it.";
+const PAYMENT_TIMING = `${NO_CARD} ${PAY_WHEN}`;
+
+/** Both prices in one line, without the payment-timing tail. */
+const PRICES = `${FOUNDING_PRICE} a month while you're a member. ${STANDARD_PRICE} after launch.`;
+
+/**
+ * The one price line: hero note, invite band, home FAQ and the /early-access
+ * lede all read this, so the offer is worded the same everywhere.
+ */
+const PRICE_LINE = paymentsOpen ? PRICES : `${PRICES} ${NO_CARD}`;
 
 /** The monthly price spread over a 30-day month, rounded to whole cents ("50c"). */
 export function perDayLabel(monthlyDollars: number): string {
@@ -47,25 +58,29 @@ export const OFFER = {
   /** The one-line offer. */
   headline: `${FOUNDING_PRICE} a month, for as long as you stay.`,
   /** Hero and invite band. Unambiguous about who pays what, and from when. */
-  short: `Join now: ${FOUNDING_PRICE} a month, locked for as long as you stay. Everyone who joins after launch pays ${STANDARD_PRICE}.`,
+  short: PRICES,
+  /** The single price sentence used everywhere the offer is stated in brief. */
+  priceLine: PRICE_LINE,
   after: `Businesses that join after the founding window pay ${STANDARD_PRICE} a month.`,
   window: FOUNDING_CLOSES
     ? `Open until ${FOUNDING_CLOSES}.`
     : "Open until we launch publicly. We'll give at least 14 days' notice before it closes.",
   refund: "Not earning its keep? We refund your first month, no questions. Cancel any time.",
   start: paymentsOpen ? "Pay today and you're in today." : PAYMENT_TIMING,
+  /** The payment timing without "No card today", for places the price line already says it. */
+  payWhen: paymentsOpen ? "Pay today and you're in today." : PAY_WHEN,
   /** What happens after joining the list, in order. Only what is true today. */
   next: "We email you when your place opens, and everyone on the list keeps the founding price.",
   /** The invite band lede: the two prices, nothing else. */
-  band: `${FOUNDING_PRICE} a month while you stay. ${STANDARD_PRICE} after launch.`,
+  band: PRICE_LINE,
   gst: "Prices include GST.",
   /** Appended to OFFER.short on the hero note while payments are not open. */
-  noteSuffix: " No card today.",
+  noteSuffix: ` ${NO_CARD}`,
   /** The small line under the invite-band form while payments are not open. */
-  reassure: PAYMENT_TIMING,
+  reassure: PAY_WHEN,
   /** The /early-access page heading, once payments are not open. */
-  entryHeadline: `Lock in ${FOUNDING_PRICE} a month.`,
-  entrySub: `Founding price, kept for as long as you stay. ${STANDARD_PRICE} for everyone after launch.`,
+  entryHeadline: `Save your ${FOUNDING_PRICE} founding price.`,
+  entrySub: PRICE_LINE,
   /** The small line under the big price on /early-access. */
   perDay: `About ${perDayLabel(FOUNDING_PRICE_AMOUNT)} a day.`,
 } as const;
@@ -85,7 +100,7 @@ export const OFFER_PROMISES = [
 
 /** FAQ answers that state the offer. */
 export const OFFER_FAQ = {
-  cost: `${OFFER.short} ${OFFER.gst} ${paymentsOpen ? OFFER.refund : OFFER.start}`,
+  cost: `${OFFER.priceLine} ${OFFER.gst} ${paymentsOpen ? OFFER.refund : OFFER.payWhen}`,
   joining: `${OFFER.start} ${OFFER.window}`,
   leaving:
     "Once you are paying, cancel any time, no call or reason needed. If it hasn't earned its keep in your first month, we refund that month.",

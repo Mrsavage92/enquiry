@@ -149,6 +149,25 @@
 .roadmap-direction summary::-webkit-details-marker {
   display: none;
 }
+/* Now items are shown in full (critique round 4): the same row as a
+   summary, with no disclosure to open. */
+.roadmap-item-summary {
+  display: flex;
+  gap: 12px;
+  min-height: 44px;
+}
+.roadmap-item-open .roadmap-detail {
+  margin-top: 12px;
+}
+/* In "Further out", each item names its own horizon. Measured on the
+   #fcf8ef band: #94600d 5.03:1, #a83b64 5.70:1. */
+.roadmap-item-horizon {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--roadmap-tone);
+  font-size: 12px;
+  font-weight: 600;
+}
 .roadmap-feature-icon {
   flex-shrink: 0;
   color: var(--roadmap-tone);
@@ -404,7 +423,8 @@
     padding-left: 22px;
     gap: 22px;
   }
-  .roadmap-item summary {
+  .roadmap-item summary,
+  .roadmap-item-summary {
     display: block;
   }
   .roadmap-feature-icon {
@@ -484,7 +504,8 @@
     padding-block: 14px 7px;
     border-top: 1px solid var(--roadmap-line);
   }
-  .roadmap-item summary {
+  .roadmap-item summary,
+  .roadmap-item-summary {
     display: flex;
     gap: 13px;
   }

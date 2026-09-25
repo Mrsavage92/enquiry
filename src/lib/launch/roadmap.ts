@@ -12,7 +12,12 @@ export type RoadmapStage = {
 export const ROADMAP_WRITTEN = "15 September 2026";
 export const ROADMAP_LEGEND: { id: RoadmapStatus; label: string; hint: string; purpose: string }[] =
   [
-    { id: "now", label: "Now", hint: "Current product", purpose: "A clearer next step, today." },
+    {
+      id: "now",
+      label: "Now",
+      hint: "In early access now",
+      purpose: "A clearer next step, today.",
+    },
     {
       id: "next",
       label: "Next",
@@ -32,6 +37,32 @@ export const ROADMAP_LEGEND: { id: RoadmapStatus; label: string; hint: string; p
       purpose: "More room for the work you love.",
     },
   ];
+
+export type RoadmapSectionId = "now" | "next" | "further";
+
+/**
+ * How the /roadmap page groups the four horizons: Now, Next, and one
+ * "Further out" list for Later and Exploring (critique round 4). Each item in
+ * the merged list still shows its own horizon's hint, so a planned item and
+ * an uncommitted one are never presented as the same promise.
+ */
+export const ROADMAP_SECTIONS: {
+  id: RoadmapSectionId;
+  label: string;
+  hint: string;
+  purpose: string;
+  statuses: RoadmapStatus[];
+}[] = [
+  { ...ROADMAP_LEGEND[0], id: "now", statuses: ["now"] },
+  { ...ROADMAP_LEGEND[1], id: "next", statuses: ["next"] },
+  {
+    id: "further",
+    label: "Further out",
+    hint: "Planned, or still being explored",
+    purpose: "Less chasing. More room for the work you love.",
+    statuses: ["later", "exploring"],
+  },
+];
 
 // Existing IDs retain their meaning so saved interest and old links are not lost.
 export const STAGES: RoadmapStage[] = [

@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowRight, ChevronDown, Inbox, Mail, MessageSquareText, Settings2 } from "lucide-react";
+import { ArrowRight, ChevronDown, Mail } from "lucide-react";
 import { socialHead } from "@/lib/site/head";
 import { SiteShell } from "@/components/site/site-shell";
 import { ProductShowcase } from "@/components/site/product-showcase";
@@ -39,7 +39,7 @@ const QUESTIONS = [
   ],
   [
     "Does Enquiry send replies for me?",
-    "You review the prepared reply. Copying a reply is not sending it, and recording an action is not delivery. Enquiry keeps those states separate; it does not silently send a message on your behalf.",
+    "No. It prepares the reply; you copy it and send it from your own phone or email. Nothing goes out on its own. Copying a reply is not sending it, and Enquiry keeps those states separate.",
   ],
   [
     "What if I decide not to continue?",
@@ -47,12 +47,21 @@ const QUESTIONS = [
   ],
 ] as const;
 
+/** The three answers, each with one line that is true of the product today. */
+const ANSWERS = [
+  { word: "Yes", line: "The reply is ready, priced from your own rules." },
+  { word: "No", line: "Outside what you offer, said kindly." },
+  {
+    word: "Not yet",
+    line: "It asks for the one detail that decides it: a standard, deep or end-of-lease clean?",
+  },
+] as const;
+
 function Home() {
   const { view } = Route.useSearch();
   return (
     <SiteShell>
       <BrandHero />
-      <ProductShowcase initialView={view} />
       <section className="public-section public-container public-adhd" aria-labelledby="adhd-title">
         <div>
           <div className="public-section-heading">
@@ -82,6 +91,7 @@ function Home() {
           <figcaption className="public-sample-label">Actual app · sample workspace</figcaption>
         </figure>
       </section>
+      <ProductShowcase initialView={view} />
       <section className="public-section public-container" aria-labelledby="work-title">
         <div className="public-section-heading">
           <p className="public-kicker">Before you promise anything</p>
@@ -95,41 +105,19 @@ function Home() {
             it is the part Enquiry does first.
           </p>
         </div>
-        <div className="public-benefits">
-          {[
-            {
-              icon: Inbox,
-              title: "Not yet is a real answer",
-              body: "If a price or a date cannot be decided yet, it says so and shows why, instead of putting an unsupported number in front of a customer.",
-              tone: "violet",
-            },
-            {
-              icon: MessageSquareText,
-              title: "Only asks what changes the answer",
-              body: "It works out which missing detail actually moves the price, the date or whether you can do the job, and asks for that one. Nothing else.",
-              tone: "rose",
-            },
-            {
-              icon: Settings2,
-              title: "Your rules decide, not a script",
-              body: "Your services, prices and policies do the checking. The same message can get a different correct answer at a different business.",
-              tone: "green",
-            },
-          ].map(({ icon: Icon, title, body, tone }) => (
-            <article key={title} className="public-benefit">
+        <div className="public-benefits public-answers">
+          {ANSWERS.map(({ word, line }) => (
+            <article key={word} className="public-benefit public-answer">
               <CrossMark position="top-start" />
               <CrossMark position="bottom-end" />
-              <span className={`public-icon public-icon-${tone}`}>
-                <Icon size={23} strokeWidth={1.7} aria-hidden="true" />
-              </span>
-              <h3>{title}</h3>
-              <p>{body}</p>
+              <h3>{word}</h3>
+              <p>{line}</p>
             </article>
           ))}
         </div>
         <p className="public-benefits-more">
           <Link to="/how" className="public-text-link">
-            See the details change on a real example <ArrowRight size={17} aria-hidden="true" />
+            See the details change in a worked example <ArrowRight size={17} aria-hidden="true" />
           </Link>
         </p>
       </section>
@@ -142,7 +130,7 @@ function Home() {
         <div className="public-section-heading public-faq-intro">
           <h2 id="questions-title">Before you join.</h2>
           <p>
-            The four that decide it. More answers are on the{" "}
+            The four questions people ask first. More answers are on the{" "}
             <Link to="/early-access" hash="more-questions" className="public-text-link">
               early-access page
             </Link>

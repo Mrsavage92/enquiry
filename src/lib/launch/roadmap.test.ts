@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { ROADMAP_LEGEND, ROADMAP_PREVIEW, STAGES } from "./roadmap.ts";
+import { ROADMAP_LEGEND, ROADMAP_PREVIEW, ROADMAP_SECTIONS, STAGES } from "./roadmap.ts";
 import { canonicalFeatureId, featureIdFamily, isAllowedFeature } from "./guard.ts";
 import { prepareRoadmapFeedback } from "./feedback.ts";
 
@@ -105,4 +105,22 @@ test("all outcomes support validated feedback and retain historical feature iden
   assert.ok(featureIdFamily("trusted-action").includes("autopilot"));
   assert.ok(featureIdFamily("keep-moving").includes("pipeline"));
   assert.ok(featureIdFamily("business-brain").includes("learn"));
+});
+
+test("the page shows three sections and every stage lands in exactly one", () => {
+  assert.deepEqual(
+    ROADMAP_SECTIONS.map((section) => section.label),
+    ["Now", "Next", "Further out"],
+  );
+  assert.equal(ROADMAP_LEGEND.find((h) => h.id === "now")?.hint, "In early access now");
+  for (const stage of STAGES)
+    assert.equal(
+      ROADMAP_SECTIONS.filter((section) => section.statuses.includes(stage.status)).length,
+      1,
+      stage.id,
+    );
+  // Merging Later and Exploring must not promote an uncommitted item.
+  const further = ROADMAP_SECTIONS.find((section) => section.id === "further");
+  assert.deepEqual(further?.statuses, ["later", "exploring"]);
+  assert.match(further?.hint ?? "", /explored/);
 });
