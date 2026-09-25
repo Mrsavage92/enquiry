@@ -910,7 +910,7 @@ export const BENCHMARK_CASES: BenchmarkCase[] = [
         action: "ESCALATE_HUMAN",
         decisionState: "NEEDS_HUMAN",
         commercialState: "UNASSESSED",
-        explanationIncludes: "No pricing rules are set up yet",
+        explanationIncludes: "not added any prices yet",
       },
       trust: { neverConfirmedFields: [], primaryEnabled: false },
       draft: {

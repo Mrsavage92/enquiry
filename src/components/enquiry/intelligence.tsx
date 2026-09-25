@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { Link } from "@tanstack/react-router";
 import { Check, ChevronDown, CircleHelp, Pencil } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -53,9 +54,12 @@ import { SendPreview, type SendPreviewCopyState } from "./send-preview";
 import { DeclineConfirm } from "./decline-confirm";
 import { isWaitingForInformation } from "./reply-presentation";
 import { useDraftSaver, useDraftSaveState } from "@/lib/workspace/owner-sync";
-import { comesBackCue, lastSent } from "@/domain/time-cues";
-import { STATUS } from "@/domain/labels";
+import { comesBackCue, lastSent, parkedUntil } from "@/domain/time-cues";
+import { nextStepLabel, STATUS } from "@/domain/labels";
 import { LaterChoices } from "./later-choices";
+import { isPricingStep, setupStep } from "@/domain/next-action";
+import { toastRecordedSend } from "@/lib/workspace/send-undo";
+import { PracticeBadge, PracticeNote } from "./practice-note";
 
 export function Intelligence({
   enquiry,
@@ -113,6 +117,17 @@ export function Intelligence({
     fixtures: BUSINESS_BY_ID,
   });
   const rec = enquiry.decision.recommendation;
+  // An escalation with somewhere real to go (add prices, say which service):
+  // the next step is an enabled link, never a disabled button.
+  const setup = setupStep(enquiry);
+  const blockingMissing = enquiry.decision.missing.find((m) => m.blocking);
+  // Worked out from prices the owner confirmed: "Confidence Low" beside that
+  // would tell them to doubt their own price list.
+  const ruleDerived =
+    Boolean(enquiry.decision.price) ||
+    Boolean(setup) ||
+    (rec.action === "REQUEST_INFORMATION" && Boolean(blockingMissing));
+  const showConfidence = !ruleDerived;
   // One fact, one place: when the recommendation's reason is the exact same
   // sentence as a missing fact's reason (guaranteed identical for a live
   // REQUEST_INFORMATION decision - see decide.ts - and true for some fixture
@@ -262,12 +277,14 @@ export function Intelligence({
         return;
       }
       setSendConfirm(false);
-      toast.success(
+      const messageId = res.messageId;
+      toastRecordedSend(
         res.duplicate
           ? "Already recorded - this send is on file once."
           : res.stale
             ? "Recorded as you sent it. The newer decision is untouched."
             : "Recorded as sent by you.",
+        res.duplicate || !messageId ? null : () => firstBeta.undoSend(enquiry.id, messageId),
       );
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Could not record that send.");
@@ -337,10 +354,14 @@ export function Intelligence({
                     {enquiry.locationLabel ? ` · ${enquiry.locationLabel}` : ""}
                   </p>
                 </div>
-                <Badge tone={statusTone(enquiry)}>{derivedLabel(enquiry.state, enquiry)}</Badge>
+                <div className="flex flex-wrap items-center justify-end gap-2">
+                  <PracticeBadge enquiry={enquiry} />
+                  <Badge tone={statusTone(enquiry)}>{derivedLabel(enquiry.state, enquiry)}</Badge>
+                </div>
               </div>
             </header>
           ) : null}
+          {!compact && !inline ? <PracticeNote enquiry={enquiry} /> : null}
 
           {firstHint &&
           !inline &&
@@ -397,7 +418,7 @@ export function Intelligence({
 
           {/* The honest refusal is only useful if the owner can answer it. */}
           {demoMode ? null : <ServiceReadAs enquiry={enquiry} />}
-          {demoMode ? null : <AnswerBlocker enquiry={enquiry} />}
+          {demoMode || inline ? null : <AnswerBlocker enquiry={enquiry} />}
 
           {enquiry.followUpDue && enquiry.followUpReason ? (
             <div
@@ -423,11 +444,16 @@ export function Intelligence({
                         {inline ? "Suggested next step" : "Recommendation"}
                       </p>
                       <p className="mt-2 text-xl font-semibold leading-snug tracking-tight">
-                        {rec.label}
+                        {inline ? nextStepLabel(enquiry) : rec.label}
                       </p>
-                      {recReasonIsMissingReason ? null : (
+                      {/* On the phone the detail the price needs is folded
+                          into this card, so its reason is said here, once. */}
+                      {recReasonIsMissingReason && !inline ? null : (
                         <p className="mt-2 text-sm leading-relaxed text-ink-2">{rec.reason}</p>
                       )}
+                      {inline && !demoMode && blockingMissing ? (
+                        <AnswerBlocker enquiry={enquiry} folded />
+                      ) : null}
                     </>
                   )}
                   <div
@@ -464,7 +490,7 @@ export function Intelligence({
                       </button>
                     ) : null}
                     {inline && !compact ? <HearLetter text={draftBody} /> : null}
-                    {!inline || enquiry.decision.confidence === "Low" ? (
+                    {showConfidence && (!inline || enquiry.decision.confidence === "Low") ? (
                       <ConfidenceBadge confidence={enquiry.decision.confidence} />
                     ) : null}
                     {enquiry.decision.risk === "PROHIBITED_AUTO" ? (
@@ -491,7 +517,7 @@ export function Intelligence({
                               "PricingResult ERROR": "Pricing could not be verified",
                               "Conflicting authoritative rules": "Your confirmed prices disagree",
                               "Risk class PROHIBITED_AUTO": "This requires your personal review",
-                              "Public surface - Autopilot blocked":
+                              "Public surface - needs your permission":
                                 "Public replies require your review",
                               "Material service mapping below safe threshold":
                                 "The requested service is not clear enough to quote",
@@ -813,6 +839,10 @@ export function Intelligence({
       >
         {evaluating ? (
           <p className="text-sm text-stone">Wait until Enquiry finishes reading.</p>
+        ) : awaitingInformation && inline ? (
+          // The phone shows who you are waiting on, and when it comes back, at
+          // the top of the screen (WaitingSummary), not down here.
+          <p className="text-sm text-ink-2">Nothing to do until they answer.</p>
         ) : awaitingInformation ? (
           <section className="reply-waiting" aria-label="Waiting for customer" role="status">
             <span className="reply-recorded-mark" aria-hidden>
@@ -850,7 +880,9 @@ export function Intelligence({
                 >
                   Why this?
                 </button>
-                <ConfidenceBadge confidence={enquiry.decision.confidence} />
+                {showConfidence ? (
+                  <ConfidenceBadge confidence={enquiry.decision.confidence} />
+                ) : null}
               </div>
             ) : null}
             {sendable ? (
@@ -885,12 +917,33 @@ export function Intelligence({
                       ? "Review reply"
                       : rec.label}
               </Button>
+            ) : setup && isPricingStep(setup) ? (
+              <>
+                <Button
+                  asChild
+                  className={cn("w-full", compact ? "min-h-14 text-base" : "min-h-11")}
+                >
+                  <Link to="/business" search={{ section: "pricing" }}>
+                    {setup.label}
+                  </Link>
+                </Button>
+                <p className="text-xs text-stone">
+                  This enquiry updates as soon as you save a price.
+                </p>
+              </>
+            ) : setup ? (
+              <p className="text-sm text-ink-2">Say which service this is, above.</p>
             ) : situation ? (
               <p className="text-sm text-ink-2">Settle the detail above first.</p>
+            ) : serviceUnconfirmed ? (
+              <p className="text-sm text-ink-2">Confirm the service above first.</p>
             ) : (
-              <Button className="min-h-11 w-full" disabled>
-                {rec.label}
-              </Button>
+              // Nothing Enquiry can prepare: say so plainly. A disabled button
+              // here was the dead end the owner could not get past.
+              <p className="text-sm text-ink-2">
+                This one is your call. Reply to them yourself, or use {STATUS.later} to come back to
+                it.
+              </p>
             )}
             {awaitingService ? (
               <p className="text-sm text-warn">
@@ -1172,10 +1225,16 @@ export function Intelligence({
         open={laterOpen}
         onOpenChange={setLaterOpen}
         compact={compact}
-        onChoose={(until, label) => {
+        onChoose={(until) => {
           void enq.snooze(enquiry.id, (m) => toast.error(m), until);
           setLaterOpen(false);
-          toastUndo(`Later: ${label}. It comes back to Needs you then.`);
+          const tz = usePrototype.getState().prefs.timezone || undefined;
+          toast(`${parkedUntil(until, new Date(), tz)}. It comes back to Needs you then.`, {
+            action: {
+              label: "Undo",
+              onClick: () => void enq.unsnooze(enquiry.id, (m) => toast.error(m)),
+            },
+          });
           onDone?.();
         }}
       />

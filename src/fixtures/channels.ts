@@ -115,7 +115,11 @@ export const CHANNEL_ENQUIRIES: Enquiry[] = [
         evalr({ type: "eligibility", status: "PASS", summary: "Single formal, mobile." }),
         evalr({ type: "capacity", status: "FEASIBLE", summary: "12 Sep morning is free." }),
         evalr({ type: "availability", status: "VALIDATED", summary: "Saturday 12 Sep is free." }),
-        evalr({ type: "location_travel", status: "VALIDATED", summary: "West End is inside 15 km." }),
+        evalr({
+          type: "location_travel",
+          status: "VALIDATED",
+          summary: "West End is inside 15 km.",
+        }),
         na("package_selection"),
         na("qualification_routing"),
         na("deposit_booking_readiness"),
@@ -130,8 +134,18 @@ export const CHANNEL_ENQUIRIES: Enquiry[] = [
       explanation:
         "West End is local travel. One person, Saturday free. The customer wrote in a DM; they get a short message and the same quote sheet.",
       why: [
-        why("w1", "Why Instagram, not email?", "They wrote in a DM. No email on file. Reply on the channel they used.", src("rule", "Return path")),
-        why("w2", "Why a sheet in a DM?", "The figure is a document. The message is not the quote.", src("rule", "Quote sheets")),
+        why(
+          "w1",
+          "Why Instagram, not email?",
+          "They wrote in a DM. No email on file. Reply on the channel they used.",
+          src("rule", "Return path"),
+        ),
+        why(
+          "w2",
+          "Why a sheet in a DM?",
+          "The figure is a document. The message is not the quote.",
+          src("rule", "Quote sheets"),
+        ),
       ],
       confidence: "High",
       risk: "LOW",
@@ -269,8 +283,18 @@ export const CHANNEL_ENQUIRIES: Enquiry[] = [
       explanation:
         "They asked in a Page message. Hours are missing, so Enquiry will not invent 4 or 6. The reply is a short question.",
       why: [
-        why("w1", "Why not an exact quote?", "Hours were not given. Ranges stay ranges.", src("rule", "Event v4")),
-        why("w2", "Why Facebook?", "They wrote on the Page. Reply there until they give an email.", src("rule", "Return path")),
+        why(
+          "w1",
+          "Why not an exact quote?",
+          "Hours were not given. Ranges stay ranges.",
+          src("rule", "Event v4"),
+        ),
+        why(
+          "w2",
+          "Why Facebook?",
+          "They wrote on the Page. Reply there until they give an email.",
+          src("rule", "Return path"),
+        ),
       ],
       confidence: "Medium",
       risk: "LOW",
@@ -343,19 +367,20 @@ export const CHANNEL_ENQUIRIES: Enquiry[] = [
       ],
       missing: [],
       conflicts: [],
-      recommendation: rec(
-        "NO_ACTION",
-        "Enquiry will not quote in a public comment.",
-        {
-          label: "Don’t quote in public",
-          primaryEnabled: false,
-          blockedReason: "Public comments are not enquiries. Invite them to message, or ignore.",
-        },
-      ),
+      recommendation: rec("NO_ACTION", "Enquiry will not quote in a public comment.", {
+        label: "Don’t quote in public",
+        primaryEnabled: false,
+        blockedReason: "Public comments are not enquiries. Invite them to message, or ignore.",
+      }),
       explanation:
         "A price in a comment becomes a public offer. Invite them to a DM, then run the engine.",
       why: [
-        why("w1", "Why no figure?", "A public comment is not a case file. Pricing belongs in a DM or a form.", src("rule", "Return path")),
+        why(
+          "w1",
+          "Why no figure?",
+          "A public comment is not a case file. Pricing belongs in a DM or a form.",
+          src("rule", "Return path"),
+        ),
       ],
       confidence: "High",
       risk: "MEDIUM",
@@ -368,7 +393,7 @@ export const CHANNEL_ENQUIRIES: Enquiry[] = [
       },
       quotes: [],
       automationEligible: false,
-      failedGates: ["Public surface - Autopilot blocked"],
+      failedGates: ["Public surface - needs your permission"],
       serviceComposition: [],
     },
   },

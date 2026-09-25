@@ -19,8 +19,9 @@ export type Briefing = {
   accepted: number;
 };
 
+/** The enquiries a figure is about. A practice enquiry is never one of them. */
 export function scopedEnquiries(enquiries: Enquiry[], filter: string): Enquiry[] {
-  return filter === "all" ? enquiries : enquiries.filter((e) => e.businessId === filter);
+  return enquiries.filter((e) => !e.practice && (filter === "all" || e.businessId === filter));
 }
 
 export function briefing(
@@ -44,10 +45,7 @@ export function briefing(
   ).length;
   const learning = businesses
     .filter((b) => filter === "all" || b.id === filter)
-    .reduce(
-      (n, b) => n + b.learningSuggestions.filter((l) => l.status === "pending").length,
-      0,
-    );
+    .reduce((n, b) => n + b.learningSuggestions.filter((l) => l.status === "pending").length, 0);
 
   return {
     needsYou: visible.filter((e) => queueSection(e) === "needs_you").length,
@@ -88,11 +86,7 @@ export function funnel(b: Briefing) {
 export function waitingAge(enquiries: Enquiry[], filter: string) {
   const now = Date.now();
   return scopedEnquiries(enquiries, filter)
-    .filter(
-      (e) =>
-        e.state.lifecycle === "OPEN" &&
-        e.state.decision === "WAITING_ON_CLIENT",
-    )
+    .filter((e) => e.state.lifecycle === "OPEN" && e.state.decision === "WAITING_ON_CLIENT")
     .map((e) => {
       const t = Date.parse(e.updatedAt);
       const days = Number.isFinite(t) ? Math.max(0, Math.floor((now - t) / 86_400_000)) : 0;

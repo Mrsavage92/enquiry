@@ -6,6 +6,7 @@ import { factStatusLabel, factStatusTone } from "@/domain/labels";
 import { useFirstBetaActions } from "@/lib/workspace/live-mutations";
 import type { Enquiry, EnquiryFact } from "@/domain/types";
 import { blockerInput } from "@/domain/blocker-input";
+import { decidingPhrase } from "@/domain/price-compiler";
 
 /**
  * Answer the one thing standing between this enquiry and a price.
@@ -36,7 +37,21 @@ function findInferredFact(enquiry: Enquiry, field: string): EnquiryFact | undefi
   );
 }
 
-export function AnswerBlocker({ enquiry }: { enquiry: Enquiry }) {
+export function AnswerBlocker({
+  enquiry,
+  folded = false,
+  summary,
+}: {
+  enquiry: Enquiry;
+  /**
+   * On the phone the detail lives inside the next-step card, behind one tap,
+   * so the screen holds one decision: ask the customer (the main button), or
+   * type the answer if you already have it (this).
+   */
+  folded?: boolean;
+  /** The folded control's own words, e.g. "Tom answered? Enter the bedrooms". */
+  summary?: string;
+}) {
   const actions = useFirstBetaActions();
   const missing = enquiry.decision?.missing?.find((m) => m.blocking);
   const inferred = missing ? findInferredFact(enquiry, missing.factField) : undefined;
@@ -83,6 +98,59 @@ export function AnswerBlocker({ enquiry }: { enquiry: Enquiry }) {
     }
   };
 
+  const field = (
+    <div className="mt-3 flex flex-wrap items-end gap-2">
+      <label className="min-w-40 flex-1 text-sm">
+        <span className="mb-1.5 block text-stone">{missing.label}</span>
+        <input
+          className="field w-full"
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") void submit();
+          }}
+          placeholder={input.placeholder}
+          inputMode={input.inputMode}
+        />
+      </label>
+      <Button
+        className="min-h-11"
+        variant={folded ? "secondary" : "primary"}
+        disabled={saving}
+        onClick={() => void submit()}
+      >
+        {saving
+          ? "Working it out…"
+          : inferred && value.trim()
+            ? `Confirm ${missing.label}: ${value.trim()}`
+            : "Confirm"}
+      </Button>
+    </div>
+  );
+
+  if (folded) {
+    return (
+      <div className="blocker-fold mt-3">
+        {result ? (
+          <p className="text-sm text-ink-2" role="status">
+            {result}
+          </p>
+        ) : null}
+        <details>
+          <summary className="inline-flex min-h-11 cursor-pointer items-center text-sm font-medium text-mark-strong">
+            {summary ?? `Already know ${decidingPhrase(missing.label)}? Enter it here`}
+          </summary>
+          {inferred ? (
+            <p className="mt-1 text-sm text-ink-2">
+              Enquiry read this as {inferred.displayValue || inferred.value}.
+            </p>
+          ) : null}
+          {field}
+        </details>
+      </div>
+    );
+  }
+
   return (
     <section className="border-b border-line px-5 py-5">
       <p className="eyebrow">Needed to price this</p>
@@ -100,28 +168,7 @@ export function AnswerBlocker({ enquiry }: { enquiry: Enquiry }) {
           </p>
         </div>
       ) : null}
-      <div className="mt-3 flex flex-wrap items-end gap-2">
-        <label className="min-w-40 flex-1 text-sm">
-          <span className="mb-1.5 block text-stone">{missing.label}</span>
-          <input
-            className="field w-full"
-            value={value}
-            onChange={(e) => setValue(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") void submit();
-            }}
-            placeholder={input.placeholder}
-            inputMode={input.inputMode}
-          />
-        </label>
-        <Button className="min-h-11" disabled={saving} onClick={() => void submit()}>
-          {saving
-            ? "Working it out…"
-            : inferred && value.trim()
-              ? `Confirm ${missing.label}: ${value.trim()}`
-              : "Confirm"}
-        </Button>
-      </div>
+      {field}
     </section>
   );
 }

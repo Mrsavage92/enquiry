@@ -1,7 +1,13 @@
 import type { Decision } from "./decide.ts";
 import { composeReply } from "./compose-reply.ts";
 import { impliedAmountsMinor } from "./price-compiler.ts";
-import type { CommercialState, DecisionSnapshot, DecisionState, Recommendation, Responsibility } from "./types";
+import type {
+  CommercialState,
+  DecisionSnapshot,
+  DecisionState,
+  Recommendation,
+  Responsibility,
+} from "./types";
 
 /**
  * A structurally complete decision snapshot for an enquiry that has no stored
@@ -42,6 +48,24 @@ export function emptyDecisionSnapshot(): DecisionSnapshot {
   };
 }
 
+/** Reason codes the desk reads to turn an escalation into a real next step. */
+export const SETUP_REASON = {
+  add_prices: "ADD_PRICES",
+  add_price: "ADD_PRICE",
+  choose_service: "CHOOSE_SERVICE",
+} as const;
+
+function recommendationLabel(decision: Decision): string {
+  if (decision.action === "SEND_QUOTE") return "Send the quote";
+  if (decision.action === "REQUEST_INFORMATION") return "Ask for what's missing";
+  if (decision.setup === "add_prices") return "Add your prices";
+  if (decision.setup === "add_price") return "Add a price for this job";
+  if (decision.setup === "choose_service") return "Say which service this is";
+  if (decision.provisional) return "Confirm the service";
+  if (decision.serviceChoices?.length) return "Choose the service";
+  return "Your call on this one";
+}
+
 /** How a live `Decision` reads in the desk's own vocabulary. */
 export function snapshotFromDecision(
   decision: Decision,
@@ -50,21 +74,22 @@ export function snapshotFromDecision(
   const base = emptyDecisionSnapshot();
   const recommendation: Recommendation = {
     action: decision.action,
-    label:
-      decision.action === "SEND_QUOTE"
-        ? "Send the quote"
-        : decision.action === "REQUEST_INFORMATION"
-          ? "Ask for what's missing"
-          : "Read this one",
+    label: recommendationLabel(decision),
     reason: decision.explanation,
     // Nothing is ever sent without the owner, so approval is always required.
     requiredApproval: true,
-    reasonCodes: [],
+    reasonCodes: decision.setup ? [SETUP_REASON[decision.setup]] : [],
+    // `primaryEnabled` is about the SEND control. An escalation has nothing to
+    // send; its next step (add prices, choose the service) is a link the desk
+    // renders from the reason code, never this flag.
     primaryEnabled: decision.action !== "ESCALATE_HUMAN",
   };
   return {
     ...base,
     recommendation,
+    // Worked out from prices the owner confirmed, so the badge that says
+    // "Low" would be telling them to doubt their own price list.
+    confidence: decision.action === "ESCALATE_HUMAN" ? base.confidence : "High",
     explanation: decision.explanation,
     missing: decision.blocker
       ? [

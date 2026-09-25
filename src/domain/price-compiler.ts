@@ -303,7 +303,7 @@ export function compilePrice(
     return {
       kind: "BLOCKED",
       missingField: rule.quantityField,
-      reason: `${rule.service} is priced per ${rule.unit}, so the ${rule.quantityField} decides the price.`,
+      reason: `${rule.service} is priced per ${rule.unit}, so ${decidingPhrase(rule.quantityField)} decides the price.`,
       rule,
     };
   }
@@ -368,4 +368,17 @@ export function impliedAmountsMinor(outcome: PriceOutcome): number[] {
     if (floor !== null) out.add(floor);
   }
   return [...out].sort((a, b) => a - b);
+}
+
+/**
+ * "the number of bedrooms", "the quantity": the subject of "... decides the
+ * price", agreeing with the singular verb whatever the owner named the field.
+ * A plural field name ("bedrooms", "guests") read as "the bedrooms decides".
+ */
+export function decidingPhrase(field: string): string {
+  // Verbatim: the field is the owner's own name for it, and the explanation
+  // must name exactly the fact the answer box asks for.
+  const name = field.trim();
+  if (!name) return "the quantity";
+  return /[^s]s$/i.test(name) ? `the number of ${name}` : `the ${name}`;
 }

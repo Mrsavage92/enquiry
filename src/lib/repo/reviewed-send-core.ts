@@ -62,8 +62,9 @@ export type PrepareReviewResult =
        * `not_sendable` - the decision does not authorise a customer-facing send.
        * `service_unconfirmed` - a quote whose service premise nobody confirmed.
        * `amount_mismatch` - the text names money the structured decision does not.
+       * `practice` - a practice enquiry, which nothing is ever sent from.
        */
-      reason: "closed" | "not_sendable" | "service_unconfirmed" | "amount_mismatch";
+      reason: "closed" | "not_sendable" | "service_unconfirmed" | "amount_mismatch" | "practice";
       message: string;
     };
 
@@ -84,7 +85,11 @@ export function bodyHash(body: string): string {
  */
 export function resolveRecipient(
   channel: Channel,
-  enquiry: { customer_email: string; customer_phone: string | null; customer_handle: string | null },
+  enquiry: {
+    customer_email: string;
+    customer_phone: string | null;
+    customer_handle: string | null;
+  },
 ): string {
   if (channel === "email") return enquiry.customer_email;
   if (channel === "sms") return enquiry.customer_phone ?? "";
@@ -150,10 +155,7 @@ export function amountAgrees(
     return false;
   }
   // The amounts that must appear, and the wider set that may.
-  const required =
-    price.kind === "EXACT"
-      ? [price.amountMinor]
-      : [price.minMinor, price.maxMinor];
+  const required = price.kind === "EXACT" ? [price.amountMinor] : [price.minMinor, price.maxMinor];
   const allowed = new Set<number>([...required, ...impliedMinor]);
 
   if (!named.every((n) => allowed.has(Math.round(n * 100)))) return false;
@@ -192,6 +194,18 @@ export async function prepareReviewedSendInTransaction(
       ok: false,
       reason: "closed",
       message: "That enquiry is closed, so there is nothing to send.",
+    };
+  }
+  // No preview, no artefact, so no path to a recorded send exists for it.
+  const [practice] = await sql<{ practice: boolean }>`
+    select practice from enquiry where id = ${input.enquiryId}
+  `;
+  if (practice?.practice) {
+    return {
+      ok: false,
+      reason: "practice",
+      message:
+        "This is a practice enquiry, so nothing is sent or recorded from it. With a real enquiry, this is where you check the reply before you send it yourself.",
     };
   }
 

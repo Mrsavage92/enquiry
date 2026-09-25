@@ -6,6 +6,7 @@ import { SheetContent } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { nextNeedsYou, STATUS } from "@/domain/labels";
 import { LaterChoices } from "./later-choices";
+import { parkedUntil } from "@/domain/time-cues";
 import type { Enquiry } from "@/domain/types";
 import { toast } from "sonner";
 import { usePrototype } from "@/store/prototype-store";
@@ -16,6 +17,9 @@ import { ReturnContext } from "./return-context";
 import { DeclineConfirm } from "./decline-confirm";
 import { Intelligence } from "./intelligence";
 import { TeachDialog } from "./teach-dialog";
+import { WaitingSummary } from "./waiting-summary";
+import { isWaitingOnCustomer } from "./reply-presentation";
+import { PracticeNote } from "./practice-note";
 import { useEmbedNav } from "@/lib/use-embed-nav";
 
 export function PhoneDesk({ enquiry }: { enquiry: Enquiry }) {
@@ -100,6 +104,8 @@ export function PhoneDesk({ enquiry }: { enquiry: Enquiry }) {
         </button>
       </header>
       <div className="phone-conversation-scroll">
+        <PracticeNote enquiry={enquiry} />
+        {isWaitingOnCustomer(enquiry) ? <WaitingSummary enquiry={enquiry} /> : null}
         <ReturnContext enquiry={enquiry} />
         <Conversation enquiry={enquiry} compact embedded />
         <Intelligence
@@ -208,10 +214,16 @@ export function PhoneDesk({ enquiry }: { enquiry: Enquiry }) {
         open={laterOpen}
         onOpenChange={setLaterOpen}
         compact
-        onChoose={(until, label) => {
+        onChoose={(until) => {
           void enq.snooze(enquiry.id, (m) => toast.error(m), until);
           setLaterOpen(false);
-          toastUndo(`Later: ${label}. It comes back to Needs you then.`);
+          const tz = usePrototype.getState().prefs.timezone || undefined;
+          toast(`${parkedUntil(until, new Date(), tz)}. It comes back to Needs you then.`, {
+            action: {
+              label: "Undo",
+              onClick: () => void enq.unsnooze(enquiry.id, (m) => toast.error(m)),
+            },
+          });
           advance();
         }}
       />

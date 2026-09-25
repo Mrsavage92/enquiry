@@ -6,6 +6,7 @@ import {
   concreteWhen,
   followUpDueWall,
   laterChoices,
+  parkedUntil,
   rowTimeCue,
   withFollowUpDue,
 } from "./time-cues.ts";
@@ -77,7 +78,14 @@ test("a parked enquiry does not come back early, and says when it will", () => {
   e.snoozedUntil = "2026-09-29T08:00:00+10:00";
   const now = new Date("2026-09-24T09:00:00+10:00");
   assert.equal(withFollowUpDue(e, prefs, now), e);
-  assert.equal(rowTimeCue(e, prefs, now), "Back Tue 29 Sep");
+  assert.equal(rowTimeCue(e, prefs, now), "Parked until Tue 29 Sep");
+});
+
+test("a parked cue names the day with its capitals, today and tomorrow by the clock", () => {
+  const now = new Date("2026-09-25T09:00:00+10:00");
+  assert.equal(parkedUntil("2026-09-25T15:15:00+10:00", now), "Parked until 3:15pm today");
+  assert.equal(parkedUntil("2026-09-26T08:00:00+10:00", now), "Parked until tomorrow 8:00am");
+  assert.equal(parkedUntil("2026-09-28T08:00:00+10:00", now), "Parked until Mon 28 Sep");
 });
 
 test("a waiting row says when it was sent and when it comes back", () => {

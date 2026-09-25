@@ -4,6 +4,7 @@ import {
   ruleFingerprint,
   type BusinessRule,
 } from "../../domain/business-rule.ts";
+import { redecideOpenEnquiries } from "./decision-apply.ts";
 
 /**
  * Saving a confirmed pricing rule, as pure SQL logic - separate from
@@ -132,4 +133,19 @@ export async function saveBusinessRuleInTransaction(
     supersededIds,
     supersededLabels,
   };
+}
+
+/**
+ * Save the price and bring every open enquiry up to date with it, as one
+ * transaction: an owner who adds their prices should see the enquiries that
+ * were waiting on those prices change, not keep reading "no prices yet".
+ */
+export async function saveBusinessRuleAndRedecide(
+  sql: Sql,
+  input: SaveBusinessRuleInput,
+): Promise<SaveBusinessRuleResult & { updatedEnquiryIds: string[] }> {
+  const saved = await saveBusinessRuleInTransaction(sql, input);
+  const updatedEnquiryIds =
+    saved.outcome === "duplicate" ? [] : await redecideOpenEnquiries(sql, input.businessId);
+  return { ...saved, updatedEnquiryIds };
 }

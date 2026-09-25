@@ -59,6 +59,7 @@ export function AppShell() {
       s.enquiries.filter(
         (e) =>
           (s.businessFilter === "all" || e.businessId === s.businessFilter) &&
+          !e.practice &&
           queueSection(e) === "needs_you",
       ).length,
   );

@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from "react";
-import { Navigate, useRouterState } from "@tanstack/react-router";
+import { Navigate, useNavigate, useRouterState } from "@tanstack/react-router";
 import { fetchWorkspace } from "@/lib/server/workspace";
 import { usePrototype } from "@/store/prototype-store";
 import { authEnabled } from "@/lib/auth/client";
@@ -124,6 +124,47 @@ export function WorkspaceGate({
 function LocalWorkspaceSync({ children }: { children: ReactNode }) {
   const hydrate = usePrototype((s) => s.hydrateFromServer);
   const demoMode = usePrototype((s) => s.demoMode);
+  const sampleChosen = usePrototype((s) => s.sampleChosen);
+  const startSetup = usePrototype((s) => s.startSetup);
+  const navigate = useNavigate();
+
+  // A fresh local browser used to open straight onto the sample workspace, so
+  // the first thing a tester saw was not what a new owner sees. Unless the
+  // sample was chosen on purpose (or this is an embed), open the local
+  // workspace if there is one, and onboarding if there is not. Auth-off only:
+  // with auth on this component never renders (WorkspaceGate above).
+  useEffect(() => {
+    if (!demoMode || sampleChosen) return;
+    try {
+      if (window.self !== window.top) return;
+    } catch {
+      return;
+    }
+    let live = true;
+    fetchWorkspace()
+      .then((data) => {
+        if (!live) return;
+        if (data.needsOnboarding) {
+          startSetup();
+          void navigate({ to: ONBOARDING_PATH, replace: true });
+          return;
+        }
+        usePrototype.setState({ demoMode: false, onboarded: true });
+        hydrate({
+          businesses: data.businesses,
+          enquiries: data.enquiries,
+          bookings: data.bookings,
+          audit: data.audit,
+          drafts: data.drafts,
+          prefs: data.prefs,
+        });
+      })
+      .catch((err: unknown) => console.warn("[workspace] local first-visit read failed", err));
+    return () => {
+      live = false;
+    };
+  }, [demoMode, sampleChosen, startSetup, navigate, hydrate]);
+
   useEffect(() => {
     if (demoMode) return;
     let live = true;

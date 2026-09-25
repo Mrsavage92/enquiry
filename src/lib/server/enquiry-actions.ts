@@ -35,7 +35,7 @@ export const saveBusinessRule = createServerFn({ method: "POST" })
     const { withTransaction } = await import("@/lib/db");
     const { requireBusinessAccess, recordAudit } = await import("@/lib/repo/tenancy.server");
     const { describeRule } = await import("@/domain/business-rule");
-    const { saveBusinessRuleInTransaction } = await import("@/lib/repo/business-rule-core");
+    const { saveBusinessRuleAndRedecide } = await import("@/lib/repo/business-rule-core");
     const businessId = await requireBusinessAccess(context.userId, data.businessId);
     const readable = describeRule(data.rule);
     // State is Active because a human confirmed it in the UI; nothing reaches
@@ -44,8 +44,10 @@ export const saveBusinessRule = createServerFn({ method: "POST" })
     // prices for one service is not a state the pricing compiler will resolve,
     // and leaving it to be discovered at quote time is how an old price gets
     // sent after the owner has already corrected it.
+    // Open enquiries that were waiting on the owner's prices are decided again
+    // in the same transaction, so none keeps saying "no prices yet".
     const result = await withTransaction((sql) =>
-      saveBusinessRuleInTransaction(sql, { businessId, rule: data.rule, readable }),
+      saveBusinessRuleAndRedecide(sql, { businessId, rule: data.rule, readable }),
     );
     if (result.outcome !== "duplicate") {
       await recordAudit(businessId, {
@@ -64,6 +66,7 @@ export const saveBusinessRule = createServerFn({ method: "POST" })
       id: result.id,
       outcome: result.outcome,
       superseded: result.supersededLabels,
+      updatedEnquiries: result.updatedEnquiryIds.length,
     };
   });
 
@@ -261,16 +264,7 @@ export const setEnquiryService = createServerFn({ method: "POST" })
  */
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-const CHANNELS = [
-  "email",
-  "form",
-  "forward",
-  "manual",
-  "sms",
-  "instagram",
-  "facebook",
-  "comment",
-];
+const CHANNELS = ["email", "form", "forward", "manual", "sms", "instagram", "facebook", "comment"];
 
 /**
  * Freeze what the owner is about to review, server-side, and hand back its id.
@@ -435,7 +429,9 @@ export const answerEnquiryFact = createServerFn({ method: "POST" })
       where business_id = ${businessId} and rule_payload is not null
     `;
     const answerProblem = validateFactAnswer(
-      { knowledge: knowledgeForCheck.map((k) => ({ state: k.state, rulePayload: k.rule_payload })) },
+      {
+        knowledge: knowledgeForCheck.map((k) => ({ state: k.state, rulePayload: k.rule_payload })),
+      },
       enq.service_label ?? "",
       data.field,
       data.value,
@@ -491,4 +487,76 @@ export const answerEnquiryFact = createServerFn({ method: "POST" })
       explanation: result.decision.explanation,
       revision: result.revision,
     };
+  });
+
+/**
+ * Take back "I sent this" (attention plan C10). Only what that one confirmation
+ * created is removed, only for the caller's own business, and only while
+ * nothing has happened on the enquiry since - see undo-send-core.ts.
+ */
+export const undoRecordedSend = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .validator((raw: unknown) => {
+    const d = (raw ?? {}) as Record<string, unknown>;
+    const enquiryId = typeof d.enquiryId === "string" ? d.enquiryId : "";
+    const messageId = typeof d.messageId === "string" ? d.messageId : "";
+    if (!enquiryId) throw new Error("An enquiry id is required.");
+    if (!UUID_RE.test(messageId)) throw new Error("There is no recorded send to undo.");
+    return { enquiryId, messageId };
+  })
+  .handler(async ({ context, data }) => {
+    const { withTransaction } = await import("@/lib/db");
+    const { requireEnquiryAccess } = await import("@/lib/repo/tenancy.server");
+    const { undoRecordedSendInTransaction } = await import("@/lib/repo/undo-send-core");
+    const { enquiryId, businessId } = await requireEnquiryAccess(context.userId, data.enquiryId);
+    return withTransaction((sql) =>
+      undoRecordedSendInTransaction(sql, {
+        enquiryId,
+        businessId,
+        messageId: data.messageId,
+        userId: context.userId,
+      }),
+    );
+  });
+
+/**
+ * Create the practice enquiry, only because the owner asked for one. Asking
+ * again opens the same one rather than making a second.
+ */
+export const createPracticeEnquiry = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .validator((raw: unknown) => {
+    const d = (raw ?? {}) as Record<string, unknown>;
+    const businessId = typeof d.businessId === "string" ? d.businessId : "";
+    if (!businessId) throw new Error("A business id is required.");
+    return { businessId };
+  })
+  .handler(async ({ context, data }) => {
+    const { withTransaction } = await import("@/lib/db");
+    const { requireBusinessAccess } = await import("@/lib/repo/tenancy.server");
+    const { createPracticeEnquiryInTransaction } = await import("@/lib/repo/practice-core");
+    const businessId = await requireBusinessAccess(context.userId, data.businessId);
+    const res = await withTransaction((sql) =>
+      createPracticeEnquiryInTransaction(sql, { businessId }),
+    );
+    return { ok: true as const, enquiryId: res.enquiryId };
+  });
+
+/** Delete the practice enquiry and everything hanging off it. Never a real one. */
+export const deletePracticeEnquiry = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .validator((raw: unknown) => {
+    const d = (raw ?? {}) as Record<string, unknown>;
+    const enquiryId = typeof d.enquiryId === "string" ? d.enquiryId : "";
+    if (!enquiryId) throw new Error("An enquiry id is required.");
+    return { enquiryId };
+  })
+  .handler(async ({ context, data }) => {
+    const { withTransaction } = await import("@/lib/db");
+    const { requireEnquiryAccess } = await import("@/lib/repo/tenancy.server");
+    const { deletePracticeEnquiryInTransaction } = await import("@/lib/repo/practice-core");
+    const { enquiryId, businessId } = await requireEnquiryAccess(context.userId, data.enquiryId);
+    return withTransaction((sql) =>
+      deletePracticeEnquiryInTransaction(sql, { businessId, enquiryId }),
+    );
   });

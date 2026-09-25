@@ -121,7 +121,14 @@ export const ENQUIRIES: Enquiry[] = [
           status: "EXACT",
           summary: "$625 including travel",
           lineItems: [
-            { id: "p1", label: "Group mobile makeup × 4", amount: 580, quantity: 4, unit: "person", ruleId: "glow-price-group" },
+            {
+              id: "p1",
+              label: "Group mobile makeup × 4",
+              amount: 580,
+              quantity: 4,
+              unit: "person",
+              ruleId: "glow-price-group",
+            },
             { id: "p2", label: "Travel within 15 km", amount: 45, ruleId: "glow-travel" },
           ],
           total: { amount: 625, currency: "AUD" },
@@ -141,7 +148,8 @@ export const ENQUIRIES: Enquiry[] = [
         evalr({
           type: "capacity",
           status: "FEASIBLE",
-          summary: "Feasible. Four 45-minute services plus 20-minute travel. Start around 10:45am to be ready by 2:00pm.",
+          summary:
+            "Feasible. Four 45-minute services plus 20-minute travel. Start around 10:45am to be ready by 2:00pm.",
           hardConstraints: [
             { label: "Ready by 2:00pm", ok: true },
             { label: "Duration 4 × 45 min", ok: true },
@@ -168,9 +176,24 @@ export const ENQUIRIES: Enquiry[] = [
       explanation:
         "Four group mobile makeups at $145 and local travel at $45 is $625. Calendar is clear and the 2pm ready-by time is feasible with an 10:45am start.",
       why: [
-        why("w1", "Why $625?", "Group mobile makeup $145 × 4 = $580. Travel within 15 km = $45. Formal Pricing is not used because this is a group mobile booking.", src("rule", "Group Pricing v2")),
-        why("w2", "Why feasible?", "4 × 45 min + 20 min travel + pack-down fits before 2:00pm.", src("calendar", "Google Calendar free/busy", "2026-08-24T09:15:00+10:00")),
-        why("w3", "Why this service?", "Customer asked for makeup at home for herself and three friends. Maps to Group mobile makeup.", src("message", "Priya's email")),
+        why(
+          "w1",
+          "Why $625?",
+          "Group mobile makeup $145 × 4 = $580. Travel within 15 km = $45. Formal Pricing is not used because this is a group mobile booking.",
+          src("rule", "Group Pricing v2"),
+        ),
+        why(
+          "w2",
+          "Why feasible?",
+          "4 × 45 min + 20 min travel + pack-down fits before 2:00pm.",
+          src("calendar", "Google Calendar free/busy", "2026-08-24T09:15:00+10:00"),
+        ),
+        why(
+          "w3",
+          "Why this service?",
+          "Customer asked for makeup at home for herself and three friends. Maps to Group mobile makeup.",
+          src("message", "Priya's email"),
+        ),
       ],
       confidence: "High",
       risk: "LOW",
@@ -327,7 +350,8 @@ export const ENQUIRIES: Enquiry[] = [
         evalr({
           type: "capacity",
           status: "UNKNOWN_MISSING_FACTS",
-          summary: "Hours are a range. Indoor/outdoor unknown, so lighting kit and setup time cannot be confirmed.",
+          summary:
+            "Hours are a range. Indoor/outdoor unknown, so lighting kit and setup time cannot be confirmed.",
           unknownReason: "Coverage hours and indoor/outdoor not exact",
         }),
         na("package_selection", "Hourly event coverage, not a package."),
@@ -353,8 +377,18 @@ export const ENQUIRIES: Enquiry[] = [
       explanation:
         "Event coverage is $180/hour with a 4-hour minimum, so 4–6 hours is $720–$1,080. Enquiry will not pick 4 or 6. Indoor/outdoor is the one fact that still blocks an exact quote.",
       why: [
-        why("w1", "Why a range?", "Customer said “probably 4 to 6 hours”. Ranges stay ranges.", src("message", "Launch form")),
-        why("w2", "Why not an exact quote?", "Indoor/outdoor is missing, and hours are still a range.", src("rule", "Event v4")),
+        why(
+          "w1",
+          "Why a range?",
+          "Customer said “probably 4 to 6 hours”. Ranges stay ranges.",
+          src("message", "Launch form"),
+        ),
+        why(
+          "w2",
+          "Why not an exact quote?",
+          "Indoor/outdoor is missing, and hours are still a range.",
+          src("rule", "Event v4"),
+        ),
       ],
       confidence: "Medium",
       risk: "LOW",
@@ -494,8 +528,18 @@ export const ENQUIRIES: Enquiry[] = [
       explanation:
         "A Saturday date appears free, but Enquiry cannot produce a price or a feasibility claim without the property scope. The minimum questions are clean type and bedrooms/bathrooms.",
       why: [
-        why("w1", "Why no price?", "Harbour prices by bedrooms/bathrooms and clean type. None were given.", src("rule", "Standard v5")),
-        why("w2", "Why not a long form?", "Only the facts that unlock the next decision are asked.", src("rule", "Facts v2")),
+        why(
+          "w1",
+          "Why no price?",
+          "Harbour prices by bedrooms/bathrooms and clean type. None were given.",
+          src("rule", "Standard v5"),
+        ),
+        why(
+          "w2",
+          "Why not a long form?",
+          "Only the facts that unlock the next decision are asked.",
+          src("rule", "Facts v2"),
+        ),
       ],
       confidence: "Medium",
       risk: "LOW",
@@ -589,7 +633,16 @@ export const ENQUIRIES: Enquiry[] = [
           status: "EXACT",
           summary: "$1,260 for three standard bedrooms",
           total: { amount: 1260, currency: "AUD" },
-          lineItems: [{ id: "r", label: "Bedroom × 3", amount: 1260, quantity: 3, unit: "room", ruleId: "rd-interior" }],
+          lineItems: [
+            {
+              id: "r",
+              label: "Bedroom × 3",
+              amount: 1260,
+              quantity: 3,
+              unit: "room",
+              ruleId: "rd-interior",
+            },
+          ],
           ruleIds: ["rd-interior"],
         }),
         evalr({
@@ -601,7 +654,8 @@ export const ENQUIRIES: Enquiry[] = [
         evalr({
           type: "capacity",
           status: "FEASIBLE_WITH_CONDITION",
-          summary: "Not feasible by Friday with the current two-painter crew. Feasible with a third painter, or by Tuesday 2 Sep.",
+          summary:
+            "Not feasible by Friday with the current two-painter crew. Feasible with a third painter, or by Tuesday 2 Sep.",
           hardConstraints: [
             { label: "3 bedrooms, two coats + dry time ≈ 4 crew-days", ok: false },
             { label: "Deadline Friday 28 Aug", ok: false },
@@ -632,8 +686,18 @@ export const ENQUIRIES: Enquiry[] = [
       explanation:
         "Three bedrooms at $420 is $1,260. The diary is free, but two painters cannot finish three rooms with dry time by Friday. A third painter, or a Tuesday finish, would satisfy the work.",
       why: [
-        why("w1", "Why isn't a clear calendar enough?", "Capacity uses duration, crew size and dry time. Free hours on a calendar are only one input.", src("rule", "Crew v1")),
-        why("w2", "Why Friday fails", "3 bedrooms ≈ 4 crew-days. Remaining weekdays: Tue–Fri with a Monday start already gone.", src("calendar", "Ridge job calendar")),
+        why(
+          "w1",
+          "Why isn't a clear calendar enough?",
+          "Capacity uses duration, crew size and dry time. Free hours on a calendar are only one input.",
+          src("rule", "Crew v1"),
+        ),
+        why(
+          "w2",
+          "Why Friday fails",
+          "3 bedrooms ≈ 4 crew-days. Remaining weekdays: Tue–Fri with a Monday start already gone.",
+          src("calendar", "Ridge job calendar"),
+        ),
       ],
       confidence: "High",
       risk: "MEDIUM",
@@ -735,7 +799,9 @@ export const ENQUIRIES: Enquiry[] = [
           status: "EXACT",
           summary: "$4,800 for brand identity. No TV line item.",
           total: { amount: 4800, currency: "AUD" },
-          lineItems: [{ id: "id", label: "Brand identity package", amount: 4800, ruleId: "af-identity" }],
+          lineItems: [
+            { id: "id", label: "Brand identity package", amount: 4800, ruleId: "af-identity" },
+          ],
           assumptions: ["TV production is not quoted"],
         }),
         evalr({
@@ -762,8 +828,18 @@ export const ENQUIRIES: Enquiry[] = [
       explanation:
         "Kindling needs a new identity, which Atelier sells for $4,800. A 30-second TV commercial is a configured boundary - not offered. The reply should split those clearly.",
       why: [
-        why("w1", "Why not quote TV?", "Business Brain policy: no TV commercials. Enquiry must not invent capability.", src("rule", "Boundary v1")),
-        why("w2", "Why identity not refresh?", "New company. Name exists but no existing brand system.", src("rule", "Identity v3")),
+        why(
+          "w1",
+          "Why not quote TV?",
+          "Business Brain policy: no TV commercials. Enquiry must not invent capability.",
+          src("rule", "Boundary v1"),
+        ),
+        why(
+          "w2",
+          "Why identity not refresh?",
+          "New company. Name exists but no existing brand system.",
+          src("rule", "Identity v3"),
+        ),
       ],
       confidence: "High",
       risk: "MEDIUM",
@@ -868,7 +944,14 @@ export const ENQUIRIES: Enquiry[] = [
           type: "location_travel",
           status: "VALIDATED",
           summary: "125 km from Paddington. Travel $232 + 1 hr 50 min each way.",
-          lineItems: [{ id: "t", label: "Travel 125 km @ $2.20 after 15 km", amount: 232, ruleId: "glow-travel" }],
+          lineItems: [
+            {
+              id: "t",
+              label: "Travel 125 km @ $2.20 after 15 km",
+              amount: 232,
+              ruleId: "glow-travel",
+            },
+          ],
         }),
         evalr({
           type: "pricing",
@@ -883,7 +966,8 @@ export const ENQUIRIES: Enquiry[] = [
         evalr({
           type: "capacity",
           status: "FEASIBLE_WITH_CONDITION",
-          summary: "An 8am ready-by in Toowoomba means leaving Brisbane around 5:40am. That breaks the 6:00am hard leave-home rule unless the client accepts a 9:30am ready-by or overnight stay.",
+          summary:
+            "An 8am ready-by in Toowoomba means leaving Brisbane around 5:40am. That breaks the 6:00am hard leave-home rule unless the client accepts a 9:30am ready-by or overnight stay.",
           hardConstraints: [
             { label: "Ready by 8:00am in Toowoomba", ok: false },
             { label: "Do not leave home before 6:00am", ok: false },
@@ -898,7 +982,11 @@ export const ENQUIRIES: Enquiry[] = [
           status: "VALIDATED",
           summary: "12 Sep is otherwise free.",
         }),
-        evalr({ type: "eligibility", status: "PASS", summary: "Group of 4 meets the mobile minimum." }),
+        evalr({
+          type: "eligibility",
+          status: "PASS",
+          summary: "Group of 4 meets the mobile minimum.",
+        }),
         na("package_selection"),
         na("qualification_routing"),
         na("deposit_booking_readiness"),
@@ -913,8 +1001,18 @@ export const ENQUIRIES: Enquiry[] = [
       explanation:
         "Travel is $232 and almost two hours. Price is exact. Capacity fails the 8am ready-by unless Mina travels the day before or the ready-by moves.",
       why: [
-        why("w1", "Why $232 travel?", "125 km. First 15 km covered by the $45 local rate; remainder at $2.20/km.", src("rule", "Travel v2")),
-        why("w2", "Why 8am fails", "1 hr 50 min driving plus a 5:40am leave time is before the 6:00am hard rule.", src("rule", "Hours v1")),
+        why(
+          "w1",
+          "Why $232 travel?",
+          "125 km. First 15 km covered by the $45 local rate; remainder at $2.20/km.",
+          src("rule", "Travel v2"),
+        ),
+        why(
+          "w2",
+          "Why 8am fails",
+          "1 hr 50 min driving plus a 5:40am leave time is before the 6:00am hard rule.",
+          src("rule", "Hours v1"),
+        ),
       ],
       confidence: "High",
       risk: "MEDIUM",
@@ -1027,15 +1125,22 @@ export const ENQUIRIES: Enquiry[] = [
           status: "EXACT",
           summary: "Revised $1,260. Previous sent quote $720 remains on file.",
           total: { amount: 1260, currency: "AUD" },
-          lineItems: [{ id: "h", label: "Event coverage × 7 hours", amount: 1260, ruleId: "nl-event" }],
+          lineItems: [
+            { id: "h", label: "Event coverage × 7 hours", amount: 1260, ruleId: "nl-event" },
+          ],
         }),
         evalr({
           type: "capacity",
           status: "FEASIBLE_WITH_CONDITION",
-          summary: "7 hours to 11pm overlaps a 9:30pm buffer Alex usually keeps before a 21 Sep morning session. Feasible if the morning session starts at 11am instead of 9am.",
+          summary:
+            "7 hours to 11pm overlaps a 9:30pm buffer Alex usually keeps before a 21 Sep morning session. Feasible if the morning session starts at 11am instead of 9am.",
           alternatives: ["Move 21 Sep family session to 11am", "Cover until 9pm only"],
         }),
-        evalr({ type: "availability", status: "VALIDATED", summary: "20 Sep evening still free. Next morning is not." }),
+        evalr({
+          type: "availability",
+          status: "VALIDATED",
+          summary: "20 Sep evening still free. Next morning is not.",
+        }),
         evalr({ type: "eligibility", status: "PASS", summary: "Still event coverage." }),
         na("package_selection"),
         na("location_travel"),
@@ -1052,8 +1157,18 @@ export const ENQUIRIES: Enquiry[] = [
       explanation:
         "Coverage grew from 4 hours to 7. The sent $720 quote stays. The revised figure is $1,260. Capacity now collides with a next-morning session.",
       why: [
-        why("w1", "Why not edit the old quote?", "Sent quotes are immutable. A new version is proposed.", src("rule", "Quote safety")),
-        why("w2", "Why $1,260?", "$180 × 7 hours. 4-hour minimum already met.", src("rule", "Event v4")),
+        why(
+          "w1",
+          "Why not edit the old quote?",
+          "Sent quotes are immutable. A new version is proposed.",
+          src("rule", "Quote safety"),
+        ),
+        why(
+          "w2",
+          "Why $1,260?",
+          "$180 × 7 hours. 4-hour minimum already met.",
+          src("rule", "Event v4"),
+        ),
       ],
       confidence: "High",
       risk: "MEDIUM",
@@ -1175,7 +1290,11 @@ export const ENQUIRIES: Enquiry[] = [
           total: { amount: 340, currency: "AUD" },
         }),
         evalr({ type: "capacity", status: "FEASIBLE", summary: "6 Sep morning still free." }),
-        evalr({ type: "availability", status: "VALIDATED", summary: "Crew window held as a quote, not a booking." }),
+        evalr({
+          type: "availability",
+          status: "VALIDATED",
+          summary: "Crew window held as a quote, not a booking.",
+        }),
         evalr({ type: "eligibility", status: "PASS", summary: "Deep clean in-area." }),
         na("package_selection"),
         na("location_travel"),
@@ -1191,8 +1310,18 @@ export const ENQUIRIES: Enquiry[] = [
       explanation:
         "The $340 deep-clean quote went out 20 August. Four days, no reply, and 6 September is still free. The follow-up should reference the quote, not a generic bump.",
       why: [
-        why("w1", "Why follow up now?", "Follow-up policy: unpaid quotes after 3 days. No newer customer message.", src("rule", "Follow-up v1")),
-        why("w2", "Why not mark lost?", "Silence is not a decline. Stay waiting unless the owner marks lost.", src("rule", "State model")),
+        why(
+          "w1",
+          "Why follow up now?",
+          "Follow-up policy: unpaid quotes after 3 days. No newer customer message.",
+          src("rule", "Follow-up v1"),
+        ),
+        why(
+          "w2",
+          "Why not mark lost?",
+          "Silence is not a decline. Stay waiting unless the owner marks lost.",
+          src("rule", "State model"),
+        ),
       ],
       confidence: "High",
       risk: "LOW",
@@ -1325,8 +1454,18 @@ export const ENQUIRIES: Enquiry[] = [
       explanation:
         "Two configured services fit. Enquiry will not pick the more expensive one. Video is a known boundary.",
       why: [
-        why("w1", "Why is this flagged?", "“Cafe opening” + “shots of me and the team” + “maybe some video”.", src("message", "Leah's email")),
-        why("w2", "Why no price?", "Exact quotes require a mapped service. Guessing would invent revenue.", src("rule", "Event v4 / Brand v2")),
+        why(
+          "w1",
+          "Why is this flagged?",
+          "“Cafe opening” + “shots of me and the team” + “maybe some video”.",
+          src("message", "Leah's email"),
+        ),
+        why(
+          "w2",
+          "Why no price?",
+          "Exact quotes require a mapped service. Guessing would invent revenue.",
+          src("rule", "Event v4 / Brand v2"),
+        ),
       ],
       confidence: "Low",
       risk: "MEDIUM",
@@ -1437,7 +1576,12 @@ export const ENQUIRIES: Enquiry[] = [
       explanation:
         "A disconnected calendar is Unknown, not busy and not free. The draft must not say the week is available.",
       why: [
-        why("w1", "Why unknown, not unavailable?", "Integration failure is not negative availability.", src("integration", "Google Calendar", undefined, "Disconnected")),
+        why(
+          "w1",
+          "Why unknown, not unavailable?",
+          "Integration failure is not negative availability.",
+          src("integration", "Google Calendar", undefined, "Disconnected"),
+        ),
       ],
       confidence: "Medium",
       risk: "HIGH",
@@ -1548,7 +1692,12 @@ export const ENQUIRIES: Enquiry[] = [
       explanation:
         "The session is understood and the date is free. Enquiry will not pick $450 or $520 on its own.",
       why: [
-        why("w1", "Why no quote?", "Authoritative prices in conflict remain Needs review.", src("rule", "Family web v1 vs Family 2026 v1")),
+        why(
+          "w1",
+          "Why no quote?",
+          "Authoritative prices in conflict remain Needs review.",
+          src("rule", "Family web v1 vs Family 2026 v1"),
+        ),
       ],
       confidence: "High",
       risk: "HIGH",
@@ -1626,13 +1775,22 @@ export const ENQUIRIES: Enquiry[] = [
       conflicts: [],
       recommendation: rec(
         "ESCALATE_HUMAN",
-        "Complaint and legal-threat language. Normal Autopilot replies are blocked.",
-        { label: "Handle this yourself", primaryEnabled: false, blockedReason: "High-risk conversation - automatic actions disabled" },
+        "Complaint and legal-threat language. Enquiry prepares nothing to send here without you.",
+        {
+          label: "Handle this yourself",
+          primaryEnabled: false,
+          blockedReason: "High-risk conversation - automatic actions disabled",
+        },
       ),
       explanation:
         "Refund, Fair Trading and property damage sit in the prohibited-auto class. Enquiry will summarise, not draft a commercial reply as the primary action.",
       why: [
-        why("w1", "Why no send?", "Risk class PROHIBITED_AUTO for complaint / refund / legal threat.", src("rule", "Trust Engine")),
+        why(
+          "w1",
+          "Why no send?",
+          "Risk class PROHIBITED_AUTO for complaint / refund / legal threat.",
+          src("rule", "Trust Engine"),
+        ),
       ],
       confidence: "High",
       risk: "PROHIBITED_AUTO",
@@ -1714,7 +1872,12 @@ export const ENQUIRIES: Enquiry[] = [
       explanation:
         "Same customer, same date, same job. Could be a resend of F08. Enquiry will not destructively merge.",
       why: [
-        why("w1", "Why not merge?", "Low-confidence duplicates need a human choice: attach to existing, or separate job.", src("rule", "Duplicate handling")),
+        why(
+          "w1",
+          "Why not merge?",
+          "Low-confidence duplicates need a human choice: attach to existing, or separate job.",
+          src("rule", "Duplicate handling"),
+        ),
       ],
       confidence: "Medium",
       risk: "MEDIUM",
@@ -1830,7 +1993,12 @@ export const ENQUIRIES: Enquiry[] = [
       explanation:
         "Harper accepted the identity and declined TV. Next action is an external booking handoff, not a project-management workspace.",
       why: [
-        why("w1", "Why hand off?", "Atelier books through an external page. Enquiry stops at booked.", src("rule", "Handoff policy")),
+        why(
+          "w1",
+          "Why hand off?",
+          "Atelier books through an external page. Enquiry stops at booked.",
+          src("rule", "Handoff policy"),
+        ),
       ],
       confidence: "High",
       risk: "LOW",
@@ -1934,7 +2102,9 @@ export const ENQUIRIES: Enquiry[] = [
           status: "EXACT",
           summary: "$165 + local travel $45 = $210, once the suburb is known as local.",
           total: { amount: 210, currency: "AUD" },
-          assumptions: ["Assumes address is within 15 km. Confirm suburb before sending as locked."],
+          assumptions: [
+            "Assumes address is within 15 km. Confirm suburb before sending as locked.",
+          ],
         }),
         evalr({
           type: "location_travel",
@@ -1947,7 +2117,12 @@ export const ENQUIRIES: Enquiry[] = [
           status: "UNKNOWN_MISSING_FACTS",
           summary: "Date is free. Travel time unknown without the address.",
         }),
-        evalr({ type: "eligibility", status: "PASS", summary: "Single formal; mobile is allowed as a hosted-suite exception does not apply - address still required." }),
+        evalr({
+          type: "eligibility",
+          status: "PASS",
+          summary:
+            "Single formal; mobile is allowed as a hosted-suite exception does not apply - address still required.",
+        }),
         evalr({ type: "availability", status: "VALIDATED", summary: "5 Sep evening is free." }),
         na("package_selection"),
         na("qualification_routing"),
@@ -1971,8 +2146,18 @@ export const ENQUIRIES: Enquiry[] = [
       explanation:
         "This is the low-risk action class Enquiry has handled 74 times. Address is the only blocker. The draft does not claim $210 as locked until the suburb is known.",
       why: [
-        why("w1", "Why only the address?", "Date, service and party of one are known. Travel needs the suburb.", src("rule", "Facts v1")),
-        why("w2", "Why this could be Autopilot later", "74 comparable missing-info questions: 72 approved unchanged, 2 wording only, 0 factual corrections.", src("user", "Trust evidence")),
+        why(
+          "w1",
+          "Why only the address?",
+          "Date, service and party of one are known. Travel needs the suburb.",
+          src("rule", "Facts v1"),
+        ),
+        why(
+          "w2",
+          "Why this is a low-risk question",
+          "74 comparable missing-info questions: 72 approved unchanged, 2 wording only, 0 factual corrections.",
+          src("user", "Trust evidence"),
+        ),
       ],
       confidence: "High",
       risk: "LOW",
@@ -2058,17 +2243,23 @@ export const ENQUIRIES: Enquiry[] = [
         evalr({
           type: "capacity",
           status: "FEASIBLE_WITH_CONDITION",
-          summary: "Hard deadline is met with a 6:15am start. That violates the soft preference of no starts before 7:30am in residential streets.",
+          summary:
+            "Hard deadline is met with a 6:15am start. That violates the soft preference of no starts before 7:30am in residential streets.",
           hardConstraints: [
             { label: "Finished Saturday morning", ok: true },
             { label: "Never leave before 6:00am", ok: true },
           ],
-          softPreferences: [
-            { label: "No residential starts before 7:30am", ok: false },
+          softPreferences: [{ label: "No residential starts before 7:30am", ok: false }],
+          alternatives: [
+            "Start 7:30am and finish Saturday late afternoon (after guests arrive)",
+            "Start 6:15am and finish before guests",
           ],
-          alternatives: ["Start 7:30am and finish Saturday late afternoon (after guests arrive)", "Start 6:15am and finish before guests"],
         }),
-        evalr({ type: "availability", status: "VALIDATED", summary: "Friday–Saturday window is free." }),
+        evalr({
+          type: "availability",
+          status: "VALIDATED",
+          summary: "Friday–Saturday window is free.",
+        }),
         evalr({ type: "eligibility", status: "PASS", summary: "In-area interior." }),
         na("package_selection"),
         na("location_travel"),
@@ -2085,7 +2276,12 @@ export const ENQUIRIES: Enquiry[] = [
       explanation:
         "Bedroom + ensuite can be finished Saturday morning if the crew starts at 6:15am. That is allowed under the hard 6:00am rule and against the 7:30am neighbourhood preference.",
       why: [
-        why("w1", "Why not call it impossible?", "Soft preferences are not hard constraints. The UI must not dress a preference up as maths.", src("rule", "Hours v1")),
+        why(
+          "w1",
+          "Why not call it impossible?",
+          "Soft preferences are not hard constraints. The UI must not dress a preference up as maths.",
+          src("rule", "Hours v1"),
+        ),
       ],
       confidence: "High",
       risk: "LOW",
@@ -2114,7 +2310,8 @@ export const ENQUIRIES: Enquiry[] = [
     dateLabel: "Flexible",
     receivedAt: "2026-08-24T11:11:00+09:30",
     updatedAt: "2026-08-24T11:12:00+09:30",
-    notes: "F17 pair with F01: same Enquiry Card, different Industry Brain. Capacity is not applicable here.",
+    notes:
+      "F17 pair with F01: same Enquiry Card, different Industry Brain. Capacity is not applicable here.",
     state: {
       lifecycle: "OPEN",
       decision: "NEEDS_INFORMATION",
@@ -2206,8 +2403,18 @@ export const ENQUIRIES: Enquiry[] = [
       explanation:
         "Same Decision Engine as Glow's F01, different Industry Brain. Price and capacity are Not Applicable until a package exists.",
       why: [
-        why("w1", "Why no price tile?", "Pricing evaluator returned NOT_APPLICABLE. The UI must not invent a $0 commercial widget.", src("rule", "Modular evaluators")),
-        why("w2", "Why this question?", "Name exists; “homemade” vs “new house” is the identity/refresh boundary.", src("rule", "Facts v1")),
+        why(
+          "w1",
+          "Why no price tile?",
+          "Pricing evaluator returned NOT_APPLICABLE. The UI must not invent a $0 commercial widget.",
+          src("rule", "Modular evaluators"),
+        ),
+        why(
+          "w2",
+          "Why this question?",
+          "Name exists; “homemade” vs “new house” is the identity/refresh boundary.",
+          src("rule", "Facts v1"),
+        ),
       ],
       confidence: "Medium",
       risk: "LOW",
@@ -2229,4 +2436,7 @@ export const ENQUIRIES: Enquiry[] = [
   UI1_PAINTING,
 ];
 
-export const ENQUIRY_BY_ID = Object.fromEntries(ENQUIRIES.map((e) => [e.id, e])) as Record<string, Enquiry>;
+export const ENQUIRY_BY_ID = Object.fromEntries(ENQUIRIES.map((e) => [e.id, e])) as Record<
+  string,
+  Enquiry
+>;

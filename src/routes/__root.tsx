@@ -49,7 +49,9 @@ export const Route = createRootRoute({
         <Toaster
           position="bottom-center"
           offset={24}
-          mobileOffset={24}
+          // Clear of the phone's bottom navigation and the line above it, so a
+          // toast never sits over a row's time cue or the action under it.
+          mobileOffset={{ bottom: 96 }}
           toastOptions={{
             className: "font-sans text-ink bg-raised shadow-float",
           }}

@@ -190,7 +190,7 @@ export function Jump({
                 Access
               </Command.Item>
               <Command.Item
-                value="follow up waiting needs a look"
+                value="follow up waiting gone quiet"
                 onSelect={() =>
                   go(() => {
                     usePrototype.getState().setQueueFilter("needs_you");

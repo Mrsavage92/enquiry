@@ -142,6 +142,28 @@ export function useLiveEnquiryMutations() {
       return writeThrough("Later", () => snoozeEnquiry({ data: { enquiryId, until } }), onFailure);
     },
     /**
+     * Undo a Later. The demo reverts its own store; a real enquiry is brought
+     * back on the server too - an Undo that only changed this tab would put the
+     * enquiry back in Later on the next reload.
+     */
+    unsnooze: async (enquiryId: string, onFailure: (m: string) => void): Promise<boolean> => {
+      if (demoMode) {
+        usePrototype.getState().undoLast();
+        return true;
+      }
+      usePrototype.setState((s) => ({
+        enquiries: s.enquiries.map((e) =>
+          e.id === enquiryId ? { ...e, snoozedUntil: undefined } : e,
+        ),
+      }));
+      if (!live) return true;
+      return writeThrough(
+        "Undo later",
+        () => snoozeEnquiry({ data: { enquiryId, until: null } }),
+        onFailure,
+      );
+    },
+    /**
      * Decline an enquiry. Demo mode still narrates a decline letter
      * (declineLetter, store-only), but the letter is never sent and never
      * recorded as sent - it calls declineEnquiryState under the hood, the
@@ -280,6 +302,30 @@ export function useFirstBetaActions() {
       const res = await recordSentReply({
         data: { enquiryId, reviewedSendId, staleAttestation: opts?.staleAttestation ?? false },
       });
+      await refresh();
+      return res;
+    },
+    /**
+     * Take back a send the owner just recorded. The server removes exactly
+     * what that confirmation created and puts the enquiry back as it was.
+     */
+    undoSend: async (enquiryId: string, messageId: string) => {
+      const { undoRecordedSend } = await import("@/lib/server/enquiry-actions");
+      const res = await undoRecordedSend({ data: { enquiryId, messageId } });
+      await refresh();
+      return res;
+    },
+    /** Create (or reopen) the practice enquiry. Returns its id. */
+    createPractice: async (businessId: string) => {
+      const { createPracticeEnquiry } = await import("@/lib/server/enquiry-actions");
+      const res = await createPracticeEnquiry({ data: { businessId } });
+      await refresh();
+      return res.enquiryId;
+    },
+    /** Delete the practice enquiry and everything on it. */
+    deletePractice: async (enquiryId: string) => {
+      const { deletePracticeEnquiry } = await import("@/lib/server/enquiry-actions");
+      const res = await deletePracticeEnquiry({ data: { enquiryId } });
       await refresh();
       return res;
     },

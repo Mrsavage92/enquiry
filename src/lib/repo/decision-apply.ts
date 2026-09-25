@@ -94,6 +94,22 @@ export async function applyDecision(
   sql: Sql,
   input: { enquiryId: string; businessId: string; serviceLabel: string; customerName: string },
 ): Promise<ApplyDecisionResult> {
+  const worked = await workOutDecision(sql, input);
+  const revision = await writeDecision(sql, input.enquiryId, worked);
+  return { decision: worked.decision, revision, applied: true };
+}
+
+type WorkedDecision = {
+  decision: Decision;
+  snapshot: ReturnType<typeof snapshotFromDecision>;
+  state: ReturnType<typeof stateFromDecision>;
+};
+
+/** Read the live facts and rules and decide, writing nothing. */
+async function workOutDecision(
+  sql: Sql,
+  input: { enquiryId: string; businessId: string; serviceLabel: string; customerName: string },
+): Promise<WorkedDecision> {
   const facts = await sql<{ field: string; value: string; status: string }>`
     select field, value, status from enquiry_fact
     where enquiry_id = ${input.enquiryId} and superseded = false
@@ -115,23 +131,74 @@ export async function applyDecision(
     ownerFirstName: owner?.owner_first_name ?? undefined,
     serviceLabel: input.serviceLabel,
   });
-  const state = stateFromDecision(decision);
+  return { decision, snapshot, state: stateFromDecision(decision) };
+}
 
+async function writeDecision(sql: Sql, enquiryId: string, worked: WorkedDecision): Promise<number> {
   const [updated] = await sql<{ decision_revision: number }>`
     update enquiry
-    set decision_snapshot = ${JSON.stringify(snapshot)}::jsonb,
-        decision_state = ${state.decisionState},
-        commercial_state = ${state.commercialState},
-        responsibility = ${state.responsibility},
+    set decision_snapshot = ${JSON.stringify(worked.snapshot)}::jsonb,
+        decision_state = ${worked.state.decisionState},
+        commercial_state = ${worked.state.commercialState},
+        responsibility = ${worked.state.responsibility},
         decision_revision = decision_revision + 1,
         updated_at = now()
-    where id = ${input.enquiryId}
+    where id = ${enquiryId}
     returning decision_revision
   `;
+  return Number(updated?.decision_revision ?? 0);
+}
 
-  return {
-    decision,
-    revision: Number(updated?.decision_revision ?? 0),
-    applied: true,
-  };
+/** JSON with sorted keys, so a jsonb round trip compares equal to the original. */
+function stable(value: unknown): string {
+  if (Array.isArray(value)) return `[${value.map(stable).join(",")}]`;
+  if (value && typeof value === "object") {
+    const entries = Object.entries(value as Record<string, unknown>)
+      .filter(([, v]) => v !== undefined)
+      .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
+    return `{${entries.map(([k, v]) => `${JSON.stringify(k)}:${stable(v)}`).join(",")}}`;
+  }
+  return JSON.stringify(value);
+}
+
+/**
+ * Decide every open enquiry that is waiting on the owner again, after the
+ * business's prices changed. Must run inside the transaction that changed them.
+ *
+ * The defect this closes: an owner saved "End of lease clean $190 per bedroom"
+ * and every open enquiry kept saying "No pricing rules are set up yet",
+ * because a decision was only ever re-derived when that enquiry's own facts
+ * moved. Enquiries waiting on the customer, or closed, are left alone - what
+ * was sent stays as it was sent. An enquiry whose decision comes out the same
+ * is not rewritten either, so an unchanged enquiry keeps its revision and any
+ * reply the owner is part-way through.
+ *
+ * Returns the ids whose decision actually changed.
+ */
+export async function redecideOpenEnquiries(sql: Sql, businessId: string): Promise<string[]> {
+  const rows = await sql<{ id: string }>`
+    select id from enquiry
+    where business_id = ${businessId} and lifecycle = ${"OPEN"}
+      and responsibility = ${"BUSINESS"}
+      and decision_state in (${"NEEDS_HUMAN"}, ${"NEEDS_INFORMATION"}, ${"ACTION_READY"})
+    order by received_at
+  `;
+  const changed: string[] = [];
+  for (const row of rows) {
+    const locked = await lockEnquiry(sql, row.id);
+    if (!locked || isClosed(locked.lifecycle) || locked.businessId !== businessId) continue;
+    const [stored] = await sql<{ decision_snapshot: unknown }>`
+      select decision_snapshot from enquiry where id = ${row.id}
+    `;
+    const worked = await workOutDecision(sql, {
+      enquiryId: row.id,
+      businessId,
+      serviceLabel: locked.serviceLabel,
+      customerName: locked.customerName,
+    });
+    if (stable(worked.snapshot) === stable(stored?.decision_snapshot ?? null)) continue;
+    await writeDecision(sql, row.id, worked);
+    changed.push(row.id);
+  }
+  return changed;
 }

@@ -6,6 +6,8 @@ import type {
   EnquiryFact,
   IntegrationHealth,
 } from "./types";
+import { isPricingStep, setupStep } from "./next-action.ts";
+import { decidingPhrase } from "./price-compiler.ts";
 
 /**
  * The one place a fact's status becomes reader-facing text.
@@ -82,7 +84,10 @@ export const STATUS = {
   waiting: "Waiting",
   followUp: "Follow up",
   later: "Later",
-  needsLook: "Needs a look",
+  // A quoted customer who has gone quiet. Was "Needs a look", which read as a
+  // second "Needs you" queue beside the real one.
+  goneQuiet: "Gone quiet",
+  needsPrices: "Needs your prices",
   bookingToConfirm: "Booking to confirm",
   publicComment: "Public comment",
   booked: "Booked",
@@ -94,6 +99,9 @@ export const STATUS = {
 
 export type StatusWord = (typeof STATUS)[keyof typeof STATUS];
 
+/** Markers that sit beside a status, never replacing it. */
+export const MARKERS = { practice: "Practice" } as const;
+
 /** The three answers to "can I safely promise this?". */
 export const PROMISE_WORDS = { yes: "Yes", no: "No", notYet: "Not yet" } as const;
 
@@ -101,7 +109,7 @@ export const PROMISE_WORDS = { yes: "Yes", no: "No", notYet: "Not yet" } as cons
 export const QUEUE_NAMES = {
   needs_you: "Needs you",
   waiting: STATUS.waiting,
-  at_risk: STATUS.needsLook,
+  at_risk: STATUS.goneQuiet,
   closed: "Closed",
   all: "All",
 } as const;
@@ -114,11 +122,16 @@ export function derivedLabel(state: CompositeState, enquiry?: Enquiry): StatusWo
   if (enquiry?.source === "comment" && state.lifecycle === "OPEN") return STATUS.publicComment;
   if (enquiry?.snoozedUntil && Date.parse(enquiry.snoozedUntil) > Date.now()) return STATUS.later;
   if (enquiry?.followUpDue) return STATUS.followUp;
-  if (enquiry?.atRisk) return STATUS.needsLook;
+  if (enquiry?.atRisk) return STATUS.goneQuiet;
   if (state.decision === "EVALUATING") return STATUS.reading;
   if (state.decision === "NEEDS_INFORMATION") return STATUS.needsDetail;
   if (state.decision === "BOOKING_PENDING") return STATUS.bookingToConfirm;
   if (state.decision === "WAITING_ON_CLIENT") return STATUS.waiting;
+  // The chip agrees with the next step: an enquiry waiting on the owner's
+  // prices says so, rather than "Your call" beside "Add your prices".
+  if (enquiry && isPricingStep(setupStep({ state, decision: enquiry.decision }))) {
+    return STATUS.needsPrices;
+  }
   if (state.decision === "NEEDS_HUMAN") return STATUS.yourCall;
   if (state.decision === "ACTION_READY") return STATUS.replyReady;
   return STATUS.open;
@@ -134,9 +147,13 @@ export function nextStepLabel(enquiry: Enquiry): string {
   if (enquiry.followUpDue) return "Decide whether to follow up";
   const blocking = enquiry.decision?.missing?.find((m) => m.blocking);
   if (enquiry.state.decision === "NEEDS_INFORMATION" && blocking) {
-    return `Add the ${blocking.label.toLowerCase()}`;
+    // What the owner does next is ask the customer; the phone card offers
+    // typing it in as the second choice.
+    return `Ask for ${decidingPhrase(blocking.label.toLowerCase())}`;
   }
   if (enquiry.state.decision === "WAITING_ON_CLIENT") return "Nothing until they answer";
+  const setup = setupStep(enquiry);
+  if (setup) return setup.label;
   const label = enquiry.decision?.recommendation?.label?.trim();
   return label || "Open it and decide";
 }
@@ -384,7 +401,9 @@ export type QueueSummary = {
   exactValue: number;
 };
 
-export function queueSummary(enquiries: Enquiry[]): QueueSummary {
+export function queueSummary(all: Enquiry[]): QueueSummary {
+  // A practice enquiry never counts: not in "needs you", not in any figure.
+  const enquiries = all.filter((e) => !e.practice);
   const open = enquiries.filter((e) => e.state.lifecycle === "OPEN");
   const exact = open.filter((e) => commercialValue(e).kind === "exact");
   return {
