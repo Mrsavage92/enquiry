@@ -243,7 +243,7 @@ export const BENCHMARK_CASES: BenchmarkCase[] = [
         blockerField: "gutter_metres",
       },
       trust: { neverConfirmedFields: ["gutter_metres"], primaryEnabled: true },
-      draft: { mustContain: ["gutter_metres"], mustNotContain: ["$"] },
+      draft: { mustContain: ["how many gutter metres"], mustNotContain: ["$"] },
     },
     followUps: [
       {

@@ -500,7 +500,9 @@ export const undoRecordedSend = createServerFn({ method: "POST" })
     const d = (raw ?? {}) as Record<string, unknown>;
     const enquiryId = typeof d.enquiryId === "string" ? d.enquiryId : "";
     const messageId = typeof d.messageId === "string" ? d.messageId : "";
-    if (!enquiryId) throw new Error("An enquiry id is required.");
+    // Checked here so a malformed id is a plain validation error, never a raw
+    // database cast error.
+    if (!UUID_RE.test(enquiryId)) throw new Error("That enquiry id is not valid.");
     if (!UUID_RE.test(messageId)) throw new Error("There is no recorded send to undo.");
     return { enquiryId, messageId };
   })
@@ -528,18 +530,27 @@ export const createPracticeEnquiry = createServerFn({ method: "POST" })
   .validator((raw: unknown) => {
     const d = (raw ?? {}) as Record<string, unknown>;
     const businessId = typeof d.businessId === "string" ? d.businessId : "";
-    if (!businessId) throw new Error("A business id is required.");
+    if (!UUID_RE.test(businessId)) throw new Error("That business id is not valid.");
     return { businessId };
   })
   .handler(async ({ context, data }) => {
     const { withTransaction } = await import("@/lib/db");
     const { requireBusinessAccess } = await import("@/lib/repo/tenancy.server");
-    const { createPracticeEnquiryInTransaction } = await import("@/lib/repo/practice-core");
+    const { createPracticeEnquiryInTransaction, findPracticeEnquiry, isUniqueViolation } =
+      await import("@/lib/repo/practice-core");
     const businessId = await requireBusinessAccess(context.userId, data.businessId);
-    const res = await withTransaction((sql) =>
-      createPracticeEnquiryInTransaction(sql, { businessId }),
-    );
-    return { ok: true as const, enquiryId: res.enquiryId };
+    try {
+      const res = await withTransaction((sql) =>
+        createPracticeEnquiryInTransaction(sql, { businessId }),
+      );
+      return { ok: true as const, enquiryId: res.enquiryId };
+    } catch (err) {
+      // Another request made it first: open that one.
+      if (!isUniqueViolation(err)) throw err;
+      const existing = await withTransaction((sql) => findPracticeEnquiry(sql, businessId));
+      if (!existing) throw err;
+      return { ok: true as const, enquiryId: existing };
+    }
   });
 
 /** Delete the practice enquiry and everything hanging off it. Never a real one. */
@@ -548,7 +559,7 @@ export const deletePracticeEnquiry = createServerFn({ method: "POST" })
   .validator((raw: unknown) => {
     const d = (raw ?? {}) as Record<string, unknown>;
     const enquiryId = typeof d.enquiryId === "string" ? d.enquiryId : "";
-    if (!enquiryId) throw new Error("An enquiry id is required.");
+    if (!UUID_RE.test(enquiryId)) throw new Error("That enquiry id is not valid.");
     return { enquiryId };
   })
   .handler(async ({ context, data }) => {
@@ -559,4 +570,60 @@ export const deletePracticeEnquiry = createServerFn({ method: "POST" })
     return withTransaction((sql) =>
       deletePracticeEnquiryInTransaction(sql, { businessId, enquiryId }),
     );
+  });
+
+/** At most this many prices from one "Add business detail" preview. */
+const MAX_RULES_PER_SAVE = 20;
+
+/**
+ * Save every price from one preview in one transaction and decide the open
+ * enquiries once. One call, so the owner never ends up with half a price list
+ * saved and no way to tell which half.
+ */
+export const saveBusinessRules = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .validator((raw: unknown) => {
+    const d = (raw ?? {}) as Record<string, unknown>;
+    const businessId = typeof d.businessId === "string" ? d.businessId : "";
+    if (!businessId) throw new Error("A business id is required.");
+    const list = Array.isArray(d.rules) ? d.rules : [];
+    if (list.length === 0) throw new Error("There are no prices to save.");
+    if (list.length > MAX_RULES_PER_SAVE) {
+      throw new Error(`Save up to ${MAX_RULES_PER_SAVE} prices at a time.`);
+    }
+    const rules = list.map((r) => {
+      const parsed = parseBusinessRule(r);
+      if (!parsed.ok) throw new Error(parsed.reason);
+      return parsed.rule;
+    });
+    return { businessId, rules };
+  })
+  .handler(async ({ context, data }) => {
+    const { withTransaction } = await import("@/lib/db");
+    const { requireBusinessAccess, recordAudit } = await import("@/lib/repo/tenancy.server");
+    const { describeRule } = await import("@/domain/business-rule");
+    const { saveBusinessRulesAndRedecide } = await import("@/lib/repo/business-rule-core");
+    const businessId = await requireBusinessAccess(context.userId, data.businessId);
+    const rules = data.rules.map((rule) => ({ rule, readable: describeRule(rule) }));
+    const result = await withTransaction((sql) =>
+      saveBusinessRulesAndRedecide(sql, { businessId, rules }),
+    );
+    for (const [i, saved] of result.saved.entries()) {
+      if (saved.outcome === "duplicate") continue;
+      await recordAudit(businessId, {
+        actor: context.userId,
+        summary: `Pricing rule confirmed: ${rules[i]!.readable}`,
+        detail:
+          saved.supersededLabels.length > 0
+            ? `Replaces: ${saved.supersededLabels.join("; ")}`
+            : undefined,
+        objectType: "brain",
+        objectId: saved.id,
+      });
+    }
+    return {
+      ok: true as const,
+      saved: result.saved.filter((s) => s.outcome !== "duplicate").length,
+      updatedEnquiries: result.updatedEnquiryIds.length,
+    };
   });

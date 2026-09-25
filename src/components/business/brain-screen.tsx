@@ -45,6 +45,7 @@ import {
 } from "@/domain/price-sentence";
 import { describeRule } from "@/domain/business-rule";
 import { concreteWhen } from "@/domain/time-cues";
+import { decidingPhrase } from "@/domain/price-compiler";
 import { useFirstBetaActions } from "@/lib/workspace/live-mutations";
 
 const SECTIONS = [
@@ -660,7 +661,7 @@ export function BrainScreen() {
                       <p className="font-medium">{describeRule(p.rule)}</p>
                       <p className="mt-0.5 text-ink-2">
                         {p.rule.kind === "per_unit"
-                          ? `When a customer does not say how many, Enquiry asks for the ${p.rule.quantityField}.`
+                          ? `When a customer does not say how many, Enquiry asks for ${decidingPhrase(p.rule.quantityField)}.`
                           : "One flat price for this job."}
                       </p>
                     </li>
@@ -685,11 +686,12 @@ export function BrainScreen() {
                     onClick={async () => {
                       setSavingPrices(true);
                       try {
-                        let updated = false;
-                        for (const p of livePrices.prices) {
-                          const res = await firstBeta.saveRule(business.id, p.rule);
-                          if ((res?.updatedEnquiries ?? 0) > 0) updated = true;
-                        }
+                        // One call: every price saves, or none does.
+                        const res = await firstBeta.saveRules(
+                          business.id,
+                          livePrices.prices.map((p) => p.rule),
+                        );
+                        const updated = res.updatedEnquiries > 0;
                         setLivePrices(null);
                         setInput("");
                         setComposerOpen(false);

@@ -65,3 +65,44 @@ test("anything that is not a set price is named with the reason, never guessed",
     ],
   );
 });
+
+test("'an hour' is a price per hour, not a unit called 'n'", () => {
+  const read = readPriceLine("Lawn mowing $60 an hour");
+  assert.ok("rule" in read && read.rule.kind === "per_unit");
+  if (!("rule" in read) || read.rule.kind !== "per_unit") return;
+  assert.equal(read.rule.unit, "hour");
+  assert.equal(read.rule.quantityField, "hours");
+  assert.equal(read.rule.amount, 60);
+});
+
+test("anything that is not one set price is refused with its reason, never guessed", () => {
+  for (const line of [
+    "Deck stain between $300 and $500",
+    "$5,500 all inclusive",
+    "Roof wash $1.5k",
+    "Exterior repaint about $5,500",
+    "$300 or $400",
+    "$5,500 + GST",
+    "$50 per room plus $30 call-out",
+    "$120ish",
+    "Repaint $5,500, touch-up $300",
+  ]) {
+    const read = readPriceLine(line);
+    assert.ok(!("rule" in read), `${line} was read as a price`);
+    if ("rule" in read) continue;
+    assert.ok(read.reason.length > 10, `${line} has no reason`);
+  }
+});
+
+test("the simple forms still read", () => {
+  for (const [line, amount] of [
+    ["Exterior repaint $5,500", 5500],
+    ["Oven clean $80.", 80],
+    ["Floor sanding $40 per metre", 40],
+    ["Window cleaning: $12 a window", 12],
+  ] as const) {
+    const read = readPriceLine(line);
+    assert.ok("rule" in read, `${line} was refused`);
+    if ("rule" in read) assert.equal(read.rule.amount, amount);
+  }
+});

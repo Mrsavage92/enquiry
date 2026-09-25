@@ -22,11 +22,41 @@ export type PriceSentences = { prices: ReadPrice[]; unread: UnreadLine[] };
 export const PRICE_EXAMPLE = "End of lease clean $190 per bedroom";
 export const FLAT_EXAMPLE = "Exterior repaint $5,500";
 
-const AMOUNT = /\$\s?(\d[\d,]*(?:\.\d{1,2})?)(?!\s*(?:-|–|to)\s*\$?\d)/;
-const RANGE = /\$\s?\d[\d,]*(?:\.\d{1,2})?\s*(?:-|–|to)\s*\$?\s?\d/;
-const PER = /^\s*(?:per|a|an|each|every|\/)\s*([a-z][a-z-]*(?:\s+metres?|\s+meters?|\s+feet)?)/i;
+const AMOUNT = /\$\s?(\d[\d,]*(?:\.\d{1,2})?)/;
+const ALL_AMOUNTS = /\$\s?\d/g;
+// A word boundary after the word, so "an hour" is not read as the unit "n".
+const PER =
+  /^\s*(?:(?:per|a|an|each|every)\b|\/)\s*([a-z][a-z-]*(?:\s+metres?|\s+meters?|\s+feet)?)/i;
 const MINIMUM = /(?:minimum(?:\s+of)?|min\.?|at least)\s+(\d+)/i;
-const FROM = /\b(?:from|starting at|starts at|start at)\s*\$/i;
+
+/**
+ * Wording that makes the amount something other than one set price. Each is
+ * refused with its reason rather than read as the nearest number: a price the
+ * owner did not mean is worse than no price.
+ */
+const NOT_A_SET_PRICE: [RegExp, string][] = [
+  [
+    /\b(?:from|starting at|starts at|start at)\s*\$/i,
+    'A "from" price is not a set price, so Enquiry cannot quote it.',
+  ],
+  [
+    /\b(?:about|around|approx(?:imately)?|roughly|up to|between|under|over)\s*\$|~\s*\$/i,
+    "An approximate price is not a set price, so Enquiry cannot quote it.",
+  ],
+  [
+    /\$\s?\d[\d,.]*\s?(?:k\b|ish\b)/i,
+    "Write the full amount (like $1,500), not a short or rough one.",
+  ],
+  [/\bGST\b/i, "GST wording makes the amount unclear. Write the one amount you quote."],
+  [
+    /\$\s?\d[\d,]*(?:\.\d{1,2})?\s*(?:-|–|to)\s*\$?\s?\d/,
+    "A price range is not a set price, so Enquiry cannot quote it.",
+  ],
+  [
+    /\+|\bplus\b|\bor\b/i,
+    "It adds another amount or offers a choice. Put each price on its own line.",
+  ],
+];
 
 const LEAD_FILLER = /^(?:and\s+|also\s+|our\s+|my\s+|the\s+|a\s+|an\s+)+/i;
 const TRAIL_FILLER =
@@ -58,11 +88,11 @@ function splitLines(text: string): string[] {
 }
 
 export function readPriceLine(line: string): ReadPrice | UnreadLine {
-  if (FROM.test(line)) {
-    return { line, reason: 'A "from" price is not a set price, so Enquiry cannot quote it.' };
+  for (const [pattern, reason] of NOT_A_SET_PRICE) {
+    if (pattern.test(line)) return { line, reason };
   }
-  if (RANGE.test(line)) {
-    return { line, reason: "A price range is not a set price, so Enquiry cannot quote it." };
+  if ((line.match(ALL_AMOUNTS) ?? []).length > 1) {
+    return { line, reason: "It names more than one amount. Put each price on its own line." };
   }
   const amountMatch = AMOUNT.exec(line);
   if (!amountMatch) return { line, reason: "There is no dollar amount in it." };

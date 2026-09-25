@@ -398,6 +398,19 @@ export async function confirmReviewedSendInTransaction(
     }
   }
 
+  // The revision this send left the enquiry at. Undo is only honest while the
+  // enquiry is still exactly here: a decline, an answered fact or a newer
+  // decision after the send would be silently rolled back otherwise.
+  const [after] = await sql<{ decision_revision: string | number }>`
+    select decision_revision from enquiry where id = ${input.enquiryId}
+  `;
+  await sql`
+    update reviewed_send
+    set prior_state = coalesce(prior_state, '{}'::jsonb)
+      || jsonb_build_object('after_revision', ${Number(after?.decision_revision ?? 0)}::bigint)
+    where id = ${reviewed.id}
+  `;
+
   const summary = reviewed.recipient
     ? `Reply confirmed sent by the owner via ${channelLabel(reviewed.channel as Channel)} to ${reviewed.recipient}`
     : `Reply confirmed sent by the owner via ${channelLabel(reviewed.channel as Channel)}; no recipient on file`;

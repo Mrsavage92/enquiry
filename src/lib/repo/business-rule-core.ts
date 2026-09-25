@@ -149,3 +149,27 @@ export async function saveBusinessRuleAndRedecide(
     saved.outcome === "duplicate" ? [] : await redecideOpenEnquiries(sql, input.businessId);
   return { ...saved, updatedEnquiryIds };
 }
+
+/**
+ * Several prices from one "Add business detail" preview, all or nothing: every
+ * price is saved and the open enquiries are decided once, in one transaction,
+ * so a failure part-way leaves nothing half-saved for the owner to untangle.
+ */
+export async function saveBusinessRulesAndRedecide(
+  sql: Sql,
+  input: { businessId: string; rules: { rule: BusinessRule; readable: string }[] },
+): Promise<{ saved: SaveBusinessRuleResult[]; updatedEnquiryIds: string[] }> {
+  const saved: SaveBusinessRuleResult[] = [];
+  for (const r of input.rules) {
+    saved.push(
+      await saveBusinessRuleInTransaction(sql, {
+        businessId: input.businessId,
+        rule: r.rule,
+        readable: r.readable,
+      }),
+    );
+  }
+  const changedAny = saved.some((s) => s.outcome !== "duplicate");
+  const updatedEnquiryIds = changedAny ? await redecideOpenEnquiries(sql, input.businessId) : [];
+  return { saved, updatedEnquiryIds };
+}

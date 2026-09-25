@@ -242,6 +242,13 @@ export function useFirstBetaActions() {
       await refresh();
       return res;
     },
+    /** Save several prices at once, all or nothing, then reload. */
+    saveRules: async (businessId: string, rules: unknown[]) => {
+      const { saveBusinessRules } = await import("@/lib/server/enquiry-actions");
+      const res = await saveBusinessRules({ data: { businessId, rules } });
+      await refresh();
+      return res;
+    },
     /** Add an enquiry the owner typed in. Returns its id so the UI can open it. */
     addEnquiry: async (input: {
       businessId: string;

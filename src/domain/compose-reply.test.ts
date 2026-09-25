@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { composeReply } from "./compose-reply.ts";
+import { askFor, composeReply } from "./compose-reply.ts";
 import { decideEnquiry } from "./decide.ts";
 
 const perUnit = {
@@ -39,7 +39,7 @@ test("a priced reply states the business's own total and its workings", () => {
 test("a blocked reply asks for exactly the one fact that decides the price", () => {
   const decision = decideEnquiry(perUnit, { serviceLabel: "Group makeup", facts: [] });
   const body = composeReply(decision, { customerName: "Sarah", ownerFirstName: "Sam" });
-  assert.match(body, /can you let me know the guests\?/);
+  assert.match(body, /can you let me know how many guests there are\?/);
   // It must not name a price it does not have.
   assert.doesNotMatch(body, /\$/);
 });
@@ -64,4 +64,11 @@ test("the draft never contains an em dash", () => {
     facts: [{ field: "guests", value: "5", status: "confirmed" }],
   } as never);
   assert.doesNotMatch(composeReply(decision, { customerName: "Jo" }), /\u2014/);
+});
+
+test("the missing-detail question reads naturally for plural and singular fields", () => {
+  assert.equal(askFor("bedrooms"), "can you let me know how many bedrooms there are?");
+  assert.equal(askFor("gutter_metres"), "can you let me know how many gutter metres there are?");
+  assert.equal(askFor("address"), "can you let me know the address?");
+  assert.equal(askFor("quantity"), "can you let me know the quantity?");
 });

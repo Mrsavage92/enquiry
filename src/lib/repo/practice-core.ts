@@ -43,7 +43,10 @@ export async function createPracticeEnquiryInTransaction(
   sql: Sql,
   input: { businessId: string; now?: Date },
 ): Promise<{ enquiryId: string; existing: boolean }> {
-  // One at a time: asking again opens the one already there.
+  // One at a time: asking again opens the one already there. The lock makes
+  // two quick clicks queue here instead of racing to insert; the unique index
+  // (migrations/0012) is the backstop, handled by the server function.
+  await sql`select pg_advisory_xact_lock(hashtext(${`practice:${input.businessId}`}))`;
   const [existing] = await sql<{ id: string }>`
     select id from enquiry
     where business_id = ${input.businessId} and practice = true
@@ -85,4 +88,17 @@ export async function deletePracticeEnquiryInTransaction(
       and object_id = ${input.enquiryId}
   `;
   return { ok: true };
+}
+
+/** The business's practice enquiry, if it has one. */
+export async function findPracticeEnquiry(sql: Sql, businessId: string): Promise<string | null> {
+  const [row] = await sql<{ id: string }>`
+    select id from enquiry where business_id = ${businessId} and practice = true limit 1
+  `;
+  return row?.id ?? null;
+}
+
+/** Postgres unique-violation, e.g. a second practice row for one business. */
+export function isUniqueViolation(err: unknown): boolean {
+  return typeof err === "object" && err !== null && (err as { code?: unknown }).code === "23505";
 }

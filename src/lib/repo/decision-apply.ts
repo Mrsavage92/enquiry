@@ -105,6 +105,43 @@ type WorkedDecision = {
   state: ReturnType<typeof stateFromDecision>;
 };
 
+type DecisionInputs = {
+  knowledge: { state: string; rulePayload: unknown }[];
+  ownerFirstName?: string;
+};
+
+/** The business half of a decision: its rules and owner, read once. */
+async function businessInputs(sql: Sql, businessId: string): Promise<DecisionInputs> {
+  const knowledge = await sql<{ state: string; rule_payload: unknown }>`
+    select state, rule_payload from knowledge_item
+    where business_id = ${businessId} and rule_payload is not null
+  `;
+  const [owner] = await sql<{ owner_first_name: string | null }>`
+    select owner_first_name from business where id = ${businessId}
+  `;
+  return {
+    knowledge: knowledge.map((k) => ({ state: k.state, rulePayload: k.rule_payload })),
+    ownerFirstName: owner?.owner_first_name ?? undefined,
+  };
+}
+
+function decideFrom(
+  inputs: DecisionInputs,
+  enquiry: { serviceLabel: string; customerName: string },
+  facts: { field: string; value: string; status: string }[],
+): WorkedDecision {
+  const decision = decideEnquiry(
+    { knowledge: inputs.knowledge },
+    { serviceLabel: enquiry.serviceLabel, facts: facts as never },
+  );
+  const snapshot = snapshotFromDecision(decision, {
+    customerName: enquiry.customerName,
+    ownerFirstName: inputs.ownerFirstName,
+    serviceLabel: enquiry.serviceLabel,
+  });
+  return { decision, snapshot, state: stateFromDecision(decision) };
+}
+
 /** Read the live facts and rules and decide, writing nothing. */
 async function workOutDecision(
   sql: Sql,
@@ -114,24 +151,7 @@ async function workOutDecision(
     select field, value, status from enquiry_fact
     where enquiry_id = ${input.enquiryId} and superseded = false
   `;
-  const knowledge = await sql<{ state: string; rule_payload: unknown }>`
-    select state, rule_payload from knowledge_item
-    where business_id = ${input.businessId} and rule_payload is not null
-  `;
-  const [owner] = await sql<{ owner_first_name: string | null }>`
-    select owner_first_name from business where id = ${input.businessId}
-  `;
-
-  const decision = decideEnquiry(
-    { knowledge: knowledge.map((k) => ({ state: k.state, rulePayload: k.rule_payload })) },
-    { serviceLabel: input.serviceLabel, facts: facts as never },
-  );
-  const snapshot = snapshotFromDecision(decision, {
-    customerName: input.customerName,
-    ownerFirstName: owner?.owner_first_name ?? undefined,
-    serviceLabel: input.serviceLabel,
-  });
-  return { decision, snapshot, state: stateFromDecision(decision) };
+  return decideFrom(await businessInputs(sql, input.businessId), input, facts);
 }
 
 async function writeDecision(sql: Sql, enquiryId: string, worked: WorkedDecision): Promise<number> {
@@ -176,27 +196,44 @@ function stable(value: unknown): string {
  * Returns the ids whose decision actually changed.
  */
 export async function redecideOpenEnquiries(sql: Sql, businessId: string): Promise<string[]> {
-  const rows = await sql<{ id: string }>`
-    select id from enquiry
+  // One locking read for every candidate, one read of their facts, one of the
+  // business's rules: a few queries however many enquiries are open, instead
+  // of several per enquiry inside the save's transaction.
+  const rows = await sql<{
+    id: string;
+    service_label: string | null;
+    customer_name: string | null;
+    decision_snapshot: unknown;
+  }>`
+    select id, service_label, customer_name, decision_snapshot from enquiry
     where business_id = ${businessId} and lifecycle = ${"OPEN"}
       and responsibility = ${"BUSINESS"}
       and decision_state in (${"NEEDS_HUMAN"}, ${"NEEDS_INFORMATION"}, ${"ACTION_READY"})
     order by received_at
+    for update
   `;
+  if (rows.length === 0) return [];
+  const ids = rows.map((r) => r.id);
+  const facts = await sql<{ enquiry_id: string; field: string; value: string; status: string }>`
+    select enquiry_id, field, value, status from enquiry_fact
+    where enquiry_id = any(${ids}::uuid[]) and superseded = false
+  `;
+  const factsById = new Map<string, { field: string; value: string; status: string }[]>();
+  for (const f of facts) {
+    const list = factsById.get(f.enquiry_id) ?? [];
+    list.push({ field: f.field, value: f.value, status: f.status });
+    factsById.set(f.enquiry_id, list);
+  }
+  const inputs = await businessInputs(sql, businessId);
+
   const changed: string[] = [];
   for (const row of rows) {
-    const locked = await lockEnquiry(sql, row.id);
-    if (!locked || isClosed(locked.lifecycle) || locked.businessId !== businessId) continue;
-    const [stored] = await sql<{ decision_snapshot: unknown }>`
-      select decision_snapshot from enquiry where id = ${row.id}
-    `;
-    const worked = await workOutDecision(sql, {
-      enquiryId: row.id,
-      businessId,
-      serviceLabel: locked.serviceLabel,
-      customerName: locked.customerName,
-    });
-    if (stable(worked.snapshot) === stable(stored?.decision_snapshot ?? null)) continue;
+    const worked = decideFrom(
+      inputs,
+      { serviceLabel: row.service_label ?? "", customerName: row.customer_name ?? "" },
+      factsById.get(row.id) ?? [],
+    );
+    if (stable(worked.snapshot) === stable(row.decision_snapshot ?? null)) continue;
     await writeDecision(sql, row.id, worked);
     changed.push(row.id);
   }

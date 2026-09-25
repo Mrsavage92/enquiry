@@ -11,6 +11,19 @@ function formatMinor(amountMinor: number, currency: string): string {
 }
 
 /**
+ * The question for the one missing fact, as a person would ask it: "can you
+ * let me know how many bedrooms there are?", not "...know the bedrooms?". A
+ * singular field keeps "the" ("...know the address?").
+ */
+export function askFor(field: string): string {
+  const name = field.trim().replace(/_/g, " ").toLowerCase();
+  if (!name) return "can you tell me a bit more about the job?";
+  return /[^s]s$/.test(name)
+    ? `can you let me know how many ${name} there are?`
+    : `can you let me know the ${name}?`;
+}
+
+/**
  * Write the reply the owner will actually send.
  *
  * Deliberately not a language model. Every sentence here is derived from the
@@ -57,7 +70,7 @@ export function composeReply(
         ? `Thanks for getting in touch about ${service.toLowerCase()}.`
         : "Thanks for getting in touch.",
       "",
-      `Before I can give you a price, can you let me know the ${field}?`,
+      `Before I can give you a price, ${askFor(field)}`,
       "",
       "Once I have that I can send the full cost straight back.",
       "",

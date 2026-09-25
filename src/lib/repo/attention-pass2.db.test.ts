@@ -6,14 +6,17 @@ import { PGlite } from "@electric-sql/pglite";
 import type { Sql } from "../db.ts";
 import { createWorkspaceInTransaction } from "./provision-core.ts";
 import { insertManualEnquiry, interpretAndApply } from "./manual-enquiry-core.ts";
-import { saveBusinessRuleAndRedecide } from "./business-rule-core.ts";
+import { saveBusinessRuleAndRedecide, saveBusinessRulesAndRedecide } from "./business-rule-core.ts";
 import { prepareReviewedSendInTransaction } from "./reviewed-send-core.ts";
 import { confirmReviewedSendInTransaction } from "./sent-reply-core.ts";
 import { undoRecordedSendInTransaction, UNDO_SEND_WINDOW_MS } from "./undo-send-core.ts";
 import {
   createPracticeEnquiryInTransaction,
   deletePracticeEnquiryInTransaction,
+  isUniqueViolation,
 } from "./practice-core.ts";
+import { declineEnquiryInTransaction } from "./close-enquiry-core.ts";
+import { applyDecision, lockEnquiry } from "./decision-apply.ts";
 import { ForbiddenError, requireBusinessAccess, requireEnquiryAccess } from "./tenancy.server.ts";
 import { describeRule, type BusinessRule } from "../../domain/business-rule.ts";
 
@@ -239,6 +242,21 @@ test("Undo takes a recorded send back exactly, and only for its own business", a
   );
   assert.equal(crossed.ok, false);
   assert.equal((await row(pg, e.enquiryId))?.decision_state, "WAITING_ON_CLIENT");
+  // Everything the send created is still there after the cross-tenant attempt.
+  assert.equal((await pg.query("select 1 from message where id = $1", [messageId])).rows.length, 1);
+  assert.equal(
+    (await pg.query("select 1 from quote_version where reviewed_send_id = $1", [reviewedSendId]))
+      .rows.length,
+    1,
+  );
+  assert.equal(
+    (
+      await pg.query("select 1 from reviewed_send where id = $1 and consumed_at is not null", [
+        reviewedSendId,
+      ])
+    ).rows.length,
+    1,
+  );
 
   const undone = await tx(pg, (sql) =>
     undoRecordedSendInTransaction(sql, {
@@ -261,22 +279,184 @@ test("Undo takes a recorded send back exactly, and only for its own business", a
     reviewedSendId,
   ]);
   assert.equal(quotes.rows.length, 0, "the quote recorded with it is gone");
-  const artefact = await pg.query<{ consumed_at: string | null }>(
-    "select consumed_at from reviewed_send where id = $1",
-    [reviewedSendId],
-  );
-  assert.equal(artefact.rows[0]?.consumed_at, null);
+  const artefact = await pg.query("select 1 from reviewed_send where id = $1", [reviewedSendId]);
+  assert.equal(artefact.rows.length, 0, "the reviewed artefact goes with the send");
 
-  // Recording the same artefact again is refused as stale: undo means review again.
-  const replay = await tx(pg, (sql) =>
-    confirmReviewedSendInTransaction(sql, {
-      reviewedSendId,
-      enquiryId: e.enquiryId,
+  // "The reply is ready to check again" has to be true: reviewing the same
+  // text again and recording it works, and is not refused as stale.
+  const again = await sendAndRecord(pg, a.businessId, e.enquiryId);
+  assert.notEqual(again.reviewedSendId, reviewedSendId);
+  assert.equal((await row(pg, e.enquiryId))?.decision_state, "WAITING_ON_CLIENT");
+});
+
+test("Undo is refused once anything moved the enquiry after the send", async () => {
+  const pg = await freshDb();
+  const a = await tenant(pg, "user-a", "Alpha Painting");
+  await saveRule(pg, a.businessId, REPAINT);
+
+  // Declined after the send: the decline stands and the send stays on record.
+  const declined = await enquiry(
+    pg,
+    a.businessId,
+    "Repaint please. Thanks, Karen",
+    "Exterior repaint",
+  );
+  const first = await sendAndRecord(pg, a.businessId, declined.enquiryId);
+  await tx(pg, (sql) =>
+    declineEnquiryInTransaction(sql, {
+      enquiryId: declined.enquiryId,
       businessId: a.businessId,
+      userId: "user-a",
+      reason: "",
+    }),
+  );
+  const refused = await tx(pg, (sql) =>
+    undoRecordedSendInTransaction(sql, {
+      enquiryId: declined.enquiryId,
+      businessId: a.businessId,
+      messageId: first.messageId,
       userId: "user-a",
     }),
   );
-  assert.equal(replay.ok, false);
+  assert.equal(refused.ok, false);
+  const after = await pg.query<{ lifecycle: string }>(
+    "select lifecycle from enquiry where id = $1",
+    [declined.enquiryId],
+  );
+  assert.equal(after.rows[0]?.lifecycle, "DECLINED");
+  assert.equal(
+    (await pg.query("select 1 from message where id = $1", [first.messageId])).rows.length,
+    1,
+  );
+
+  // A detail answered after the send (the decision moved on): refused too.
+  const answered = await enquiry(
+    pg,
+    a.businessId,
+    "Repaint please. Thanks, Tom",
+    "Exterior repaint",
+  );
+  const second = await sendAndRecord(pg, a.businessId, answered.enquiryId);
+  await tx(pg, async (sql) => {
+    await sql`
+      insert into enquiry_fact (enquiry_id, field, label, value, display_value, status,
+        confidence, asserted_by, provenance, customer_specific)
+      values (${answered.enquiryId}, ${"storeys"}, ${"storeys"}, ${"2"}, ${"2"},
+        ${"confirmed"}, ${"High"}, ${"user"}, ${"{}"}::jsonb, ${true})
+    `;
+    const locked = await lockEnquiry(sql, answered.enquiryId);
+    await applyDecision(sql, {
+      enquiryId: answered.enquiryId,
+      businessId: a.businessId,
+      serviceLabel: locked!.serviceLabel,
+      customerName: locked!.customerName,
+    });
+  });
+  const refusedToo = await tx(pg, (sql) =>
+    undoRecordedSendInTransaction(sql, {
+      enquiryId: answered.enquiryId,
+      businessId: a.businessId,
+      messageId: second.messageId,
+      userId: "user-a",
+    }),
+  );
+  assert.equal(refusedToo.ok, false);
+  assert.equal(
+    (await pg.query("select 1 from message where id = $1", [second.messageId])).rows.length,
+    1,
+  );
+});
+
+test("saving a price re-decides fifty open enquiries correctly in one go", async () => {
+  const pg = await freshDb();
+  const a = await tenant(pg, "user-a", "Alpha Painting");
+  const ids: string[] = [];
+  for (let i = 0; i < 50; i += 1) {
+    const e = await enquiry(
+      pg,
+      a.businessId,
+      `Repaint number ${i}. Thanks, Karen`,
+      "Exterior repaint",
+    );
+    ids.push(e.enquiryId);
+  }
+  const other = await enquiry(pg, a.businessId, "Garden job. Thanks, Sam", "Garden tidy");
+  const saved = await saveRule(pg, a.businessId, REPAINT);
+  assert.equal(
+    saved.updatedEnquiryIds.length,
+    51,
+    "the garden job moves from no prices to no price for it",
+  );
+  for (const id of ids) {
+    const r = await row(pg, id);
+    assert.equal(r?.decision_snapshot.recommendation.action, "SEND_QUOTE");
+  }
+  const g = await row(pg, other.enquiryId);
+  assert.equal(g?.decision_snapshot.recommendation.label, "Add a price for this job");
+});
+
+test("several prices from one preview save together, for the owner's business only", async () => {
+  const pg = await freshDb();
+  const a = await tenant(pg, "user-a", "Alpha Cleaning");
+  const b = await tenant(pg, "user-b", "Bravo Cleaning");
+  const aEnq = await enquiry(pg, a.businessId, "Oven please. Thanks, Karen", "Oven clean");
+  const bEnq = await enquiry(pg, b.businessId, "Oven please. Thanks, Bea", "Oven clean");
+  // B's user cannot save into A's business at the boundary.
+  await assert.rejects(requireBusinessAccess("user-b", a.businessId, toDirect(pg)), ForbiddenError);
+  const oven: BusinessRule = {
+    kind: "fixed_price",
+    service: "Oven clean",
+    amount: 80,
+    currency: "AUD",
+  };
+  const lease: BusinessRule = {
+    kind: "per_unit",
+    service: "End of lease clean",
+    amount: 190,
+    currency: "AUD",
+    unit: "bedroom",
+    quantityField: "bedrooms",
+  };
+  const res = await tx(pg, (sql) =>
+    saveBusinessRulesAndRedecide(sql, {
+      businessId: a.businessId,
+      rules: [oven, lease].map((rule) => ({ rule, readable: describeRule(rule) })),
+    }),
+  );
+  assert.equal(res.saved.length, 2);
+  assert.deepEqual(res.updatedEnquiryIds, [aEnq.enquiryId]);
+  const active = await pg.query(
+    "select 1 from knowledge_item where business_id = $1 and state = 'Active' and rule_payload is not null",
+    [a.businessId],
+  );
+  assert.equal(active.rows.length, 2);
+  const none = await pg.query(
+    "select 1 from knowledge_item where business_id = $1 and rule_payload is not null",
+    [b.businessId],
+  );
+  assert.equal(none.rows.length, 0);
+  assert.equal(
+    (await row(pg, bEnq.enquiryId))?.decision_snapshot.recommendation.label,
+    "Add your prices",
+  );
+
+  // All or nothing: a failure part-way leaves no price saved.
+  await assert.rejects(
+    tx(pg, (sql) =>
+      saveBusinessRulesAndRedecide(sql, {
+        businessId: b.businessId,
+        rules: [
+          { rule: oven, readable: describeRule(oven) },
+          { rule: { ...oven, service: null as unknown as string }, readable: "broken" },
+        ],
+      }),
+    ),
+  );
+  const stillNone = await pg.query(
+    "select 1 from knowledge_item where business_id = $1 and rule_payload is not null",
+    [b.businessId],
+  );
+  assert.equal(stillNone.rows.length, 0);
 });
 
 test("Undo is refused once the window has passed", async () => {
@@ -336,6 +516,22 @@ test("a practice enquiry is never sendable and deletes completely, only by its o
     }),
   );
   assert.equal(crossed.ok, false);
+  assert.equal((await row(pg, made.enquiryId))?.practice, true, "the practice row survives");
+  // Nor can B's user create one in A's business.
+  await assert.rejects(requireBusinessAccess("user-b", a.businessId, toDirect(pg)), ForbiddenError);
+  // And the database holds one practice row per business, whatever a double click does.
+  await assert.rejects(
+    pg
+      .query("update enquiry set practice = true where business_id = $1 and id <> $2", [
+        a.businessId,
+        made.enquiryId,
+      ])
+      .then(async () => {
+        const extra = await enquiry(pg, a.businessId, "Second. Thanks, Jo");
+        await pg.query("update enquiry set practice = true where id = $1", [extra.enquiryId]);
+      }),
+    (err: unknown) => isUniqueViolation(err),
+  );
 
   // The practice path can never delete a real enquiry.
   const real = await enquiry(pg, a.businessId, "Real job. Thanks, Karen");

@@ -22,5 +22,7 @@
 --   grant select, insert, update on reviewed_send to enquiry_app;
 
 alter table enquiry add column if not exists practice boolean not null default false;
+-- One practice enquiry per business, whatever a double click does.
+create unique index if not exists enquiry_one_practice_idx on enquiry (business_id) where practice;
 
 alter table reviewed_send add column if not exists prior_state jsonb;

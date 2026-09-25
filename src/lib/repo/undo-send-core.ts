@@ -8,12 +8,16 @@ import type { Sql } from "../db.ts";
  * out. This removes exactly what that confirmation created - the outbound
  * message and any quote row written from the same reviewed artefact - and puts
  * the enquiry back to the state recorded on the artefact the moment before
- * (`prior_state`, migrations/0012). The artefact is released but the enquiry's
- * revision moves on, so sending again means reviewing again.
+ * (`prior_state`, migrations/0012). The reviewed artefact is deleted with them:
+ * prepare reuses an artefact by (enquiry, body), so a kept one would pin the
+ * old revision and every later confirm of the same text would be refused as
+ * stale. Sending again means reviewing again, and that review is fresh.
  *
  * Deliberately narrow: only the send's own business, only within a short
- * window, and only while nothing has happened since. A customer's answer after
- * the send makes it history, and history is not undone.
+ * window, only while the enquiry is open and still at the revision the send
+ * left it at (`after_revision`), and only while no message came after it. A
+ * decline, an answered detail or a customer's reply after the send makes it
+ * history, and history is not undone.
  *
  * Assumes it is already inside a transaction, like every other writer here.
  */
@@ -32,6 +36,7 @@ export type UndoRecordedSendResult =
   { ok: true } | { ok: false; reason: "missing" | "too_late" | "moved_on"; message: string };
 
 type PriorState = {
+  after_revision?: number | string;
   decision_state?: string;
   commercial_state?: string;
   responsibility?: string;
@@ -52,8 +57,8 @@ export async function undoRecordedSendInTransaction(
   input: UndoRecordedSendInput,
 ): Promise<UndoRecordedSendResult> {
   // Same lock order as prepare and confirm: the enquiry first.
-  const [enq] = await sql<{ id: string }>`
-    select id from enquiry
+  const [enq] = await sql<{ id: string; lifecycle: string; decision_revision: string | number }>`
+    select id, lifecycle, decision_revision from enquiry
     where id = ${input.enquiryId} and business_id = ${input.businessId}
     for update
   `;
@@ -87,28 +92,31 @@ export async function undoRecordedSendInTransaction(
     };
   }
 
+  const movedOn: UndoRecordedSendResult = {
+    ok: false,
+    reason: "moved_on",
+    message: "Something has happened on this enquiry since, so that send stays on record.",
+  };
+  const afterRevision = Number(sent.prior_state?.after_revision ?? Number.NaN);
+  if (
+    enq.lifecycle !== "OPEN" ||
+    !Number.isFinite(afterRevision) ||
+    Number(enq.decision_revision) !== afterRevision
+  ) {
+    return movedOn;
+  }
+
   const later = await sql<{ id: string }>`
     select id from message
     where enquiry_id = ${input.enquiryId} and id <> ${sent.id}
       and at > (select at from message where id = ${sent.id})
     limit 1
   `;
-  if (later.length > 0) {
-    return {
-      ok: false,
-      reason: "moved_on",
-      message: "Something has happened on this enquiry since, so that send stays on record.",
-    };
-  }
+  if (later.length > 0) return movedOn;
 
-  await sql`
-    update reviewed_send
-    set consumed_at = null, consumed_message_id = null, stale_attested = false,
-        prior_state = null
-    where id = ${sent.reviewed_send_id}
-  `;
   await sql`delete from quote_version where reviewed_send_id = ${sent.reviewed_send_id}`;
   await sql`delete from message where id = ${sent.id}`;
+  await sql`delete from reviewed_send where id = ${sent.reviewed_send_id}`;
 
   const prior = sent.prior_state;
   if (prior && !sent.stale_attested && prior.decision_state && prior.responsibility) {
@@ -127,7 +135,7 @@ export async function undoRecordedSendInTransaction(
     `;
   } else {
     // A stale attestation never moved the enquiry, so there is nothing to put
-    // back; the revision still moves so the artefact must be reviewed again.
+    // back; the revision still moves so nothing prepared before it is current.
     await sql`
       update enquiry set decision_revision = decision_revision + 1, updated_at = now()
       where id = ${input.enquiryId}
