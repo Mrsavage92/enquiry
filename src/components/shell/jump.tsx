@@ -208,17 +208,19 @@ export function Jump({
               </Command.Item>
             </Command.Group>
             <Command.Group heading="Work as">
-              <Command.Item
-                value="all businesses"
-                onSelect={() =>
-                  go(() => {
-                    setFilter("all");
-                    void navigate({ to: "/enquiries" });
-                  })
-                }
-              >
-                All businesses
-              </Command.Item>
+              {businesses.length > 1 ? (
+                <Command.Item
+                  value="all businesses"
+                  onSelect={() =>
+                    go(() => {
+                      setFilter("all");
+                      void navigate({ to: "/enquiries" });
+                    })
+                  }
+                >
+                  All businesses
+                </Command.Item>
+              ) : null}
               {businesses.map((b) => (
                 <Command.Item
                   key={b.id}

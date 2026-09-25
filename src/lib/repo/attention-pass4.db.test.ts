@@ -11,6 +11,9 @@ import { answerFactForUser } from "./answer-fact-core.ts";
 import { ForbiddenError } from "./tenancy.server.ts";
 import { prepareReviewedSendInTransaction } from "./reviewed-send-core.ts";
 import { describeRule, type BusinessRule } from "../../domain/business-rule.ts";
+import { createPracticeEnquiryInTransaction } from "./practice-core.ts";
+import { applyDecision, lockEnquiry } from "./decision-apply.ts";
+import { suggestService } from "../../domain/service-match.ts";
 
 /**
  * Review pass 4 (36/52 on 84a0145), SERIOUS 1-4 and HIGH 5, against a real
@@ -345,4 +348,59 @@ test("HIGH 9: a written answer is stored as digits; another tenant's answer is F
   assert.equal(res.value, "3");
   assert.equal((await live(pg, e.enquiryId, "bedrooms"))?.value, "3");
   assert.equal((await row(pg, e.enquiryId)).decision_snapshot.price?.amountMinor, 57000);
+});
+
+test("HIGH 12: the practice enquiry names the owner's own service and is priced in two taps", async () => {
+  const pg = await freshDb();
+  const a = await tenant(pg, "user-a", "Alpha Cleaning");
+  const b = await tenant(pg, "user-b", "Bravo Cleaning");
+  await saveRule(pg, a.businessId, EOL);
+  const made = await tx(pg, (sql) =>
+    createPracticeEnquiryInTransaction(sql, { businessId: a.businessId, now: SAT_26_SEP }),
+  );
+  const [msg] = (
+    await pg.query<{ body: string }>("select body from message where enquiry_id = $1", [
+      made.enquiryId,
+    ])
+  ).rows;
+  assert.match(msg!.body, /end of lease clean - it's 3 bedrooms/);
+  // The chooser pre-selects it from their words.
+  assert.equal(suggestService(msg!.body, ["End of lease clean"]), "End of lease clean");
+  // Tap 1: use the pre-selected service (what setEnquiryService writes).
+  await tx(pg, async (sql) => {
+    await lockEnquiry(sql, made.enquiryId);
+    await sql`
+      insert into enquiry_fact (enquiry_id, field, label, value, display_value, status, confidence, asserted_by, provenance, customer_specific)
+      values (${made.enquiryId}, ${"service"}, ${"service"}, ${"End of lease clean"}, ${"End of lease clean"}, ${"confirmed"}, ${"High"}, ${"user"}, ${"{}"}::jsonb, ${true})
+    `;
+    await sql`update enquiry set service_label = ${"End of lease clean"} where id = ${made.enquiryId}`;
+    await applyDecision(sql, {
+      enquiryId: made.enquiryId,
+      businessId: a.businessId,
+      serviceLabel: "End of lease clean",
+      customerName: "Sam",
+    });
+  });
+  const reading = await row(pg, made.enquiryId);
+  assert.equal(reading.decision_snapshot.missing[0]?.inferred?.value, "3");
+  // Tap 2: "Yes, 3 bedrooms".
+  await answer(pg, "user-a", made.enquiryId, "bedrooms", "3");
+  const priced = await row(pg, made.enquiryId);
+  assert.equal(priced.decision_state, "ACTION_READY");
+  assert.equal(priced.decision_snapshot.price?.amountMinor, 57000);
+
+  // No prices yet: a job in their own trade, and the next step is adding prices.
+  const none = await tx(pg, (sql) =>
+    createPracticeEnquiryInTransaction(sql, { businessId: b.businessId, now: SAT_26_SEP }),
+  );
+  const [bMsg] = (
+    await pg.query<{ body: string }>("select body from message where enquiry_id = $1", [
+      none.enquiryId,
+    ])
+  ).rows;
+  assert.match(bMsg!.body, /end of lease clean/i);
+  assert.equal(
+    (await row(pg, none.enquiryId)).decision_snapshot.recommendation.label,
+    "Add your prices",
+  );
 });

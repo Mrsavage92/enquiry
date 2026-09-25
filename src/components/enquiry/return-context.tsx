@@ -11,9 +11,7 @@ export function ReturnContext({ enquiry }: { enquiry: Enquiry }) {
   return (
     <section className="enquiry-return-context" aria-label="Current enquiry context">
       <div className="return-context-status">
-        <span>
-          {recorded ? "Previous reply recorded" : demoMode ? "Nothing sent" : "No send recorded"}
-        </span>
+        <span>{recorded ? "You replied" : demoMode ? "Nothing sent" : "No reply yet"}</span>
         {demoMode && enquiry.fixtureId === "UI1_PAINTING" ? (
           <span>Synthetic example · sample crew rule</span>
         ) : null}

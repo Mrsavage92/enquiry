@@ -8,7 +8,7 @@ import {
 } from "@/domain/format";
 import type { Enquiry, Message } from "@/domain/types";
 import { cn } from "@/lib/utils";
-import { useEffect, useRef, type Ref } from "react";
+import { useEffect, useRef, useState, type Ref } from "react";
 import { BUSINESS_BY_ID } from "@/fixtures";
 import { resolveBusiness } from "@/lib/workspace/resolve-business";
 import { usePrototype } from "@/store/prototype-store";
@@ -210,11 +210,12 @@ function MessageBlock({
               {outbound ? "Sent" : "Received"}
               <span className="tabular-nums text-stone"> · {formatTime(m.at)}</span>
             </p>
-            <div className={cn("msg mt-1 text-left", outbound ? "msg-out ml-auto" : "msg-in")}>
-              <p className={cn("whitespace-pre-wrap", !short && "letter-body font-serif")}>
-                {m.body}
-              </p>
-            </div>
+            <ClampedMessage
+              body={m.body}
+              clamp={compact && !outbound}
+              className={cn("msg mt-1 text-left", outbound ? "msg-out ml-auto" : "msg-in")}
+              textClassName={cn("whitespace-pre-wrap", !short && "letter-body font-serif")}
+            />
           </div>
         </div>
       </li>
@@ -288,6 +289,48 @@ function MessageBlock({
         </div>
       ) : null}
     </li>
+  );
+}
+
+/** Past this, a customer's message pushes the next step off a phone screen. */
+const LONG_MESSAGE_CHARS = 220;
+const LONG_MESSAGE_LINES = 4;
+
+/**
+ * A long customer message on the phone shows its first four lines and "Show
+ * all", so the next step and its button stay above the fold. Nothing is cut:
+ * one tap shows every word, and the desk shows it in full.
+ */
+function ClampedMessage({
+  body,
+  clamp,
+  className,
+  textClassName,
+}: {
+  body: string;
+  clamp: boolean;
+  className: string;
+  textClassName: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const long =
+    clamp && (body.length > LONG_MESSAGE_CHARS || body.split("\n").length > LONG_MESSAGE_LINES);
+  return (
+    <>
+      <div className={className}>
+        <p className={cn(textClassName, long && !open && "line-clamp-4")}>{body}</p>
+      </div>
+      {long ? (
+        <button
+          type="button"
+          className="inline-flex min-h-11 items-center text-sm font-medium text-mark-strong"
+          aria-expanded={open}
+          onClick={() => setOpen((v) => !v)}
+        >
+          {open ? "Show less" : "Show all"}
+        </button>
+      ) : null}
+    </>
   );
 }
 

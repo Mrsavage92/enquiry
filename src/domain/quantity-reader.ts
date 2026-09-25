@@ -307,7 +307,9 @@ export function quantityContextFor(
   const main = service.trim();
   if (!main) return undefined;
   const others = [
-    ...new Set(knownServices.map((s) => s.trim()).filter((s) => s && s.toLowerCase() !== main.toLowerCase())),
+    ...new Set(
+      knownServices.map((s) => s.trim()).filter((s) => s && s.toLowerCase() !== main.toLowerCase()),
+    ),
   ].filter((o) => mentionsAny(text, distinctiveStems(o, [main])));
   return others.length ? { service: main, others } : undefined;
 }

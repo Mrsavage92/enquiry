@@ -49,7 +49,7 @@ test("only a genuinely confirmed fact ever reads as Confirmed - inferred and che
 });
 
 test("check_this and inferred each carry their own visible text, not a generic placeholder", () => {
-  assert.equal(factStatusLabel("inferred"), "Inferred");
+  assert.equal(factStatusLabel("inferred"), "From their message");
   assert.equal(factStatusLabel("check_this"), "Check this");
   assert.notEqual(factStatusLabel("inferred"), factStatusLabel("check_this"));
 });

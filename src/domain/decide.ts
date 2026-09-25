@@ -362,7 +362,12 @@ function decideExtras(
         action: "ESCALATE_HUMAN",
         explanation: `They also asked for ${extra.label.toLowerCase()}, and none of your prices covers it. Add a price, or leave it out and tell them.`,
         setup: "add_price",
-        extraPending: { field: extra.field, label: extra.label, kind: "no_price", span: extra.span },
+        extraPending: {
+          field: extra.field,
+          label: extra.label,
+          kind: "no_price",
+          span: extra.span,
+        },
       };
     }
     const line = compilePrice([rule], rule.service, [

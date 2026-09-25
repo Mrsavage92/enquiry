@@ -70,6 +70,10 @@ const RETIRED: [RegExp, string][] = [
   [/Waiting on you since/, "Your turn since"],
   // Said nothing about what the wait is for.
   [/Nothing until they answer/, "Waiting on Karen - for the number of bedrooms"],
+  // Review pass 4: jargon an owner does not say.
+  [/accepted off-channel/i, "They said yes"],
+  [/Previous reply recorded/, "You replied"],
+  [/"Inferred"/, "From their message"],
 ];
 
 /** Owner-facing app code. The public marketing site is owned elsewhere. */
@@ -247,4 +251,14 @@ test("a waiting row says who it is waiting on and what for", () => {
   assert.equal(nextStepLabel(e), "Waiting on Karen - for the number of bedrooms");
   const unnamed = { ...e, customerName: "Customer", nameUnknown: true };
   assert.equal(nextStepLabel(unnamed), "Waiting on the customer - for the number of bedrooms");
+});
+
+test("fact labels are capitalised words, never raw keys", async () => {
+  const { fieldLabel, factStatusLabel } = await import("./labels.ts");
+  assert.equal(fieldLabel("bedrooms"), "Bedrooms");
+  assert.equal(fieldLabel("square metres for ceilings"), "Square metres for ceilings");
+  assert.equal(fieldLabel("extra:oven cleaning"), "Also asked for oven cleaning");
+  assert.equal(fieldLabel("not_available"), "Not available");
+  assert.equal(fieldLabel("date"), "Job date");
+  assert.equal(factStatusLabel("inferred"), "From their message");
 });

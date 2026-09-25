@@ -1,12 +1,7 @@
 import type { Sql } from "../db.ts";
 import type { Decision } from "../../domain/decide.ts";
 import { quantityContextFor, readQuantityFromMessage } from "../../domain/quantity-reader.ts";
-import {
-  extraField,
-  extraLabel,
-  isExtraField,
-  readExtraRequests,
-} from "../../domain/extras.ts";
+import { extraField, extraLabel, isExtraField, readExtraRequests } from "../../domain/extras.ts";
 import { stemsOf } from "../../domain/service-words.ts";
 
 /**

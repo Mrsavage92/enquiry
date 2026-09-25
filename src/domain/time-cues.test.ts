@@ -66,6 +66,7 @@ test("a quiet customer comes back from what is on record, flags only", () => {
   const after = withFollowUpDue(e, prefs, new Date("2026-09-24T09:00:00+10:00"));
   assert.equal(after.followUpDue, true);
   assert.match(after.followUpReason ?? "", /Mon 10:00am/);
+  assert.match(after.followUpReason ?? "", /^No reply for 3 days since the quote\./);
   assert.equal(queueSection(after), "needs_you", "a due follow-up is a decision due now");
   // The stored decision is not rewritten, so nothing can offer a send the
   // server would refuse.
@@ -120,4 +121,26 @@ test("later choices name real days: later today, tomorrow, after the weekend", (
   // Late in the evening there is no "later today".
   const late = laterChoices(new Date("2026-09-24T22:30:00+10:00"), prefs);
   assert.equal(late[0]!.id, "tomorrow");
+});
+
+test("'Later today' is never outside working hours, and is left out when none is left", () => {
+  const hours = {
+    ...prefs,
+    hoursStart: "08:00",
+    hoursEnd: "17:30",
+    workingDays: "Monday to Friday",
+  };
+  // Thursday 3:30pm: three hours on is 6:30pm, so it is pulled back to 5:30pm.
+  const afternoon = laterChoices(new Date("2026-09-24T15:30:00+10:00"), hours);
+  assert.equal(afternoon[0]!.id, "today");
+  assert.match(afternoon[0]!.label, /5:30pm$/);
+  // Thursday 5pm: under an hour left, so no "later today" at all.
+  const five = laterChoices(new Date("2026-09-24T17:00:00+10:00"), hours);
+  assert.equal(five[0]!.id, "tomorrow");
+  // Saturday is not a working day.
+  const saturday = laterChoices(new Date("2026-09-26T10:00:00+10:00"), hours);
+  assert.ok(!saturday.some((c) => c.id === "today"));
+  // Early morning: never before they start.
+  const early = laterChoices(new Date("2026-09-24T04:00:00+10:00"), hours);
+  assert.match(early[0]!.label, /Later today, 8:00am$/);
 });

@@ -1,10 +1,14 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { Building2, ChevronLeft, MapPin } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { AuthLayout } from "@/components/auth/auth-layout";
 import { usePrototype } from "@/store/prototype-store";
-import { completeOnboarding, NOT_A_FOUNDING_MEMBER } from "@/lib/server/workspace";
+import {
+  completeOnboarding,
+  NOT_A_FOUNDING_MEMBER,
+  refetchWorkspace,
+} from "@/lib/server/workspace";
 import { FOUNDING_PAYMENT_LINK, paymentsOpen } from "@/lib/site/offer";
 import { cn } from "@/lib/utils";
 import { RequireAuth } from "@/lib/auth/gates";
@@ -139,6 +143,24 @@ function Onboarding() {
   const [submitError, setSubmitError] = useState("");
   // Offered once, here, and off unless the owner ticks it.
   const [noticesOn, setNoticesOn] = useState(false);
+  // Setup only ever creates a workspace. With one already there, anything
+  // typed here would be dropped on submit, so the owner is told first and
+  // sent to where their details can actually be changed.
+  const [existing, setExisting] = useState<string | null>(null);
+  useEffect(() => {
+    let live = true;
+    refetchWorkspace()
+      .then((ws) => {
+        const first = (ws as { businesses?: { name?: string }[] } | null)?.businesses?.[0];
+        if (live && first) setExisting(first.name?.trim() || "your business");
+      })
+      .catch(() => {
+        // No workspace to read (or no session yet): the form is the right screen.
+      });
+    return () => {
+      live = false;
+    };
+  }, []);
 
   useEffect(() => {
     writeDraft({ name, ownerFirstName, industry, baseLocation, team, timezone });
@@ -184,6 +206,12 @@ function Onboarding() {
         },
       });
       if (!result?.ok) throw new Error("Workspace could not be created.");
+      if (result.created === false) {
+        // Nothing typed here was saved: say so, never pretend it was.
+        clearDraft();
+        setExisting(name.trim() || "your business");
+        return;
+      }
       clearDraft();
       if (noticesOn) {
         // Best effort: the workspace exists either way, and the same switch is
@@ -220,6 +248,26 @@ function Onboarding() {
       setSubmitting(false);
     }
   };
+
+  if (existing) {
+    return (
+      <AuthLayout wide>
+        <h1 className="text-2xl font-semibold tracking-tight">You already have a workspace</h1>
+        <p className="mt-3 max-w-prose text-base leading-relaxed text-ink-2">
+          {existing} is set up, so setup will not run again and nothing here is saved. Change your
+          business details, prices and hours under Business.
+        </p>
+        <div className="mt-6 flex flex-wrap gap-2">
+          <Button asChild className="min-h-11">
+            <Link to="/today">Go to Today</Link>
+          </Button>
+          <Button asChild variant="secondary" className="min-h-11">
+            <Link to="/business">Business details</Link>
+          </Button>
+        </div>
+      </AuthLayout>
+    );
+  }
 
   return (
     <AuthLayout wide>

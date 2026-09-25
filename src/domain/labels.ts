@@ -16,7 +16,7 @@ import { firstName } from "./customer-name.ts";
  * Text, not a colour swatch - `Badge` already carries its own tone, but the
  * label itself is what a screen reader announces and what survives someone
  * being colour-blind. Shared between `intelligence.tsx` and
- * `answer-blocker.tsx` so an "Inferred" fact reads the same wherever its
+ * `answer-blocker.tsx` so a fact read from the message reads the same wherever its
  * value is echoed.
  */
 export function factStatusLabel(status: EnquiryFact["status"]): string {
@@ -24,7 +24,8 @@ export function factStatusLabel(status: EnquiryFact["status"]): string {
     case "confirmed":
       return "Confirmed";
     case "inferred":
-      return "Inferred";
+      // Read from what the customer wrote, not yet checked by the owner.
+      return "From their message";
     case "check_this":
       return "Check this";
     case "range":
@@ -46,6 +47,33 @@ export function factStatusTone(status: EnquiryFact["status"]): "neutral" | "ok" 
     default:
       return "neutral";
   }
+}
+
+/** Field names people read, capitalised: "bedrooms" -> "Bedrooms". */
+const FIELD_NAMES: Record<string, string> = {
+  date: "Job date",
+  not_available: "Not available",
+  name: "Name",
+  phone: "Phone",
+  email: "Email",
+  service: "Service",
+};
+
+/**
+ * A stored fact field as a label on screen: "bedrooms" -> "Bedrooms",
+ * "extra:oven cleaning" -> "Also asked for oven cleaning", "not_available" ->
+ * "Not available". Never a raw key.
+ */
+export function fieldLabel(field: string): string {
+  const raw = field.trim();
+  if (/^extra:/i.test(raw)) return `Also asked for ${raw.slice(6).trim().toLowerCase()}`;
+  const known = FIELD_NAMES[raw.toLowerCase()];
+  if (known) return known;
+  const words = raw
+    .replace(/([a-z])([A-Z])/g, "$1 $2")
+    .replace(/[_-]+/g, " ")
+    .trim();
+  return words ? words.charAt(0).toUpperCase() + words.slice(1) : raw;
 }
 
 /**
@@ -206,6 +234,15 @@ export function waitingForPhrase(enquiry: Enquiry): string {
   if (blocking) return decidingPhrase(blocking.label.toLowerCase());
   const quoted = enquiry.state.commercial === "QUOTED" || enquiry.state.commercial === "ESTIMATED";
   return quoted ? "their answer to your quote" : "their answer";
+}
+
+/** The amount of the quote they are answering, as sent: "$880". */
+export function sentQuoteAmount(enquiry: Enquiry): string | null {
+  const quoted = enquiry.state.commercial === "QUOTED" || enquiry.state.commercial === "ESTIMATED";
+  if (!quoted) return null;
+  const sentQuote = [...enquiry.decision.quotes].reverse().find((q) => q.sentAt);
+  const total = enquiry.valueExact?.amount ?? sentQuote?.total?.amount;
+  return typeof total === "number" ? formatAud(total) : null;
 }
 
 /**

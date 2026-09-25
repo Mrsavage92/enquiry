@@ -89,11 +89,11 @@ export function snapshotFromDecision(decision: Decision, who: ReplyContext = {})
         : ["CHECK_EXTRA"]
       : decision.setup
         ? [SETUP_REASON[decision.setup]]
-      : decision.provisional
-        ? ["CONFIRM_SERVICE"]
-        : decision.serviceChoices?.length
-          ? ["CHOOSE_BETWEEN"]
-          : [],
+        : decision.provisional
+          ? ["CONFIRM_SERVICE"]
+          : decision.serviceChoices?.length
+            ? ["CHOOSE_BETWEEN"]
+            : [],
     // `primaryEnabled` is about the SEND control. An escalation has nothing to
     // send; its next step (add prices, choose the service) is a link the desk
     // renders from the reason code, never this flag.

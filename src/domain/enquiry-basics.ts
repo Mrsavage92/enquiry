@@ -392,13 +392,15 @@ const EMAIL = String.raw`[\w.+-]+@[\w-]+(?:\.[\w-]+)+`;
 const CONTACT_TAIL = String.raw`(?:[\s,|]+(?:${PHONE}|${EMAIL}))*`;
 /** A kiss after a name: "Priya x", "Jo xx". */
 const KISS = String.raw`(?:\s+x{1,3})?`;
+/** A role or business after the name: "Priya Shah, Office Manager, Northside Dental". */
+const ROLE_TAIL = String.raw`(?:\s*,\s*[A-Z][A-Za-z&'.-]*(?:\s+[A-Za-z&'.-]+){0,4}){0,3}`;
 
 const SIGN_OFF_WORDS = String.raw`(?:many thanks|thank you|thanks|thanx|thx|ta|cheers|kind regards|warm regards|best regards|regards|best wishes|all the best|best|speak soon|talk soon)`;
 const SIGN_OFF_EXTRA = String.raw`(?:\s+(?:heaps|so much|again|a lot|mate|in advance))?`;
 
 /** "Thanks, Karen" / "Cheers Tom" / "thx Dave" at the very end. */
 const SIGN_OFF = new RegExp(
-  String.raw`\b${SIGN_OFF_WORDS}${SIGN_OFF_EXTRA}[,!.]?\s+${NAME}${KISS}\s*[.!]?${CONTACT_TAIL}\s*$`,
+  String.raw`\b${SIGN_OFF_WORDS}${SIGN_OFF_EXTRA}[,!.]?\s+${NAME}${KISS}${ROLE_TAIL}\s*[.!]?${CONTACT_TAIL}\s*$`,
   "i",
 );
 /** A line that is only a sign-off, or a sign-off and a name: "cheers", "Thanks heaps,". */

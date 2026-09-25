@@ -15,6 +15,7 @@ import {
   commercialValue,
   factStatusLabel,
   factStatusTone,
+  fieldLabel,
 } from "@/domain/labels";
 import { CommercialValueMark } from "@/components/ui/commercial-value";
 import { statusTone } from "@/domain/status-tone";
@@ -44,6 +45,7 @@ import {
   detectPriceDrift,
   detectSheetLetterMismatch,
   alignLetterToSheet,
+  replaceAmounts,
 } from "@/domain/voice-detect";
 import { CaseFile } from "./case-file";
 import { isCustomerFacingSend, resolvedHold } from "@/domain/commercial";
@@ -66,6 +68,9 @@ import { PracticeBadge, PracticeNote } from "./practice-note";
 import { ExtraDecision } from "./extra-decision";
 import { DateNotes } from "./date-notes";
 import { formatMinorAud } from "@/domain/money-format";
+import { activeRules } from "@/domain/decide";
+import { describeRule } from "@/domain/business-rule";
+import { EXTRA_CHOICE, extraField } from "@/domain/extras";
 
 export function Intelligence({
   enquiry,
@@ -97,6 +102,11 @@ export function Intelligence({
   const [reviewedSendId, setReviewedSendId] = useState<string | null>(null);
   const [reviewBlocked, setReviewBlocked] = useState<string | null>(null);
   const [reviewStale, setReviewStale] = useState<string | null>(null);
+  // Which figure the server refused, so the preview can offer a way forward.
+  const [reviewMismatch, setReviewMismatch] = useState<{
+    named: number[];
+    expectedMinor: number | null;
+  } | null>(null);
   const [noteOpen, setNoteOpen] = useState(false);
   const [declineOpen, setDeclineOpen] = useState(false);
   const [declining, setDeclining] = useState(false);
@@ -144,6 +154,7 @@ export function Intelligence({
   const ruleDerived =
     Boolean(enquiry.decision.price) ||
     Boolean(setup) ||
+    Boolean(enquiry.decision.extraPending) ||
     (rec.action === "REQUEST_INFORMATION" && Boolean(blockingMissing));
   const showConfidence = !ruleDerived;
   // One fact, one place: when the recommendation's reason is the exact same
@@ -187,7 +198,9 @@ export function Intelligence({
   }, [hasOwnEdit, compact]);
   const sent = lastSent(enquiry);
   const waitingFor = enquiry.decision.missing.find((m) => m.blocking)?.label;
-  const priceDrift = detectPriceDrift(enquiry.decision.draft.body, draftBody);
+  const quoteTotal =
+    enquiry.decision.price?.kind === "EXACT" ? enquiry.decision.price.amountMinor / 100 : null;
+  const priceDrift = detectPriceDrift(enquiry.decision.draft.body, draftBody, quoteTotal);
   const sheets = quoteSheets(enquiry);
   const focusQuote =
     [...sheets].reverse().find((q) => q.status === "draft" || q.status === "accepted") ??
@@ -249,8 +262,9 @@ export function Intelligence({
    * service nobody confirmed, a message naming an amount the decision does not -
    * and refusing here, before anything is copied or claimed, is the point.
    */
-  const openReview = async () => {
-    if (!draftBody.trim()) {
+  const openReview = async (bodyOverride?: string) => {
+    const body = bodyOverride ?? draftBody;
+    if (!body.trim()) {
       toast.error("There is no prepared reply to send.");
       return;
     }
@@ -265,12 +279,14 @@ export function Intelligence({
     }
     setSending(true);
     try {
-      const res = await firstBeta.prepareReview(enquiry.id, draftBody, reply);
+      const res = await firstBeta.prepareReview(enquiry.id, body, reply);
       if (!res.ok) {
         setReviewBlocked(res.message);
+        setReviewMismatch(res.reason === "amount_mismatch" ? (res.amounts ?? null) : null);
         setReviewedSendId(null);
       } else {
         setReviewBlocked(null);
+        setReviewMismatch(null);
         setReviewedSendId(res.reviewedSendId);
       }
       setReviewStale(null);
@@ -346,6 +362,19 @@ export function Intelligence({
   const integ = integrationForChannel(business, reply, enquiry);
   const Panel = compact ? SheetContent : DialogContent;
   const preview = previewFor({ enquiry, business, draft: draftBody, decision: enquiry.decision });
+  // Saved prices that could be the line an edited total added: every one
+  // except the main job and anything already on the quote.
+  const onQuote = new Set(
+    [
+      enquiry.serviceLabel,
+      ...(enquiry.decision.price?.kind === "EXACT"
+        ? (enquiry.decision.price.lines ?? []).map((l) => l.label)
+        : []),
+    ].map((s) => s.trim().toLowerCase()),
+  );
+  const lineChoices = activeRules(business ?? {}).filter(
+    (r) => !onQuote.has(r.service.trim().toLowerCase()),
+  );
   // Desktop-only: the compact (mobile sheet) scroller never overflows the
   // same way, and its own overflow-hidden wrapper isn't the scrolling
   // element, so tracking it here would be inert anyway.
@@ -705,7 +734,7 @@ export function Intelligence({
                         const reasonShownElsewhere = m.blocking && !demoMode;
                         return (
                           <li key={m.factField} className="callout bg-warn-bg text-warn">
-                            <p className="text-sm font-medium">{m.label}</p>
+                            <p className="text-sm font-medium">{fieldLabel(m.label)}</p>
                             {compact ? null : (
                               <p className="mt-0.5 text-sm text-ink-2">
                                 {reasonShownElsewhere ? "" : `${m.reason} `}Unlocks: {m.unlocks}.
@@ -811,8 +840,9 @@ export function Intelligence({
                   ) : null}
                   {priceDrift ? (
                     <p className="mt-3 text-sm text-warn">
-                      The quote on file is still {priceDrift.from}. This letter now says{" "}
-                      {priceDrift.to}.
+                      {priceDrift.from
+                        ? `The quote on file is ${priceDrift.from}. This reply now says ${priceDrift.to}.`
+                        : `This reply now says ${priceDrift.to}, which the prepared reply did not.`}
                     </p>
                   ) : null}
                   {sheetDrift ? (
@@ -845,7 +875,11 @@ export function Intelligence({
                         >
                           This enquiry only
                         </Button>
-                        <Button className="min-h-11 w-full" onClick={() => decideVoice("teach")}>
+                        <Button
+                          className="min-h-11 w-full"
+                          variant="secondary"
+                          onClick={() => decideVoice("teach")}
+                        >
                           Update {business?.name ?? "this business"}’s voice
                         </Button>
                       </div>
@@ -907,8 +941,10 @@ export function Intelligence({
                   ) : null}
                   {priceDrift ? (
                     <p className="mt-3 text-sm text-warn">
-                      The quote on file is still {priceDrift.from}. This letter now says{" "}
-                      {priceDrift.to}. Editing the reply does not change the price.
+                      {priceDrift.from
+                        ? `The quote on file is ${priceDrift.from}. This reply now says ${priceDrift.to}.`
+                        : `This reply now says ${priceDrift.to}, which the prepared reply did not.`}{" "}
+                      Editing the reply does not change the price.
                     </p>
                   ) : null}
                   {sheetDrift ? (
@@ -945,7 +981,7 @@ export function Intelligence({
                         >
                           This enquiry only
                         </Button>
-                        <Button size="sm" onClick={() => decideVoice("teach")}>
+                        <Button size="sm" variant="secondary" onClick={() => decideVoice("teach")}>
                           Update {business?.name ?? "this business"}’s voice
                         </Button>
                       </div>
@@ -1077,7 +1113,9 @@ export function Intelligence({
                   </p>
                 </>
               ) : setup ? null : enquiry.decision.extraPending ? (
-                <p className="text-sm text-ink-2">Add or leave out what else they asked for above.</p>
+                <p className="text-sm text-ink-2">
+                  Add or leave out what else they asked for above.
+                </p>
               ) : situation ? (
                 <p className="text-sm text-ink-2">Settle the detail above first.</p>
               ) : serviceUnconfirmed ? (
@@ -1191,7 +1229,7 @@ export function Intelligence({
                 .map((f) => (
                   <li key={f.id} className="flex items-start justify-between gap-2 py-1">
                     <div>
-                      <p className="text-2xs text-stone">{f.label}</p>
+                      <p className="text-2xs text-stone">{fieldLabel(f.label)}</p>
                       <p className="text-sm">{f.displayValue || "-"}</p>
                       {f.status === "inferred" || f.status === "check_this" ? (
                         <Badge tone={factStatusTone(f.status)} className="mt-1">
@@ -1202,7 +1240,7 @@ export function Intelligence({
                     <Button
                       variant="ghost"
                       size="icon"
-                      aria-label={`Correct ${f.label}`}
+                      aria-label={`Correct ${fieldLabel(f.label)}`}
                       onClick={() => {
                         setWhyOpen(false);
                         setCorrecting(f);
@@ -1260,7 +1298,7 @@ export function Intelligence({
                   className="flex items-start justify-between gap-2 border-b border-line py-2 last:border-b-0"
                 >
                   <div>
-                    <p className="text-2xs text-stone">{f.label}</p>
+                    <p className="text-2xs text-stone">{fieldLabel(f.label)}</p>
                     <p className="text-sm">{f.displayValue || "-"}</p>
                     {f.status === "inferred" || f.status === "check_this" ? (
                       <Badge tone={factStatusTone(f.status)} className="mt-1">
@@ -1271,7 +1309,7 @@ export function Intelligence({
                   <Button
                     variant="ghost"
                     size="icon"
-                    aria-label={`Correct ${f.label}`}
+                    aria-label={`Correct ${fieldLabel(f.label)}`}
                     onClick={() => {
                       setEvidenceOpen(false);
                       setCorrecting(f);
@@ -1302,6 +1340,43 @@ export function Intelligence({
         demoMode={demoMode}
         blockedReason={reviewBlocked}
         staleMessage={reviewStale}
+        mismatch={
+          reviewMismatch && !demoMode
+            ? {
+                onUsePrepared: () => {
+                  // Their words stay; only the figure that differs changes.
+                  const next =
+                    reviewMismatch.named.length > 0 && reviewMismatch.expectedMinor !== null
+                      ? replaceAmounts(
+                          draftBody,
+                          reviewMismatch.named,
+                          reviewMismatch.expectedMinor,
+                        )
+                      : enquiry.decision.draft.body;
+                  editDraft(enquiry.id, next);
+                  void openReview(next);
+                },
+                lines: lineChoices.map((rule) => ({
+                  label: `Add ${rule.service.toLowerCase()} (${describeRule(rule).split(": ")[1] ?? ""})`,
+                  onAdd: () => {
+                    void firstBeta
+                      .answerFact(enquiry.id, extraField(rule.service), EXTRA_CHOICE.include)
+                      .then(() => {
+                        setSendConfirm(false);
+                        toast.success(
+                          `Added ${rule.service.toLowerCase()}. The quote and the reply now include it.`,
+                        );
+                      })
+                      .catch((err: unknown) =>
+                        setReviewBlocked(
+                          err instanceof Error ? err.message : "Could not add that line.",
+                        ),
+                      );
+                  },
+                })),
+              }
+            : null
+        }
         onCopy={copyDraft}
         onConfirm={() => {
           void confirmExternalSend(false).then(() => {
@@ -1572,7 +1647,7 @@ function FactList({
             className="flex items-start justify-between gap-2 border-b border-line/80 py-2.5 last:border-b-0"
           >
             <div>
-              <p className="text-2xs text-stone">{f.label}</p>
+              <p className="text-2xs text-stone">{fieldLabel(f.label)}</p>
               <p className={cn("text-sm", f.status === "check_this" && "text-warn")}>
                 {f.displayValue || "-"}
               </p>
@@ -1587,7 +1662,7 @@ function FactList({
             <Button
               variant="ghost"
               size="icon"
-              aria-label={`Correct ${f.label}`}
+              aria-label={`Correct ${fieldLabel(f.label)}`}
               onClick={() => onCorrect(f)}
             >
               <Pencil className="size-4" />
@@ -1664,7 +1739,7 @@ function CorrectDialog({
   const Panel = sheet ? SheetContent : DialogContent;
   return (
     <Dialog open={Boolean(fact)} onOpenChange={(o) => !o && onClose()}>
-      <Panel title={`Correct ${fact.label}`}>
+      <Panel title={`Correct ${fieldLabel(fact.label)}`}>
         {alts.length ? (
           <div className="space-y-2">
             <p className="text-sm text-ink-2">Pick the interpretation Enquiry should use.</p>
@@ -1689,7 +1764,7 @@ function CorrectDialog({
             }}
           >
             <label className="block text-sm">
-              <span className="mb-1 block text-stone">{fact.label}</span>
+              <span className="mb-1 block text-stone">{fieldLabel(fact.label)}</span>
               <input
                 value={value}
                 onChange={(e) => setValue(e.target.value)}

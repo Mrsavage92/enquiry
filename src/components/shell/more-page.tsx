@@ -55,7 +55,7 @@ export function MorePage() {
           </summary>
           <p className="sr-only">Switch business</p>
           <ul className="mt-1">
-            {demoMode ? (
+            {demoMode && visible.length > 1 ? (
               <li>
                 <button
                   type="button"

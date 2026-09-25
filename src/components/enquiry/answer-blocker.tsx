@@ -2,7 +2,7 @@ import { useEffect, useId, useState } from "react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { factStatusLabel, factStatusTone } from "@/domain/labels";
+import { factStatusLabel, factStatusTone, fieldLabel } from "@/domain/labels";
 import { useFirstBetaActions } from "@/lib/workspace/live-mutations";
 import type { Enquiry, EnquiryFact } from "@/domain/types";
 import { blockerInput } from "@/domain/blocker-input";
@@ -90,7 +90,9 @@ export function AnswerBlocker({
 
   const submit = async (answer = value) => {
     if (!answer.trim()) {
-      setError(`Enter the ${missing.label.toLowerCase()}, for example ${input.placeholder || "4"}.`);
+      setError(
+        `Enter the ${missing.label.toLowerCase()}, for example ${input.placeholder || "4"}.`,
+      );
       setEditing(true);
       return;
     }
@@ -156,7 +158,7 @@ export function AnswerBlocker({
   const field = (
     <div className="mt-3 flex flex-wrap items-end gap-2">
       <label className="min-w-40 flex-1 text-sm">
-        <span className="mb-1.5 block text-stone">{missing.label}</span>
+        <span className="mb-1.5 block text-stone">{fieldLabel(missing.label)}</span>
         <input
           className="field w-full"
           value={value}

@@ -16,10 +16,6 @@ export function AccountMenu({ compact, inverse }: { compact?: boolean; inverse?:
   const paused = businesses.some((b) => b.paused);
   const reset = usePrototype((s) => s.reset);
   const startSetup = usePrototype((s) => s.startSetup);
-  const workspaceLabel =
-    filter === "all"
-      ? "All businesses"
-      : (businesses.find((b) => b.id === filter)?.name ?? "Workspace");
   const demoMode = usePrototype((s) => s.demoMode);
   // Live mode shows the tenant's own businesses. Filtering to the fixture
   // "glow" id meant a real workspace vanished from its own selector the
@@ -28,6 +24,14 @@ export function AccountMenu({ compact, inverse }: { compact?: boolean; inverse?:
     demoMode,
     fixtures: BUSINESSES,
   });
+  // "All businesses" only means something when there is more than one.
+  const several = visibleBusinesses.length > 1;
+  const workspaceLabel =
+    filter === "all"
+      ? several
+        ? "All businesses"
+        : (visibleBusinesses[0]?.name ?? "Workspace")
+      : (businesses.find((b) => b.id === filter)?.name ?? "Workspace");
 
   return (
     <Dropdown.Root>
@@ -61,7 +65,7 @@ export function AccountMenu({ compact, inverse }: { compact?: boolean; inverse?:
         >
           <p className="eyebrow px-2 py-2">Working as</p>
           <Dropdown.RadioGroup value={filter} onValueChange={(v) => setFilter(v)}>
-            {demoMode ? (
+            {demoMode && several ? (
               <Dropdown.RadioItem
                 value="all"
                 className="rounded-md px-2 py-2 text-sm outline-none data-[highlighted]:bg-paper-2 data-[highlighted]:shadow-[var(--shadow-mark-focus)]"

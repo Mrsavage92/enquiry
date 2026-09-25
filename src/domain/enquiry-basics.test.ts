@@ -185,6 +185,7 @@ test("sign-off names over several lines, with contact details, are read", () => 
     ["Quote please.\nCheers,\nAnne-Marie Smith-Jones", "Anne-Marie Smith-Jones"],
     ["Quote please.\nKind regards,\nSean McDonald\nMob: 0412 555 019", "Sean McDonald"],
     ["Quote please.\nCheers,\nMel\nChermside", "Mel"],
+    ["Could you come in? Regards, Priya Shah, Office Manager, Northside Dental", "Priya Shah"],
   ];
   for (const [text, want] of cases) assert.equal(readCustomerName(text), want, text);
 });

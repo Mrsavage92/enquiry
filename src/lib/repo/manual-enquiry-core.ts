@@ -6,11 +6,7 @@ import { snapshotFromDecision, stateFromDecision } from "../../domain/decision-s
 import { applyDecision, isClosed, lockEnquiry } from "./decision-apply.ts";
 import type { EnquiryInterpreter, InterpretFailureReason } from "../interpret/types.ts";
 import { readEnquiryBasics, type DateReading } from "../../domain/enquiry-basics.ts";
-import {
-  blockedQuantity,
-  findQuantityInMessages,
-  newExtraRequests,
-} from "./quantity-inference.ts";
+import { blockedQuantity, findQuantityInMessages, newExtraRequests } from "./quantity-inference.ts";
 import { ASAP_VALUE } from "./decision-apply.ts";
 
 /**
@@ -196,8 +192,7 @@ export async function insertManualEnquiry(
   // transaction that creates the enquiry. Every reading carries the message it
   // came from.
   for (const f of facts) {
-    const provenance =
-      f.assertedBy === "user" ? f.provenance : { ...f.provenance, messageId };
+    const provenance = f.assertedBy === "user" ? f.provenance : { ...f.provenance, messageId };
     await sql`
       insert into enquiry_fact
         (enquiry_id, field, label, value, display_value, status, confidence,
@@ -264,13 +259,29 @@ function dateFacts(dates: DateReading): ArrivalFact[] {
       },
     });
   } else if (dates.issue?.kind === "weekday_conflict") {
-    out.push(readFact("date", dates.issue.span, dates.issue.note, dates.issue.span, "Job date", "conflict"));
+    out.push(
+      readFact(
+        "date",
+        dates.issue.span,
+        dates.issue.note,
+        dates.issue.span,
+        "Job date",
+        "conflict",
+      ),
+    );
   } else if (dates.asap) {
     const note = dates.issue ? `As soon as possible. ${dates.issue.note}` : "As soon as possible";
     out.push(readFact("date", ASAP_VALUE, note, dates.issue?.span ?? "asap", "Job date"));
   } else if (dates.issue) {
     out.push(
-      readFact("date", dates.issue.span, dates.issue.note, dates.issue.span, "Job date", "check_this"),
+      readFact(
+        "date",
+        dates.issue.span,
+        dates.issue.note,
+        dates.issue.span,
+        "Job date",
+        "check_this",
+      ),
     );
   }
   if (dates.unavailable.length) {

@@ -1,4 +1,5 @@
 import type { VoiceProfile } from "./types";
+import { formatMinorAud } from "./money-format.ts";
 
 export type VoiceProposal = {
   patch: Partial<VoiceProfile>;
@@ -32,28 +33,53 @@ export function dollarMatches(text: string): DollarMatch[] {
   });
 }
 
+/**
+ * Put the quote total back where the owner typed a different figure: every
+ * named amount in `fromMinor` becomes `toMinor`. Everything else they wrote is
+ * kept exactly as it was.
+ */
+export function replaceAmounts(text: string, fromMinor: number[], toMinor: number): string {
+  const wrong = new Set(fromMinor);
+  let next = text;
+  for (const m of dollarMatches(text)) {
+    if (!wrong.has(Math.round(m.amount * 100))) continue;
+    next = next.replace(m.raw, formatMinorAud(toMinor));
+  }
+  return next;
+}
+
 export function dollarAmounts(text: string): number[] {
   return dollarMatches(text).map((m) => m.amount);
 }
 
 function fmtDollar(n: number): string {
-  return `$${n.toLocaleString("en-AU")}`;
+  return formatMinorAud(Math.round(n * 100));
 }
 
+/**
+ * The edited reply names money the prepared one did not. `from` is the quote
+ * on file (the decision's own total), never "none": the old version reported
+ * the figures the edit removed, so an edit that only ADDED "$120 ... $880"
+ * over a $760 quote read "The quote on file is still none".
+ */
 export function detectPriceDrift(
   original: string,
   edited: string,
-): { from: string; to: string } | null {
+  quoteTotal?: number | null,
+): { from: string | null; to: string } | null {
   const a = dollarAmounts(original);
   const b = dollarAmounts(edited);
   if (a.join(",") === b.join(",")) return null;
-  const from = a.filter((n) => !b.includes(n));
   const to = b.filter((n) => !a.includes(n));
-  if (from.length === 0 && to.length === 0) return null;
-  return {
-    from: from.map(fmtDollar).join(", ") || "none",
-    to: to.map(fmtDollar).join(", ") || "none",
-  };
+  const removed = a.filter((n) => !b.includes(n));
+  if (to.length === 0 && removed.length === 0) return null;
+  const from =
+    typeof quoteTotal === "number"
+      ? fmtDollar(quoteTotal)
+      : removed.length
+        ? removed.map(fmtDollar).join(", ")
+        : null;
+  return { from, to: to.map(fmtDollar).join(", ") || "no amount" };
 }
 
 /** True when the letter almost-but-not names the sheet figure (the $187 / $188 bug). */

@@ -12,8 +12,7 @@ type BusinessSearch = { section?: "pricing"; service?: string };
 export const Route = createFileRoute("/_app/business")({
   validateSearch: (search: Record<string, unknown>): BusinessSearch => {
     if (search.section !== "pricing") return {};
-    const service =
-      typeof search.service === "string" ? search.service.trim().slice(0, 80) : "";
+    const service = typeof search.service === "string" ? search.service.trim().slice(0, 80) : "";
     return service ? { section: "pricing", service } : { section: "pricing" };
   },
   component: BrainScreen,

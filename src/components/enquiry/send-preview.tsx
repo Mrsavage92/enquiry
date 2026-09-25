@@ -5,6 +5,7 @@ import { SheetContent } from "@/components/ui/sheet";
 import type { SendPreviewData } from "@/domain/send-preview";
 import { cn } from "@/lib/utils";
 import { Check, Copy, ClipboardCheck } from "lucide-react";
+import { Link } from "@tanstack/react-router";
 
 /**
  * The approval preview every commercial send goes through, shared by the main
@@ -43,6 +44,7 @@ export function SendPreview({
   blockedReason,
   staleMessage,
   onConfirmStale,
+  mismatch,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -61,7 +63,16 @@ export function SendPreview({
   staleMessage?: string | null;
   /** Record the older approved message the owner says they already sent. */
   onConfirmStale?: () => void;
+  /**
+   * The reply names a different amount to the quote. Never a dead end: put
+   * the prepared total back, or add the line the difference is for.
+   */
+  mismatch?: {
+    onUsePrepared: () => void;
+    lines: { label: string; onAdd: () => void }[];
+  } | null;
 }) {
+  const [addingLine, setAddingLine] = useState(false);
   const [copyState, setCopyState] = useState<SendPreviewCopyState>("idle");
   const bodyRef = useRef<HTMLDivElement>(null);
 
@@ -148,6 +159,48 @@ export function SendPreview({
             <p className="text-sm text-danger" role="alert">
               {blockedReason}
             </p>
+          ) : null}
+          {blockedReason && mismatch ? (
+            <div className="flex flex-col gap-2">
+              <Button
+                className="min-h-11 w-full"
+                disabled={pending}
+                onClick={mismatch.onUsePrepared}
+              >
+                Use the prepared total
+              </Button>
+              <Button
+                variant="secondary"
+                className="min-h-11 w-full"
+                disabled={pending}
+                aria-expanded={addingLine}
+                onClick={() => setAddingLine((v) => !v)}
+              >
+                Add a line
+              </Button>
+              {addingLine ? (
+                <div className="space-y-2">
+                  {mismatch.lines.map((l) => (
+                    <Button
+                      key={l.label}
+                      variant="ghost"
+                      className="min-h-11 w-full justify-start"
+                      disabled={pending}
+                      onClick={l.onAdd}
+                    >
+                      {l.label}
+                    </Button>
+                  ))}
+                  <p className="text-sm text-ink-2">
+                    Not in your prices?{" "}
+                    <Link className="ui-text-link" to="/business" search={{ section: "pricing" }}>
+                      Add a price
+                    </Link>{" "}
+                    and this enquiry updates.
+                  </p>
+                </div>
+              ) : null}
+            </div>
           ) : null}
           {staleMessage ? (
             <p className="text-sm text-warn" role="alert">
