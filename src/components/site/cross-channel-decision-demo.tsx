@@ -47,7 +47,7 @@ export function CrossChannelDecisionDemo({
   const Heading = headingLevel;
   const [scene, setScene] = useState<SignatureScene>(initialScene);
   const [business, setBusiness] = useState<SignatureBusinessId>(initialBusiness);
-  const [whyOpen, setWhyOpen] = useState(false);
+  const [whyOpenId, setWhyOpenId] = useState<string | null>(null);
   const navigate = useNavigate();
 
   // Through the router, not history.replaceState: TanStack history turns a raw
@@ -55,7 +55,7 @@ export function CrossChannelDecisionDemo({
   const show = (nextScene: SignatureScene, nextBusiness: SignatureBusinessId) => {
     setScene(nextScene);
     setBusiness(nextBusiness);
-    setWhyOpen(false);
+    setWhyOpenId(null);
     if (!syncUrl) return;
     void navigate({
       to: "/demo",
@@ -268,9 +268,11 @@ export function CrossChannelDecisionDemo({
                     key={check.id}
                     check={check}
                     later={later}
-                    whyOpen={whyOpen}
-                    whyId={whyId}
-                    onToggleWhy={() => setWhyOpen((v) => !v)}
+                    whyOpen={whyOpenId === check.id}
+                    whyId={`${whyId}-${check.id}`}
+                    onToggleWhy={() =>
+                      setWhyOpenId((open) => (open === check.id ? null : check.id))
+                    }
                   />
                 ))}
               </ul>
