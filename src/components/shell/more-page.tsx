@@ -49,7 +49,10 @@ export function MorePage() {
               <strong>
                 {current?.ownerName || (demoMode ? "Sample workspace" : "Your workspace")}
               </strong>
-              <small>{current?.name || "All businesses"}</small>
+              {/* "All businesses" only means something with more than one. */}
+              {current?.name || visible.length > 1 ? (
+                <small>{current?.name || "All businesses"}</small>
+              ) : null}
             </span>
             <ChevronDown size={16} aria-hidden />
           </summary>
