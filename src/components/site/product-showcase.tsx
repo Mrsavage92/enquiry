@@ -1,9 +1,10 @@
-import { useEffect, useId, useState } from "react";
-import { Link } from "@tanstack/react-router";
+import { useId, useState } from "react";
+import { Link, useNavigate } from "@tanstack/react-router";
 import { useArrowGroup } from "@/components/site/use-arrow-group";
 import { CalendarDays, CircleCheck, MessageSquareText, Settings2 } from "lucide-react";
 import { BrowserFrame } from "@/components/site/device-frame";
 import { CrossChannelDecisionDemo } from "@/components/site/cross-channel-decision-demo";
+import { mobileCaptureSrcSet } from "@/lib/site/captures";
 
 /**
  * The first view is the live sample decision (the same data as /demo), so the
@@ -15,7 +16,7 @@ const VIEWS = [
     id: "decision",
     label: "The answer",
     icon: CircleCheck,
-    caption: "Same message, two businesses. Switch either toggle and the answer moves with it.",
+    caption: "One message, two businesses. Switch the business and the answer moves with it.",
     alt: "",
   },
   {
@@ -53,19 +54,24 @@ export function ProductShowcase({
     VIEWS.findIndex((item) => item.id === (initialView ?? "decision")),
   );
   const [selected, setSelected] = useState(initialIndex);
+  const navigate = useNavigate({ from: "/" });
 
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const url = new URL(window.location.href);
-    const id = VIEWS[selected].id;
-    if (id === "decision") url.searchParams.delete("view");
-    else url.searchParams.set("view", id);
-    window.history.replaceState(window.history.state, "", url);
-  }, [selected]);
+  // Mirror the selection into ?view= through the router. A raw
+  // history.replaceState is patched by TanStack history into a router load,
+  // which resets scroll to the top of the page on every tap.
+  const select = (index: number) => {
+    setSelected(index);
+    const id = VIEWS[index].id;
+    void navigate({
+      search: id === "decision" ? {} : { view: id },
+      replace: true,
+      resetScroll: false,
+    });
+  };
   const panelId = useId();
   const view = VIEWS[selected];
   const live = view.id === "decision";
-  const { onKeyDown, bind } = useArrowGroup(VIEWS.length, selected, setSelected);
+  const { onKeyDown, bind } = useArrowGroup(VIEWS.length, selected, select);
   return (
     <section id="product-preview" className="public-showcase" aria-label="Explore the actual app">
       <div className="public-showcase-heading">
@@ -87,7 +93,7 @@ export function ProductShowcase({
             type="button"
             aria-pressed={selected === index}
             aria-controls={panelId}
-            onClick={() => setSelected(index)}
+            onClick={() => select(index)}
           >
             <Icon size={17} aria-hidden="true" />
             <span>{label}</span>
@@ -108,10 +114,7 @@ export function ProductShowcase({
               const index = offset + 1;
               return (
                 <picture key={item.id} hidden={selected !== index}>
-                  <source
-                    media="(max-width: 600px)"
-                    srcSet={`/product/ui1/${item.id}-mobile.jpg`}
-                  />
+                  <source media="(max-width: 600px)" srcSet={mobileCaptureSrcSet(item.id)} />
                   <img
                     src={`/product/ui1/${item.id}-desktop.jpg`}
                     alt={item.alt}

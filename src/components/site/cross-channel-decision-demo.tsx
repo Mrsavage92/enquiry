@@ -1,7 +1,7 @@
 import { useEffect, useId, useRef, useState } from "react";
-import { Link } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import { useArrowGroup } from "@/components/site/use-arrow-group";
-import { ArrowRight, ArrowUpRight, CircleHelp, Info, Store } from "lucide-react";
+import { ArrowRight, ArrowUpRight, Check, CircleHelp, Info, Store } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import {
@@ -31,9 +31,9 @@ export function CrossChannelDecisionDemo({
 }: {
   compact?: boolean;
   /**
-   * Home page proof: the two toggles, the latest message, the verdict and the
-   * next step. Drops the business context, the checks and the caution panel;
-   * links through to /demo for those.
+   * Home page proof: the business toggle, the first message, the verdict and
+   * the next step. Drops the scene toggle, the business context, the checks
+   * and the caution panel; links through to /demo for those.
    */
   summary?: boolean;
   headingLevel?: "h1" | "h2";
@@ -41,21 +41,41 @@ export function CrossChannelDecisionDemo({
   initialScene?: SignatureScene;
   /** Which sample business answers; /demo reads it from ?business=harbour. */
   initialBusiness?: SignatureBusinessId;
-  /** Mirror the state into the URL (replaceState, no navigation) so it is shareable. */
+  /** Mirror the state into /demo's search params (router replace, scroll kept) so it is shareable. */
   syncUrl?: boolean;
 }) {
   const Heading = headingLevel;
   const [scene, setScene] = useState<SignatureScene>(initialScene);
   const [business, setBusiness] = useState<SignatureBusinessId>(initialBusiness);
   const [whyOpen, setWhyOpen] = useState(false);
+  const navigate = useNavigate();
+
+  // Through the router, not history.replaceState: TanStack history turns a raw
+  // replaceState into a router load, and that load reset scroll to the top.
+  const show = (nextScene: SignatureScene, nextBusiness: SignatureBusinessId) => {
+    setScene(nextScene);
+    setBusiness(nextBusiness);
+    setWhyOpen(false);
+    if (!syncUrl) return;
+    void navigate({
+      to: "/demo",
+      search: {
+        ...(nextScene === "text" ? { scene: "text" as const } : {}),
+        ...(nextBusiness === "harbour" ? { business: "harbour" as const } : {}),
+      },
+      replace: true,
+      resetScroll: false,
+    });
+  };
+  const goText = () => show("text", business);
+  const goForm = () => show("form", business);
   const sceneKeys = useArrowGroup(2, scene === "form" ? 0 : 1, (index) =>
     index === 0 ? goForm() : goText(),
   );
   const businessIndex = SIGNATURE_BUSINESSES.findIndex((b) => b.id === business);
-  const businessKeys = useArrowGroup(SIGNATURE_BUSINESSES.length, businessIndex, (index) => {
-    setBusiness(SIGNATURE_BUSINESSES[index].id);
-    setWhyOpen(false);
-  });
+  const businessKeys = useArrowGroup(SIGNATURE_BUSINESSES.length, businessIndex, (index) =>
+    show(scene, SIGNATURE_BUSINESSES[index].id),
+  );
   const liveId = useId();
   const whyId = useId();
   const verdictRef = useRef<HTMLParagraphElement>(null);
@@ -73,28 +93,10 @@ export function CrossChannelDecisionDemo({
     verdictRef.current?.scrollIntoView({ block: "nearest", behavior: reduce ? "auto" : "smooth" });
   }, [scene, business]);
 
-  useEffect(() => {
-    if (!syncUrl || typeof window === "undefined") return;
-    const url = new URL(window.location.href);
-    if (scene === "text") url.searchParams.set("scene", "text");
-    else url.searchParams.delete("scene");
-    if (business !== "ridge") url.searchParams.set("business", business);
-    else url.searchParams.delete("business");
-    window.history.replaceState(window.history.state, "", url);
-  }, [scene, business, syncUrl]);
   const state = signatureState(scene, business);
   const current = signatureBusiness(business);
   const later = scene === "text";
   const changedFacts = later ? state.facts.filter((fact) => fact.from) : [];
-
-  const goText = () => {
-    setScene("text");
-    setWhyOpen(false);
-  };
-  const goForm = () => {
-    setScene("form");
-    setWhyOpen(false);
-  };
 
   return (
     <div className={cn("decision-demo w-full", summary && "decision-demo-summary")}>
@@ -107,29 +109,33 @@ export function CrossChannelDecisionDemo({
         </header>
       )}
 
-      <div
-        className={cn("scene-toggle", compact || summary ? "" : "mt-10")}
-        role="group"
-        aria-label="Maya’s enquiry"
-        onKeyDown={sceneKeys.onKeyDown}
-      >
-        <button
-          type="button"
-          ref={sceneKeys.bind(0)}
-          aria-pressed={scene === "form"}
-          onClick={goForm}
+      {summary ? null : (
+        <div
+          className={cn("scene-toggle", compact ? "" : "mt-10")}
+          role="group"
+          aria-label="Maya’s enquiry"
+          onKeyDown={sceneKeys.onKeyDown}
         >
-          01 · Website form
-        </button>
-        <button
-          type="button"
-          ref={sceneKeys.bind(1)}
-          aria-pressed={scene === "text"}
-          onClick={goText}
-        >
-          02 · Then Maya texts…
-        </button>
-      </div>
+          <button
+            type="button"
+            ref={sceneKeys.bind(0)}
+            aria-pressed={scene === "form"}
+            onClick={goForm}
+          >
+            <ToggleCheck />
+            01 · Website form
+          </button>
+          <button
+            type="button"
+            ref={sceneKeys.bind(1)}
+            aria-pressed={scene === "text"}
+            onClick={goText}
+          >
+            <ToggleCheck />
+            02 · Then Maya texts…
+          </button>
+        </div>
+      )}
 
       <div
         className="scene-toggle business-toggle"
@@ -137,18 +143,16 @@ export function CrossChannelDecisionDemo({
         aria-label="Which business receives it"
         onKeyDown={businessKeys.onKeyDown}
       >
-        <span className="business-toggle-label">Same message, received by</span>
+        <span className="business-toggle-label">Received by</span>
         {SIGNATURE_BUSINESSES.map((b, index) => (
           <button
             key={b.id}
             type="button"
             ref={businessKeys.bind(index)}
             aria-pressed={business === b.id}
-            onClick={() => {
-              setBusiness(b.id);
-              setWhyOpen(false);
-            }}
+            onClick={() => show(scene, b.id)}
           >
+            <ToggleCheck />
             {b.label}
           </button>
         ))}
@@ -296,6 +300,20 @@ export function CrossChannelDecisionDemo({
   );
 }
 
+/** Shown only on the pressed toggle (CSS), alongside the tint and border. */
+function ToggleCheck() {
+  return <Check className="toggle-check" size={14} strokeWidth={2.5} aria-hidden="true" />;
+}
+
+/** The label each check shows, read off its tone. */
+const CHECK_BADGE = {
+  ok: { tone: "ok", label: "Clear" },
+  check: { tone: "neutral", label: "Check first" },
+  warn: { tone: "warn", label: "Condition" },
+  block: { tone: "danger", label: "Rules it out" },
+  quiet: { tone: "neutral", label: "Noted" },
+} as const satisfies Record<SignatureCheck["tone"], { tone: string; label: string }>;
+
 function MessageCard({
   channel,
   at,
@@ -383,9 +401,8 @@ function CheckRow({
   onToggleWhy: () => void;
 }) {
   const changed = later && check.changed;
-  const tone = check.tone === "ok" ? "ok" : check.tone === "warn" ? "warn" : "neutral";
-  const badge =
-    changed && check.tone === "warn" ? "Condition" : check.tone === "ok" ? "Clear" : "Noted";
+  const { tone, label: badge } = CHECK_BADGE[check.tone];
+  const blocking = check.tone === "block";
 
   if (!changed) {
     return (
@@ -401,7 +418,12 @@ function CheckRow({
   }
 
   return (
-    <li className="demo-arrive border-t border-warn/30 bg-warn-bg px-3 py-2.5">
+    <li
+      className={cn(
+        "demo-arrive border-t px-3 py-2.5",
+        blocking ? "border-danger/30 bg-danger-bg" : "border-warn/30 bg-warn-bg",
+      )}
+    >
       <div className="flex flex-wrap items-center justify-between gap-2">
         <span className="text-sm text-stone">{check.label}</span>
         <Badge tone={tone}>{badge}</Badge>

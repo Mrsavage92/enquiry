@@ -1247,6 +1247,13 @@
     padding: 30px 28px 32px;
   }
 }
+/* Phone: the first cell takes the same padding as the other two, so all three
+   headings start at the same x. */
+@media (max-width: 600px) {
+  .public-benefit:first-child {
+    padding: 24px 20px 26px;
+  }
+}
 
 .public-benefits-more {
   margin-top: 28px;
@@ -1360,10 +1367,11 @@
     gap: 36px;
   }
 }
+/* Phone: the live answer is the only view on home; the three captures live on
+   /how. Four tabs above the demo pushed its content below the fold. */
 @media (max-width: 600px) {
   .public-showcase-controls {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
+    display: none;
   }
   .public-product-figure:has(> .public-decision-panel:not([hidden])) {
     max-width: none;
@@ -1374,4 +1382,11 @@
   .public-adhd-figure {
     max-width: 260px;
   }
+}
+
+/* Placeholder on the white field: #68656d on #fff measures 5.7:1. The
+   preflight default (half-strength ink) measured about 3.3:1. */
+.public-site .field::placeholder {
+  color: #68656d;
+  opacity: 1;
 }

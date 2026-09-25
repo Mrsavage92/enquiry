@@ -710,6 +710,13 @@
   color: var(--color-ink);
   white-space: normal;
 }
+/* #4f4b55 on #fff: 8.5:1. */
+.auth-offer-per-day {
+  margin: 10px 0 0;
+  font-size: 14px;
+  line-height: 1.5;
+  color: #4f4b55;
+}
 .auth-offer-fine {
   margin: 12px 0 0;
   font-size: 12px;

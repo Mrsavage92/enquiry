@@ -8,6 +8,7 @@ import { BrandHero } from "@/components/site/brand-hero";
 import { CrossMark } from "@/components/site/cross-mark";
 import { SUPPORT_EMAIL, SUPPORT_MAILTO } from "@/lib/site/contact";
 import { OFFER, OFFER_FAQ } from "@/lib/site/offer";
+import { mobileCaptureSrcSet } from "@/lib/site/captures";
 
 type HomeSearch = { view?: "decision" | "today" | "enquiry" | "business" };
 
@@ -52,6 +53,35 @@ function Home() {
     <SiteShell>
       <BrandHero />
       <ProductShowcase initialView={view} />
+      <section className="public-section public-container public-adhd" aria-labelledby="adhd-title">
+        <div>
+          <div className="public-section-heading">
+            <p className="public-kicker">If your head is full</p>
+            <h2 id="adhd-title">
+              Built for owners with ADHD, and anyone running the business from their phone.
+            </h2>
+          </div>
+          <ul className="public-plain-list">
+            <li>Opens on the one enquiry that needs you next, not a dashboard.</li>
+            <li>Holds the details between jobs, so your head doesn't have to.</li>
+            <li>Every enquiry ends in one next step. Nothing sends until you say so.</li>
+            <li>Everything else waits quietly until you're ready.</li>
+          </ul>
+        </div>
+        <figure className="public-adhd-figure">
+          <div className="public-adhd-shot">
+            <img
+              src="/product/ui1/enquiry-mobile.jpg"
+              srcSet={mobileCaptureSrcSet("enquiry")}
+              alt="One enquiry open on a phone in the sample workspace: Maya's message, what changed, and the suggested next step."
+              width="390"
+              height="600"
+              loading="lazy"
+            />
+          </div>
+          <figcaption className="public-sample-label">Actual app · sample workspace</figcaption>
+        </figure>
+      </section>
       <section className="public-section public-container" aria-labelledby="work-title">
         <div className="public-section-heading">
           <p className="public-kicker">Before you promise anything</p>
@@ -102,35 +132,6 @@ function Home() {
             See the details change on a real example <ArrowRight size={17} aria-hidden="true" />
           </Link>
         </p>
-      </section>
-      <section className="public-section public-container public-adhd" aria-labelledby="adhd-title">
-        <div>
-          <div className="public-section-heading">
-            <p className="public-kicker">Built for busy heads</p>
-            <h2 id="adhd-title">
-              Built for owners with ADHD, and anyone running the business from their phone.
-            </h2>
-          </div>
-          <ul className="public-plain-list">
-            <li>It opens on what needs you, not a dashboard to decode.</li>
-            <li>One enquiry, one next step. The reply is prepared; you decide.</li>
-            <li>It keeps the details, so you don't have to hold them between jobs.</li>
-            <li>Nothing sends until you say so.</li>
-            <li>One enquiry on screen at a time. The rest waits quietly until you're ready.</li>
-          </ul>
-        </div>
-        <figure className="public-adhd-figure">
-          <div className="public-adhd-shot">
-            <img
-              src="/product/ui1/enquiry-mobile.jpg"
-              alt="One enquiry open on a phone in the sample workspace: Maya's message, what changed, and the suggested next step."
-              width="390"
-              height="600"
-              loading="lazy"
-            />
-          </div>
-          <figcaption className="public-sample-label">Actual app · sample workspace</figcaption>
-        </figure>
       </section>
       <section
         className="public-container public-section public-faq"

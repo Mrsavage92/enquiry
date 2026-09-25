@@ -124,7 +124,12 @@ export function WaitlistForm({
 
   const submitEmail = async () => {
     if (inFlight.current) return;
-    if (!EMAIL_SHAPE.test(email.trim())) {
+    const trimmed = email.trim();
+    if (!trimmed) {
+      setHint("Enter your email to join.");
+      return;
+    }
+    if (!EMAIL_SHAPE.test(trimmed)) {
       setHint("That does not look like an email address.");
       return;
     }

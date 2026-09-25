@@ -105,7 +105,7 @@ test("one changed fact moves each business's answer for its own reason", () => {
   assert.match(ridge.nextAction, /extra crew/i);
   assert.match(harbour.nextAction, /say no/i);
   const eligibility = harbour.checks.find((c) => c.id === "eligibility");
-  assert.equal(eligibility?.tone, "warn");
+  assert.equal(eligibility?.tone, "block");
   assert.match(eligibility?.value ?? "", /not offered/i);
   const capacity = harbour.checks.find((c) => c.id === "capacity");
   assert.match(capacity?.value ?? "", /not possible/i);
@@ -136,5 +136,25 @@ test("every business x scene combination carries a plain Yes / No / Not yet verd
   assert.equal(
     signatureState("text", "harbour").verdict,
     "No to the 16th - offer the next full week",
+  );
+});
+
+test("each check's tone matches what its value says", () => {
+  for (const business of SIGNATURE_BUSINESSES) {
+    for (const scene of ["form", "text"] as const) {
+      for (const check of signatureState(scene, business.id).checks) {
+        const where = `${business.id}/${scene}/${check.id}`;
+        if (/not possible|not offered/i.test(check.value))
+          assert.equal(check.tone, "block", `${where} rules the request out`);
+        if (/provisional|need a measure/i.test(check.value))
+          assert.equal(check.tone, "check", `${where} holds only after a check`);
+        if (check.tone === "ok")
+          assert.doesNotMatch(check.value, /provisional|measure|not /i, `${where} is really clear`);
+      }
+    }
+  }
+  assert.match(
+    signatureState("text", "harbour").nextReason,
+    /^Same conversation, different business\./,
   );
 });
