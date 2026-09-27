@@ -1,10 +1,12 @@
 import type { Sql } from "../db.ts";
 import {
+  describeRule,
   parseBusinessRule,
   ruleFingerprint,
   type BusinessRule,
 } from "../../domain/business-rule.ts";
 import { redecideOpenEnquiries } from "./decision-apply.ts";
+import { requireBusinessAccess } from "./tenancy.server.ts";
 import {
   describeDetail,
   detailSection,
@@ -240,4 +242,30 @@ export async function saveBusinessDetailsInTransaction(
     ids.push(row.id);
   }
   return ids;
+}
+
+/**
+ * The "Add a business detail" save as the server function runs it: the
+ * caller's membership of the business is checked first, then every price and
+ * detail saves in one transaction. Another tenant gets Forbidden and nothing
+ * is written.
+ */
+export async function saveBusinessDetailsForUser(
+  sql: Sql,
+  runInTransaction: <T>(fn: (tx: Sql) => Promise<T>) => Promise<T>,
+  userId: string,
+  input: { businessId: string; rules: BusinessRule[]; details: BusinessDetail[] },
+): Promise<{
+  businessId: string;
+  rules: { rule: BusinessRule; readable: string }[];
+  saved: SaveBusinessRuleResult[];
+  detailIds: string[];
+  updatedEnquiryIds: string[];
+}> {
+  const businessId = await requireBusinessAccess(userId, input.businessId, sql);
+  const rules = input.rules.map((rule) => ({ rule, readable: describeRule(rule) }));
+  const result = await runInTransaction((tx) =>
+    saveBusinessRulesAndRedecide(tx, { businessId, rules, details: input.details }),
+  );
+  return { businessId, rules, ...result };
 }

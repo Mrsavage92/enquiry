@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import type { Sql } from "../db.ts";
 import type { Channel, DecisionPrice, EvaluatorResult } from "../../domain/types.ts";
-import { dollarAmounts } from "../../domain/voice-detect.ts";
+import { dollarAmounts, unreadableMoney } from "../../domain/voice-detect.ts";
 import { formatMinorAud } from "../../domain/money-format.ts";
 import { COVERAGE_FIELD } from "../../domain/coverage.ts";
 import { isClosed, lockEnquiry } from "./decision-apply.ts";
@@ -75,7 +75,8 @@ export type PrepareReviewResult =
         | "amount_mismatch"
         | "practice"
         | "unconfirmed_reading"
-        | "coverage_unconfirmed";
+        | "coverage_unconfirmed"
+        | "amount_unreadable";
       message: string;
       /**
        * For `amount_mismatch`: which figures in the text the decision does not
@@ -302,6 +303,16 @@ export async function prepareReviewedSendInTransaction(
   `;
   if (!enq) {
     return { ok: false, reason: "closed", message: "That enquiry no longer exists." };
+  }
+
+  // Money Enquiry cannot read ("nine-ish hundred dollars") cannot be checked
+  // against the quote, so it is never recorded.
+  if (unreadableMoney(input.body)) {
+    return {
+      ok: false,
+      reason: "amount_unreadable",
+      message: "Write the amount in numbers so Enquiry can check it.",
+    };
   }
 
   // A reply may state a price only once the owner has confirmed what it

@@ -563,12 +563,21 @@ export const applyPracticeSamplePrice = createServerFn({ method: "POST" })
   })
   .handler(async ({ context, data }) => {
     const { withTransaction } = await import("@/lib/db");
-    const { requireEnquiryAccess } = await import("@/lib/repo/tenancy.server");
+    const { requireEnquiryAccess, recordAudit } = await import("@/lib/repo/tenancy.server");
     const { applyPracticeSampleInTransaction } = await import("@/lib/repo/practice-core");
     const { enquiryId, businessId } = await requireEnquiryAccess(context.userId, data.enquiryId);
-    return withTransaction((sql) =>
+    const result = await withTransaction((sql) =>
       applyPracticeSampleInTransaction(sql, { businessId, enquiryId }),
     );
+    if (result.ok) {
+      await recordAudit(businessId, {
+        actor: context.userId,
+        summary: "Sample price used on the practice enquiry (practice only, not a business price)",
+        objectType: "enquiry",
+        objectId: enquiryId,
+      });
+    }
+    return result;
   });
 
 /** At most this many prices from one "Add business detail" preview. */
@@ -606,15 +615,12 @@ export const saveBusinessRules = createServerFn({ method: "POST" })
     return { businessId, rules, details };
   })
   .handler(async ({ context, data }) => {
-    const { withTransaction } = await import("@/lib/db");
-    const { requireBusinessAccess, recordAudit } = await import("@/lib/repo/tenancy.server");
-    const { describeRule } = await import("@/domain/business-rule");
-    const { saveBusinessRulesAndRedecide } = await import("@/lib/repo/business-rule-core");
-    const businessId = await requireBusinessAccess(context.userId, data.businessId);
-    const rules = data.rules.map((rule) => ({ rule, readable: describeRule(rule) }));
-    const result = await withTransaction((sql) =>
-      saveBusinessRulesAndRedecide(sql, { businessId, rules, details: data.details }),
-    );
+    const { getSql, withTransaction } = await import("@/lib/db");
+    const { recordAudit } = await import("@/lib/repo/tenancy.server");
+    const { saveBusinessDetailsForUser } = await import("@/lib/repo/business-rule-core");
+    const sql = await getSql();
+    const result = await saveBusinessDetailsForUser(sql, withTransaction, context.userId, data);
+    const { businessId, rules } = result;
     for (const [i, saved] of result.saved.entries()) {
       if (saved.outcome === "duplicate") continue;
       await recordAudit(businessId, {

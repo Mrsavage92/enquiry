@@ -26,7 +26,9 @@ import {
   coverageKey,
   askedForFirstVisit,
   isFirstVisit,
-  isRecurring,
+  frequencyIn,
+  RECURRING_FIELD,
+  unsettledFlags,
   type Coverage,
 } from "./coverage.ts";
 import {
@@ -285,12 +287,12 @@ function replyNotesFrom(facts: ReadonlyArray<DecideFact>): string[] {
   return out;
 }
 
-/** The asked-about day, read or confirmed, as yyyy-mm-dd. */
-function jobDateOf(facts: ReadonlyArray<DecideFact>): string | undefined {
-  const date = facts.find(
-    (f) => f.field.trim().toLowerCase() === "date" && /^\d{4}-\d{2}-\d{2}$/.test(String(f.value)),
-  );
-  return date ? String(date.value) : undefined;
+/** Every day asked about, read or confirmed, as yyyy-mm-dd: one, or each of two offered. */
+function jobDatesOf(facts: ReadonlyArray<DecideFact>): string[] {
+  const date = facts.find((f) => f.field.trim().toLowerCase() === "date");
+  return String(date?.value ?? "")
+    .split("|")
+    .filter((d) => /^\d{4}-\d{2}-\d{2}$/.test(d));
 }
 
 type CoverageContext = {
@@ -321,7 +323,12 @@ function linesOf(decided: Decision): QuoteLine[] {
  */
 function gateCoverage(decided: Decision, ctx: CoverageContext): Decision {
   if (decided.price.kind !== "EXACT") return decided;
-  const recurring = isRecurring(ctx.serviceLabel, ctx.message);
+  // How often is a reading: shown as its own line to confirm, never assumed.
+  const frequency = frequencyIn(ctx.message);
+  const recurringAnswer = ctx.facts.find(
+    (f) => f.field.trim().toLowerCase() === RECURRING_FIELD && f.status === "confirmed",
+  );
+  const recurring = String(recurringAnswer?.value ?? "") === "yes";
   const lines = linesOf(decided);
   const handled = ctx.facts
     .filter((f) => isExtraField(f.field) && f.status === "confirmed")
@@ -337,12 +344,19 @@ function gateCoverage(decided: Decision, ctx: CoverageContext): Decision {
     covered: [ctx.serviceLabel, ...lines.map((l) => l.label), ...handled],
     services: ctx.services,
     details: ctx.details,
-    jobDateIso: jobDateOf(ctx.facts),
+    jobDates: jobDatesOf(ctx.facts),
   });
   const firstVisit = (l: QuoteLine, i: number) =>
     i > 0 &&
     (Boolean(l.firstVisit) ||
       askedForFirstVisit(ctx.message, l.label, [ctx.serviceLabel, lines[0]!.label]));
+  if (frequency && !recurringAnswer) {
+    flagged.push({
+      kind: "recurring",
+      text: `They want this ${frequency} - correct?`,
+      thing: frequency,
+    });
+  }
   const coverageLines = lines.map((l, i) => ({
     label: l.label,
     amountMinor: l.amountMinor,
@@ -360,7 +374,9 @@ function gateCoverage(decided: Decision, ctx: CoverageContext): Decision {
     flagged,
     facts: keyFacts,
   });
-  const confirmed = coverageConfirmed(keyFacts, key);
+  // Every flag has to be settled first: a confirmation over an open flag
+  // would let "That's everything" silently drop the garage and the deck.
+  const confirmed = coverageConfirmed(keyFacts, key) && unsettledFlags(flagged).length === 0;
   const coverage: Coverage = { key, confirmed, lines: coverageLines, flagged, recurring };
   const marked = decided.lines?.length
     ? {
@@ -567,7 +583,11 @@ function decideExtras(
   const lined = () => new Set(lines.map((l) => key(l.label)));
   for (const extra of extras) {
     // "They didn't ask for this": Enquiry misread it. No line, no reply line.
-    if (extra.confirmed && extra.choice === EXTRA_CHOICE.notAsked) continue;
+    if (
+      extra.confirmed &&
+      (extra.choice === EXTRA_CHOICE.notAsked || extra.choice === EXTRA_CHOICE.covered)
+    )
+      continue;
     const match = matchRule(rules, extra.label);
     const rule = match.kind === "one" ? match.rule : undefined;
     if (extra.confirmed && extra.choice === EXTRA_CHOICE.leaveOut) {

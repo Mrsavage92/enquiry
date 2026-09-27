@@ -1,5 +1,5 @@
 import type { Sql } from "../db.ts";
-import { COVERAGE_FIELD } from "../../domain/coverage.ts";
+import { COVERAGE_FIELD, unsettledFlags, type CoverageFlag } from "../../domain/coverage.ts";
 import { applyDecision, isClosed, lockEnquiry } from "./decision-apply.ts";
 import { requireEnquiryAccess } from "./tenancy.server.ts";
 
@@ -19,7 +19,7 @@ export type ConfirmCoverageInput = { enquiryId: string; key: string; revision: n
 
 export type ConfirmCoverageResult =
   | { ok: true; businessId: string; enquiryId: string; revision: number; confirmed: boolean }
-  | { ok: false; businessId: string; reason: "changed" | "closed"; message: string };
+  | { ok: false; businessId: string; reason: "changed" | "closed" | "unsettled"; message: string };
 
 const CHANGED =
   "The details changed since you looked. Check what the price covers again before you confirm it.";
@@ -34,12 +34,23 @@ export async function confirmCoverageInTransaction(
   if (!locked || isClosed(locked.lifecycle)) {
     return { ok: false, businessId, reason: "closed", message: "That enquiry is closed." };
   }
-  const [row] = await tx<{ key: string | null }>`
-    select decision_snapshot -> 'coverage' ->> 'key' as key from enquiry where id = ${enquiryId}
+  const [row] = await tx<{ key: string | null; flagged: CoverageFlag[] | null }>`
+    select decision_snapshot -> 'coverage' ->> 'key' as key,
+      decision_snapshot -> 'coverage' -> 'flagged' as flagged
+    from enquiry where id = ${enquiryId}
   `;
   const stored = row?.key ?? "";
   if (!stored || stored !== input.key || locked.decisionRevision !== input.revision) {
     return { ok: false, businessId, reason: "changed", message: CHANGED };
+  }
+  const open = unsettledFlags(row?.flagged ?? []);
+  if (open.length > 0) {
+    return {
+      ok: false,
+      businessId,
+      reason: "unsettled",
+      message: `Settle what they mentioned first: ${open.map((f) => f.thing).join(", ")}.`,
+    };
   }
   await tx`
     update enquiry_fact set superseded = true, updated_at = now()

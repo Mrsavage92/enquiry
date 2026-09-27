@@ -1,5 +1,5 @@
 import type { BusinessDetail } from "./business-detail.ts";
-import { mentionsAny, stemsOf } from "./service-words.ts";
+import { mentionsAny, namesService, stemsOf } from "./service-words.ts";
 
 /**
  * "Do you do mould removal?" is a question, and a reply that quotes the clean
@@ -65,7 +65,9 @@ function clean(raw: string): string {
 }
 
 function notOfferedMatch(thing: string, details: readonly BusinessDetail[]): boolean {
-  return details.some((d) => d.kind === "not_offered" && mentionsAny(thing, stemsOf(d.service)));
+  // All of the saved service's own words, never a partial match: a partial
+  // match stays an open question for the owner, never a pre-selected No.
+  return details.some((d) => d.kind === "not_offered" && namesService(thing, d.service));
 }
 
 /**

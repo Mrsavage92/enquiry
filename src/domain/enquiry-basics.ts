@@ -267,12 +267,28 @@ const TWO_DAYS = new RegExp(
 const CONTEXT_WORDS =
   /\b(inspection|inspect(?:ed|ing)?|moving out|move[sd]? out|moving|move in|keys?|handover|hand(?:ing)? over|settlement|lease (?:ends?|finishes|is up)|vacat(?:e|ing)|open home|real estate)\b/i;
 
+/**
+ * "Can you come Sunday?": a weekday written out in full with no date is the
+ * next one. Full names only - "sat" and "sun" are also words.
+ */
+const WEEKDAY_ALONE =
+  /\b(?:this\s+|next\s+)?(monday|tuesday|wednesday|thursday|friday|saturday|sunday)s?\b(?![,.]?\s+(?:the\s+)?\d)(?!\s+(?:morning|arvo|afternoon|night|evening)s?\b)/gi;
+
+/** A clause about something already done: "last clean was on", "they came on". */
+const HISTORY =
+  /\b(?:last|previous|prior|our old)\s+(?:clean|cleaner|job|visit|service|time|quote|booking|paint|painter|one)\b|\b(?:was|were|came|did|had)\s+(?:done\s+)?(?:on|in)?\s*(?:the\s+)?$/i;
+
 function monthlessHits(text: string): DateHit[] {
   const hits: DateHit[] = [];
   for (const m of text.matchAll(WEEKDAY_DAY)) {
     const weekday = weekdayIndex(m[1]!);
     if (weekday === undefined) continue;
     hits.push({ index: m.index ?? 0, length: m[0].length, day: Number(m[2]), month: -1, weekday });
+  }
+  for (const m of text.matchAll(WEEKDAY_ALONE)) {
+    const weekday = weekdayIndex(m[1]!);
+    if (weekday === undefined) continue;
+    hits.push({ index: m.index ?? 0, length: m[0].length, day: 0, month: -1, weekday });
   }
   return hits;
 }
@@ -358,6 +374,14 @@ type Resolved =
 /** "Sat 3rd": the next Saturday the 3rd, within about two months, or nothing. */
 function resolveMonthless(hit: DateHit, today: Date): Resolved {
   const start = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  // A weekday alone: the next one after today.
+  if (hit.day === 0) {
+    const ahead = (hit.weekday! - start.getDay() + 7) % 7 || 7;
+    return {
+      kind: "date",
+      date: new Date(start.getFullYear(), start.getMonth(), start.getDate() + ahead),
+    };
+  }
   for (let i = 0; i <= 62; i += 1) {
     const d = new Date(start.getFullYear(), start.getMonth(), start.getDate() + i);
     if (d.getDate() === hit.day && d.getDay() === hit.weekday) return { kind: "date", date: d };
@@ -493,6 +517,9 @@ export function readDates(text: string, now = new Date(), tz = "Australia/Brisba
       reading.context.push({ ...readOf(resolved.date, span, false), what: context });
       continue;
     }
+    // "Last clean was on 3 Sept": history, not a request. It is never the job
+    // date and never a problem line in the reply.
+    if (HISTORY.test(before)) continue;
     if (resolved.kind === "past") {
       reading.issue ??= {
         kind: "past",
@@ -592,6 +619,22 @@ const NOT_A_NAME = new Set(
     "easter",
     "today",
     "tomorrow",
+    // Not a person: "Urgent", "Mum", "No Name", "The Smiths".
+    ...[
+      "urgent",
+      "important",
+      "mum",
+      "mom",
+      "mummy",
+      "dad",
+      "nan",
+      "nana",
+      "gran",
+      "grandma",
+      "grandpa",
+    ],
+    ...["the", "no", "name", "unknown", "anonymous", "family", "hubby", "wife", "husband", "owner"],
+    ...["tenant", "landlord", "customer", "client", "admin", "reception", "enquiry", "quote"],
     ...WEEKDAY_NAMES,
     ...Object.keys(MONTHS),
     "january",

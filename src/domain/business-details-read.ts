@@ -19,13 +19,26 @@ export function readBusinessDetails(text: string): BusinessDetailsRead {
   const out: BusinessDetailsRead = { prices: [], unread: [], details: [] };
   for (const line of splitLines(text)) {
     const detail = readDetailLine(line);
+    if (detail && "refuse" in detail) {
+      out.unread.push({ line, reason: detail.refuse });
+      continue;
+    }
     if (detail) {
       out.details.push({ line, detail });
       continue;
     }
     const read = readPriceLine(line);
-    if ("rule" in read) out.prices.push(read);
-    else if (HAS_AMOUNT.test(line)) out.unread.push(read);
+    if ("rule" in read) {
+      out.prices.push(read);
+      // "Doors $90 each (includes frame)": the price, and a note on what it covers.
+      if (read.note) {
+        const service = read.rule.service;
+        out.details.push({
+          line,
+          detail: { kind: "note", text: `${service} includes ${read.note}`, service },
+        });
+      }
+    } else if (HAS_AMOUNT.test(line)) out.unread.push(read);
     else out.unread.push({ line, reason: NOT_A_PRICE, note: true });
   }
   return out;

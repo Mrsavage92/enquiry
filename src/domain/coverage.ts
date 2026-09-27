@@ -1,7 +1,7 @@
 import type { BusinessDetail } from "./business-detail.ts";
 import { WEEKDAYS } from "./business-detail.ts";
 import { DECLINED, NOT_A_REQUEST, SERVICE_NOUNS } from "./extras.ts";
-import { distinctiveStems, mentionsAny, stem, stemsOf } from "./service-words.ts";
+import { distinctiveStems, mentionsAny, namesService, stem, stemsOf } from "./service-words.ts";
 
 /**
  * What a price covers, confirmed by the owner before any reply may name it.
@@ -14,10 +14,12 @@ import { distinctiveStems, mentionsAny, stem, stemsOf } from "./service-words.ts
  *
  * The confirmation is stored as a `coverage` fact whose value is `key` - a
  * fingerprint of the lines, the flags and every fact the decision read. Any
- * change to those (a new count, a new extra, a new price, a new message)
- * changes the key, and the confirmation no longer matches: the owner is asked
- * again. The customer's name, phone and email are left out of the key because
- * they cannot change what a price covers.
+ * change to those (a new count, a new extra, a new price, or a new message
+ * that adds a flag) changes the key. The server also retires the stored
+ * confirmation the moment the key moves (decision-apply.ts `writeDecision`),
+ * so going A -> B -> A never revives a confirmation given for A. The
+ * customer's name, phone and email are left out of the key because they
+ * cannot change what a price covers.
  */
 
 export const COVERAGE_FIELD = "coverage";
@@ -34,8 +36,14 @@ export type CoverageLine = {
 };
 
 export type CoverageFlag = {
-  kind: "mention" | "note" | "closed_day" | "not_offered";
+  kind: "mention" | "note" | "closed_day" | "not_offered" | "recurring";
   text: string;
+  /**
+   * What was mentioned ("deck", "Fence painting", "mould removal"). Set on a
+   * flag the owner must settle before confirming: add it, leave it out and
+   * tell them, come back to them on it, or say they did not ask.
+   */
+  thing?: string;
 };
 
 export type Coverage = {
@@ -85,12 +93,20 @@ export function coverageConfirmed(facts: readonly KeyFact[], key: string): boole
   );
 }
 
-const RECURRING =
-  /\b(?:every\s+(?:week|fortnight|month|two weeks|2 weeks|other week)|weekly|fortnightly|monthly|regular(?:ly)?|ongoing|each week|each fortnight)\b/i;
+/**
+ * How often they want it, only when they say a frequency: "every fortnight",
+ * "weekly", "a regular clean every month". "Just a regular end of lease clean",
+ * "we clean regularly ourselves" and "an ongoing issue with mould" are not.
+ */
+const FREQUENCY =
+  /\b(?:every\s+(?:other\s+)?(?:\d+\s+|two\s+|three\s+|four\s+)?(?:week|fortnight|month)s?|weekly|fortnightly|monthly|once\s+a\s+(?:week|fortnight|month)|each\s+(?:week|fortnight|month))\b/i;
 
-export function isRecurring(serviceLabel: string, message: string): boolean {
-  return RECURRING.test(serviceLabel) || RECURRING.test(message);
+export function frequencyIn(message: string): string | undefined {
+  return FREQUENCY.exec(message)?.[0]?.toLowerCase();
 }
+
+/** The owner's answer to "They want this every fortnight - correct?". */
+export const RECURRING_FIELD = "recurring";
 
 /** "first clean", "initial visit", "to start with": asked for once, not every visit. */
 export function isFirstVisit(span: string): boolean {
@@ -144,7 +160,7 @@ function mentionFlags(
     const said = new Set(stemsOf(text));
     if (own.length === 0 || !own.every((s) => said.has(s))) continue;
     own.forEach((s) => named.add(s));
-    out.push({ kind: "mention", text: `They mention ${service.toLowerCase()}` });
+    out.push({ kind: "mention", text: `They mention ${service.toLowerCase()}`, thing: service });
   }
   const words = new Set(text.toLowerCase().match(/[a-z]+/g) ?? []);
   for (const noun of SERVICE_NOUNS) {
@@ -152,7 +168,7 @@ function mentionFlags(
     const s = stem(noun);
     if (coveredStems.has(s) || named.has(s)) continue;
     named.add(s);
-    out.push({ kind: "mention", text: `They mention the ${noun}` });
+    out.push({ kind: "mention", text: `They mention the ${noun}`, thing: noun });
   }
   return out;
 }
@@ -180,7 +196,7 @@ function detailFlags(
   details: readonly BusinessDetail[],
   covered: readonly string[],
   message: string,
-  jobDateIso?: string,
+  jobDates: readonly string[] = [],
 ): CoverageFlag[] {
   const onQuote = (service: string) =>
     covered.some((c) => c.trim().toLowerCase() === service.trim().toLowerCase());
@@ -189,18 +205,24 @@ function detailFlags(
     if (d.kind === "note" && noteConcerns(d, message, onQuote)) {
       out.push({ kind: "note", text: `Your note: ${d.text}` });
     }
-    if (d.kind === "not_offered" && mentionsAny(message, stemsOf(d.service))) {
-      out.push({ kind: "not_offered", text: `They mention ${d.service} - you don't offer it` });
+    if (d.kind === "not_offered" && namesService(message, d.service) && !onQuote(d.service)) {
+      out.push({
+        kind: "not_offered",
+        text: `They mention ${d.service} - you don't offer it`,
+        thing: d.service,
+      });
     }
   }
-  const day = jobDateIso ? weekdayOf(jobDateIso) : undefined;
-  const closed = details.some(
-    (d) => d.kind === "closed_days" && day !== undefined && d.days.includes(day),
-  );
-  if (closed && day !== undefined) {
+  // Every day they offered is checked, not only the first.
+  const closedDays = new Set(details.flatMap((d) => (d.kind === "closed_days" ? d.days : [])));
+  const flaggedDays = new Set<number>();
+  for (const iso of jobDates) {
+    const day = weekdayOf(iso);
+    if (day === undefined || !closedDays.has(day) || flaggedDays.has(day)) continue;
+    flaggedDays.add(day);
     out.push({
       kind: "closed_day",
-      text: `The day they asked about is a ${WEEKDAYS[day]} - you don't work ${WEEKDAYS[day]}s`,
+      text: `A day they asked about is a ${WEEKDAYS[day]} - you don't work ${WEEKDAYS[day]}s`,
     });
   }
   return out;
@@ -217,11 +239,11 @@ export function coverageFlags(input: {
   covered: readonly string[];
   services: readonly string[];
   details: readonly BusinessDetail[];
-  jobDateIso?: string;
+  jobDates?: readonly string[];
 }): CoverageFlag[] {
   return [
     ...mentionFlags(input.message, input.covered, input.services),
-    ...detailFlags(input.details, input.covered, input.message, input.jobDateIso),
+    ...detailFlags(input.details, input.covered, input.message, input.jobDates),
   ];
 }
 
@@ -232,4 +254,9 @@ export function coverageFlags(input: {
 export function isInternalFact(field: string): boolean {
   const f = field.trim().toLowerCase();
   return f === COVERAGE_FIELD || f === "practice_price";
+}
+
+/** Flags the owner has to settle one by one before the price can be confirmed. */
+export function unsettledFlags(flags: readonly CoverageFlag[]): CoverageFlag[] {
+  return flags.filter((f) => Boolean(f.thing));
 }

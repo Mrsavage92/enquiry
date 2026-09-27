@@ -15,7 +15,12 @@ import { parseBusinessRule, pluraliseUnit, type BusinessRule } from "./business-
  * quote, so they are reported as unread with the reason, never rounded into one.
  */
 
-export type ReadPrice = { line: string; rule: BusinessRule };
+export type ReadPrice = {
+  line: string;
+  rule: BusinessRule;
+  /** What the owner said the price includes ("frame"), kept as a note. */
+  note?: string;
+};
 /**
  * A line Enquiry will not save as a price. `note` marks a price that only
  * applies in some cases (a condition, a fee, a minimum): the owner is offered
@@ -33,7 +38,6 @@ const ALL_AMOUNTS = /\$\s?\d/g;
 // A word boundary after the word, so "an hour" is not read as the unit "n".
 const PER =
   /^\s*(?:(?:per|a|an|each|every)\b|\/)\s*([a-z][a-z-]*(?:\s+metres?|\s+meters?|\s+feet)?)/i;
-const MINIMUM = /(?:minimum(?:\s+of)?|min\.?|at least)\s+(\d+)/i;
 /**
  * Area written the ways owners write it: "per sqm", "/m2", "per m²", "per
  * sq m", "per square meter". All of it is one unit, "square metre", so the
@@ -62,6 +66,10 @@ const NOT_A_SET_PRICE: [RegExp, string][] = [
     "Write the full amount (like $1,500), not a short or rough one.",
   ],
   [/\bGST\b/i, "GST wording makes the amount unclear. Write the one amount you quote."],
+  [
+    /\b(?:approx\.?|approximately|roughly|or so|give or take)(?![a-z])/i,
+    "An approximate price is not a set price, so Enquiry cannot quote it.",
+  ],
   [
     /\$\s?\d[\d,]*(?:\.\d{1,2})?\s*(?:-|–|to)\s*\$?\s?\d/,
     "A price range is not a set price, so Enquiry cannot quote it.",
@@ -210,7 +218,63 @@ export function readPriceLine(original: string): ReadPrice | UnreadLine {
   if (read.rule.kind === "fixed_price" && /\bmin(?:imum)?\b/i.test(line)) {
     return { line: original, reason: conditionReason("minimum"), note: true };
   }
-  return { line: original, rule: read.rule };
+  return { ...read, line: original };
+}
+
+/** "(includes frame)", "incl frame", "including the frame": what the price covers. */
+const INCLUDES =
+  /[,;]?\s*\(?\b(?:incl(?:\.|udes|uding)?|inc\.|inclusive of)\s+([^)]+?)\)?\s*[.;!]?\s*$/i;
+/** "2 hr min", "3 hour minimum", "min 2": a minimum count after the unit. */
+const MIN_AFTER =
+  /(\d+)\s*(?:[a-z]+\s*)?min(?:imum)?\b\.?|\b(?:minimum(?:\s+of)?|min\.?|at least)\s+(\d+)(?:\s*[a-z]+)?/i;
+
+type Priced = { service: string; unit: string; note?: string; min?: number; rest: string };
+
+/** "Each door $90", "Doors each $90": the count named before the price. */
+function eachBefore(before: string): { service: string; unit: string } | null {
+  const lead = /^\s*each\s+(.+?)\s*[-:=]?\s*$/i.exec(before);
+  if (lead) {
+    const unit = unitFromService(lead[1]!);
+    if (!unit) return null;
+    return { service: cleanService(pluraliseUnit(unit, 2)), unit };
+  }
+  const tail = /^(.+?)\s+each\s*[-:=]?\s*$/i.exec(before);
+  if (!tail) return null;
+  const service = cleanService(tail[1]!);
+  const unit = unitFromService(service);
+  return service && unit ? { service, unit } : null;
+}
+
+/** The unit, the minimum and a covered-by note, and whatever words are left. */
+function unitAndRest(after: string, service: string): Priced {
+  let rest = after;
+  let note: string | undefined;
+  const inc = INCLUDES.exec(rest);
+  if (inc) {
+    note = inc[1]!.trim();
+    rest = rest.slice(0, inc.index);
+  }
+  const area = PER_AREA.exec(rest);
+  const per = area ? null : PER.exec(rest);
+  const each = !area && !per ? EACH_ALONE.exec(rest) : null;
+  const unit = area
+    ? "square metre"
+    : each
+      ? unitFromService(service)
+      : per
+        ? unitWord(per[1] ?? "")
+        : "";
+  const used = area ?? per ?? each;
+  if (used) rest = rest.slice((used.index ?? 0) + used[0].length);
+  const min = MIN_AFTER.exec(rest);
+  if (min && unit) rest = rest.slice(0, min.index) + rest.slice((min.index ?? 0) + min[0].length);
+  return {
+    service,
+    unit,
+    ...(note ? { note } : {}),
+    ...(min && unit ? { min: Number(min[1] ?? min[2]) } : {}),
+    rest,
+  };
 }
 
 function readSetPrice(line: string): ReadPrice | UnreadLine {
@@ -221,33 +285,46 @@ function readSetPrice(line: string): ReadPrice | UnreadLine {
   if (!amountMatch) return { line, reason: "There is no dollar amount in it." };
   const amount = Number(amountMatch[1]!.replace(/,/g, ""));
   const before = line.slice(0, amountMatch.index);
-  const after = line.slice(amountMatch.index + amountMatch[0].length);
+  let after = line.slice(amountMatch.index + amountMatch[0].length);
 
+  const lead = eachBefore(before);
   // "$190 per bedroom for end of lease clean" names the service after the price.
-  const forService = /\bfor\s+(?:an?\s+|the\s+)?([^,.;]+)/i.exec(after)?.[1] ?? "";
-  const service = cleanService(before) || cleanService(forService);
+  const forMatch = /\bfor\s+(?:an?\s+|the\s+)?([^,.;]+)/i.exec(after);
+  let service = lead?.service || cleanService(before);
+  if (!service && forMatch) {
+    service = cleanService(forMatch[1] ?? "");
+    after = after.slice(0, forMatch.index) + after.slice(forMatch.index + forMatch[0].length);
+  }
   if (!service) return { line, reason: "It does not say which service the price is for." };
 
-  const area = PER_AREA.test(after);
-  const per = area ? null : PER.exec(after);
-  const each = !area && !per && EACH_ALONE.test(after);
-  const unit = area ? "square metre" : each ? unitFromService(service) : unitWord(per?.[1] ?? "");
-  if (each && !unit) {
+  const read = lead ? { service, unit: lead.unit, rest: after } : unitAndRest(after, service);
+  if (/\beach\b/i.test(after) && !read.unit) {
     return { line, reason: `Say what "each" counts, for example: ${service} $${amount} per item.` };
   }
-  const raw = unit
+  // Anything left over is a condition ("for single storey", "homes only"):
+  // never dropped, never quietly part of one set price.
+  const left = read.rest.replace(/[\s.,;:!()-]+/g, " ").trim();
+  if (/[a-z]/i.test(left)) {
+    return {
+      line,
+      reason: `It says "${left}" as well as the price, so it only applies in some cases. Enquiry will not quote it by itself. Save it as a note Enquiry shows you, or write the price as its own service (for example "${service} (${left})").`,
+      note: true,
+    };
+  }
+  const raw = read.unit
     ? {
         kind: "per_unit",
         service,
         amount,
         currency: "AUD",
-        unit,
-        quantityField: quantityFieldFor(unit),
-        minimumQuantity: MINIMUM.exec(after) ? Number(MINIMUM.exec(after)![1]) : undefined,
+        unit: read.unit,
+        quantityField: quantityFieldFor(read.unit),
+        minimumQuantity: "min" in read ? read.min : undefined,
       }
     : { kind: "fixed_price", service, amount, currency: "AUD" };
   const parsed = parseBusinessRule(raw);
-  return parsed.ok ? { line, rule: parsed.rule } : { line, reason: parsed.reason };
+  if (!parsed.ok) return { line, reason: parsed.reason };
+  return { line, rule: parsed.rule, ...("note" in read && read.note ? { note: read.note } : {}) };
 }
 
 export function readPriceSentences(text: string): PriceSentences {

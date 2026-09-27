@@ -138,23 +138,53 @@ function daysIn(line: string): number[] {
   return [...days].sort((a, b) => a - b);
 }
 
+/** A rule with a condition is a note, never a rule: "windows above two storeys". */
+const QUALIFIER =
+  /\b(?:above|below|under|over|only|except|unless|but|more than|less than|bigger than|smaller than|without|if|when|after|before)\b|\d/i;
+/** Nothing named: "we don't do it" says no service. */
+const VAGUE =
+  /^(?:it|that|this|them|those|these|any|anything|stuff|that sort of thing|those jobs)$/i;
+/** "..., sorry", "... anymore": not part of what they don't do. */
+const TRAIL = /\s*,?\s*\b(?:sorry|unfortunately|any ?more|at the moment|at all|these days)\b.*$/i;
+
+export type DetailLineRead = BusinessDetail | { refuse: string } | null;
+
+/** The clause that says no: "We don't do Sunday jobs but we do Saturdays". */
+function negativeClause(line: string): string {
+  const clauses = line.split(/\bbut\b|;|\bhowever\b/i);
+  return clauses.find((c) => NEGATIVE.test(c)) ?? line;
+}
+
 /**
  * "We don't work Sundays", "Closed on weekends", "We don't do mould removal":
- * a line that states a rule and names no price. Returns null for anything else,
- * so a price line is never read here.
+ * a line that states a rule and names no price. A rule with a condition in it
+ * ("windows above two storeys", "jobs under 100") is kept as a note instead,
+ * and one that names nothing ("we don't do it") is refused. Returns null for
+ * anything else, so a price line is never read here.
  */
-export function readDetailLine(line: string): BusinessDetail | null {
+export function readDetailLine(line: string): DetailLineRead {
   if (/\$\s?\d|\d\s*(?:dollars?|bucks)\b/i.test(line)) return null;
-  const days = daysIn(line);
-  if (days.length > 0 && days.length < 7 && NEGATIVE.test(line) && WORK_WORDS.test(line)) {
+  const clause = negativeClause(line);
+  const days = daysIn(clause);
+  if (days.length > 0 && days.length < 7 && NEGATIVE.test(clause) && WORK_WORDS.test(clause)) {
     return { kind: "closed_days", days };
   }
-  const offer = OFFER.exec(line);
-  const service = offer?.[1]?.replace(/[.,;!]+$/, "").trim() ?? "";
-  if (service && service.split(/\s+/).length <= 5 && daysIn(service).length === 0) {
-    return { kind: "not_offered", service: service.toLowerCase() };
+  const offer = OFFER.exec(line.replace(TRAIL, ""));
+  const service = (offer?.[1] ?? "")
+    .replace(/[.,;!]+$/, "")
+    .replace(TRAIL, "")
+    .trim();
+  if (!offer) return null;
+  if (!service || VAGUE.test(service)) {
+    return {
+      refuse:
+        "It does not say what you don't do. Write it out, for example: We don't do mould removal.",
+    };
   }
-  return null;
+  if (QUALIFIER.test(service) || service.split(/\s+/).length > 5 || daysIn(service).length > 0) {
+    return { kind: "note", text: line.trim().replace(/[.;]+$/, "") };
+  }
+  return { kind: "not_offered", service: service.toLowerCase() };
 }
 
 export type DetailRead = { line: string; detail: BusinessDetail };

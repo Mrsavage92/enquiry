@@ -31,6 +31,8 @@ export const EXTRA_CHOICE = {
    * staining." Never a made-up price.
    */
   comeBack: "come_back",
+  /** Already part of the job priced ("walls and ceilings" in a repaint): no line, nothing said. */
+  covered: "covered",
 } as const;
 
 export type ExtraRequest = {

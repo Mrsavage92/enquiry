@@ -151,6 +151,7 @@ test("a recurring job is priced per visit and a first-visit extra is separate", 
       fact("service", "Regular clean"),
       fact("bedrooms", "3"),
       fact(extraField("Oven clean"), "include", "confirmed", "oven on the first clean please"),
+      fact("recurring", "yes"),
     ] as never,
     messageText: "Fortnightly clean for a 3 bed house, oven on the first clean please",
   });
@@ -260,7 +261,7 @@ test("a saved note shows on the quote it concerns; a weekend note flags a weeken
   });
   const flags = d.coverage?.flagged.map((f) => f.text) ?? [];
   assert.ok(flags.includes("Your note: Carpet steam $40 a room, not available on weekends"));
-  assert.ok(flags.includes("The day they asked about is a Sunday - you don't work Sundays"));
+  assert.ok(flags.includes("A day they asked about is a Sunday - you don't work Sundays"));
 });
 
 // 4. Non-price business details and questions -------------------------------

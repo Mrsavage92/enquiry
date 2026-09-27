@@ -307,7 +307,7 @@ test("repro 3: a conditional price is never on the total, and the day asked for 
     body,
     /For the end of lease clean \(3 bedrooms\) and the oven clean, that comes to \$665:/,
   );
-  assert.match(body, /I haven't included windows in this price\./);
+  assert.match(body, /I haven't included the windows in this price\./);
   assert.match(body, /You mentioned Saturday 3rd - I'll confirm whether that works\./);
   assert.doesNotMatch(body, /lock it in|Monday 5|Wednesday 7|\$761/i);
 });
@@ -327,7 +327,16 @@ test("repro 4: a recurring job is quoted per visit, with the first-visit extra s
   );
   await confirmReadings(pg, "user-a", e.enquiryId);
   const s = (await row(pg, e.enquiryId)).decision_snapshot;
-  assert.equal(s.coverage?.recurring, true);
+  // How often is a reading the owner confirms, not a label.
+  assert.equal(s.coverage?.recurring, false);
+  assert.ok(
+    s.coverage?.flagged.some((f) => f.text === "They want this every fortnight - correct?"),
+  );
+  const early = await confirmCoverage(pg, "user-a", e.enquiryId);
+  assert.equal(early.ok, false, "an unsettled flag blocks the confirmation on the server");
+  await answer(pg, "user-a", e.enquiryId, "recurring", "yes");
+  const q = (await row(pg, e.enquiryId)).decision_snapshot;
+  assert.equal(q.coverage?.recurring, true);
   await confirmCoverage(pg, "user-a", e.enquiryId);
   const after = (await row(pg, e.enquiryId)).decision_snapshot;
   assert.equal(after.price?.amountMinor, 21000);

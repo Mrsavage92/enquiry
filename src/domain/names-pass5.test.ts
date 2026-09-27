@@ -83,3 +83,16 @@ test("a full name then a company closing the message, with no sign-off word", ()
   // A tail that is not a company or a role is not taken.
   assert.equal(readCustomerName("Need a quote. Kedron Brisbane, Queensland Australia"), undefined);
 });
+
+test("L4: common words and 'The X' families are never read as a name", () => {
+  for (const text of [
+    "Need a quote asap.\nUrgent",
+    "Quote for the clean please.\nThanks,\nMum",
+    "Quote please.\nCheers,\nNo Name",
+    "Quote please.\nKind regards,\nThe Smiths",
+    "Quote please. - Urgent",
+  ]) {
+    assert.equal(readCustomerName(text), undefined, text);
+  }
+  assert.equal(readCustomerName("Quote please.\nKind regards,\nAnna Smith"), "Anna Smith");
+});

@@ -4,6 +4,7 @@ import type { Decision, QuoteLine } from "./decide.ts";
 import { formatMinorAud } from "./money-format.ts";
 import { dateQuestion, type DateIssue } from "./enquiry-basics.ts";
 import { countOf, countParts, howMany, humanField, isOwnerEstimate } from "./count-phrase.ts";
+import { SERVICE_NOUNS } from "./extras.ts";
 
 export { humanField, howMany };
 
@@ -182,7 +183,7 @@ function priceBlock(decision: Decision): string[] {
     (l) => `The first visit adds ${formatMinor(l.amountMinor, currency)} for ${coveredPhrase(l)}.`,
   );
   const left = decision.leftOut?.length
-    ? [`I haven't included ${joinLabels(decision.leftOut)} in this price.`]
+    ? [`I haven't included ${joinLabels(decision.leftOut.map(withArticle))} in this price.`]
     : [];
   const after = [...firstVisit, ...left];
   return after.length ? [...body, "", ...after] : body;
@@ -243,7 +244,9 @@ export function composeReply(decision: Decision, opts: ReplyContext = {}): strin
     ? `Thanks for getting in touch about ${service.toLowerCase()}.`
     : "Thanks for getting in touch.";
   const coverageOpen = decision.coverage ? !decision.coverage.confirmed : false;
-  const onHold = Boolean(decision.questionPending) || coverageOpen;
+  // Nothing priced goes in the reply while something they asked for is unsettled.
+  const onHold =
+    Boolean(decision.questionPending) || coverageOpen || Boolean(decision.extraPending);
 
   if (decision.price.kind === "EXACT" && !onHold) {
     return [
@@ -312,4 +315,10 @@ export function composeReply(decision: Decision, opts: ReplyContext = {}): strin
     ...dateBlock,
     signOff,
   ].join("\n");
+}
+
+/** "deck" -> "the deck": a bare thing reads as a thing; "oven cleaning" stays as it is. */
+function withArticle(label: string): string {
+  const one = label.trim().toLowerCase();
+  return SERVICE_NOUNS.has(one) ? `the ${one}` : label;
 }

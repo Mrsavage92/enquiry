@@ -10,6 +10,7 @@ import { blockedQuantity, findQuantityInMessages, newExtraRequests } from "./qua
 import { ASAP_VALUE, replyContextFromFacts } from "../../domain/reply-context.ts";
 import { activeDetails } from "../../domain/business-detail.ts";
 import { questionField, readServiceQuestions } from "../../domain/service-questions.ts";
+import { namesService } from "../../domain/service-words.ts";
 
 /**
  * Creating a real enquiry, as pure SQL logic - deliberately separate from
@@ -243,6 +244,38 @@ type ArrivalFact = {
   assertedBy: "user" | "system";
   provenance: Record<string, unknown>;
 };
+
+/** At most this many extras and questions a model may propose for one message. */
+const MAX_MODEL_ASKS = 3;
+/** Fields only the owner's own steps write; a model never proposes them. */
+const OWNER_ONLY_FIELDS = new Set(["coverage", "practice_price", "recurring"]);
+
+/**
+ * What a model reading may write. It may propose an extra ("extra:...") or a
+ * question ("question:...") only when the message itself names it, and only a
+ * few of each - a model that invents twenty asks, or one the customer never
+ * wrote, would block the reply behind things nobody asked for. Fields that
+ * record an owner's own step are never taken from a model.
+ */
+export function modelFactsToKeep<T extends { field: string }>(
+  facts: readonly T[],
+  message: string,
+): T[] {
+  let extras = 0;
+  let questions = 0;
+  return facts.filter((f) => {
+    const field = f.field.trim().toLowerCase();
+    if (OWNER_ONLY_FIELDS.has(field)) return false;
+    const isExtra = field.startsWith("extra:");
+    const isQuestion = field.startsWith("question:");
+    if (!isExtra && !isQuestion) return true;
+    const thing = field.slice(field.indexOf(":") + 1).trim();
+    if (!thing || !namesService(message, thing)) return false;
+    if (isExtra) extras += 1;
+    else questions += 1;
+    return (isExtra ? extras : questions) <= MAX_MODEL_ASKS;
+  });
+}
 
 /** Their "do you do X?" questions, each a reading the owner answers. */
 export function questionFacts(
@@ -562,7 +595,7 @@ export async function interpretAndApply(
       return { ok: true, model, factsWritten, serviceLabelSet } as InterpretAndApplyResult;
     }
 
-    for (const fact of result.facts) {
+    for (const fact of modelFactsToKeep(result.facts, input.rawMessage)) {
       const status: FactStatus = fact.confidence === "low" ? "check_this" : "inferred";
       const written = await supersedeAndInsertFact(
         tx,

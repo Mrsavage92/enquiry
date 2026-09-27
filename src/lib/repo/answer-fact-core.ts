@@ -15,6 +15,7 @@ const EXTRA_CHOICES = new Set<string>([
   EXTRA_CHOICE.include,
   EXTRA_CHOICE.leaveOut,
   EXTRA_CHOICE.notAsked,
+  EXTRA_CHOICE.covered,
   EXTRA_CHOICE.comeBack,
 ]);
 import { applyDecision, isClosed, lockEnquiry } from "./decision-apply.ts";
@@ -48,6 +49,7 @@ function displayFor(field: string, value: string): string {
   if (!isExtraField(field)) return value;
   if (value === EXTRA_CHOICE.comeBack) return "Not priced - the reply says you'll come back on it";
   if (value === EXTRA_CHOICE.notAsked) return "They didn't ask for this";
+  if (value === EXTRA_CHOICE.covered) return "Part of this price";
   return value === EXTRA_CHOICE.leaveOut ? "Left out - the reply says so" : "Added to the quote";
 }
 
@@ -89,6 +91,9 @@ export async function answerFactForUser(
     value !== QUESTION_ANSWER.yes &&
     value !== QUESTION_ANSWER.no
   ) {
+    throw new Error("Answer yes or no.");
+  }
+  if (input.field.trim().toLowerCase() === "recurring" && value !== "yes" && value !== "no") {
     throw new Error("Answer yes or no.");
   }
   const problem = validateFactAnswer(brain, enq.service_label ?? "", input.field, value);

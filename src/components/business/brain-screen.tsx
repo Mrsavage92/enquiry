@@ -39,7 +39,8 @@ import { applyVoiceToDraft } from "@/domain/voice-apply";
 import { useNarrow } from "@/lib/use-narrow";
 import { useScrollFade } from "@/lib/use-scroll-fade";
 import { PRICE_EXAMPLE } from "@/domain/price-sentence";
-import { describeRule, ruleFingerprint } from "@/domain/business-rule";
+import { describeRule } from "@/domain/business-rule";
+import { replacementsFor } from "@/domain/price-replacement";
 import { readBusinessDetails, type BusinessDetailsRead } from "@/domain/business-details-read";
 import { describeDetail, noteFor } from "@/domain/business-detail";
 import { activeRules } from "@/domain/decide";
@@ -131,15 +132,6 @@ export function BrainScreen() {
   const tabs = SECTIONS;
   const tabValue = tabs.find((s) => s.id === tab)?.id ?? "all";
   const { scrollRef: tabScrollRef, edges: tabFade } = useScrollFade<HTMLDivElement>([tabs]);
-
-  /** "$190 per bedroom": the Active price this one would replace, if it differs. */
-  const replacedPrice = (rule: Parameters<typeof describeRule>[0]): string | null => {
-    const norm = (s: string) => s.trim().toLowerCase();
-    const old = activeRules(business ?? {}).find(
-      (r) => norm(r.service) === norm(rule.service) && ruleFingerprint(r) !== ruleFingerprint(rule),
-    );
-    return old ? describeRule(old).replace(/^[^:]*:\s*/, "") : null;
-  };
 
   useEffect(() => {
     if (!focusComposer) return;
@@ -689,13 +681,24 @@ export function BrainScreen() {
             {livePrices ? (
               <div className="space-y-3 text-sm">
                 <ul className="space-y-2">
-                  {livePrices.prices.map((p) => {
-                    const replaces = replacedPrice(p.rule);
+                  {livePrices.prices.map((p, i) => {
+                    const change = replacementsFor(
+                      activeRules(business ?? {}),
+                      livePrices.prices.map((x) => x.rule),
+                    )[i]!;
                     return (
                       <li key={p.line}>
                         <p className="font-medium">{describeRule(p.rule)}</p>
-                        {replaces ? (
-                          <p className="mt-0.5 font-medium text-warn">Replaces {replaces}</p>
+                        {change.replaces.length ? (
+                          <p className="mt-0.5 font-medium text-warn">
+                            Replaces {change.replaces.join(" and ")}
+                          </p>
+                        ) : null}
+                        {change.clashesWith.length ? (
+                          <p className="mt-0.5 font-medium text-warn">
+                            Also in this list: {change.clashesWith.join(" and ")}. Only one price
+                            per service can stand - the last one saved replaces the others.
+                          </p>
                         ) : null}
                         <p className="mt-0.5 text-ink-2">
                           {p.rule.kind === "per_unit"

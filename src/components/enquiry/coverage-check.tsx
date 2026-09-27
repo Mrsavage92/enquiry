@@ -8,6 +8,9 @@ import { EXTRA_CHOICE, extraField } from "@/domain/extras";
 import { activeRules } from "@/domain/decide";
 import { lineChoicesFor } from "@/domain/line-choices";
 import type { Business, Enquiry } from "@/domain/types";
+import { unsettledFlags, type CoverageFlag } from "@/domain/coverage";
+import { QUESTION_ANSWER, questionField } from "@/domain/service-questions";
+import type { LineChoice } from "@/domain/line-choices";
 
 /**
  * "What this price covers": every line (service x count = amount), anything
@@ -34,6 +37,7 @@ export function CoverageCheck({
   const firstVisit = coverage.lines.filter((l) => l.firstVisit);
   const perJob = coverage.lines.filter((l) => !l.firstVisit);
   const total = perJob.reduce((sum, l) => sum + l.amountMinor, 0);
+  const unsettled = unsettledFlags(coverage.flagged).length;
   const choices = lineChoicesFor(
     activeRules(business ?? {}),
     enquiry.facts,
@@ -106,16 +110,39 @@ export function CoverageCheck({
       {coverage.flagged.length > 0 ? (
         <div className="callout mt-3 bg-warn-bg text-warn">
           <p className="text-sm font-medium">Not on this price - check these</p>
-          <ul className="mt-1 space-y-1 text-sm text-ink">
+          <ul className="mt-1 space-y-3 text-sm text-ink">
             {coverage.flagged.map((f) => (
-              <li key={f.text}>{f.text}</li>
+              <li key={f.text}>
+                <p>{f.text}</p>
+                {f.thing ? (
+                  <FlagChoices
+                    flag={f as CoverageFlag & { thing: string }}
+                    priced={choices.find(
+                      (c) => c.rule.service.toLowerCase() === f.thing!.toLowerCase(),
+                    )}
+                    saving={saving}
+                    onChoose={(key, job, done) => void run(key, job, done)}
+                    enquiryId={enquiry.id}
+                  />
+                ) : null}
+              </li>
             ))}
           </ul>
         </div>
       ) : null}
+      {unsettled > 0 ? (
+        <p id="coverage-unsettled" className="mt-3 text-sm text-ink-2">
+          Settle each thing flagged above first. Then say whether that is everything.
+        </p>
+      ) : null}
       <p className="mt-3 text-sm font-medium text-ink">Did they ask for anything else?</p>
       <div className="mt-2 flex flex-wrap gap-2">
-        <Button className="min-h-11" disabled={saving !== null} onClick={() => void confirm()}>
+        <Button
+          className="min-h-11"
+          disabled={saving !== null || unsettled > 0}
+          aria-describedby={unsettled > 0 ? "coverage-unsettled" : undefined}
+          onClick={() => void confirm()}
+        >
           {saving === "all" ? "Saving…" : "That's everything"}
         </Button>
         <Button
@@ -203,4 +230,112 @@ export function CoverageCheck({
       ) : null}
     </div>
   );
+}
+
+type Chooser = (key: string, job: () => Promise<unknown>, done: string) => void;
+
+/**
+ * One flag's ways forward. Something they mentioned: add it (when it has a
+ * saved price), leave it out and tell them, come back to them on it, or they
+ * didn't ask. Something the business doesn't offer: tell them so, or they
+ * didn't ask. How often: confirm the reading.
+ */
+function FlagChoices({
+  flag,
+  priced,
+  saving,
+  onChoose,
+  enquiryId,
+}: {
+  flag: CoverageFlag & { thing: string };
+  priced: LineChoice | undefined;
+  saving: string | null;
+  onChoose: Chooser;
+  enquiryId: string;
+}) {
+  const actions = useFirstBetaActions();
+  const thing = flag.thing;
+  const label = thing.toLowerCase();
+  const field = priced?.field ?? extraField(label);
+  const answer = (value: string) => () => actions.answerFact(enquiryId, field, value);
+  const button = (key: string, text: string, job: () => Promise<unknown>, done: string) => (
+    <Button
+      key={key}
+      size="sm"
+      variant="secondary"
+      className="min-h-11"
+      disabled={saving !== null}
+      onClick={() => onChoose(`${thing}:${key}`, job, done)}
+    >
+      {saving === `${thing}:${key}` ? "Saving…" : text}
+    </Button>
+  );
+  const buttons =
+    flag.kind === "recurring"
+      ? [
+          button(
+            "yes",
+            `Yes, ${label}`,
+            () => actions.answerFact(enquiryId, "recurring", "yes"),
+            "The reply prices it per visit.",
+          ),
+          button(
+            "no",
+            "No, one job",
+            () => actions.answerFact(enquiryId, "recurring", "no"),
+            "Priced as one job.",
+          ),
+        ]
+      : flag.kind === "not_offered"
+        ? [
+            button(
+              "no",
+              "Tell them I don't do it",
+              () => actions.answerFact(enquiryId, questionField(label), QUESTION_ANSWER.no),
+              `The reply says you don't do ${label}.`,
+            ),
+            button(
+              "not",
+              "They didn't ask",
+              answer(EXTRA_CHOICE.notAsked),
+              "Nothing about it goes in the reply.",
+            ),
+          ]
+        : [
+            ...(priced
+              ? [
+                  button(
+                    "add",
+                    `Add it - ${describeRule(priced.rule).replace(/^[^:]*:\s*/, "")}`,
+                    answer(EXTRA_CHOICE.include),
+                    `Added ${label} to the quote.`,
+                  ),
+                ]
+              : []),
+            button(
+              "part",
+              "Part of this price",
+              answer(EXTRA_CHOICE.covered),
+              `Noted: ${label} is part of this price.`,
+            ),
+            button(
+              "out",
+              "Leave out, tell them",
+              answer(EXTRA_CHOICE.leaveOut),
+              `The reply says ${label} is not included.`,
+            ),
+            button(
+              "back",
+              "I'll come back on it",
+              answer(EXTRA_CHOICE.comeBack),
+              `The reply says you'll come back to them on ${label}.`,
+            ),
+            button(
+              "not",
+              "They didn't ask",
+              answer(EXTRA_CHOICE.notAsked),
+              "Nothing about it goes in the reply.",
+            ),
+          ];
+  return <div className="mt-2 flex flex-wrap gap-2">{buttons}</div>;
 }
