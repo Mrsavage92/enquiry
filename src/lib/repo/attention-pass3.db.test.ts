@@ -4,6 +4,7 @@ import { join } from "node:path";
 import test from "node:test";
 import { PGlite } from "@electric-sql/pglite";
 import type { Sql } from "../db.ts";
+import { settleShownCoverage } from "./coverage-testing.ts";
 import { createWorkspaceInTransaction } from "./provision-core.ts";
 import { insertManualEnquiry } from "./manual-enquiry-core.ts";
 import { saveBusinessRuleAndRedecide } from "./business-rule-core.ts";
@@ -97,7 +98,7 @@ async function tenant(pg: PGlite, userId: string, name: string) {
 }
 
 async function enquiry(pg: PGlite, businessId: string, body: string, serviceLabel = "") {
-  return tx(pg, (sql) =>
+  const created = await tx(pg, (sql) =>
     insertManualEnquiry(sql, {
       businessId,
       body,
@@ -109,12 +110,17 @@ async function enquiry(pg: PGlite, businessId: string, body: string, serviceLabe
       now: new Date("2026-09-25T09:00:00+10:00"),
     }),
   );
+  // The owner confirms what a price covers before any reply names it (pass 5).
+  await tx(pg, (sql) => settleShownCoverage(sql, businessId));
+  return created;
 }
 
 async function saveRule(pg: PGlite, businessId: string, rule: BusinessRule) {
-  return tx(pg, (sql) =>
+  const saved = await tx(pg, (sql) =>
     saveBusinessRuleAndRedecide(sql, { businessId, rule, readable: describeRule(rule) }),
   );
+  await tx(pg, (sql) => settleShownCoverage(sql, businessId));
+  return saved;
 }
 
 type Snap = {
@@ -169,7 +175,7 @@ test("a count the customer wrote is read as inferred and never asked for again",
   // Only read from their message, so it is quoted in their words, never stated.
   assert.match(
     r.decision_snapshot.draft.body,
-    /You mentioned Saturday 3 October - I'll confirm whether that day works\./,
+    /You mentioned Saturday 3 October - I'll confirm whether that works\./,
   );
   assert.equal(r.customer_name, "Karen Mills");
 
@@ -187,6 +193,7 @@ test("a count the customer wrote is read as inferred and never asked for again",
       serviceLabel: "Interior painting",
       customerName: "Karen Mills",
     });
+    await settleShownCoverage(sql, a.businessId);
   });
   const priced = await row(pg, karen.enquiryId);
   assert.equal(priced.decision_state, "ACTION_READY");
@@ -365,6 +372,7 @@ async function confirmFact(
       serviceLabel: "Interior painting",
       customerName: "Karen Mills",
     });
+    await settleShownCoverage(t, businessId);
   });
 }
 

@@ -1,6 +1,22 @@
 import type { Sql } from "../db.ts";
 import { normaliseFactAnswer, validateFactAnswer, type Decision } from "../../domain/decide.ts";
 import { EXTRA_CHOICE, isExtraField } from "../../domain/extras.ts";
+import { QUESTION_ANSWER, isQuestionField } from "../../domain/service-questions.ts";
+import { COVERAGE_FIELD } from "../../domain/coverage.ts";
+
+/**
+ * Fields only their own server functions may write: the coverage confirmation
+ * (confirm-coverage) and the practice sample price (practice only). Accepting
+ * them here would let any answer box confirm a price or plant a rule.
+ */
+const RESERVED_FIELDS = new Set([COVERAGE_FIELD, "practice_price"]);
+
+const EXTRA_CHOICES = new Set<string>([
+  EXTRA_CHOICE.include,
+  EXTRA_CHOICE.leaveOut,
+  EXTRA_CHOICE.notAsked,
+  EXTRA_CHOICE.comeBack,
+]);
 import { applyDecision, isClosed, lockEnquiry } from "./decision-apply.ts";
 import { requireEnquiryAccess } from "./tenancy.server.ts";
 
@@ -26,7 +42,11 @@ export type AnswerFactResult = {
 
 /** How an owner's choice about an extra reads back in the case file. */
 function displayFor(field: string, value: string): string {
+  if (isQuestionField(field)) {
+    return value === QUESTION_ANSWER.yes ? "Yes - you do this" : "No - you don't do this";
+  }
   if (!isExtraField(field)) return value;
+  if (value === EXTRA_CHOICE.comeBack) return "Not priced - the reply says you'll come back on it";
   if (value === EXTRA_CHOICE.notAsked) return "They didn't ask for this";
   return value === EXTRA_CHOICE.leaveOut ? "Left out - the reply says so" : "Added to the quote";
 }
@@ -38,6 +58,9 @@ export async function answerFactForUser(
   input: AnswerFactInput,
 ): Promise<AnswerFactResult> {
   const { enquiryId, businessId } = await requireEnquiryAccess(userId, input.enquiryId, sql);
+  if (RESERVED_FIELDS.has(input.field.trim().toLowerCase())) {
+    throw new Error("That detail can't be set from here.");
+  }
 
   const [enq] = await sql<{ service_label: string }>`
     select service_label from enquiry where id = ${enquiryId}
@@ -58,13 +81,15 @@ export async function answerFactForUser(
   };
   // "three" is 3: a written count is stored as digits, then checked.
   const value = normaliseFactAnswer(brain, input.field, input.value);
-  if (
-    isExtraField(input.field) &&
-    value !== EXTRA_CHOICE.include &&
-    value !== EXTRA_CHOICE.leaveOut &&
-    value !== EXTRA_CHOICE.notAsked
-  ) {
+  if (isExtraField(input.field) && !EXTRA_CHOICES.has(value)) {
     throw new Error("Choose whether to add it to the quote or leave it out.");
+  }
+  if (
+    isQuestionField(input.field) &&
+    value !== QUESTION_ANSWER.yes &&
+    value !== QUESTION_ANSWER.no
+  ) {
+    throw new Error("Answer yes or no.");
   }
   const problem = validateFactAnswer(brain, enq.service_label ?? "", input.field, value);
   if (problem) throw new Error(problem);

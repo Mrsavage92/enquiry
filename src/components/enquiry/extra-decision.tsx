@@ -33,7 +33,9 @@ export function ExtraDecision({ enquiry }: { enquiry: Enquiry }) {
           ? `Added ${extra.label.toLowerCase()} to the quote.`
           : choice === EXTRA_CHOICE.notAsked
             ? "Removed. Nothing about it goes in the reply."
-            : `Left out. The reply tells them ${extra.label.toLowerCase()} is not included.`,
+            : choice === EXTRA_CHOICE.comeBack
+              ? `The reply says you'll come back to them on the ${extra.label.toLowerCase()}.`
+              : `Left out. The reply tells them ${extra.label.toLowerCase()} is not included.`,
       );
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not save that. Try again.");
@@ -70,6 +72,16 @@ export function ExtraDecision({ enquiry }: { enquiry: Enquiry }) {
         >
           {saving === EXTRA_CHOICE.leaveOut ? "Saving…" : "Leave it out and tell them"}
         </Button>
+        {extra.kind === "no_price" ? (
+          <Button
+            className="min-h-11"
+            variant="secondary"
+            disabled={saving !== null}
+            onClick={() => void choose(EXTRA_CHOICE.comeBack)}
+          >
+            {saving === EXTRA_CHOICE.comeBack ? "Saving…" : "Tell them I'll come back on it"}
+          </Button>
+        ) : null}
         <Button
           className="min-h-11"
           variant="ghost"

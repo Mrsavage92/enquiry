@@ -9,6 +9,7 @@ import type {
 import { isPricingStep, setupStep } from "./next-action.ts";
 import { decidingPhrase } from "./price-compiler.ts";
 import { firstName } from "./customer-name.ts";
+import { countParts, isOwnerEstimate } from "./count-phrase.ts";
 
 /**
  * The one place a fact's status becomes reader-facing text.
@@ -107,12 +108,16 @@ export function integrationStatusLabel(status: IntegrationHealth["status"]): str
  */
 export const STATUS = {
   reading: "Reading",
-  needsDetail: "Needs a detail",
+  // The promise word: one detail, one question or the coverage check decides it.
+  needsDetail: "Not yet",
   yourCall: "Your call",
-  replyReady: "Reply ready",
+  // The same words as the verdict, so the chip and the card never disagree.
+  replyReady: "Yes - reply ready",
   waiting: "Waiting",
   followUp: "Follow up",
+  // The action that parks an enquiry. Its chip says when it comes back.
   later: "Later",
+  parked: "Parked",
   // A quoted customer who has gone quiet. Was "Needs a look", which read as a
   // second "Needs you" queue beside the real one.
   goneQuiet: "Gone quiet",
@@ -159,10 +164,16 @@ export function promiseVerdict(enquiry: Enquiry): { word: PromiseWord; line: str
       ? v(PROMISE_WORDS.yes, "your quote is with them")
       : v(PROMISE_WORDS.notYet, "waiting on their answer");
   }
+  const question = enquiry.decision?.questionPending;
+  if (question) return v(PROMISE_WORDS.notYet, `they asked if you do ${question.thing}`);
   const extra = enquiry.decision?.extraPending;
   if (extra) return v(PROMISE_WORDS.notYet, `they also asked for ${extra.label.toLowerCase()}`);
+  if (coverageToCheck(enquiry)) return v(PROMISE_WORDS.notYet, "check what the price covers");
   const blocking = enquiry.decision?.missing?.find((m) => m.blocking);
   if (blocking?.inferred) return v(PROMISE_WORDS.notYet, "check one detail they gave");
+  if (blocking && isOwnerEstimate(blocking.factField)) {
+    return v(PROMISE_WORDS.notYet, "your estimate decides it");
+  }
   if (decision === "NEEDS_INFORMATION") return v(PROMISE_WORDS.notYet, "one detail decides it");
   const setup = setupStep(enquiry);
   if (isPricingStep(setup)) return v(PROMISE_WORDS.notYet, "your prices decide it");
@@ -196,7 +207,7 @@ export function derivedLabel(state: CompositeState, enquiry?: Enquiry): StatusWo
   if (state.lifecycle === "DECLINED") return STATUS.declined;
   if (state.lifecycle === "CANCELLED") return STATUS.cancelled;
   if (enquiry?.source === "comment" && state.lifecycle === "OPEN") return STATUS.publicComment;
-  if (enquiry?.snoozedUntil && Date.parse(enquiry.snoozedUntil) > Date.now()) return STATUS.later;
+  if (enquiry?.snoozedUntil && Date.parse(enquiry.snoozedUntil) > Date.now()) return STATUS.parked;
   if (enquiry?.followUpDue) return STATUS.followUp;
   if (enquiry?.atRisk) return STATUS.goneQuiet;
   if (state.decision === "EVALUATING") return STATUS.reading;
@@ -219,12 +230,21 @@ export function derivedLabel(state: CompositeState, enquiry?: Enquiry): StatusWo
   return STATUS.open;
 }
 
+/** A priced enquiry whose coverage the owner has not confirmed yet. */
+export function coverageToCheck(enquiry: Pick<Enquiry, "decision">): boolean {
+  const c = enquiry.decision?.coverage;
+  if (c) return !c.confirmed;
+  return (enquiry.decision?.recommendation?.reasonCodes ?? []).includes("CONFIRM_COVERAGE");
+}
+
 /** Reason codes for an escalation whose way forward is one detail from the owner. */
 const ONE_DETAIL_CODES = new Set([
   "CHOOSE_SERVICE",
   "CONFIRM_SERVICE",
   "CHOOSE_BETWEEN",
   "CHECK_EXTRA",
+  "CONFIRM_COVERAGE",
+  "ANSWER_QUESTION",
 ]);
 const ONE_DETAIL_LABELS = new Set(["Confirm the service", "Choose the service"]);
 
@@ -262,6 +282,8 @@ export function nextStepLabel(enquiry: Enquiry): string {
   if (enquiry.state.lifecycle !== "OPEN") return "Nothing to do";
   if (enquiry.state.decision === "EVALUATING") return "Enquiry is reading it";
   if (enquiry.followUpDue) return "Decide whether to follow up";
+  const question = enquiry.decision?.questionPending;
+  if (question) return `Answer: do you do ${question.thing}?`;
   const extra = enquiry.decision?.extraPending;
   if (extra?.kind === "check") return `Add or leave out ${extra.label.toLowerCase()}`;
   const blocking = enquiry.decision?.missing?.find((m) => m.blocking);
@@ -270,10 +292,15 @@ export function nextStepLabel(enquiry: Enquiry): string {
     return `Check ${decidingPhrase(blocking.label.toLowerCase())}`;
   }
   if (enquiry.state.decision === "NEEDS_INFORMATION" && blocking) {
+    // Only the owner can know how long a job takes: that is their estimate.
+    if (isOwnerEstimate(blocking.factField)) {
+      return `Estimate the ${countParts(blocking.factField).noun}`;
+    }
     // What the owner does next is ask the customer; the phone card offers
     // typing it in as the second choice.
     return `Ask for ${decidingPhrase(blocking.label.toLowerCase())}`;
   }
+  if (coverageToCheck(enquiry)) return "Check it covers everything they asked for";
   if (enquiry.state.decision === "WAITING_ON_CLIENT") {
     return `Waiting on ${firstName(enquiry)} - for ${waitingForPhrase(enquiry)}`;
   }
@@ -567,8 +594,10 @@ export function queueHeadline(summary: QueueSummary): string {
   return summary.needsYou === 0 ? "Caught up" : QUEUE_NAMES.needs_you;
 }
 
-/** One plain sentence with the count only for what needs action today. */
+/**
+ * One plain sentence about what is next - never a count of what is behind
+ * (attention plan C9: no guilt counters).
+ */
 export function needsYouSentence(count: number): string {
-  if (count === 0) return "Nothing needs you right now.";
-  return count === 1 ? "1 enquiry needs you today." : `${count} enquiries need you today.`;
+  return count === 0 ? "Nothing needs you right now." : "Start with the one at the top.";
 }

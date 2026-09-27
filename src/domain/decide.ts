@@ -1,6 +1,7 @@
 import type { Enquiry, EnquiryFact, KnowledgeItem } from "./types";
 import { parseBusinessRule, type BusinessRule } from "./business-rule.ts";
 import {
+  blockedReason,
   compilePrice,
   impliedAmountsMinor,
   matchRule,
@@ -17,9 +18,43 @@ import {
 } from "./extras.ts";
 import { formatMinorAud } from "./money-format.ts";
 import { digitsForWrittenNumber } from "./number-words.ts";
+import { activeDetails, type BusinessDetail } from "./business-detail.ts";
+import {
+  COVERAGE_FIELD,
+  coverageConfirmed,
+  coverageFlags,
+  coverageKey,
+  askedForFirstVisit,
+  isFirstVisit,
+  isRecurring,
+  type Coverage,
+} from "./coverage.ts";
+import {
+  QUESTION_ANSWER,
+  isQuestionField,
+  questionReplyLine,
+  questionThing,
+} from "./service-questions.ts";
 
 /** One priced line of a quote with more than one thing on it. */
-export type QuoteLine = { label: string; amountMinor: number; detail?: string };
+export type QuoteLine = {
+  label: string;
+  amountMinor: number;
+  detail?: string;
+  /** "3 bedrooms", for a price per something. */
+  count?: string;
+  /** Asked for on the first visit only, on a recurring job. */
+  firstVisit?: boolean;
+};
+
+/** A "do you do X?" the owner has not answered yet. */
+export type QuestionPending = {
+  field: string;
+  thing: string;
+  span?: string;
+  /** Read as "No" from the owner's own "we don't do ..." rule, not yet confirmed. */
+  readAs?: "no";
+};
 
 /**
  * A second thing the customer asked for that the owner has not settled yet:
@@ -96,6 +131,15 @@ export type Decision = {
   extraPending?: ExtraPending;
   /** The services this business prices, so a reading can tell them apart. */
   knownServices?: string[];
+  /**
+   * What the price covers, and whether the owner has confirmed it for exactly
+   * these facts. A reply may only name the total once `confirmed` is true.
+   */
+  coverage?: Coverage;
+  /** A question the customer asked that the owner has to answer Yes or No. */
+  questionPending?: QuestionPending;
+  /** Lines the reply must carry: answered questions, things to come back on. */
+  replyNotes?: string[];
 };
 
 /**
@@ -167,15 +211,188 @@ function inferredFor(
  */
 export function decideEnquiry(
   business: { knowledge?: ReadonlyArray<RuleBearingKnowledge | KnowledgeItem> | null },
-  enquiry: Pick<Enquiry, "serviceLabel" | "facts">,
+  enquiry: Pick<Enquiry, "serviceLabel" | "facts"> & {
+    /** Everything the customer wrote, for what the price does not cover. */
+    messageText?: string;
+    /** Every service the business prices or lists. */
+    services?: readonly string[];
+  },
 ): Decision {
   const rules = activeRules(business);
+  const details = activeDetails(business as { knowledge?: ReadonlyArray<RuleBearingKnowledge> });
   const facts = (enquiry.facts ?? []) as DecideFact[];
-  const primary = decidePrimary(rules, enquiry.serviceLabel ?? "", facts);
+  const serviceLabel = enquiry.serviceLabel ?? "";
+  const primary = decidePrimary(rules, serviceLabel, facts);
   const knownServices = [...new Set(rules.map((r) => r.service))];
   const decided = primary.price.kind === "EXACT" ? decideExtras(rules, primary, facts) : primary;
-  return { ...decided, knownServices };
+  const notes = replyNotesFrom(facts);
+  const withNotes = notes.length ? { ...decided, replyNotes: notes } : decided;
+  const question = pendingQuestion(facts);
+  if (question) {
+    return {
+      ...withNotes,
+      action: "ESCALATE_HUMAN",
+      explanation: `They asked if you do ${question.thing}. Say yes or no and the reply answers it.`,
+      questionPending: question,
+      knownServices,
+    };
+  }
+  const gated =
+    withNotes.action === "SEND_QUOTE"
+      ? gateCoverage(withNotes, {
+          serviceLabel,
+          facts,
+          details,
+          message: enquiry.messageText ?? "",
+          services: [...new Set([...knownServices, ...(enquiry.services ?? [])])],
+        })
+      : withNotes;
+  return { ...gated, knownServices };
 }
+
+/** The first question they asked that the owner has not answered. */
+function pendingQuestion(facts: ReadonlyArray<DecideFact>): QuestionPending | undefined {
+  const open = facts.find(
+    (f) =>
+      isQuestionField(f.field) &&
+      !(
+        f.status === "confirmed" &&
+        (f.value === QUESTION_ANSWER.yes || f.value === QUESTION_ANSWER.no)
+      ),
+  );
+  if (!open) return undefined;
+  return {
+    field: open.field,
+    thing: questionThing(open.field),
+    ...(open.displayValue ? { span: open.displayValue } : {}),
+    ...(String(open.value) === QUESTION_ANSWER.no ? { readAs: "no" as const } : {}),
+  };
+}
+
+/** Answered questions and things the owner will come back on, in the order asked. */
+function replyNotesFrom(facts: ReadonlyArray<DecideFact>): string[] {
+  const out: string[] = [];
+  for (const f of facts) {
+    if (f.status !== "confirmed") continue;
+    if (isQuestionField(f.field)) {
+      const line = questionReplyLine(questionThing(f.field), String(f.value));
+      if (line) out.push(line);
+    }
+    if (isExtraField(f.field) && String(f.value) === EXTRA_CHOICE.comeBack) {
+      out.push(`I'll come back to you on the ${extraLabel(f.field).toLowerCase()}.`);
+    }
+  }
+  return out;
+}
+
+/** The asked-about day, read or confirmed, as yyyy-mm-dd. */
+function jobDateOf(facts: ReadonlyArray<DecideFact>): string | undefined {
+  const date = facts.find(
+    (f) => f.field.trim().toLowerCase() === "date" && /^\d{4}-\d{2}-\d{2}$/.test(String(f.value)),
+  );
+  return date ? String(date.value) : undefined;
+}
+
+type CoverageContext = {
+  serviceLabel: string;
+  facts: ReadonlyArray<DecideFact>;
+  details: BusinessDetail[];
+  message: string;
+  services: string[];
+};
+
+function linesOf(decided: Decision): QuoteLine[] {
+  if (decided.price.kind !== "EXACT") return [];
+  if (decided.lines?.length) return decided.lines;
+  return [
+    {
+      label: decided.price.rule.service,
+      amountMinor: decided.price.amountMinor,
+      detail: lineDetail(decided.price.rule, decided.price.workings),
+      ...(decided.price.count ? { count: decided.price.count } : {}),
+    },
+  ];
+}
+
+/**
+ * A priced decision becomes "reply ready" only once the owner has confirmed
+ * what it covers, for exactly these facts. Until then the price is shown to the
+ * owner as lines, and the reply names no total.
+ */
+function gateCoverage(decided: Decision, ctx: CoverageContext): Decision {
+  if (decided.price.kind !== "EXACT") return decided;
+  const recurring = isRecurring(ctx.serviceLabel, ctx.message);
+  const lines = linesOf(decided);
+  const handled = ctx.facts
+    .filter((f) => isExtraField(f.field) && f.status === "confirmed")
+    .map((f) => extraLabel(f.field))
+    // A question they asked and the owner answered is settled, not a gap.
+    .concat(
+      ctx.facts
+        .filter((f) => isQuestionField(f.field) && f.status === "confirmed")
+        .map((f) => questionThing(f.field)),
+    );
+  const flagged = coverageFlags({
+    message: ctx.message,
+    covered: [ctx.serviceLabel, ...lines.map((l) => l.label), ...handled],
+    services: ctx.services,
+    details: ctx.details,
+    jobDateIso: jobDateOf(ctx.facts),
+  });
+  const firstVisit = (l: QuoteLine, i: number) =>
+    i > 0 &&
+    (Boolean(l.firstVisit) ||
+      askedForFirstVisit(ctx.message, l.label, [ctx.serviceLabel, lines[0]!.label]));
+  const coverageLines = lines.map((l, i) => ({
+    label: l.label,
+    amountMinor: l.amountMinor,
+    ...(l.count ? { quantity: l.count } : {}),
+    ...(recurring && firstVisit(l, i) ? { firstVisit: true } : {}),
+  }));
+  const keyFacts = ctx.facts.map((f) => ({
+    field: f.field,
+    value: String(f.value ?? ""),
+    status: f.status,
+  }));
+  const key = coverageKey({
+    serviceLabel: ctx.serviceLabel,
+    lines: coverageLines,
+    flagged,
+    facts: keyFacts,
+  });
+  const confirmed = coverageConfirmed(keyFacts, key);
+  const coverage: Coverage = { key, confirmed, lines: coverageLines, flagged, recurring };
+  const marked = decided.lines?.length
+    ? {
+        ...decided,
+        lines: decided.lines.map((l, i) => ({
+          ...l,
+          firstVisit: Boolean(coverageLines[i]?.firstVisit),
+        })),
+      }
+    : decided;
+  const perVisit = recurring ? perVisitPrice(marked, coverageLines) : marked;
+  if (confirmed) return { ...perVisit, coverage };
+  return {
+    ...perVisit,
+    action: "ESCALATE_HUMAN",
+    explanation: "Check what this price covers before the reply names it.",
+    coverage,
+  };
+}
+
+/**
+ * A recurring job is priced per visit: anything asked for on the first visit
+ * only is said separately ("the first visit adds $95"), never folded into a
+ * per-visit total.
+ */
+function perVisitPrice(decided: Decision, lines: Coverage["lines"]): Decision {
+  if (decided.price.kind !== "EXACT" || !lines.some((l) => l.firstVisit)) return decided;
+  const perVisit = lines.filter((l) => !l.firstVisit).reduce((s, l) => s + l.amountMinor, 0);
+  return { ...decided, price: { ...decided.price, amountMinor: perVisit } };
+}
+
+export { COVERAGE_FIELD };
 
 type DecideFact = Pick<EnquiryFact, "field" | "value" | "status"> & { displayValue?: string };
 
@@ -341,6 +558,7 @@ function decideExtras(
       label: mainRule.service,
       amountMinor: primary.price.amountMinor,
       detail: lineDetail(mainRule, primary.price.workings),
+      ...(primary.price.count ? { count: primary.price.count } : {}),
     },
   ];
   const implied: number[] = [];
@@ -356,6 +574,9 @@ function decideExtras(
       leftOut.push({ label: extra.label, ...(rule ? { service: rule.service } : {}) });
       continue;
     }
+    // Nothing they asked for goes on the total without a price: the reply
+    // says the owner will come back on it.
+    if (extra.confirmed && extra.choice === EXTRA_CHOICE.comeBack) continue;
     // The main job asked for twice, or one priced thing recorded under two
     // names, is one line - never a duplicate $120.
     if (rule && lined().has(key(rule.service))) continue;
@@ -398,7 +619,7 @@ function decideExtras(
     if (line.kind === "BLOCKED" && rule.kind === "per_unit") {
       const field = extraQuantityField(rule.quantityField, rule.service);
       const inferred = inferredFor(facts, field);
-      const reason = `${rule.service} is priced per ${rule.unit}, so ${decidingPhraseFor(field)} decides that part of the price.`;
+      const reason = blockedReason(rule.service, rule.unit, field, true);
       return {
         price: { ...line, missingField: field, reason },
         action: "REQUEST_INFORMATION",
@@ -418,6 +639,8 @@ function decideExtras(
       label: rule.service,
       amountMinor: line.amountMinor,
       detail: lineDetail(rule, line.workings),
+      ...(line.count ? { count: line.count } : {}),
+      ...(isFirstVisit(extra.span) ? { firstVisit: true } : {}),
     });
     implied.push(...impliedAmountsMinor(line));
   }
@@ -445,12 +668,6 @@ function decideExtras(
     lines,
     ...(stillOut.length ? { leftOut: stillOut } : {}),
   };
-}
-
-/** "the number of square metres for ceilings". */
-function decidingPhraseFor(field: string): string {
-  const split = splitExtraQuantityField(field);
-  return split ? `the number of ${split.field} for ${split.service}` : `the ${field}`;
 }
 
 /**

@@ -8,6 +8,7 @@ import { insertManualEnquiry } from "./manual-enquiry-core.ts";
 import { prepareReviewedSendInTransaction } from "./reviewed-send-core.ts";
 import { confirmReviewedSendInTransaction } from "./sent-reply-core.ts";
 import { applyDecision, lockEnquiry } from "./decision-apply.ts";
+import { confirmShownCoverage } from "./coverage-core.ts";
 import { validateFactAnswer } from "../../domain/decide.ts";
 
 /**
@@ -104,6 +105,8 @@ async function seed(pg: PGlite, rule: unknown, serviceLabel: string) {
     serviceLabel,
     intakeNote: "",
   });
+  // The owner confirms what a price covers before any reply names it (pass 5).
+  await inTransaction(pg, (tx) => confirmShownCoverage(tx, enquiryId));
   return { businessId, enquiryId };
 }
 
@@ -130,12 +133,15 @@ async function confirmFact(
         ${"High"}, ${"user"}, ${JSON.stringify({ kind: "user" })}::jsonb, ${true}
       )
     `;
-    return applyDecision(tx, {
+    const applied = await applyDecision(tx, {
       enquiryId: ids.enquiryId,
       businessId: ids.businessId,
       serviceLabel: locked.serviceLabel,
       customerName: locked.customerName,
     });
+    // "That's everything", on exactly the coverage the new decision shows.
+    const confirmed = await confirmShownCoverage(tx, ids.enquiryId);
+    return confirmed?.ok ? { ...applied, revision: confirmed.revision } : applied;
   });
 }
 
@@ -188,7 +194,11 @@ test("Q05/C03: a per-unit quote can be sent using the draft the product itself c
     "select total_minor, status from quote_version where enquiry_id = $1",
     [ids.enquiryId],
   );
-  assert.equal(quote.rows[0]!.total_minor, 58_000, "recorded at the structured total, not the rate");
+  assert.equal(
+    quote.rows[0]!.total_minor,
+    58_000,
+    "recorded at the structured total, not the rate",
+  );
   assert.equal(quote.rows[0]!.status, "sent");
   const msg = await pg.query<{ body: string }>(
     "select body from message where enquiry_id = $1 and direction = 'outbound'",
@@ -357,7 +367,9 @@ test("A02: correcting an already-confirmed quantity re-prices and survives a re-
   // point of A02 is that the correction is still there after a reload.
   const after = await priceAndRevision(pg, ids.enquiryId);
   assert.equal(after.amountMinor, 87_000, "6 people at $145 each");
-  assert.equal(after.revision, before.revision + 1, "a correction is a new decision");
+  // The correction is a new decision, and so is the owner re-confirming what
+  // the new price covers.
+  assert.ok(after.revision > before.revision, "a correction is a new decision");
   assert.match(after.draft, /\$870/, "the prepared reply is recomposed, not left stale");
 
   // Exactly one live answer for the field, with the earlier one kept as history.
@@ -421,8 +433,9 @@ test("P03: a correction moves the revision, so a preview taken before it goes st
   assert.equal(res.ok, false, "an approval frozen against $580 cannot be sent once it is $870");
   if (res.ok) return;
   assert.equal(res.reason, "stale");
-  const msgs = await pg.query("select 1 from message where enquiry_id = $1 and direction = 'outbound'", [
-    ids.enquiryId,
-  ]);
+  const msgs = await pg.query(
+    "select 1 from message where enquiry_id = $1 and direction = 'outbound'",
+    [ids.enquiryId],
+  );
   assert.equal(msgs.rows.length, 0);
 });

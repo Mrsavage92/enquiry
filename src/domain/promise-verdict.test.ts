@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
+import { decideConfirmed } from "./coverage-testing.ts";
 import { test } from "node:test";
 import { ENQUIRIES } from "../fixtures/enquiries.ts";
 import { PROMISE_WORDS, promiseVerdict } from "./labels.ts";
-import { decideEnquiry } from "./decide.ts";
 import { snapshotFromDecision } from "./decision-snapshot.ts";
 import type { CompositeState, Enquiry } from "./types.ts";
 
@@ -60,7 +60,8 @@ function live(
   decisionState: CompositeState["decision"],
   knowledge: typeof PER_BEDROOM | { knowledge: [] } = PER_BEDROOM,
 ): Enquiry {
-  const decision = decideEnquiry(knowledge, {
+  // A priced reply is only ready once the owner confirmed what it covers.
+  const decision = decideConfirmed(knowledge, {
     serviceLabel: "End of lease clean",
     facts: facts as never,
   });

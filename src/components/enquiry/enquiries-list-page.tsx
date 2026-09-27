@@ -10,9 +10,8 @@ import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Segmented } from "@/components/ui/segmented";
 import { channelLabel } from "@/domain/channel";
-import { rowTimeCue } from "@/domain/time-cues";
+import { jobDateCue, rowTimeCue, statusChip } from "@/domain/time-cues";
 import {
-  derivedLabel,
   emptyTabMessage,
   filteredEnquiries,
   nextStepLabel,
@@ -182,14 +181,12 @@ export function EnquiriesListPage() {
                       <p className="enquiries-date min-w-0 text-sm text-ink-2">
                         {/* Labelled, because a bare date or "Not set" said
                             nothing about which date it was. */}
-                        {enquiry.dateLabel ? `Job ${enquiry.dateLabel}` : "Job date not given"}
+                        {jobDateCue(enquiry) || "No date asked for"}
                         <span className="mt-1 block text-xs text-stone">
                           {channelLabel(enquiry.source)}
                         </span>
                       </p>
-                      <Badge tone={statusTone(enquiry)}>
-                        {derivedLabel(enquiry.state, enquiry)}
-                      </Badge>
+                      <Badge tone={statusTone(enquiry)}>{statusChip(enquiry)}</Badge>
                       <span className="enquiries-updated text-xs text-stone">
                         {rowTimeCue(enquiry, prefs)}
                       </span>

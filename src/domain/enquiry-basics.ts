@@ -53,9 +53,19 @@ export type DateIssue = {
   actualDay?: string;
 };
 
+/** A day written beside a move-out, an inspection, the keys: context, not the job. */
+export type ContextDate = JobDateRead & { what: string };
+
 export type DateReading = {
   jobDate?: JobDateRead;
   issue?: DateIssue;
+  /**
+   * They offered more than one day ("Sat 26 or Sun 27 Sep"). Neither is the
+   * job date: the owner says which works.
+   */
+  options?: { days: JobDateRead[]; label: string; span: string };
+  /** Dates about something else: the move-out, the inspection, the keys. */
+  context: ContextDate[];
   /** Days the customer ruled out: "any day except Monday 5 October". */
   unavailable: JobDateRead[];
   /** "asap", "as soon as possible", "urgently". */
@@ -139,7 +149,7 @@ const PAST_MARKER =
  * October?" is a request for the 5th, not a refusal of it.
  */
 const EXCLUDE_BEFORE =
-  /(?:\bexcept(?:\s+for)?|\bexcluding|\bother than|\bapart from|\bnot(?:\s+(?:available|free|around|home))?(?:\s+on)?|\bnever(?:\s+on)?|n't\s+(?:do|make|manage|come)(?:\s+it)?(?:\s+on)?|\bcan ?not\s+(?:do|make|come)(?:\s+it)?(?:\s+on)?|\bunavailable(?:\s+on)?|\baway(?:\s+on)?|\bbusy(?:\s+on)?|\bbooked(?:\s+up)?(?:\s+on)?)\s+(?:the\s+)?(?:(?:mon|tue|wed|thu|fri|sat|sun)[a-z]*\.?,?\s+(?:the\s+)?)?$/i;
+  /(?:\bexcept(?:\s+for)?|\bexcluding|\bother than|\bapart from|\bnot(?:\s+(?:available|free|around|home))?(?:\s+on)?|\bnever(?:\s+on)?|n't\s+(?:do|make|manage|come)(?:\s+it)?(?:\s+on)?|\bcan ?not\s+(?:do|make|come)(?:\s+it)?(?:\s+on)?|\bunavailable(?:\s+on)?|\baway(?:\s+on)?|\bbusy(?:\s+on)?|\bbooked(?:\s+up)?(?:\s+on)?)\s+(?:the\s+)?(?:(?:week|weekend|fortnight)\s+(?:of|starting|beginning|commencing)\s+(?:the\s+)?)?(?:(?:mon|tue|wed|thu|fri|sat|sun)[a-z]*\.?,?\s+(?:the\s+)?)?$/i;
 /** Ruling a day out, directly after it: "5 October - that day is no good", "3 October won't work". */
 const EXCLUDE_AFTER =
   /^\s*(?:[,–-]\s*)?(?:(?:that|this)(?:\s+day)?\s+|which\s+|it\s+)?(?:(?:is|'s)\s+(?:no good|out|not good|not possible|booked|no)\b|isn'?t\s+(?:good|possible)\b|(?:won'?t|will not|doesn'?t|does not|don'?t|do not)\s+(?:work|suit)\b|(?:is\s+)?no good\b)/i;
@@ -230,9 +240,60 @@ type DateHit = {
   index: number;
   length: number;
   day: number;
+  /** -1 when no month was written ("Sat 3rd"): resolved from the weekday. */
   month: number;
   year?: number;
+  /** "Sat 3rd": the weekday written with a month-less day. */
+  weekday?: number;
+  /** "Sat 26 or Sun 27 Sep": the first of two days offered, same month. */
+  option?: { day: number; weekday?: number };
 };
+
+const WEEKDAY_WORD = String.raw`(mon(?:day)?|tue(?:s(?:day)?)?|wed(?:nesday)?|thu(?:r(?:s(?:day)?)?)?|fri(?:day)?|sat(?:urday)?|sun(?:day)?)`;
+
+/** "Sat 3rd", "Saturday the 3rd": a weekday and a day, no month. */
+const WEEKDAY_DAY = new RegExp(
+  String.raw`\b${WEEKDAY_WORD}\.?,?\s+(?:the\s+)?(\d{1,2})(?:st|nd|rd|th)?\b(?!\s*(?:\/|of\b|-|jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec|am\b|pm\b|:|\.\d|hours?|hrs?|bed|room|window|door|sq|m2|metre|meter|people|guests))`,
+  "gi",
+);
+
+/** "Sat 26 or Sun 27 Sep", "26th or 27th September": two days offered. */
+const TWO_DAYS = new RegExp(
+  String.raw`\b(?:${WEEKDAY_WORD}\.?,?\s+)?(?:the\s+)?(\d{1,2})(?:st|nd|rd|th)?\s*(?:or|\/)\s*(?:${WEEKDAY_WORD}\.?,?\s+)?(?:the\s+)?(\d{1,2})(?:st|nd|rd|th)?\s+(?:of\s+)?${MONTH}\b${YEAR}`,
+  "gi",
+);
+
+/** Dates about something other than the job. */
+const CONTEXT_WORDS =
+  /\b(inspection|inspect(?:ed|ing)?|moving out|move[sd]? out|moving|move in|keys?|handover|hand(?:ing)? over|settlement|lease (?:ends?|finishes|is up)|vacat(?:e|ing)|open home|real estate)\b/i;
+
+function monthlessHits(text: string): DateHit[] {
+  const hits: DateHit[] = [];
+  for (const m of text.matchAll(WEEKDAY_DAY)) {
+    const weekday = weekdayIndex(m[1]!);
+    if (weekday === undefined) continue;
+    hits.push({ index: m.index ?? 0, length: m[0].length, day: Number(m[2]), month: -1, weekday });
+  }
+  return hits;
+}
+
+function optionHits(text: string): DateHit[] {
+  const hits: DateHit[] = [];
+  for (const m of text.matchAll(TWO_DAYS)) {
+    const month = monthIndex(m[5]!);
+    if (month === undefined) continue;
+    const first = m[1] ? weekdayIndex(m[1]) : undefined;
+    hits.push({
+      index: m.index ?? 0,
+      length: m[0].length,
+      day: Number(m[4]),
+      month,
+      year: m[6] ? Number(m[6]) : undefined,
+      option: { day: Number(m[2]), ...(first !== undefined ? { weekday: first } : {}) },
+    });
+  }
+  return hits;
+}
 
 function collectHits(text: string): DateHit[] {
   const hits: DateHit[] = [];
@@ -265,8 +326,10 @@ function collectHits(text: string): DateHit[] {
       year,
     });
   }
-  // First written first; a hit inside an earlier one is the same date.
-  const sorted = hits.sort((a, b) => a.index - b.index);
+  hits.push(...optionHits(text), ...monthlessHits(text));
+  // First written first; a hit inside an earlier one is the same date, and of
+  // two starting together the longer ("Sat 26 or Sun 27 Sep") wins.
+  const sorted = hits.sort((a, b) => a.index - b.index || b.length - a.length);
   const out: DateHit[] = [];
   for (const h of sorted) {
     const prev = out[out.length - 1];
@@ -292,7 +355,18 @@ type Resolved =
   | { kind: "conflict"; date: Date; weekdayWritten: number }
   | { kind: "invalid" };
 
+/** "Sat 3rd": the next Saturday the 3rd, within about two months, or nothing. */
+function resolveMonthless(hit: DateHit, today: Date): Resolved {
+  const start = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  for (let i = 0; i <= 62; i += 1) {
+    const d = new Date(start.getFullYear(), start.getMonth(), start.getDate() + i);
+    if (d.getDate() === hit.day && d.getDay() === hit.weekday) return { kind: "date", date: d };
+  }
+  return { kind: "invalid" };
+}
+
 function resolveHit(hit: DateHit, before: string, today: Date): Resolved {
+  if (hit.month === -1) return resolveMonthless(hit, today);
   let y = hit.year ?? today.getFullYear();
   if (y < 100) y += 2000;
   if (!validDay(y, hit.month, hit.day)) return { kind: "invalid" };
@@ -342,11 +416,57 @@ function ordinal(n: number): string {
 }
 
 /** Every date in the message, sorted into the job date, a problem, and days ruled out. */
+/** Two days offered: both must be real future days, or neither is read. */
+function readOptions(
+  text: string,
+  hit: DateHit,
+  before: string,
+  today: Date,
+): DateReading["options"] | undefined {
+  const second = resolveHit(hit, before, today);
+  if (second.kind !== "date" || !hit.option) return undefined;
+  const firstHit: DateHit = { ...hit, day: hit.option.day };
+  const first = resolveHit(firstHit, "", today);
+  if (first.kind !== "date") return undefined;
+  if (hit.option.weekday !== undefined && first.date.getDay() !== hit.option.weekday) {
+    return undefined;
+  }
+  const span = text
+    .slice(hit.index, hit.index + hit.length)
+    .replace(/\s+/g, " ")
+    .trim();
+  const asked = asksAboutDate(text, hit.index);
+  const days = [readOf(first.date, span, asked), readOf(second.date, span, asked)];
+  const label = `${format(first.date, "EEE d", { locale: enAU })} or ${format(second.date, "EEE d MMM", { locale: enAU })}`;
+  return { days, label, span };
+}
+
+/** The sentence around a date names a move-out, an inspection or the keys. */
+/** "the week of 12 October": the whole week is ruled out, not only the day. */
+const WEEK_OF_BEFORE =
+  /\b(?:week|weekend|fortnight)\s+(?:of|starting|beginning|commencing)\s+(?:the\s+)?$/i;
+
+function contextOf(before: string, after: string): string | undefined {
+  const all = [...before.matchAll(new RegExp(CONTEXT_WORDS.source, "gi"))];
+  const nearest = all[all.length - 1] ?? CONTEXT_WORDS.exec(after.slice(0, 25));
+  return nearest?.[1]?.toLowerCase();
+}
+
 export function readDates(text: string, now = new Date(), tz = "Australia/Brisbane"): DateReading {
   const today = wallNow(now, tz);
-  const reading: DateReading = { unavailable: [], asap: asksForAsap(text) };
+  const reading: DateReading = { unavailable: [], context: [], asap: asksForAsap(text) };
+  const plain: JobDateRead[] = [];
   for (const hit of collectHits(text)) {
     const { before, after } = clauseAround(text, hit.index, hit.length);
+    if (hit.option) {
+      const options = readOptions(text, hit, before, today);
+      if (options) {
+        reading.options ??= options;
+        continue;
+      }
+      // One of the two has passed (or does not read): the day still asked
+      // about is read on its own below, never dropped.
+    }
     const resolved = resolveHit(hit, before, today);
     if (resolved.kind === "invalid") continue;
     const span = writtenSpan(text, hit, before);
@@ -356,11 +476,23 @@ export function readDates(text: string, now = new Date(), tz = "Australia/Brisba
     if (excluded) {
       // A day ruled out is never the job date. Recorded only when it is a real
       // future day that reads plainly; anything muddier is simply dropped.
-      if (resolved.kind === "date") reading.unavailable.push(readOf(resolved.date, span, false));
+      if (resolved.kind === "date") {
+        const read = readOf(resolved.date, span, false);
+        const week = WEEK_OF_BEFORE.exec(before);
+        reading.unavailable.push(
+          week ? { ...read, label: `${week[0].trim()} ${read.label}` } : read,
+        );
+      }
       continue;
     }
     // "away until 3 October": a boundary, not the day they want.
     if (boundary && /\b(?:away|not|busy|unavailable)\b|n't\b/i.test(before)) continue;
+    // "we move out Mon 5 Oct", "inspection on the 7th": about something else.
+    const context = contextOf(before, after);
+    if (context && resolved.kind === "date") {
+      reading.context.push({ ...readOf(resolved.date, span, false), what: context });
+      continue;
+    }
     if (resolved.kind === "past") {
       reading.issue ??= {
         kind: "past",
@@ -392,9 +524,12 @@ export function readDates(text: string, now = new Date(), tz = "Australia/Brisba
       };
       continue;
     }
-    // The first plain date written is the one the customer led with.
-    reading.jobDate ??= readOf(resolved.date, span, asksAboutDate(text, hit.index));
+    plain.push(readOf(resolved.date, span, asksAboutDate(text, hit.index)));
   }
+  // The day they asked for wins over a day they only mentioned; otherwise the
+  // first plain date written is the one the customer led with. Two days
+  // offered means neither is the job date.
+  if (!reading.options) reading.jobDate = plain.find((d) => d.asked) ?? plain[0];
   // A date problem makes the day doubtful; the owner settles it rather than
   // Enquiry picking one.
   if (reading.issue && reading.issue.kind !== "past") delete reading.jobDate;
@@ -475,7 +610,8 @@ const NOT_A_NAME = new Set(
 
 /** "Mel", "O'Connor", "Smith-Jones", "McDonald". */
 const NAME_WORD = String.raw`[A-Z][a-z]*(?:['’-]?[A-Z][a-z]+|['’-][a-z]+)*`;
-const NAME = String.raw`(${NAME_WORD}(?:\s+${NAME_WORD})?)`;
+/** "Priya Nair", or two first names joined as written: "Margaret & Tony", "Margaret and Tony". */
+const NAME = String.raw`(${NAME_WORD}(?:\s+(?:&|and)\s+${NAME_WORD}|\s+${NAME_WORD})?)`;
 const PHONE = String.raw`\+?\d[\d\s()-]{6,}\d`;
 const EMAIL = String.raw`[\w.+-]+@[\w-]+(?:\.[\w-]+)+`;
 const CONTACT_TAIL = String.raw`(?:[\s,|]+(?:${PHONE}|${EMAIL}))*`;
@@ -512,8 +648,11 @@ const DASH_NAME = new RegExp(
 );
 /** "My name is Sam", "this is Sam from ...". */
 const INTRO = new RegExp(String.raw`\b(?:my name is|my name's|this is)\s+${NAME}`, "i");
-/** A name line on its own: "Mel Tran", "Liam O'Connor", "Priya x". */
-const NAME_LINE = new RegExp(String.raw`^${NAME}${KISS}\s*[.!]?${CONTACT_TAIL}\s*$`);
+/** "Jen here" as an opening self-introduction, with no sign-off to override it. */
+const HERE_INTRO = new RegExp(String.raw`^${NAME}${KISS}\s+here\b`);
+/** A name line on its own, with an optional trailing company: "Mel Tran", "Priya x",
+ * "Paul Nguyen, Nguyen Property Group". */
+const NAME_LINE = new RegExp(String.raw`^${NAME}${KISS}${ROLE_TAIL}\s*[.!]?${CONTACT_TAIL}\s*$`);
 
 /** Job titles: "Office Manager" is who they are, not their name. */
 const TITLE_WORDS = new Set([
@@ -717,14 +856,31 @@ function isRoleOrPlaceLine(line: string, ctx: NameContext): boolean {
   );
 }
 
+/** "&"/"and" joins two first names ("Margaret & Tony") - only when what follows
+ * really is a name, not a pronoun, a contraction ("I've") or a stray word. */
+function isJoinToNextName(word: string, next: string | undefined): boolean {
+  if (!/^(?:&|and)$/i.test(word) || !next) return false;
+  if (!/^[A-Z]/.test(next) || /^i['’]/i.test(next)) return false;
+  return !NOT_A_NAME.has(next.toLowerCase());
+}
+
 function acceptName(raw: string | undefined, ctx: NameContext = {}): string | undefined {
   if (!raw) return undefined;
   // Case-insensitive patterns can run on into "Sam and"; a name is only the
-  // capitalised words it starts with.
+  // capitalised words it starts with (plus an "&"/"and" that joins a second one).
+  const tokens = raw.trim().split(/\s+/);
   const words: string[] = [];
-  for (const w of raw.trim().split(/\s+/)) {
-    if (!/^[A-Z]/.test(w)) break;
-    words.push(w);
+  for (let i = 0; i < tokens.length; i += 1) {
+    const w = tokens[i]!;
+    if (/^[A-Z]/.test(w)) {
+      words.push(w);
+      continue;
+    }
+    if (isJoinToNextName(w, tokens[i + 1])) {
+      words.push(w);
+      continue;
+    }
+    break;
   }
   if (words.length === 0) return undefined;
   if (words.some((w) => NOT_A_NAME.has(w.toLowerCase()))) return undefined;
@@ -733,6 +889,12 @@ function acceptName(raw: string | undefined, ctx: NameContext = {}): string | un
   if (isPlace(words, ctx)) return undefined;
   const name = words.join(" ");
   return name.length >= 2 ? name : undefined;
+}
+
+/** A trailing parenthetical - a phone number, suburb, role or aside - is never
+ * part of the name: "Dave (0412 555 019)", "Sarah (Wooloowin)". */
+function dropTrailingParen(s: string): string {
+  return s.replace(/\s*\([^()]*\)\s*$/, "");
 }
 
 /**
@@ -798,7 +960,7 @@ function nameAboveRoleLines(text: string, ctx: NameContext): string | undefined 
 }
 
 export function readCustomerName(text: string, ctx: NameContext = {}): string | undefined {
-  const trimmed = text.trim();
+  const trimmed = dropTrailingParen(text.trim());
   const fromLines = nameFromSignOffLines(trimmed, ctx);
   if (fromLines) return fromLines;
   if (fromLines === null) return nameAboveRoleLines(trimmed, ctx);
@@ -807,7 +969,9 @@ export function readCustomerName(text: string, ctx: NameContext = {}): string | 
     acceptName(SIGN_OFF.exec(trimmed)?.[1], ctx) ??
     acceptName(DASH_NAME.exec(trimmed)?.[1], ctx) ??
     acceptName(TRAILING_NAME.exec(trimmed)?.[1], ctx) ??
-    acceptName(INTRO.exec(trimmed)?.[1], ctx)
+    nameBeforeCompany(trimmed, ctx) ??
+    acceptName(INTRO.exec(trimmed)?.[1], ctx) ??
+    acceptName(HERE_INTRO.exec(trimmed)?.[1], ctx)
   );
 }
 
@@ -844,4 +1008,21 @@ export function readEnquiryBasics(
     dates,
     contact: readContact(text),
   };
+}
+
+/**
+ * "... would suit. Paul Nguyen, Nguyen Property Group" with no sign-off word:
+ * a full name then a company or role after a comma, closing the message. Only
+ * a two-word name, and only when the tail really is a company or a role.
+ */
+const NAME_THEN_TAIL = new RegExp(
+  String.raw`(?:^|[.!?\n])\s*(${NAME_WORD}\s+${NAME_WORD})\s*,\s*([A-Z][A-Za-z&'.-]*(?:\s+[A-Za-z&'.-]+){0,4})\s*[.!]?\s*$`,
+);
+
+function nameBeforeCompany(text: string, ctx: NameContext): string | undefined {
+  const m = NAME_THEN_TAIL.exec(text);
+  if (!m) return undefined;
+  const tail = m[2]!.toLowerCase().split(/\s+/);
+  if (!tail.some((w) => COMPANY_WORDS.has(w) || TITLE_WORDS.has(w))) return undefined;
+  return acceptName(m[1], ctx);
 }

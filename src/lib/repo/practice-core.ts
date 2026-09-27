@@ -3,6 +3,8 @@ import { insertManualEnquiry } from "./manual-enquiry-core.ts";
 import { activeRules } from "../../domain/decide.ts";
 import { pluraliseUnit, type BusinessRule } from "../../domain/business-rule.ts";
 import { tradeExamples } from "../../domain/trade-examples.ts";
+import { applyDecision, isClosed, lockEnquiry } from "./decision-apply.ts";
+import { PRACTICE_PRICE_FIELD, samplePriceFor } from "./practice-price.ts";
 
 /**
  * A practice enquiry a new owner can try before a real customer arrives
@@ -37,7 +39,13 @@ export function practiceJob(rules: BusinessRule[], industry = ""): PracticeJob {
     return { service: perUnit.service, count: `${n} ${pluraliseUnit(perUnit.unit, n)}` };
   }
   if (sorted[0]) return { service: sorted[0].service };
-  return { service: tradeExamples(industry).service };
+  // No prices yet: the job in their trade, with the count written in, so a
+  // sample price reaches a reply in a few taps.
+  const ex = tradeExamples(industry);
+  const n = /square|metre|meter/i.test(ex.price.unit) ? 40 : 3;
+  return ex.price.unit
+    ? { service: ex.service, count: `${n} ${pluraliseUnit(ex.price.unit, n)}` }
+    : { service: ex.service };
 }
 
 export function practiceMessage(now = new Date(), job?: PracticeJob): string {
@@ -123,6 +131,52 @@ export async function deletePracticeEnquiryInTransaction(
       and object_id = ${input.enquiryId}
   `;
   return { ok: true };
+}
+
+/**
+ * "Use a sample price for practice": the sample price, and the service it
+ * prices, recorded on the practice enquiry only. Refused on a real enquiry,
+ * and never written as a business rule.
+ */
+export async function applyPracticeSampleInTransaction(
+  sql: Sql,
+  input: { businessId: string; enquiryId: string },
+): Promise<{ ok: true; revision: number } | { ok: false; message: string }> {
+  const locked = await lockEnquiry(sql, input.enquiryId);
+  const [row] = await sql<{ practice: boolean }>`
+    select practice from enquiry where id = ${input.enquiryId} and business_id = ${input.businessId}
+  `;
+  if (!locked || !row?.practice || isClosed(locked.lifecycle)) {
+    return { ok: false, message: "A sample price can only be used on the practice enquiry." };
+  }
+  const [biz] = await sql<{ industry: string | null }>`
+    select industry from business where id = ${input.businessId}
+  `;
+  const rule = samplePriceFor(biz?.industry ?? "");
+  await sql`
+    update enquiry_fact set superseded = true, updated_at = now()
+    where enquiry_id = ${input.enquiryId} and superseded = false
+      and lower(field) in (${PRACTICE_PRICE_FIELD}, ${"service"})
+  `;
+  const user = JSON.stringify({ kind: "user", label: "Sample price for practice" });
+  await sql`
+    insert into enquiry_fact
+      (enquiry_id, field, label, value, display_value, status, confidence, asserted_by,
+       provenance, customer_specific)
+    values
+      (${input.enquiryId}, ${PRACTICE_PRICE_FIELD}, ${"Sample price"}, ${JSON.stringify(rule)},
+       ${"Sample price, for practice only"}, ${"confirmed"}, ${"High"}, ${"user"}, ${user}::jsonb, ${true}),
+      (${input.enquiryId}, ${"service"}, ${"service"}, ${rule.service}, ${rule.service},
+       ${"confirmed"}, ${"High"}, ${"user"}, ${user}::jsonb, ${true})
+  `;
+  await sql`update enquiry set service_label = ${rule.service}, updated_at = now() where id = ${input.enquiryId}`;
+  const applied = await applyDecision(sql, {
+    enquiryId: input.enquiryId,
+    businessId: input.businessId,
+    serviceLabel: rule.service,
+    customerName: locked.customerName,
+  });
+  return { ok: true, revision: applied.revision };
 }
 
 /** The business's practice enquiry, if it has one. */

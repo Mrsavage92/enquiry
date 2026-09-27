@@ -1,3 +1,4 @@
+import { statusChip, jobDateCue } from "@/domain/time-cues";
 import { useEffect, useState } from "react";
 import { initialsOf } from "@/domain/customer-name";
 import { ArrowLeft, ArrowRight, CircleHelp, Mail, MapPin, PanelRightOpen } from "lucide-react";
@@ -18,7 +19,6 @@ import { isFramed } from "@/lib/embed";
 import { mayPlayDemoArrival } from "@/domain/live-demo-isolation";
 import { resolveSendKey } from "@/domain/send-keys";
 import { Badge } from "@/components/ui/badge";
-import { derivedLabel } from "@/domain/labels";
 import { statusTone } from "@/domain/status-tone";
 import { identityLine } from "@/domain/format";
 
@@ -205,11 +205,11 @@ export function EnquiryWorkspace({ enquiryId }: { enquiryId?: string }) {
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-3">
                 <h1>{enquiry.customerName}</h1>
-                <Badge tone={statusTone(enquiry)}>{derivedLabel(enquiry.state, enquiry)}</Badge>
+                <Badge tone={statusTone(enquiry)}>{statusChip(enquiry)}</Badge>
               </div>
               <p>
                 {enquiry.serviceLabel}
-                {enquiry.dateLabel ? ` · ${enquiry.dateLabel}` : ""}
+                {enquiry.dateLabel ? ` · ${jobDateCue(enquiry)}` : ""}
               </p>
             </div>
             <Button

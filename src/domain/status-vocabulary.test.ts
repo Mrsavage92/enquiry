@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { test } from "node:test";
 import { ENQUIRIES } from "../fixtures/enquiries.ts";
 import { derivedLabel, nextStepLabel, QUEUE_NAMES, STATUS } from "./labels.ts";
-import { rowTimeCue } from "./time-cues.ts";
+import { jobDateCue, rowTimeCue, statusChip } from "./time-cues.ts";
 import { decideEnquiry } from "./decide.ts";
 import { snapshotFromDecision } from "./decision-snapshot.ts";
 import type { CompositeState } from "./types.ts";
@@ -59,8 +59,13 @@ const RETIRED: [RegExp, string][] = [
   [/\bSnooze(d)?\b/, "Later"],
   [/Follow-up ready/, "Follow up"],
   [/Waiting on client/, "Waiting"],
-  [/\bNeeds info\b/, "Needs a detail"],
-  [/Ready to quote/, "Reply ready"],
+  [/\bNeeds info\b/, "Not yet"],
+  [/Ready to quote/, "Yes - reply ready"],
+  // Pass 5 (C13): near-duplicates merged into one word each.
+  [/\bNeeds a detail\b/, "Not yet"],
+  [/(?<!Yes - )\bReply ready\b/, "Yes - reply ready"],
+  // A total never claims to be everything they asked for.
+  [/\ball up\b/, "that comes to (naming what it covers)"],
   [/\bAt risk\b|\bat risk\b/, "Gone quiet"],
   // Read as a second "Needs you" queue beside the real one.
   [/\b[Nn]eeds? a look\b/, "Gone quiet"],
@@ -261,4 +266,51 @@ test("fact labels are capitalised words, never raw keys", async () => {
   assert.equal(fieldLabel("not_available"), "Not available");
   assert.equal(fieldLabel("date"), "Job date");
   assert.equal(factStatusLabel("inferred"), "From their message");
+});
+
+test("C13: the chip and the verdict use one word each; a parked chip says when it comes back", () => {
+  assert.equal(STATUS.needsDetail, "Not yet");
+  assert.equal(STATUS.replyReady, "Yes - reply ready");
+  const base = ENQUIRIES.find((e) => e.state.lifecycle === "OPEN")!;
+  const parked = {
+    ...base,
+    followUpDue: undefined,
+    atRisk: undefined,
+    snoozedUntil: "2026-09-29T08:00:00+10:00",
+  };
+  const chip = statusChip(parked, new Date("2026-09-26T09:00:00+10:00"), "Australia/Brisbane");
+  assert.equal(chip, "Parked until Tue 29 Sep");
+  assert.equal(derivedLabel(parked.state, parked), STATUS.parked);
+});
+
+test("C11: a job date read from the message is 'Asked for'; two days offered are 'Asked about'", () => {
+  const base = ENQUIRIES.find((e) => e.state.lifecycle === "OPEN")!;
+  const fact = (value: string, status: "inferred" | "confirmed") =>
+    ({
+      id: "d",
+      field: "date",
+      label: "date",
+      value,
+      displayValue: value,
+      status,
+      confidence: "High",
+      assertedBy: "system",
+      provenance: { kind: "message", label: "" },
+    }) as never;
+  assert.equal(
+    jobDateCue({ ...base, dateLabel: "Sat 3 Oct", facts: [fact("2026-10-03", "inferred")] }),
+    "Asked for Sat 3 Oct",
+  );
+  assert.equal(
+    jobDateCue({ ...base, dateLabel: "Sat 3 Oct", facts: [fact("2026-10-03", "confirmed")] }),
+    "Job Sat 3 Oct",
+  );
+  assert.equal(
+    jobDateCue({
+      ...base,
+      dateLabel: "Sat 26 or Sun 27 Sep",
+      facts: [fact("2026-09-26|2026-09-27", "inferred")],
+    }),
+    "Asked about: Sat 26 or Sun 27 Sep",
+  );
 });

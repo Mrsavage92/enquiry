@@ -4,6 +4,7 @@ import { join } from "node:path";
 import test from "node:test";
 import { PGlite } from "@electric-sql/pglite";
 import type { Sql } from "../db.ts";
+import { settleShownCoverage } from "./coverage-testing.ts";
 import { createWorkspaceInTransaction } from "./provision-core.ts";
 import { insertManualEnquiry } from "./manual-enquiry-core.ts";
 import { saveBusinessRuleAndRedecide } from "./business-rule-core.ts";
@@ -103,7 +104,7 @@ async function tenant(pg: PGlite, userId: string, name: string) {
 }
 
 async function enquiry(pg: PGlite, businessId: string, body: string, serviceLabel = "") {
-  return tx(pg, (sql) =>
+  const created = await tx(pg, (sql) =>
     insertManualEnquiry(sql, {
       businessId,
       body,
@@ -115,16 +116,27 @@ async function enquiry(pg: PGlite, businessId: string, body: string, serviceLabe
       now: SAT_26_SEP,
     }),
   );
+  // The owner confirms what a price covers before any reply names it (pass 5).
+  await tx(pg, (sql) => settleShownCoverage(sql, businessId));
+  return created;
 }
 
 async function saveRule(pg: PGlite, businessId: string, rule: BusinessRule) {
-  return tx(pg, (sql) =>
+  const saved = await tx(pg, (sql) =>
     saveBusinessRuleAndRedecide(sql, { businessId, rule, readable: describeRule(rule) }),
   );
+  await tx(pg, (sql) => settleShownCoverage(sql, businessId));
+  return saved;
 }
 
 async function answer(pg: PGlite, userId: string, enquiryId: string, field: string, value: string) {
-  return answerFactForUser(sqlFor(pg), (fn) => tx(pg, fn), userId, { enquiryId, field, value });
+  const res = await answerFactForUser(sqlFor(pg), (fn) => tx(pg, fn), userId, {
+    enquiryId,
+    field,
+    value,
+  });
+  await tx(pg, (sql) => settleShownCoverage(sql, res.businessId));
+  return res;
 }
 
 type Snap = {

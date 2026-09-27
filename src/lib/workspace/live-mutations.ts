@@ -250,9 +250,9 @@ export function useFirstBetaActions() {
       return res;
     },
     /** Save several prices at once, all or nothing, then reload. */
-    saveRules: async (businessId: string, rules: unknown[]) => {
+    saveRules: async (businessId: string, rules: unknown[], details: unknown[] = []) => {
       const { saveBusinessRules } = await import("@/lib/server/enquiry-actions");
-      const res = await saveBusinessRules({ data: { businessId, rules } });
+      const res = await saveBusinessRules({ data: { businessId, rules, details } });
       await refresh();
       return res;
     },
@@ -335,6 +335,20 @@ export function useFirstBetaActions() {
       const res = await createPracticeEnquiry({ data: { businessId } });
       await refresh();
       return res.enquiryId;
+    },
+    /** "That's everything": confirm what the price covers, for what was on screen. */
+    confirmCoverage: async (enquiryId: string, key: string, revision: number) => {
+      const { confirmQuoteCoverage } = await import("@/lib/server/enquiry-actions");
+      const res = await confirmQuoteCoverage({ data: { enquiryId, key, revision } });
+      await refresh();
+      return res;
+    },
+    /** Price the practice enquiry with a sample price, for practice only. */
+    applyPracticeSample: async (enquiryId: string) => {
+      const { applyPracticeSamplePrice } = await import("@/lib/server/enquiry-actions");
+      const res = await applyPracticeSamplePrice({ data: { enquiryId } });
+      await refresh();
+      return res;
     },
     /** Delete the practice enquiry and everything on it. */
     deletePractice: async (enquiryId: string) => {

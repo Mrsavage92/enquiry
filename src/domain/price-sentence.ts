@@ -16,7 +16,13 @@ import { parseBusinessRule, pluraliseUnit, type BusinessRule } from "./business-
  */
 
 export type ReadPrice = { line: string; rule: BusinessRule };
-export type UnreadLine = { line: string; reason: string };
+/**
+ * A line Enquiry will not save as a price. `note` marks a price that only
+ * applies in some cases (a condition, a fee, a minimum): the owner is offered
+ * to keep it as a note Enquiry shows on the enquiries it concerns, never as a
+ * price Enquiry adds by itself.
+ */
+export type UnreadLine = { line: string; reason: string; note?: true };
 export type PriceSentences = { prices: ReadPrice[]; unread: UnreadLine[] };
 
 export const PRICE_EXAMPLE = "End of lease clean $190 per bedroom";
@@ -69,8 +75,78 @@ const NOT_A_SET_PRICE: [RegExp, string][] = [
 const LEAD_FILLER =
   /^(?:and\s+|also\s+|our\s+|my\s+|the\s+|a\s+|an\s+|fixed price\s+|fixed\s+|flat rate\s+|flat fee\s+|flat\s+)+/i;
 
-/** "$120 if it is really dirty", "$40 per pet (dogs only)": a price with a condition. */
-const CONDITIONAL = /\b(?:if|when|unless|depending|depends|provided|only|except)\b/i;
+/**
+ * "$120 if it is really dirty", "$40 per pet (dogs only)", "not available on
+ * weekends", "outside Brisbane northside", "for jobs over $500": the price
+ * holds only in some cases. Every one is refused the same way, with the words
+ * quoted, and offered as a note.
+ */
+const CONDITIONAL =
+  /\b(?:if|when|unless|depending|depends|provided|only|except|outside|not available|unavailable|weekends?|weekdays?|saturdays?|sundays?|after hours|public holidays?|surcharge|for jobs? (?:over|under|above|below|of)|on top)\b/i;
+
+/** A fee or a minimum is added to a job in some cases; it is not a job itself. */
+const FEE_SERVICE =
+  /\b(?:fees?|call[- ]?outs?|surcharges?|minimum|min|travel|deposit|levy|booking charge)\b/i;
+
+/** "65 dollars", "65 bucks", "AUD 65", "A$65": written as "$65" before reading. */
+function dollarsWritten(line: string): string {
+  return line
+    .replace(/(\d[\d,]*(?:\.\d{1,2})?)\s*(?:dollars?|bucks|aud)\b/gi, "$$$1")
+    .replace(/\b(?:aud|a\$)\s?(?=\d)/gi, "$$");
+}
+
+/** A bare "each" after the amount: "Doors $90 each". */
+const EACH_ALONE = /^\s*(?:each|ea\.?|apiece|a piece)\b\s*(?:[.,;!)]|$)/i;
+
+/** Words that name the work, not the thing counted: "Oven clean" counts ovens. */
+const WORK_WORDS = new Set([
+  "clean",
+  "cleaning",
+  "cleans",
+  "paint",
+  "painting",
+  "wash",
+  "washing",
+  "repair",
+  "repairs",
+  "staining",
+  "stain",
+  "install",
+  "installation",
+  "service",
+  "servicing",
+  "polish",
+  "replacement",
+  "removal",
+  "steam",
+  "respray",
+]);
+
+function singular(word: string): string {
+  const w = word.toLowerCase();
+  if (/ies$/.test(w)) return `${w.slice(0, -3)}y`;
+  if (/(?:ss|us)$/.test(w)) return w;
+  if (/(?:ch|sh|x)es$/.test(w)) return w.slice(0, -2);
+  return w.replace(/s$/, "");
+}
+
+/** "Doors" -> "door", "Oven clean" -> "oven": what a bare "each" counts. */
+export function unitFromService(service: string): string {
+  const words = service
+    .toLowerCase()
+    .split(/[^a-z]+/)
+    .filter(Boolean);
+  const things = words.filter((w) => !WORK_WORDS.has(w));
+  const last = things[things.length - 1];
+  return last && last.length >= 3 ? singular(last) : "";
+}
+
+function conditionReason(word: string): string {
+  return `It only applies in some cases ("${word} ..."), so it is a conditional price, not one set price. Enquiry will not quote it by itself. Save it as a note Enquiry shows you, and put the plain price on its own line if there is one.`;
+}
+
+const FEE_REASON =
+  "A fee or a minimum is added to a job only in some cases, so Enquiry will not put it on a quote by itself. Save it as a note Enquiry shows you on each quote.";
 // Whole words only: "flat" is not "fl" + "at".
 const TRAIL_FILLER =
   /(?:(?:^|\s+)(?:will be|would be|is|are|costs?|charged at|priced at|at|for|flat rate|flat fee|flat|fixed price|fixed)|\s*(?:=|:|-|–))\s*$/i;
@@ -93,7 +169,7 @@ function cleanService(raw: string): string {
   return s ? s[0]!.toUpperCase() + s.slice(1) : "";
 }
 
-function splitLines(text: string): string[] {
+export function splitLines(text: string): string[] {
   return text
     .split(/\n+|(?<=[.;!])\s+(?=[A-Z$])/)
     .map((l) => l.trim())
@@ -115,18 +191,29 @@ function unitWord(raw: string): string {
   return UNIT_WORDS[u] ?? u;
 }
 
-export function readPriceLine(line: string): ReadPrice | UnreadLine {
+export function readPriceLine(original: string): ReadPrice | UnreadLine {
+  const line = dollarsWritten(original);
   const condition = CONDITIONAL.exec(line);
-  if (condition) {
+  if (condition && AMOUNT.test(line)) {
     const word = condition[0].replace(/[()]/g, "").trim().toLowerCase() || "only";
-    return {
-      line,
-      reason: `It only applies in some cases ("${word} ..."), so it is a conditional price, not one set price. Save the plain price on its own line and handle the condition yourself.`,
-    };
+    return { line: original, reason: conditionReason(word), note: true };
   }
   for (const [pattern, reason] of NOT_A_SET_PRICE) {
-    if (pattern.test(line)) return { line, reason };
+    if (pattern.test(line)) return { line: original, reason };
   }
+  const read = readSetPrice(line);
+  if (!("rule" in read)) return { ...read, line: original };
+  if (FEE_SERVICE.test(read.rule.service)) {
+    return { line: original, reason: FEE_REASON, note: true };
+  }
+  // "minimum 3" belongs to a price per something; anywhere else it is a condition.
+  if (read.rule.kind === "fixed_price" && /\bmin(?:imum)?\b/i.test(line)) {
+    return { line: original, reason: conditionReason("minimum"), note: true };
+  }
+  return { line: original, rule: read.rule };
+}
+
+function readSetPrice(line: string): ReadPrice | UnreadLine {
   if ((line.match(ALL_AMOUNTS) ?? []).length > 1) {
     return { line, reason: "It names more than one amount. Put each price on its own line." };
   }
@@ -143,7 +230,11 @@ export function readPriceLine(line: string): ReadPrice | UnreadLine {
 
   const area = PER_AREA.test(after);
   const per = area ? null : PER.exec(after);
-  const unit = area ? "square metre" : unitWord(per?.[1] ?? "");
+  const each = !area && !per && EACH_ALONE.test(after);
+  const unit = area ? "square metre" : each ? unitFromService(service) : unitWord(per?.[1] ?? "");
+  if (each && !unit) {
+    return { line, reason: `Say what "each" counts, for example: ${service} $${amount} per item.` };
+  }
   const raw = unit
     ? {
         kind: "per_unit",

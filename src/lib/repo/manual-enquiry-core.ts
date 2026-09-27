@@ -8,6 +8,8 @@ import type { EnquiryInterpreter, InterpretFailureReason } from "../interpret/ty
 import { readEnquiryBasics, type DateReading } from "../../domain/enquiry-basics.ts";
 import { blockedQuantity, findQuantityInMessages, newExtraRequests } from "./quantity-inference.ts";
 import { ASAP_VALUE, replyContextFromFacts } from "../../domain/reply-context.ts";
+import { activeDetails } from "../../domain/business-detail.ts";
+import { questionField, readServiceQuestions } from "../../domain/service-questions.ts";
 
 /**
  * Creating a real enquiry, as pure SQL logic - deliberately separate from
@@ -107,10 +109,27 @@ export async function insertManualEnquiry(
   )) {
     facts.push(readFact(extra.field, "include", extra.span, extra.span, extra.label));
   }
+  // "Do you do mould removal?": a question the owner answers before any reply
+  // is ready. Read as "No" when they said they don't offer it.
+  facts.push(...questionFacts(input.body, [input.serviceLabel, ...services], business));
+  // Every reading goes in before the decision: what the price covers is
+  // fingerprinted over all of them, so the first decision already knows them.
+  facts.push(...dateFacts(basics.dates));
+  if (!typedName && basics.customerName) {
+    facts.push(readFact("name", basics.customerName, basics.customerName, basics.customerName));
+  }
+  if (!input.customerPhone.trim() && basics.contact.phone) {
+    facts.push(readFact("phone", basics.contact.phone, basics.contact.phone, basics.contact.phone));
+  }
+  if (!input.customerEmail.trim() && basics.contact.email) {
+    facts.push(readFact("email", basics.contact.email, basics.contact.email, basics.contact.email));
+  }
   const decide = () =>
     decideEnquiry(business, {
       serviceLabel: input.serviceLabel,
       facts: facts.map((f) => ({ ...f })) as never,
+      messageText: input.body,
+      services,
     });
   let decision = decide();
   // The count the price needs, when the message already gives it: read now,
@@ -131,16 +150,6 @@ export async function insertManualEnquiry(
       confidence: quantityRead.approximate ? "Medium" : "High",
     });
     decision = decide();
-  }
-  facts.push(...dateFacts(basics.dates));
-  if (!typedName && basics.customerName) {
-    facts.push(readFact("name", basics.customerName, basics.customerName, basics.customerName));
-  }
-  if (!input.customerPhone.trim() && basics.contact.phone) {
-    facts.push(readFact("phone", basics.contact.phone, basics.contact.phone, basics.contact.phone));
-  }
-  if (!input.customerEmail.trim() && basics.contact.email) {
-    facts.push(readFact("email", basics.contact.email, basics.contact.email, basics.contact.email));
   }
 
   // The reply only states what the owner typed or confirmed: a read name
@@ -164,7 +173,8 @@ export async function insertManualEnquiry(
     ),
   );
   const state = stateFromDecision(decision);
-  const dateLabel = basics.jobDate?.label ?? (basics.dates.asap ? "ASAP" : null);
+  const dateLabel =
+    basics.jobDate?.label ?? basics.dates.options?.label ?? (basics.dates.asap ? "ASAP" : null);
 
   const rows = await sql<{ id: string }>`
     insert into enquiry (
@@ -234,6 +244,23 @@ type ArrivalFact = {
   provenance: Record<string, unknown>;
 };
 
+/** Their "do you do X?" questions, each a reading the owner answers. */
+export function questionFacts(
+  body: string,
+  services: readonly string[],
+  business: { knowledge?: ReadonlyArray<{ state?: string | null; rulePayload?: unknown }> },
+): ArrivalFact[] {
+  return readServiceQuestions(body, services, activeDetails(business)).map((q) =>
+    readFact(
+      questionField(q.thing),
+      q.notOffered ? "no" : "open",
+      q.span,
+      q.span,
+      `They asked if you do ${q.thing}`,
+    ),
+  );
+}
+
 /** A reading of the customer's own words: `inferred`, never confirmed. */
 function readFact(
   field: string,
@@ -298,8 +325,38 @@ function dateFacts(dates: DateReading): ArrivalFact[] {
         },
       },
     });
+  } else if (dates.options) {
+    // Two days offered: neither is the job date. The owner says which works.
+    const o = dates.options;
+    out.push({
+      ...readFact(
+        "date",
+        o.days.map((d) => d.iso).join("|"),
+        `Asked about: ${o.label}`,
+        o.span,
+        "Job date",
+      ),
+      provenance: {
+        kind: "message",
+        label: "Read from the customer's message",
+        span: o.span,
+        asked: o.days.some((d) => d.asked),
+        options: o.days.map((d) => d.iso),
+      },
+    });
   } else if (dates.asap) {
     out.push(readFact("date", ASAP_VALUE, "As soon as possible", "asap", "Job date"));
+  }
+  if (dates.context.length) {
+    out.push(
+      readFact(
+        "date_context",
+        dates.context.map((d) => d.iso).join(","),
+        dates.context.map((d) => `${d.what} ${d.label}`).join("; "),
+        dates.context.map((d) => d.span).join("; "),
+        "Also mentioned",
+      ),
+    );
   }
   if (dates.unavailable.length) {
     const labels = dates.unavailable.map((d) => d.label).join(", ");

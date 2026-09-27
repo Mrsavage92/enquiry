@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { decideConfirmed } from "./coverage-testing.ts";
 import test from "node:test";
 import { decideEnquiry } from "./decide.ts";
 import { extraField, readExtraRequests } from "./extras.ts";
@@ -57,7 +58,7 @@ test("H1: connector phrases that are not things to price are read as nothing", (
 });
 
 test("H1: 'They didn't ask for this' removes the extra with no line and no reply line", () => {
-  const d = decideEnquiry(brain(EOL), {
+  const d = decideConfirmed(brain(EOL), {
     serviceLabel: MAIN,
     facts: [
       fact("service", MAIN),
@@ -114,7 +115,7 @@ test("H2: left out, then priced, then added as a line: one line, no 'haven't inc
     ["extra:oven cleaning"],
   );
   // Two names for the same priced thing, one left out and one added: one line.
-  const d = decideEnquiry(brain(EOL, OVEN), {
+  const d = decideConfirmed(brain(EOL, OVEN), {
     serviceLabel: MAIN,
     facts: [
       fact("service", MAIN),
@@ -225,13 +226,13 @@ test("P1/P2: a read name and a read day are never stated in the reply until conf
   ];
   const ctx = replyContextFromFacts(facts, { customerName: "Office Manager" });
   assert.equal(ctx.customerName, "");
-  const d = decideEnquiry(brain(OVEN), {
+  const d = decideConfirmed(brain(OVEN), {
     serviceLabel: "Oven cleaning",
     facts: [fact("service", "Oven cleaning")],
   });
   const reply = composeReply(d, ctx);
   assert.match(reply, /^Hi there,/);
-  assert.match(reply, /You mentioned Saturday 3 October - I'll confirm whether that day works\./);
+  assert.match(reply, /You mentioned Saturday 3 October - I'll confirm whether that works\./);
   const confirmed = replyContextFromFacts(
     [{ field: "name", value: "Priya Shah", status: "confirmed" }],
     { customerName: "Priya Shah" },

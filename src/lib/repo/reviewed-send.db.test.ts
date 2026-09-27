@@ -69,12 +69,22 @@ type Seed = {
   action?: string;
   reason?: string;
   draftBody?: string;
-  price?: { kind: "EXACT"; amountMinor: number; currency: string } | { kind: "RANGE"; minMinor: number; maxMinor: number; currency: string } | null;
+  price?:
+    | { kind: "EXACT"; amountMinor: number; currency: string }
+    | { kind: "RANGE"; minMinor: number; maxMinor: number; currency: string }
+    | null;
   source?: Channel;
   lifecycle?: string;
   /** Omit to record the owner-confirmed service every quote now requires. */
   confirmService?: boolean;
+  /**
+   * Omit to record that the owner confirmed what the price covers, which
+   * every reply naming a total now requires (pass 5). false leaves it open.
+   */
+  confirmCoverage?: boolean;
 };
+
+const COVERAGE_KEY = "cv1-seeded-coverage";
 
 async function seed(pg: PGlite, o: Seed = {}): Promise<{ businessId: string; enquiryId: string }> {
   const biz = await pg.query<{ id: string }>(
@@ -92,7 +102,8 @@ async function seed(pg: PGlite, o: Seed = {}): Promise<{ businessId: string; enq
       primaryEnabled: true,
     },
     draft: { body: o.draftBody ?? DRAFT },
-    price: o.price === undefined ? { kind: "EXACT", amountMinor: 58_000, currency: "AUD" } : o.price,
+    price:
+      o.price === undefined ? { kind: "EXACT", amountMinor: 58_000, currency: "AUD" } : o.price,
     // What the rule behind that price implies, exactly as
     // `snapshotFromDecision` stores it. Present because the default draft
     // above is the shape the product actually composes - a total AND the unit
@@ -102,6 +113,13 @@ async function seed(pg: PGlite, o: Seed = {}): Promise<{ businessId: string; enq
     impliedAmountsMinor: o.price === undefined ? [14_500, 58_000] : undefined,
     evaluators: [],
     explanation: o.reason ?? "4 people at $145 each.",
+    coverage: {
+      key: COVERAGE_KEY,
+      confirmed: o.confirmCoverage !== false,
+      lines: [{ label: "Group makeup", amountMinor: 58_000, quantity: "4 people" }],
+      flagged: [],
+      recurring: false,
+    },
   };
   const enq = await pg.query<{ id: string }>(
     `insert into enquiry
@@ -130,12 +148,25 @@ async function seed(pg: PGlite, o: Seed = {}): Promise<{ businessId: string; enq
       [enquiryId],
     );
   }
+  if (o.confirmCoverage !== false) {
+    await pg.query(
+      `insert into enquiry_fact
+         (enquiry_id, field, label, value, display_value, status, confidence, asserted_by, provenance, customer_specific)
+       values ($1,'coverage','coverage',$2,'confirmed','confirmed','High','user','{"kind":"user"}'::jsonb,true)`,
+      [enquiryId, COVERAGE_KEY],
+    );
+  }
   return { businessId, enquiryId };
 }
 
 const USER = "user-1";
 
-async function prepare(pg: PGlite, ids: { businessId: string; enquiryId: string }, body: string, channel: Channel = "manual") {
+async function prepare(
+  pg: PGlite,
+  ids: { businessId: string; enquiryId: string },
+  body: string,
+  channel: Channel = "manual",
+) {
   return inTransaction(pg, (sql) =>
     prepareReviewedSendInTransaction(sql, {
       enquiryId: ids.enquiryId,
@@ -147,7 +178,12 @@ async function prepare(pg: PGlite, ids: { businessId: string; enquiryId: string 
   );
 }
 
-async function confirm(pg: PGlite, ids: { businessId: string; enquiryId: string }, reviewedSendId: string, staleAttestation = false) {
+async function confirm(
+  pg: PGlite,
+  ids: { businessId: string; enquiryId: string },
+  reviewedSendId: string,
+  staleAttestation = false,
+) {
   return inTransaction(pg, (sql) =>
     confirmReviewedSendInTransaction(sql, {
       reviewedSendId,
@@ -512,7 +548,11 @@ test("P05: a reviewed send belonging to another enquiry or tenant cannot be conf
 
   const wrongEnquiry = await confirm(pg, { ...a, enquiryId: b.enquiryId }, prepared.reviewedSendId);
   assert.equal(wrongEnquiry.ok, false);
-  const wrongTenant = await confirm(pg, { ...a, businessId: b.businessId }, prepared.reviewedSendId);
+  const wrongTenant = await confirm(
+    pg,
+    { ...a, businessId: b.businessId },
+    prepared.reviewedSendId,
+  );
   assert.equal(wrongTenant.ok, false);
   assert.equal((await counts(pg, a.enquiryId)).messages, 0);
   assert.equal((await counts(pg, b.enquiryId)).messages, 0);
@@ -722,7 +762,7 @@ test("T03: a failure part-way through recording rolls the whole send back", asyn
   // to be able to leave a sent message with no record of who sent it or why.
   await assert.rejects(
     inTransaction(pg, async (sql) => {
-      const wrapped = ((async (strings: TemplateStringsArray, ...values: unknown[]) => {
+      const wrapped = (async (strings: TemplateStringsArray, ...values: unknown[]) => {
         let text = strings[0] ?? "";
         for (let i = 0; i < values.length; i += 1) text += `$${i + 1}${strings[i + 1] ?? ""}`;
         if (text.includes("insert into audit_event")) throw new Error("injected failure");
@@ -730,7 +770,7 @@ test("T03: a failure part-way through recording rolls the whole send back", asyn
           strings,
           ...values,
         );
-      }) as never) as Sql;
+      }) as never as Sql;
       return confirmReviewedSendInTransaction(wrapped, {
         reviewedSendId: prepared.reviewedSendId,
         enquiryId: ids.enquiryId,

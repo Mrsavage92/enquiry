@@ -72,6 +72,10 @@ export function replyContextFromFacts(
         }
       : {}),
     ...(issue ? { dateIssue: issue } : {}),
+    // Two days offered ("Sat 26 or Sun 27 Sep"): quoted back, never picked.
+    ...(!confirmed && value.includes("|") && date?.date_span
+      ? { dateOptions: String(date.date_span) }
+      : {}),
     asap: value === ASAP_VALUE,
   };
 }

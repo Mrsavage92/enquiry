@@ -7,6 +7,7 @@ import { serviceAuthority } from "@/domain/service-authority";
 import {
   businessServices,
   customerWords,
+  rankServices,
   serviceNeedsOwner,
   suggestService,
 } from "@/domain/service-match";
@@ -15,6 +16,9 @@ import type { Business, Enquiry } from "@/domain/types";
 import { cn } from "@/lib/utils";
 
 const OTHER = "__other__";
+
+/** How many services are offered before "Other...". */
+const TOP = 3;
 
 /**
  * Say which service this is: the business's saved services as tap choices,
@@ -48,6 +52,13 @@ export function ServiceChooser({
   const [choice, setChoice] = useState(start ? (known ? start : OTHER) : "");
   const [other, setOther] = useState(start && !known ? start : "");
   const [saving, setSaving] = useState(false);
+  const [showAll, setShowAll] = useState(Boolean(start && !known));
+  // The top matches for their message, the pre-selected one always among them.
+  const top = useMemo(() => {
+    const ranked = rankServices(customerWords(enquiry), services);
+    const first = ranked.slice(0, TOP);
+    return start && known && !first.includes(start) ? [start, ...first.slice(0, TOP - 1)] : first;
+  }, [enquiry, services, start, known]);
 
   useEffect(() => {
     setChoice(start ? (known ? start : OTHER) : "");
@@ -71,7 +82,8 @@ export function ServiceChooser({
     }
   };
 
-  const options = [...services, OTHER];
+  const rest = services.filter((s) => !top.includes(s));
+  const options = showAll || rest.length === 0 ? [...top, ...rest, OTHER] : top;
 
   return (
     <div className="mt-3">
@@ -102,6 +114,16 @@ export function ServiceChooser({
           ))}
         </div>
       </fieldset>
+      {!showAll && rest.length > 0 ? (
+        <button
+          type="button"
+          className="mt-2 inline-flex min-h-11 items-center text-sm font-medium text-mark-strong underline-offset-4 hover:underline"
+          aria-expanded={false}
+          onClick={() => setShowAll(true)}
+        >
+          Other...
+        </button>
+      ) : null}
       {choice === OTHER ? (
         <label className="mt-3 block text-sm">
           <span className="mb-1.5 block text-ink-2">What are they asking for?</span>

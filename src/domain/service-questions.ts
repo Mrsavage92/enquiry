@@ -1,0 +1,111 @@
+import type { BusinessDetail } from "./business-detail.ts";
+import { mentionsAny, stemsOf } from "./service-words.ts";
+
+/**
+ * "Do you do mould removal?" is a question, and a reply that quotes the clean
+ * and says nothing about the mould tells the customer something untrue by
+ * leaving it out. Every explicit "do you do X?" is recorded as a question the
+ * owner answers Yes or No; until they do, nothing is "reply ready".
+ *
+ * A question about something the owner said they do not offer is read as
+ * "No" (still a reading, confirmed with one tap). A question about one of the
+ * business's own services is not a question here - that is the job or an
+ * extra, priced as usual.
+ */
+
+export const QUESTION_PREFIX = "question:";
+
+export const QUESTION_ANSWER = { yes: "yes", no: "no", open: "open" } as const;
+
+export function questionField(thing: string): string {
+  return `${QUESTION_PREFIX}${thing}`;
+}
+
+export function isQuestionField(field: string): boolean {
+  return field.trim().toLowerCase().startsWith(QUESTION_PREFIX);
+}
+
+export function questionThing(field: string): string {
+  return field.trim().slice(QUESTION_PREFIX.length).trim();
+}
+
+export type ServiceQuestion = {
+  /** What they asked about, in their words, lower case: "mould removal". */
+  thing: string;
+  /** Their words: "do you do mould removal?". */
+  span: string;
+  /** Read as "No" because the business said it does not offer it. */
+  notOffered: boolean;
+};
+
+const ASKS = [
+  /\b(?:do|would|could|can|will)\s+(?:you|u|ya)\s+(?:guys\s+)?(?:also\s+)?(?:do|offer|provide|handle|remove|fix|clean|paint|treat)\s+(?:any\s+)?([a-z][a-z' -]{2,50}?)\s*(\?|\.|,|!|$|\s+(?:as well|too|at all|also)\b)/gi,
+  /\bare\s+(?:you|u)\s+able\s+to\s+(?:do|remove|fix|clean|paint)\s+([a-z][a-z' -]{2,50}?)\s*(\?|\.|,|!|$)/gi,
+  /\bis\s+([a-z][a-z' -]{2,40}?)\s+something\s+(?:you|u)\s+(?:do|offer)\b[^?]*(\?)/gi,
+];
+
+/** Where the thing asked about stops: "mould removal on Friday" is "mould removal". */
+const CUT =
+  /\s+(?:on|for|at|by|in|this|next|before|after|around|when|while|if|and|or|with|from|please|pls|as|too)\b.*$/i;
+
+/** Things that are not a service: a day, a date, a pronoun, the job itself. */
+const NOT_A_THING =
+  /\d|\b(?:it|that|this|them|those|these|one|the job|a quote|quotes?|me|us|mon|tue|wed|thu|fri|sat|sun|monday|tuesday|wednesday|thursday|friday|saturday|sunday|today|tomorrow|week|weekend|morning|afternoon|arvo|asap|anything|something|much|many|more|less|cash|card|payment|discount|mates? rates?|price|the price|better)\b/i;
+
+/** Stems of the work words most services share. */
+const GENERIC_WORK = new Set(["clean", "paint", "servi", "job", "work", "repai", "wash", "insta"]);
+
+function clean(raw: string): string {
+  return raw
+    .toLowerCase()
+    .replace(CUT, "")
+    .replace(/^(?:the|a|an|some)\s+/, "")
+    .replace(/[?.!,]+$/, "")
+    .trim();
+}
+
+function notOfferedMatch(thing: string, details: readonly BusinessDetail[]): boolean {
+  return details.some((d) => d.kind === "not_offered" && mentionsAny(thing, stemsOf(d.service)));
+}
+
+/**
+ * Explicit "do you do X?" questions in a message, about things that are not
+ * one of `services`. A plain request ("can you do the end of lease clean")
+ * must end in "?" or use "do you do" wording to count as a question.
+ */
+export function readServiceQuestions(
+  text: string,
+  services: readonly string[],
+  details: readonly BusinessDetail[] = [],
+): ServiceQuestion[] {
+  // "gutter cleaning" is not the end of lease clean: only a service's own
+  // words, not the work word it shares with everything, make it a match.
+  const known = services.flatMap((s) => stemsOf(s)).filter((s) => !GENERIC_WORK.has(s));
+  const out: ServiceQuestion[] = [];
+  for (const pattern of ASKS) {
+    for (const m of text.matchAll(pattern)) {
+      const asked = m[0].trim();
+      const isQuestion = m[2] === "?" || /\bdo\s+(?:you|u|ya)\b/i.test(asked);
+      if (!isQuestion) continue;
+      const thing = clean(m[1] ?? "");
+      if (thing.length < 3 || thing.split(/\s+/).length > 4 || NOT_A_THING.test(thing)) continue;
+      if (mentionsAny(thing, known)) continue;
+      if (out.some((q) => q.thing === thing)) continue;
+      out.push({
+        thing,
+        span: asked.replace(/\s+/g, " "),
+        notOffered: notOfferedMatch(thing, details),
+      });
+    }
+  }
+  return out;
+}
+
+/** The reply's line for an answered question. Never a price. */
+export function questionReplyLine(thing: string, answer: string): string | null {
+  if (answer === QUESTION_ANSWER.no) return `Sorry, I don't do ${thing}.`;
+  if (answer === QUESTION_ANSWER.yes) {
+    return `Yes, I can help with ${thing} - I'll come back to you with a price for that.`;
+  }
+  return null;
+}

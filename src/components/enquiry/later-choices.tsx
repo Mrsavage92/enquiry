@@ -3,6 +3,7 @@ import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { SheetContent } from "@/components/ui/sheet";
 import { laterChoices } from "@/domain/time-cues";
 import { usePrototype } from "@/store/prototype-store";
+import { activeDetails, closedDaysOf } from "@/domain/business-detail";
 
 /**
  * Park an enquiry until a named time: later today, tomorrow morning, or after
@@ -21,8 +22,13 @@ export function LaterChoices({
   onChoose: (untilIso: string, label: string) => void;
 }) {
   const prefs = usePrototype((s) => s.prefs);
+  const businesses = usePrototype((s) => s.businesses);
   const Panel = compact ? SheetContent : DialogContent;
-  const choices = open ? laterChoices(new Date(), prefs) : [];
+  // Days any of the owner's businesses said they don't work are never offered.
+  const closed = closedDaysOf(
+    businesses.flatMap((b) => activeDetails({ knowledge: b.knowledge as never })),
+  );
+  const choices = open ? laterChoices(new Date(), prefs, closed) : [];
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <Panel title="Come back to this">

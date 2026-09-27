@@ -1,3 +1,4 @@
+import { normaliseTrustMode } from "@/domain/trust-mode";
 import { displayName, hasName } from "@/domain/customer-name";
 import { emptyDecisionSnapshot } from "@/domain/decision-snapshot";
 import type {
@@ -143,6 +144,7 @@ export type EnquiryRow = {
   notes: string | null;
   /** migrations/0012; absent on a database that has not run it yet. */
   practice?: boolean | null;
+  decision_revision?: number | string | null;
   received_at: string | Date;
   updated_at: string | Date;
 };
@@ -344,7 +346,7 @@ export function toBusiness(
     ownerName: r.owner_name,
     ownerFirstName: r.owner_first_name,
     website: r.website ?? undefined,
-    trustMode: r.trust_mode as Business["trustMode"],
+    trustMode: normaliseTrustMode(r.trust_mode) ?? "Observe",
     paused: r.paused,
     pauseLevel: r.pause_level as Business["pauseLevel"],
     voice: (r.voice ?? {}) as VoiceProfile,
@@ -483,5 +485,6 @@ export function toEnquiry(
     teachPrompt: r.teach_prompt ?? undefined,
     notes: r.notes ?? undefined,
     practice: r.practice === true || undefined,
+    ...(r.decision_revision != null ? { decisionRevision: Number(r.decision_revision) } : {}),
   };
 }

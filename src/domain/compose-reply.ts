@@ -1,8 +1,11 @@
 import { format } from "date-fns";
 import { enAU } from "date-fns/locale";
-import type { Decision } from "./decide.ts";
+import type { Decision, QuoteLine } from "./decide.ts";
 import { formatMinorAud } from "./money-format.ts";
 import { dateQuestion, type DateIssue } from "./enquiry-basics.ts";
+import { countOf, countParts, howMany, humanField, isOwnerEstimate } from "./count-phrase.ts";
+
+export { humanField, howMany };
 
 export type ReplyContext = {
   customerName?: string;
@@ -28,6 +31,11 @@ export type ReplyContext = {
   jobDateConfirmed?: boolean;
   /** A day that has passed or whose weekday disagrees: the reply asks. */
   dateIssue?: Pick<DateIssue, "kind" | "mention" | "actualDay">;
+  /**
+   * They offered more than one day ("Sat 26 or Sun 27 September"): quoted
+   * back as written, and the owner says which works.
+   */
+  dateOptions?: string;
 };
 
 /** "2026-10-03" -> "Saturday 3 October", or null for anything else. */
@@ -37,6 +45,30 @@ export function spokenDate(iso: string | undefined): string | null {
   const date = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
   if (Number.isNaN(date.getTime()) || date.getDate() !== Number(m[3])) return null;
   return format(date, "EEEE d MMMM", { locale: enAU });
+}
+
+const WEEKDAY_WORDS: Record<string, string> = {
+  mon: "Monday",
+  tue: "Tuesday",
+  tues: "Tuesday",
+  wed: "Wednesday",
+  thu: "Thursday",
+  thur: "Thursday",
+  thurs: "Thursday",
+  fri: "Friday",
+  sat: "Saturday",
+  sun: "Sunday",
+};
+
+/** "Sat 3rd" -> "Saturday 3rd": their words, with the weekday written out. */
+export function spokenSpan(span: string): string {
+  return span
+    .trim()
+    .replace(/\b(mon|tues?|wed|thu(?:rs?)?|fri|sat|sun)\b\.?/gi, (w) => {
+      const key = w.replace(/\.$/, "").toLowerCase();
+      return WEEKDAY_WORDS[key] ?? w;
+    })
+    .replace(/[?!.]+$/, "");
 }
 
 /**
@@ -50,12 +82,15 @@ export function dateLine(iso: string | undefined, span?: string, confirmed = tru
   if (confirmed || !span?.trim()) {
     return confirmed ? `I'll confirm whether ${day} works.` : null;
   }
-  return `You mentioned ${span.trim()} - I'll confirm whether that day works.`;
+  return `You mentioned ${spokenSpan(span)} - I'll confirm whether that works.`;
 }
 
 /** The one date sentence a reply carries, if any. */
 function dateSentence(opts: ReplyContext): string | null {
   if (opts.dateIssue) return dateQuestion(opts.dateIssue, opts.asap);
+  if (opts.dateOptions?.trim()) {
+    return `You mentioned ${spokenSpan(opts.dateOptions)} - I'll confirm which day works.`;
+  }
   const line = dateLine(
     opts.jobDateIso,
     opts.jobDateSpan,
@@ -65,29 +100,9 @@ function dateSentence(opts: ReplyContext): string | null {
   return opts.asap ? "I'll let you know the soonest day I can do it." : null;
 }
 
-/**
- * A stored field name as a person says it: "num_bedrooms" and "numBedrooms"
- * read as "bedrooms", "gutter_metres" as "gutter metres".
- */
-export function humanField(field: string): string {
-  return field
-    .trim()
-    .replace(/([a-z])([A-Z])/g, "$1 $2")
-    .replace(/[_-]+/g, " ")
-    .toLowerCase()
-    .replace(/^(?:num|no|nr|qty|count|number|total)(?: of)?\s+/, "")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
 /** "120 square metres", "1 bedroom": a count said the way a person says it. */
 export function quantityPhrase(value: string, field: string): string {
-  const name = humanField(field);
-  const n = Number(value);
-  const word = n === 1 && /[^s]s$/.test(name) ? name.slice(0, -1) : name;
-  // "1,200", written the way the customer would read it back.
-  const shown = Number.isFinite(n) && value.trim() !== "" ? n.toLocaleString("en-AU") : value;
-  return `${shown} ${word}`.trim();
+  return countOf(value, field);
 }
 
 /** Money arrives in minor units; a customer reads dollars ("$4.50", never "$4.5"). */
@@ -102,24 +117,75 @@ function joinLabels(labels: string[]): string {
   return `${lower.slice(0, -1).join(", ")} and ${lower[lower.length - 1]}`;
 }
 
-/** The price paragraph: one line for one job, a line each when there are more. */
-function priceBlock(decision: Decision, total: string): string[] {
+/** "the end of lease clean (3 bedrooms)": one covered line, as the customer reads it. */
+function coveredPhrase(line: QuoteLine): string {
+  const label = line.label.toLowerCase();
+  return line.count ? `the ${label} (${line.count})` : `the ${label}`;
+}
+
+function listPhrase(lines: readonly QuoteLine[]): string {
+  const parts = lines.map(coveredPhrase);
+  if (parts.length <= 1) return parts[0] ?? "";
+  return `${parts.slice(0, -1).join(", ")} and ${parts[parts.length - 1]}`;
+}
+
+function itemised(lines: readonly QuoteLine[], currency: string): string[] {
+  return lines.map(
+    (l) =>
+      `- ${l.label}: ${formatMinor(l.amountMinor, currency)}${l.detail ? ` (${l.detail})` : ""}`,
+  );
+}
+
+function priceLines(decision: Decision): QuoteLine[] {
   if (decision.price.kind !== "EXACT") return [];
-  const lines = decision.lines ?? [];
-  const priced =
+  if (decision.lines?.length) return decision.lines;
+  const rule = decision.price.rule;
+  return [
+    {
+      label: rule.service,
+      amountMinor: decision.price.amountMinor,
+      ...(rule.kind === "per_unit" ? { detail: decision.price.workings.replace(/\.$/, "") } : {}),
+      ...(decision.price.count ? { count: decision.price.count } : {}),
+    },
+  ];
+}
+
+/**
+ * The price paragraph. It names exactly what the total covers - never "all
+ * up", which told a customer that everything they asked for was in a total
+ * that had dropped the deck staining. A recurring job is "per visit", with
+ * anything for the first visit only said separately.
+ */
+function priceBlock(decision: Decision): string[] {
+  if (decision.price.kind !== "EXACT") return [];
+  const currency = decision.price.currency;
+  const all = priceLines(decision);
+  const recurring = Boolean(decision.coverage?.recurring);
+  const first = recurring ? all.filter((l) => l.firstVisit) : [];
+  const lines = all.filter((l) => !first.includes(l));
+  const total = formatMinor(
+    lines.reduce((sum, l) => sum + l.amountMinor, 0),
+    currency,
+  );
+  // One line with its workings already says the count: "(3 bedrooms at $70
+  // each)" is not repeated as "(3 bedrooms)".
+  const single = lines.length === 1 && lines[0]?.detail;
+  const covered = single ? `the ${lines[0]!.label.toLowerCase()}` : listPhrase(lines);
+  const head = recurring
+    ? `For ${covered}, that's ${total} per visit`
+    : `For ${covered}, that comes to ${total}`;
+  const body =
     lines.length > 1
-      ? [
-          `That comes to ${total} all up:`,
-          ...lines.map(
-            (l) =>
-              `- ${l.label}: ${formatMinor(l.amountMinor, decision.price.kind === "EXACT" ? decision.price.currency : "AUD")}${l.detail ? ` (${l.detail})` : ""}`,
-          ),
-        ]
-      : [`That comes to ${total}. ${decision.price.workings}`];
+      ? [`${head}:`, ...itemised(lines, currency)]
+      : [lines[0]?.detail ? `${head} (${lines[0].detail}).` : `${head}.`];
+  const firstVisit = first.map(
+    (l) => `The first visit adds ${formatMinor(l.amountMinor, currency)} for ${coveredPhrase(l)}.`,
+  );
   const left = decision.leftOut?.length
-    ? ["", `I haven't included ${joinLabels(decision.leftOut)} in this price.`]
+    ? [`I haven't included ${joinLabels(decision.leftOut)} in this price.`]
     : [];
-  return [...priced, ...left];
+  const after = [...firstVisit, ...left];
+  return after.length ? [...body, "", ...after] : body;
 }
 
 /**
@@ -128,12 +194,30 @@ function priceBlock(decision: Decision, total: string): string[] {
  * singular field keeps "the" ("...know the address?").
  */
 export function askFor(field: string): string {
-  const name = humanField(field);
-  if (!name) return "can you tell me a bit more about the job?";
-  return /[^s]s$/.test(name)
-    ? `can you let me know how many ${name} there are?`
-    : `can you let me know the ${name}?`;
+  const parts = countParts(field);
+  if (!parts.noun) return "can you tell me a bit more about the job?";
+  if (!parts.isCount) return `can you let me know the ${parts.noun}?`;
+  return `can you let me know how many ${parts.noun} there are?`;
 }
+
+/** "Before I can give you a price for the ceiling, can you let me know how many rooms there are?" */
+function priceQuestion(field: string): string {
+  const parts = countParts(field);
+  const lead = parts.forService
+    ? `Before I can give you a price for ${parts.forService}`
+    : "Before I can give you a price";
+  return `${lead}, ${askFor(field)}`;
+}
+
+function notesBlock(decision: Decision): string[] {
+  return decision.replyNotes?.length ? [...decision.replyNotes, ""] : [];
+}
+
+/**
+ * The close. Never "Happy to lock it in": nothing checks availability, and a
+ * day they asked about is still the owner's to confirm.
+ */
+const CLOSE = "Just let me know if you'd like to go ahead.";
 
 /**
  * Write the reply the owner will actually send.
@@ -144,8 +228,9 @@ export function askFor(field: string): string {
  * may one day phrase this better; it will still not be allowed to decide what
  * the message claims.
  *
- * Short on purpose. The owner is going to read it, paste it and send it, and a
- * long draft is one they will rewrite instead.
+ * A total is only written once the owner has confirmed what it covers
+ * (`decision.coverage.confirmed`); before that, and while a question they
+ * asked is unanswered, the reply names no price at all.
  */
 export function composeReply(decision: Decision, opts: ReplyContext = {}): string {
   const first = (opts.customerName ?? "").trim().split(/\s+/)[0] ?? "";
@@ -154,40 +239,45 @@ export function composeReply(decision: Decision, opts: ReplyContext = {}): strin
   const dateBlock = date ? [date, ""] : [];
   const signOff = opts.ownerFirstName?.trim() ? `Thanks,\n${opts.ownerFirstName.trim()}` : "Thanks";
   const service = (opts.serviceLabel ?? "").trim();
+  const thanks = service
+    ? `Thanks for getting in touch about ${service.toLowerCase()}.`
+    : "Thanks for getting in touch.";
+  const coverageOpen = decision.coverage ? !decision.coverage.confirmed : false;
+  const onHold = Boolean(decision.questionPending) || coverageOpen;
 
-  if (decision.price.kind === "EXACT") {
-    const total = formatMinor(decision.price.amountMinor, decision.price.currency);
+  if (decision.price.kind === "EXACT" && !onHold) {
     return [
       greeting,
       "",
-      service
-        ? `Thanks for getting in touch about ${service.toLowerCase()}.`
-        : "Thanks for getting in touch.",
+      thanks,
       "",
-      ...priceBlock(decision, total),
+      ...priceBlock(decision),
       "",
+      ...notesBlock(decision),
       ...dateBlock,
-      "Happy to lock it in if that works - just let me know.",
+      CLOSE,
       "",
       signOff,
     ].join("\n");
   }
 
-  if (decision.price.kind === "BLOCKED") {
+  if (decision.price.kind === "BLOCKED" && !onHold) {
     const field = decision.price.missingField;
     const inferred = decision.blocker?.inferred;
-    const thanks = service
-      ? `Thanks for getting in touch about ${service.toLowerCase()}.`
-      : "Thanks for getting in touch.";
-    if (inferred) {
-      // They already said it. The reply never asks again.
+    const said = inferred
+      ? `I'll work out the price from the ${quantityPhrase(inferred.value, field)} you mentioned and send it straight back.`
+      : isOwnerEstimate(field)
+        ? "I'll work out how long it will take and send the price straight back."
+        : null;
+    if (said) {
       return [
         greeting,
         "",
         thanks,
         "",
-        `I'll work out the price from the ${quantityPhrase(inferred.value, field)} you mentioned and send it straight back.`,
+        said,
         "",
+        ...notesBlock(decision),
         ...dateBlock,
         signOff,
       ].join("\n");
@@ -197,8 +287,9 @@ export function composeReply(decision: Decision, opts: ReplyContext = {}): strin
       "",
       thanks,
       "",
-      `Before I can give you a price, ${askFor(field)}`,
+      priceQuestion(field),
       "",
+      ...notesBlock(decision),
       ...dateBlock,
       "Once I have that I can send the full cost straight back.",
       "",
@@ -206,7 +297,7 @@ export function composeReply(decision: Decision, opts: ReplyContext = {}): strin
     ].join("\n");
   }
 
-  // Nothing prices it. The owner is answering personally, so the draft opens
+  // Nothing prices it yet, or the owner has not settled it. The draft opens
   // the conversation without committing the business to anything.
   return [
     greeting,
@@ -217,6 +308,7 @@ export function composeReply(decision: Decision, opts: ReplyContext = {}): strin
       ? `Let me check the details on ${service.toLowerCase()} and come straight back to you.`
       : "Let me check the details and come straight back to you.",
     "",
+    ...notesBlock(decision),
     ...dateBlock,
     signOff,
   ].join("\n");

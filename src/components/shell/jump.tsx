@@ -1,3 +1,4 @@
+import { statusChip } from "@/domain/time-cues";
 import { useEffect, useState } from "react";
 import { Command } from "cmdk";
 import { useNavigate } from "@tanstack/react-router";
@@ -6,7 +7,6 @@ import { Dialog as DialogRoot, DialogContent } from "@/components/ui/dialog";
 import { usePrototype } from "@/store/prototype-store";
 import { BUSINESS_BY_ID } from "@/fixtures";
 import { resolveBusiness } from "@/lib/workspace/resolve-business";
-import { derivedLabel } from "@/domain/labels";
 import { channelLabel } from "@/domain/channel";
 import { dayKeyFromIso, formatTime } from "@/domain/format";
 import { cn } from "@/lib/utils";
@@ -71,7 +71,7 @@ export function Jump({
                   >
                     <span className="min-w-0 flex-1 truncate">{e.customerName}</span>
                     <span className="truncate text-xs text-stone">
-                      {e.serviceLabel} · {derivedLabel(e.state, e)}
+                      {e.serviceLabel} · {statusChip(e)}
                     </span>
                   </Command.Item>
                 );

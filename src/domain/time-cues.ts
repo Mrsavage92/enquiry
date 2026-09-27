@@ -1,7 +1,7 @@
 import { format } from "date-fns";
 import { enAU } from "date-fns/locale";
 import { addCalendarDays, dayKeyFromDate, startOfDay, wallNow } from "./format";
-import { queueSection } from "./labels";
+import { derivedLabel, queueSection, STATUS } from "./labels";
 import type { Enquiry, WorkspacePrefs } from "./types";
 import { FOLLOW_UP_AFTER_MINUTES, isWorkingDay, parseHm } from "./working-hours";
 
@@ -46,6 +46,62 @@ export function concreteWhen(iso: string, now = new Date(), tz = DEFAULT_ZONE): 
  * tomorrow 8:00am", "Parked until Mon 28 Sep". The day keeps its capitals
  * wherever the sentence is used.
  */
+/**
+ * The chip on a row or header: the status word, except a parked enquiry says
+ * when it comes back ("Parked until Tue 29 Sep") rather than a second word.
+ */
+export function statusChip(enquiry: Enquiry, now = new Date(), tz = DEFAULT_ZONE): string {
+  const label = derivedLabel(enquiry.state, enquiry);
+  if (label === STATUS.parked && enquiry.snoozedUntil) {
+    return parkedUntil(enquiry.snoozedUntil, now, tz);
+  }
+  return label;
+}
+
+/**
+ * The job date on a row: "Job Sat 3 Oct" once the owner confirmed it, "Asked
+ * for Sat 3 Oct" while it is only read from their message, and "Asked about:
+ * Sat 26 or Sun 27 Sep" when they offered more than one day.
+ */
+export function jobDateCue(enquiry: Pick<Enquiry, "dateLabel" | "facts">): string {
+  const label = enquiry.dateLabel?.trim();
+  if (!label) return "";
+  const date = (enquiry.facts ?? []).find(
+    (f) => !f.superseded && f.field.trim().toLowerCase() === "date",
+  );
+  if (!date || label === "ASAP") return label === "ASAP" ? "Asked for ASAP" : `Job ${label}`;
+  if (String(date.value).includes("|")) return `Asked about: ${label}`;
+  return date.status === "confirmed" ? `Job ${label}` : `Asked for ${label}`;
+}
+
+/** The day the job is asked for, earliest first: a confirmed day, a read day, or the first of two offered. */
+export function askedDayIso(enquiry: Pick<Enquiry, "facts">): string | undefined {
+  const date = (enquiry.facts ?? []).find(
+    (f) => !f.superseded && f.field.trim().toLowerCase() === "date",
+  );
+  const first = String(date?.value ?? "").split("|")[0] ?? "";
+  return /^\d{4}-\d{2}-\d{2}$/.test(first) ? first : undefined;
+}
+
+function lastInboundAt(e: Enquiry): number {
+  const lastIn = [...(e.conversation ?? [])].reverse().find((m) => m.direction === "inbound");
+  return Date.parse(lastIn?.at ?? e.receivedAt) || 0;
+}
+
+/**
+ * "Start here" order (attention plan C1): what is due first. A real customer
+ * before the practice enquiry; then the soonest day asked for (a day already
+ * gone counts as due now); then whoever has waited longest.
+ */
+export function byDueness(a: Enquiry, b: Enquiry): number {
+  const practice = Number(Boolean(a.practice)) - Number(Boolean(b.practice));
+  if (practice !== 0) return practice;
+  const day = (e: Enquiry) => askedDayIso(e) ?? "9999-12-31";
+  const dated = day(a).localeCompare(day(b));
+  if (dated !== 0) return dated;
+  return lastInboundAt(a) - lastInboundAt(b);
+}
+
 export function parkedUntil(untilIso: string, now = new Date(), tz = DEFAULT_ZONE): string {
   const back = wall(untilIso, tz);
   const today = wall(now, tz);
@@ -274,6 +330,8 @@ export function laterTodayTime(today: Date, prefs: WorkspacePrefs): Date | null 
 export function laterChoices(
   now = new Date(),
   prefs: WorkspacePrefs,
+  /** Days the business said it does not work ("We don't work Sundays"). */
+  closedDays: ReadonlySet<number> = new Set(),
 ): { id: string; label: string; until: string }[] {
   const tz = prefs.timezone || DEFAULT_ZONE;
   const today = wallNow(now, tz);
@@ -294,15 +352,25 @@ export function laterChoices(
       until: toIso(laterToday),
     });
   }
-  const tomorrow = morning(addCalendarDays(today, 1));
+  // Never a day they don't work: "Tomorrow" only when tomorrow is a working
+  // day, otherwise the next one, named.
+  const works = (d: Date) =>
+    isWorkingDay(d.getDay(), prefs.workingDays || "Monday to Friday") &&
+    !closedDays.has(d.getDay());
+  let ahead = 1;
+  while (ahead < 8 && !works(addCalendarDays(today, ahead))) ahead += 1;
+  const next = morning(addCalendarDays(today, ahead));
   choices.push({
     id: "tomorrow",
-    label: `Tomorrow, ${format(tomorrow, "EEE", { locale: enAU })} ${clock(tomorrow)}`,
-    until: toIso(tomorrow),
+    label:
+      ahead === 1
+        ? `Tomorrow, ${format(next, "EEE", { locale: enAU })} ${clock(next)}`
+        : `Next working day, ${format(next, "EEE d MMM", { locale: enAU })} ${clock(next)}`,
+    until: toIso(next),
   });
   const daysToMonday = (8 - today.getDay()) % 7 || 7;
   const monday = morning(addCalendarDays(today, daysToMonday));
-  if (daysToMonday > 1) {
+  if (daysToMonday > 1 && daysToMonday !== ahead && works(monday)) {
     choices.push({
       id: "weekend",
       label: `After the weekend, ${format(monday, "EEE d MMM", { locale: enAU })}`,

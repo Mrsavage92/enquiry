@@ -1,12 +1,14 @@
 import type { Sql } from "../db.ts";
 import { activeRules, decideEnquiry } from "../../domain/decide.ts";
 import { ASAP_VALUE, replyContextFromFacts } from "../../domain/reply-context.ts";
+import { practicePriceFrom } from "./practice-price.ts";
 import { snapshotFromDecision, stateFromDecision } from "../../domain/decision-snapshot.ts";
 import type { Decision } from "../../domain/decide.ts";
 import {
   inboundBodies,
   inferBlockedQuantity,
   inferExtras,
+  inferQuestions,
   type LiveFact,
 } from "./quantity-inference.ts";
 
@@ -174,12 +176,15 @@ function decideFrom(
   inputs: DecisionInputs,
   enquiry: { serviceLabel: string; customerName: string },
   facts: LiveFact[],
+  messageText = "",
 ): WorkedDecision {
   const decision = decideEnquiry(
     { knowledge: inputs.knowledge },
     {
       serviceLabel: enquiry.serviceLabel,
       facts: facts.map((f) => ({ ...f, displayValue: f.display_value ?? undefined })) as never,
+      messageText,
+      services: inputs.services,
     },
   );
   // A name or day only read from their message is never stated as fact.
@@ -220,6 +225,21 @@ async function workOutDecision(
  * `inferred` reading the owner checks; the decision is taken again after each
  * so the next step is "check it", never "ask for it".
  */
+/**
+ * A practice enquiry's sample price, added to this one decision only. It is a
+ * fact on the practice enquiry (written only by the practice-only server
+ * function), never a knowledge row, so no real enquiry can ever be priced by it.
+ */
+function withPracticePrice(inputs: DecisionInputs, facts: LiveFact[]): DecisionInputs {
+  const rule = practicePriceFrom(facts);
+  if (!rule) return inputs;
+  return {
+    ...inputs,
+    knowledge: [...inputs.knowledge, { state: "Active", rulePayload: rule }],
+    services: [...new Set([...inputs.services, rule.service])],
+  };
+}
+
 async function readAndDecide(
   sql: Sql,
   enquiryId: string,
@@ -237,10 +257,20 @@ async function readAndDecide(
     facts,
     messages,
   );
-  facts = [...facts, ...extras];
-  let worked = decideFrom(inputs, who, facts);
+  const questions = await inferQuestions(
+    sql,
+    enquiryId,
+    [who.serviceLabel, ...inputs.services],
+    inputs.knowledge,
+    facts,
+    messages,
+  );
+  facts = [...facts, ...extras, ...questions];
+  const text = messages.map((m) => m.body).join("\n");
+  const priced = withPracticePrice(inputs, facts);
+  let worked = decideFrom(priced, who, facts, text);
   const read = await inferBlockedQuantity(sql, enquiryId, worked.decision, facts, messages);
-  if (read) worked = decideFrom(inputs, who, [...facts, read]);
+  if (read) worked = decideFrom(priced, who, [...facts, read], text);
   return worked;
 }
 

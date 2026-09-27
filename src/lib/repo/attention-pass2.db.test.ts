@@ -4,6 +4,7 @@ import { join } from "node:path";
 import test from "node:test";
 import { PGlite } from "@electric-sql/pglite";
 import type { Sql } from "../db.ts";
+import { settleShownCoverage } from "./coverage-testing.ts";
 import { createWorkspaceInTransaction } from "./provision-core.ts";
 import { insertManualEnquiry, interpretAndApply } from "./manual-enquiry-core.ts";
 import { saveBusinessRuleAndRedecide, saveBusinessRulesAndRedecide } from "./business-rule-core.ts";
@@ -76,7 +77,7 @@ async function tenant(pg: PGlite, userId: string, name: string) {
 }
 
 async function enquiry(pg: PGlite, businessId: string, body: string, serviceLabel = "") {
-  return tx(pg, (sql) =>
+  const created = await tx(pg, (sql) =>
     insertManualEnquiry(sql, {
       businessId,
       body,
@@ -88,6 +89,9 @@ async function enquiry(pg: PGlite, businessId: string, body: string, serviceLabe
       now: new Date("2026-09-25T09:00:00+10:00"),
     }),
   );
+  // The owner confirms what a price covers before any reply names it (pass 5).
+  await tx(pg, (sql) => settleShownCoverage(sql, businessId));
+  return created;
 }
 
 async function row(pg: PGlite, id: string) {
@@ -109,9 +113,11 @@ async function row(pg: PGlite, id: string) {
 }
 
 async function saveRule(pg: PGlite, businessId: string, rule: BusinessRule) {
-  return tx(pg, (sql) =>
+  const saved = await tx(pg, (sql) =>
     saveBusinessRuleAndRedecide(sql, { businessId, rule, readable: describeRule(rule) }),
   );
+  await tx(pg, (sql) => settleShownCoverage(sql, businessId));
+  return saved;
 }
 
 test("a new owner's enquiry points at their prices, and saving one updates it", async () => {
@@ -178,14 +184,22 @@ test("the customer's name and job date are read from a pasted message", async ()
   );
   const r = await row(pg, e.enquiryId);
   assert.equal(r?.customer_name, "Tom");
-  assert.equal(r?.date_label, "Sat 10 Oct");
-  const facts = await pg.query<{ value: string; status: string; asserted_by: string }>(
-    "select value, status, asserted_by from enquiry_fact where enquiry_id = $1 and field = 'date'",
+  // Pass 5 (C11): the move-out day is not a day they asked for. It is kept as
+  // context the owner sees, never the job date and never in the reply.
+  assert.equal(r?.date_label, null);
+  const facts = await pg.query<{ field: string; value: string; status: string }>(
+    "select field, value, status from enquiry_fact where enquiry_id = $1 and field in ('date', 'date_context')",
     [e.enquiryId],
   );
   assert.deepEqual(facts.rows, [
-    { value: "2026-10-10", status: "inferred", asserted_by: "system" },
+    { field: "date_context", value: "2026-10-10", status: "inferred" },
   ]);
+  const asked = await enquiry(
+    pg,
+    a.businessId,
+    "Could you do the clean on the 10th of October? Tom",
+  );
+  assert.equal((await row(pg, asked.enquiryId))?.date_label, "Sat 10 Oct");
 });
 
 async function sendAndRecord(pg: PGlite, businessId: string, enquiryId: string) {

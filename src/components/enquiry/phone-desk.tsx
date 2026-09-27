@@ -7,7 +7,7 @@ import { SheetContent } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { nextNeedsYou, STATUS } from "@/domain/labels";
 import { LaterChoices } from "./later-choices";
-import { parkedUntil } from "@/domain/time-cues";
+import { jobDateCue, parkedUntil } from "@/domain/time-cues";
 import type { Enquiry } from "@/domain/types";
 import { toast } from "sonner";
 import { usePrototype } from "@/store/prototype-store";
@@ -88,7 +88,7 @@ export function PhoneDesk({ enquiry }: { enquiry: Enquiry }) {
               ? STATUS.booked
               : inChat
                 ? STATUS.waiting
-                : [enquiry.serviceLabel, enquiry.dateLabel].filter(Boolean).join(" · ")}
+                : [enquiry.serviceLabel, jobDateCue(enquiry)].filter(Boolean).join(" · ")}
           </p>
         </div>
         <button
