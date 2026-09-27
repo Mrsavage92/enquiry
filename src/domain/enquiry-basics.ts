@@ -1206,13 +1206,15 @@ const DEVICE_FOOTER =
   /^\s*(?:sent from my\b.*|get outlook for\b.*|sent from (?:yahoo|mail|gmail|outlook)\b.*)$/gim;
 
 function withoutNoise(text: string): string {
-  return text
-    .replace(/[ \t]*(?:\p{Extended_Pictographic}|\u200d|\ufe0f)+[ \t]*/gu, "\n")
-    .replace(DEVICE_FOOTER, "")
-    .replace(/[ \t]*\|[ \t]*/g, "\n")
-    // "- Dave" at the start of a signature line: the dash is not the name.
-    .replace(/^[ \t]*(?:-{1,2}|–|\u2014|~)[ \t]*(?=[A-Z])/gm, "")
-    .replace(/[ \t]+$/gm, "");
+  return (
+    text
+      .replace(/[ \t]*(?:\p{Extended_Pictographic}|\u200d|\ufe0f)+[ \t]*/gu, "\n")
+      .replace(DEVICE_FOOTER, "")
+      .replace(/[ \t]*\|[ \t]*/g, "\n")
+      // "- Dave" at the start of a signature line: the dash is not the name.
+      .replace(/^[ \t]*(?:-{1,2}|–|\u2014|~)[ \t]*(?=[A-Z])/gm, "")
+      .replace(/[ \t]+$/gm, "")
+  );
 }
 
 export function readCustomerName(text: string, ctx: NameContext = {}): string | undefined {

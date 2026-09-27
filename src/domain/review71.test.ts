@@ -270,7 +270,8 @@ test("L5: each of two offered days is checked against the days you don't work", 
   });
   assert.ok(
     d.coverage?.flagged.some(
-      (f) => f.text === "A day they mentioned is a Sunday - you don't work Sundays, the reply says so",
+      (f) =>
+        f.text === "A day they mentioned is a Sunday - you don't work Sundays, the reply says so",
     ),
   );
 });

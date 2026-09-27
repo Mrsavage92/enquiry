@@ -711,7 +711,8 @@ function decidePrimary(
 }
 
 /** A count the customer hedged, kept in how it was confirmed: "about 12". */
-export const APPROX_SAID = /^\s*(?:about|roughly|around|approx(?:imately)?|maybe|~|nearly|almost|close to)\b/i;
+export const APPROX_SAID =
+  /^\s*(?:about|roughly|around|approx(?:imately)?|maybe|~|nearly|almost|close to)\b/i;
 
 /** Whether a field is the count of one of the business's services as an extra. */
 function isExtraQuantityFor(rules: BusinessRule[], field: string): boolean {

@@ -30,7 +30,8 @@ const NEGATED =
   /\b(?:open|work(?:ing)?|available)\s+(?:right\s+)?(?:through|over|during)\b|\bnot\s+closed\b|\bno\s+(?:\w+\s+)?(?:surcharge|loading|extra|penalty)\b|\bexcept\b|\bunless\b|\bno\s+longer\b/i;
 
 /** A condition a percentage rule cannot carry: "after 5pm", "public holidays". */
-const TIME_CONDITION = /\b(?:after|before|from|until)\s+\d|\d\s*(?:am|pm)\b|\bpublic\s+holidays?\b|\bnights?\b|\bevenings?\b/i;
+const TIME_CONDITION =
+  /\b(?:after|before|from|until)\s+\d|\d\s*(?:am|pm)\b|\bpublic\s+holidays?\b|\bnights?\b|\bevenings?\b/i;
 
 /** Work words: a service is named by one ("Exterior painting"); "Cash" is not a service. */
 const WORK_NOUN =

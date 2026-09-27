@@ -180,7 +180,15 @@ const PART_OF: { work: RegExp; nouns: ReadonlySet<string>; notWith: RegExp }[] =
   },
   {
     work: /\b(?:end of lease|bond|regular|house|deep|spring|general|move[- ]?out)\b[^,]*\bclean|\bclean\b[^,]*\b(?:lease|bond)\b/i,
-    nouns: new Set(["hair", "skirting", "skirtings", "tracks", "cupboards", "cabinets", "wardrobes"]),
+    nouns: new Set([
+      "hair",
+      "skirting",
+      "skirtings",
+      "tracks",
+      "cupboards",
+      "cabinets",
+      "wardrobes",
+    ]),
     notWith: /(?!)/,
   },
 ];
