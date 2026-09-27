@@ -42,7 +42,7 @@ import { PRICE_EXAMPLE } from "@/domain/price-sentence";
 import { describeRule } from "@/domain/business-rule";
 import { replacementsFor } from "@/domain/price-replacement";
 import { readBusinessDetails, type BusinessDetailsRead } from "@/domain/business-details-read";
-import { describeDetail, noteFor } from "@/domain/business-detail";
+import { describeDetail, detailEffect, noteFor } from "@/domain/business-detail";
 import { activeRules } from "@/domain/decide";
 import { concreteWhen } from "@/domain/time-cues";
 import { decidingPhrase } from "@/domain/price-compiler";
@@ -711,13 +711,7 @@ export function BrainScreen() {
                   {livePrices.details.map((d) => (
                     <li key={d.line}>
                       <p className="font-medium">{describeDetail(d.detail)}</p>
-                      <p className="mt-0.5 text-ink-2">
-                        {d.detail.kind === "closed_days"
-                          ? "Enquiry flags a day they ask for that you don't work."
-                          : d.detail.kind === "not_offered"
-                            ? "When a customer asks if you do it, Enquiry reads that as No for you to confirm."
-                            : "Shown to you on the quotes it concerns."}
-                      </p>
+                      <p className="mt-0.5 text-ink-2">{detailEffect(d.detail)}</p>
                     </li>
                   ))}
                 </ul>

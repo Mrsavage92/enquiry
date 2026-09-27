@@ -3,6 +3,7 @@ import { normaliseFactAnswer, validateFactAnswer, type Decision } from "../../do
 import { EXTRA_CHOICE, isExtraField } from "../../domain/extras.ts";
 import { QUESTION_ANSWER, isQuestionField } from "../../domain/service-questions.ts";
 import { COVERAGE_FIELD } from "../../domain/coverage.ts";
+import { isRuleChoice, isRuleField } from "../../domain/rule-checks.ts";
 
 /**
  * Fields only their own server functions may write: the coverage confirmation
@@ -43,6 +44,12 @@ export type AnswerFactResult = {
 
 /** How an owner's choice about an extra reads back in the case file. */
 function displayFor(field: string, value: string): string {
+  if (isRuleField(field)) {
+    if (value === "apply") return "Your rule applied to this quote";
+    if (value === "decline") return "Declined - outside your rule";
+    if (value === "quote") return "Quoted - it fits your rule";
+    return "Your rule doesn't apply here";
+  }
   if (isQuestionField(field)) {
     return value === QUESTION_ANSWER.yes ? "Yes - you do this" : "No - you don't do this";
   }
@@ -95,6 +102,11 @@ export async function answerFactForUser(
   }
   if (input.field.trim().toLowerCase() === "recurring" && value !== "yes" && value !== "no") {
     throw new Error("Answer yes or no.");
+  }
+  // One of the owner's own rules on this quote: applied, waived, or (for an
+  // "only if" rule) quoted anyway or declined. Nothing else is a choice.
+  if (isRuleField(input.field) && !isRuleChoice(value)) {
+    throw new Error("Choose whether your rule applies to this job.");
   }
   const problem = validateFactAnswer(brain, enq.service_label ?? "", input.field, value);
   if (problem) throw new Error(problem);

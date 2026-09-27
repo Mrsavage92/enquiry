@@ -68,6 +68,7 @@ function recommendationLabel(decision: Decision): string {
     return `Add or leave out ${decision.extraPending.label.toLowerCase()}`;
   }
   if (decision.action === "SEND_QUOTE") return "Send the quote";
+  if (decision.action === "DECLINE") return "Send the reply";
   if (decision.blocker?.inferred) return `Check ${decidingPhrase(decision.blocker.field)}`;
   if (decision.action === "REQUEST_INFORMATION" && decision.blocker) {
     if (isOwnerEstimate(decision.blocker.field)) {
@@ -187,7 +188,7 @@ export function snapshotFromDecision(decision: Decision, who: ReplyContext = {})
  * carries no `price`, so no send path can record one.
  */
 export function replyMayNameTotal(decision: Decision): boolean {
-  if (decision.questionPending) return false;
+  if (decision.questionPending || decision.action === "DECLINE") return false;
   return decision.coverage ? decision.coverage.confirmed : true;
 }
 
@@ -204,6 +205,14 @@ export function stateFromDecision(decision: Decision): {
   commercialState: CommercialState;
   responsibility: Responsibility;
 } {
+  if (decision.action === "DECLINE") {
+    // A kind no is ready to send; nothing about it is quotable.
+    return {
+      decisionState: "ACTION_READY",
+      commercialState: "UNASSESSED",
+      responsibility: "BUSINESS",
+    };
+  }
   if (decision.action === "SEND_QUOTE") {
     // Priced and ready for the owner to send. The ball is theirs.
     return {

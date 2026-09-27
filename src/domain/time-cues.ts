@@ -66,6 +66,8 @@ export function statusChip(enquiry: Enquiry, now = new Date(), tz = DEFAULT_ZONE
 export function jobDateCue(enquiry: Pick<Enquiry, "dateLabel" | "facts">): string {
   const label = enquiry.dateLabel?.trim();
   if (!label) return "";
+  // A preference ("Prefers Tuesdays") is never a date: shown as it is.
+  if (/^Prefers /.test(label)) return label;
   const date = (enquiry.facts ?? []).find(
     (f) => !f.superseded && f.field.trim().toLowerCase() === "date",
   );

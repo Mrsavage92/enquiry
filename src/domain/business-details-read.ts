@@ -1,5 +1,6 @@
 import { readDetailLine, type DetailRead } from "./business-detail.ts";
 import { readPriceLine, splitLines, type PriceSentences } from "./price-sentence.ts";
+import { readRuleLine } from "./business-rules-read.ts";
 
 /**
  * Everything an owner wrote in "Add a business detail", sorted: prices it can
@@ -13,11 +14,31 @@ export type BusinessDetailsRead = PriceSentences & { details: DetailRead[] };
 const HAS_AMOUNT = /\$\s?\d|\d\s*(?:dollars?|bucks)\b/i;
 
 const NOT_A_PRICE =
-  "There is no price in it, and Enquiry did not read it as a day you don't work or a service you don't offer. Keep it as a note Enquiry shows you, or leave it out.";
+  "There is no price in it, and Enquiry did not read it as a rule it can check on a quote.";
 
 export function readBusinessDetails(text: string): BusinessDetailsRead {
   const out: BusinessDetailsRead = { prices: [], unread: [], details: [] };
   for (const line of splitLines(text)) {
+    // A minimum, surcharge, fee, "only if" or closed dates: a rule each quote
+    // it concerns checks with one tap, not a note the owner has to remember.
+    const rule = readRuleLine(line);
+    if (rule) {
+      const price = rule.priceLine ? readPriceLine(rule.priceLine) : null;
+      if (price && !("rule" in price)) {
+        out.unread.push({ ...price, line });
+        continue;
+      }
+      const service = price && "rule" in price ? price.rule.service : undefined;
+      if (price && "rule" in price) out.prices.push({ ...price, line });
+      for (const detail of rule.details) {
+        const tied =
+          detail.kind === "minimum_charge" && !detail.service && service
+            ? { ...detail, service }
+            : detail;
+        out.details.push({ line, detail: tied });
+      }
+      continue;
+    }
     const detail = readDetailLine(line);
     if (detail && "refuse" in detail) {
       out.unread.push({ line, reason: detail.refuse });

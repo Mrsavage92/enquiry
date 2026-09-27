@@ -37,6 +37,8 @@ import {
   questionReplyLine,
   questionThing,
 } from "./service-questions.ts";
+import { applyRules } from "./rule-checks.ts";
+import { namesService } from "./service-words.ts";
 
 /** One priced line of a quote with more than one thing on it. */
 export type QuoteLine = {
@@ -89,7 +91,12 @@ export type Decision = {
   /** The computed price, or why there isn't one. */
   price: PriceOutcome;
   /** What the operator should do next, in the product's action vocabulary. */
-  action: "SEND_QUOTE" | "REQUEST_INFORMATION" | "ESCALATE_HUMAN";
+  action: "SEND_QUOTE" | "REQUEST_INFORMATION" | "ESCALATE_HUMAN" | "DECLINE";
+  /**
+   * The owner declined it kindly (a "No" to a question-only enquiry, or a job
+   * outside their own "only if" rule): the reply says so and names no price.
+   */
+  declined?: string[];
   /** One sentence the operator can read and check. */
   explanation: string;
   /** The single decision-critical missing fact, when there is one. */
@@ -239,6 +246,10 @@ export function decideEnquiry(
       knownServices,
     };
   }
+  // "Do you do pressure washing?" answered No, and nothing else asked: the kind
+  // "Sorry, I don't do ..." reply is ready now - no service to choose first.
+  const noOnly = questionOnlyNo(facts, primary, details);
+  if (noOnly) return { ...declineDecision(withNotes, noOnly), knownServices };
   const gated =
     withNotes.action === "SEND_QUOTE"
       ? gateCoverage(withNotes, {
@@ -250,6 +261,35 @@ export function decideEnquiry(
         })
       : withNotes;
   return { ...gated, knownServices };
+}
+
+/**
+ * The sentences of a kind no, when the enquiry was only a question the owner
+ * answered No: no service chosen, at least one No, no Yes. A referral line is
+ * added only when the owner saved one for that thing ("For pressure washing I
+ * recommend ...").
+ */
+function questionOnlyNo(
+  facts: ReadonlyArray<DecideFact>,
+  primary: Decision,
+  details: readonly BusinessDetail[],
+): string[] | undefined {
+  if (primary.setup !== "choose_service") return undefined;
+  const answered = facts.filter((f) => isQuestionField(f.field) && f.status === "confirmed");
+  const noes = answered.filter((f) => String(f.value) === QUESTION_ANSWER.no);
+  if (noes.length === 0 || noes.length !== answered.length) return undefined;
+  return noes.flatMap((f) => {
+    const thing = questionThing(f.field);
+    const line = questionReplyLine(thing, QUESTION_ANSWER.no);
+    const referral = details.find(
+      (d) =>
+        d.kind === "note" &&
+        /\b(?:recommend|refer|suggest|try)\b/i.test(d.text) &&
+        namesService(d.text, thing),
+    );
+    const said = referral && referral.kind === "note" ? referral.text.replace(/[.!]*$/, ".") : null;
+    return [line, said].filter((x): x is string => Boolean(x));
+  });
 }
 
 /** The first question they asked that the owner has not answered. */
@@ -321,6 +361,53 @@ function linesOf(decided: Decision): QuoteLine[] {
  * what it covers, for exactly these facts. Until then the price is shown to the
  * owner as lines, and the reply names no total.
  */
+/**
+ * A kind no: the reply declines in the owner's own terms and names no price.
+ * Nothing is sent until they send it.
+ */
+export function declineDecision(decided: Decision, sentences: string[]): Decision {
+  return {
+    ...decided,
+    action: "DECLINE",
+    explanation: "You said this job is outside what you do. The reply declines it kindly.",
+    declined: sentences,
+    lines: undefined,
+    coverage: undefined,
+  };
+}
+
+/** The quote after the owner's rules: new lines, total and every amount they imply. */
+function withRuledLines(
+  decided: Decision,
+  before: readonly QuoteLine[],
+  after: QuoteLine[],
+  implied: number[],
+  declined: string[],
+): Decision {
+  const same =
+    before.length === after.length &&
+    before.every((l, i) => l.amountMinor === after[i]?.amountMinor && l.label === after[i]?.label);
+  const notes = declined.length ? { replyNotes: [...(decided.replyNotes ?? []), ...declined] } : {};
+  if (same || decided.price.kind !== "EXACT") return { ...decided, ...notes };
+  const total = after.reduce((sum, l) => sum + l.amountMinor, 0);
+  const workings = after
+    .map((l) => `${l.label}: ${formatMinorAud(l.amountMinor)}${l.detail ? ` (${l.detail})` : ""}.`)
+    .join(" ");
+  return {
+    ...decided,
+    ...notes,
+    price: {
+      ...decided.price,
+      amountMinor: total,
+      workings,
+      lines: after,
+      alsoImplied: [...impliedAmountsMinor(decided.price), ...implied],
+    },
+    explanation: workings,
+    lines: after,
+  };
+}
+
 function gateCoverage(decided: Decision, ctx: CoverageContext): Decision {
   if (decided.price.kind !== "EXACT") return decided;
   // How often is a reading: shown as its own line to confirm, never assumed.
@@ -329,7 +416,21 @@ function gateCoverage(decided: Decision, ctx: CoverageContext): Decision {
     (f) => f.field.trim().toLowerCase() === RECURRING_FIELD && f.status === "confirmed",
   );
   const recurring = String(recurringAnswer?.value ?? "") === "yes";
-  const lines = linesOf(decided);
+  const unruled = linesOf(decided);
+  // The owner's own rules (minimum charge, Saturday rate, travel fee, "only
+  // if single storey"): each is applied, waived or still to ask, never passive.
+  const ruled = applyRules({
+    details: ctx.details,
+    lines: unruled,
+    message: ctx.message,
+    jobDates: jobDatesOf(ctx.facts),
+    facts: ctx.facts,
+  });
+  if (ruled.lines.length === 0 && ruled.declined.length > 0) {
+    return declineDecision(decided, ruled.declined);
+  }
+  const lines = ruled.lines as QuoteLine[];
+  decided = withRuledLines(decided, unruled, lines, ruled.implied, ruled.declined);
   const handled = ctx.facts
     .filter((f) => isExtraField(f.field) && f.status === "confirmed")
     .map((f) => extraLabel(f.field))
@@ -346,6 +447,14 @@ function gateCoverage(decided: Decision, ctx: CoverageContext): Decision {
     details: ctx.details,
     jobDates: jobDatesOf(ctx.facts),
   });
+  flagged.push(
+    ...ruled.open.map((check) => ({
+      kind: "rule" as const,
+      text: check.text,
+      thing: check.field,
+      check,
+    })),
+  );
   const firstVisit = (l: QuoteLine, i: number) =>
     i > 0 &&
     (Boolean(l.firstVisit) ||

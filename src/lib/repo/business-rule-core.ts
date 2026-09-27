@@ -198,7 +198,8 @@ export async function saveBusinessRulesAndRedecide(
 function detailKey(detail: BusinessDetail): string {
   if (detail.kind === "note") return `note|${norm(detail.text)}|${norm(detail.service ?? "")}`;
   if (detail.kind === "not_offered") return `not_offered|${norm(detail.service)}`;
-  return `closed_days|${detail.days.join(",")}`;
+  if (detail.kind === "closed_days") return `closed_days|${detail.days.join(",")}`;
+  return JSON.stringify(detail).toLowerCase();
 }
 
 /**

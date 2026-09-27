@@ -23,9 +23,75 @@ export type NotOfferedDetail = { kind: "not_offered"; service: string };
 /** 0 is Sunday, 6 is Saturday. */
 export type ClosedDaysDetail = { kind: "closed_days"; days: number[] };
 
-export type BusinessDetail = NoteDetail | NotOfferedDetail | ClosedDaysDetail;
+/*
+ * Rules the owner states about money or eligibility that change what a quote
+ * may say. Each is checked on the quotes it concerns with one tap - applied,
+ * or waived for that job - never silently added and never silently ignored.
+ */
+/** "minimum charge $450": a job on this service never comes to less. */
+export type MinimumChargeDetail = { kind: "minimum_charge"; amount: number; service?: string };
+/** "Saturday jobs cost 20% more": a percentage on jobs on these weekdays. */
+export type SurchargeDetail = {
+  kind: "surcharge";
+  percent: number;
+  days: number[];
+  service?: string;
+};
+/** "Travel fee $40 outside Brisbane northside": an amount added when it applies. */
+export type FeeDetail = {
+  kind: "fee";
+  amount: number;
+  /** "Travel fee", "Call-out fee", "Extra charge". */
+  label: string;
+  /** The owner's own words, shown back exactly. */
+  text: string;
+  service?: string;
+};
+/** "Exterior painting only if single storey": when a job qualifies at all. */
+export type EligibilityDetail = {
+  kind: "eligibility";
+  service: string;
+  /** "single storey". */
+  condition: string;
+  text: string;
+};
+/** "Closed 24 Dec - 2 Jan": month-day, every year; `to` may wrap into January. */
+export type ClosedDatesDetail = { kind: "closed_dates"; from: string; to: string };
 
-export const DETAIL_KINDS = ["note", "not_offered", "closed_days"] as const;
+export type BusinessDetail =
+  | NoteDetail
+  | NotOfferedDetail
+  | ClosedDaysDetail
+  | MinimumChargeDetail
+  | SurchargeDetail
+  | FeeDetail
+  | EligibilityDetail
+  | ClosedDatesDetail;
+
+export const DETAIL_KINDS = [
+  "note",
+  "not_offered",
+  "closed_days",
+  "minimum_charge",
+  "surcharge",
+  "fee",
+  "eligibility",
+  "closed_dates",
+] as const;
+
+const MONTH_DAY = /^(\d{2})-(\d{2})$/;
+
+function validMonthDay(md: string): boolean {
+  const m = MONTH_DAY.exec(md);
+  if (!m) return false;
+  const month = Number(m[1]);
+  const day = Number(m[2]);
+  return month >= 1 && month <= 12 && day >= 1 && day <= new Date(2024, month, 0).getDate();
+}
+
+function money(v: unknown): number | null {
+  return typeof v === "number" && Number.isFinite(v) && v > 0 && v < 1_000_000 ? v : null;
+}
 
 const MAX_TEXT = 300;
 
@@ -57,6 +123,63 @@ export function parseBusinessDetail(
     if (valid.length === 7) return { ok: false, reason: "A business open no days cannot quote." };
     return { ok: true, detail: { kind: "closed_days", days: valid.sort((a, b) => a - b) } };
   }
+  return parseMoneyRule(r, text);
+}
+
+/** The rules that change a quote: minimums, surcharges, fees, eligibility, closed dates. */
+function parseMoneyRule(
+  r: Record<string, unknown>,
+  text: (v: unknown) => string,
+): { ok: true; detail: BusinessDetail } | { ok: false; reason: string } {
+  const service = text(r.service);
+  const withService = service ? { service } : {};
+  if (r.kind === "minimum_charge") {
+    const amount = money(r.amount);
+    if (amount === null) return { ok: false, reason: "A minimum charge needs an amount." };
+    return { ok: true, detail: { kind: "minimum_charge", amount, ...withService } };
+  }
+  if (r.kind === "surcharge") {
+    const percent = typeof r.percent === "number" ? r.percent : Number.NaN;
+    const days = Array.isArray(r.days) ? r.days : [];
+    const valid = [...new Set(days)].filter(
+      (d): d is number => typeof d === "number" && Number.isInteger(d) && d >= 0 && d <= 6,
+    );
+    if (!(percent > 0 && percent <= 200)) {
+      return { ok: false, reason: "A surcharge needs a percentage." };
+    }
+    if (valid.length === 0 || valid.length !== days.length) {
+      return { ok: false, reason: "Say which days the surcharge is for." };
+    }
+    return {
+      ok: true,
+      detail: { kind: "surcharge", percent, days: valid.sort((a, b) => a - b), ...withService },
+    };
+  }
+  if (r.kind === "fee") {
+    const amount = money(r.amount);
+    const label = text(r.label);
+    const words = text(r.text);
+    if (amount === null || !label || !words) {
+      return { ok: false, reason: "A fee needs an amount and what it is for." };
+    }
+    return { ok: true, detail: { kind: "fee", amount, label, text: words, ...withService } };
+  }
+  if (r.kind === "eligibility") {
+    const condition = text(r.condition);
+    const words = text(r.text);
+    if (!service || !condition || !words) {
+      return { ok: false, reason: "Say which service and when you do it." };
+    }
+    return { ok: true, detail: { kind: "eligibility", service, condition, text: words } };
+  }
+  if (r.kind === "closed_dates") {
+    const from = text(r.from);
+    const to = text(r.to);
+    if (!validMonthDay(from) || !validMonthDay(to)) {
+      return { ok: false, reason: "Closed dates need a first and last day." };
+    }
+    return { ok: true, detail: { kind: "closed_dates", from, to } };
+  }
   return { ok: false, reason: `Unknown business detail: ${String(r.kind)}` };
 }
 
@@ -85,27 +208,126 @@ export const WEEKDAYS = [
   "Saturday",
 ] as const;
 
+const MONTH_NAMES = [
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
+];
+
+/** "12-24" -> "24 December". */
+export function spokenMonthDay(md: string): string {
+  const m = MONTH_DAY.exec(md);
+  if (!m) return md;
+  return `${Number(m[2])} ${MONTH_NAMES[Number(m[1]) - 1]}`;
+}
+
+/** "$450", "$32.50". */
+export function dollars(amount: number): string {
+  const whole = Number.isInteger(amount);
+  return `$${amount.toLocaleString("en-AU", {
+    minimumFractionDigits: whole ? 0 : 2,
+    maximumFractionDigits: 2,
+  })}`;
+}
+
+function dayList(days: readonly number[]): string {
+  const names = days.map((d) => `${WEEKDAYS[d]!}s`);
+  return names.length > 1 ? `${names.slice(0, -1).join(", ")} or ${names.at(-1)}` : (names[0] ?? "");
+}
+
 /** What the owner reads back on the business screen. */
 export function describeDetail(detail: BusinessDetail): string {
-  if (detail.kind === "note") return detail.text;
-  if (detail.kind === "not_offered") return `You don't offer ${detail.service.toLowerCase()}`;
-  const names = detail.days.map((d) => `${WEEKDAYS[d]!}s`);
-  const list = names.length > 1 ? `${names.slice(0, -1).join(", ")} or ${names.at(-1)}` : names[0];
-  return `You don't work ${list}`;
+  switch (detail.kind) {
+    case "note":
+      return detail.text;
+    case "not_offered":
+      return `You don't offer ${detail.service.toLowerCase()}`;
+    case "closed_days":
+      return `You don't work ${dayList(detail.days)}`;
+    case "minimum_charge":
+      return detail.service
+        ? `${detail.service}: minimum charge ${dollars(detail.amount)}`
+        : `Minimum charge ${dollars(detail.amount)} on every job`;
+    case "surcharge":
+      return `${detail.service ? `${detail.service} on ` : ""}${dayList(detail.days)}: ${detail.percent}% more`;
+    case "fee":
+      return `${detail.label} ${dollars(detail.amount)}`;
+    case "eligibility":
+      return `${detail.service} only if ${detail.condition}`;
+    case "closed_dates":
+      return `You're closed ${spokenMonthDay(detail.from)} to ${spokenMonthDay(detail.to)}`;
+  }
+}
+
+/** What Enquiry does with a detail, one sentence, for the save preview. */
+export function detailEffect(detail: BusinessDetail): string {
+  switch (detail.kind) {
+    case "closed_days":
+    case "closed_dates":
+      return "When they ask for a day you don't work, the reply says so and offers the next day you do.";
+    case "not_offered":
+      return "When a customer asks if you do it, Enquiry reads that as No for you to confirm.";
+    case "minimum_charge":
+      return "On a quote under the minimum, Enquiry asks you with one tap: apply it, or not this time.";
+    case "surcharge":
+      return "When the job falls on that day, Enquiry asks you with one tap: add it, or not this time.";
+    case "fee":
+      return "On the quotes it concerns, Enquiry asks you with one tap: add it, or it doesn't apply.";
+    case "eligibility":
+      return "On those quotes, Enquiry asks you to check the job fits before any price goes out.";
+    case "note":
+      return "Shown to you on the quotes it concerns. Never added to a price.";
+  }
 }
 
 /** The knowledge section a detail is filed under. */
 export function detailSection(detail: BusinessDetail): "policy" | "service" | "capacity" {
-  if (detail.kind === "note") return "policy";
-  if (detail.kind === "not_offered") return "service";
-  return "capacity";
+  if (detail.kind === "not_offered" || detail.kind === "eligibility") return "service";
+  if (detail.kind === "closed_days" || detail.kind === "closed_dates") return "capacity";
+  return "policy";
 }
 
 /** A title for the knowledge row. */
 export function detailTitle(detail: BusinessDetail): string {
-  if (detail.kind === "note") return detail.service ? `Note: ${detail.service}` : "Note";
-  if (detail.kind === "not_offered") return `Not offered: ${detail.service}`;
-  return "Days you don't work";
+  switch (detail.kind) {
+    case "note":
+      return detail.service ? `Note: ${detail.service}` : "Note";
+    case "not_offered":
+      return `Not offered: ${detail.service}`;
+    case "closed_days":
+      return "Days you don't work";
+    case "closed_dates":
+      return "Dates you're closed";
+    case "minimum_charge":
+      return detail.service ? `Minimum charge: ${detail.service}` : "Minimum charge";
+    case "surcharge":
+      return "Surcharge";
+    case "fee":
+      return detail.label;
+    case "eligibility":
+      return `Only if: ${detail.service}`;
+  }
+}
+
+/** Days of the week and date ranges (month-day) the business does not work. */
+export function closedTimesOf(details: readonly BusinessDetail[]): {
+  days: number[];
+  ranges: { from: string; to: string }[];
+} {
+  const days = [...closedDaysOf(details)].sort((a, b) => a - b);
+  const ranges = details.flatMap((d) =>
+    d.kind === "closed_dates" ? [{ from: d.from, to: d.to }] : [],
+  );
+  return { days, ranges };
 }
 
 /** Every day the business does not work, from its closed-days details. */
