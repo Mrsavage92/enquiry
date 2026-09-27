@@ -92,6 +92,14 @@ export function replyContextFromFacts(
           ...(date.date_span ? { jobDateSpan: String(date.date_span) } : {}),
         }
       : {}),
+    // A day only mentioned, not asked about: never quoted back as a question,
+    // but a day the owner does not work is still said plainly.
+    ...(date && ISO_DAY.test(value) && !asked && !confirmed
+      ? {
+          mentionedDateIso: value,
+          ...(date.date_span ? { mentionedDateSpan: String(date.date_span) } : {}),
+        }
+      : {}),
     ...(issue ? { dateIssue: issue } : {}),
     // Two days offered ("Sat 26 or Sun 27 Sep"): quoted back, never picked.
     ...(!confirmed && value.includes("|") && date?.date_span

@@ -1,5 +1,5 @@
 import type { BusinessDetail } from "./business-detail.ts";
-import { WEEKDAYS } from "./business-detail.ts";
+import { WEEKDAYS, spokenMonthDay } from "./business-detail.ts";
 import { DECLINED, NOT_A_REQUEST, SERVICE_NOUNS } from "./extras.ts";
 import { distinctiveStems, mentionsAny, namesService, stem, stemsOf } from "./service-words.ts";
 import type { RuleCheck } from "./rule-checks.ts";
@@ -326,20 +326,19 @@ function detailFlags(
     flaggedDays.add(day);
     out.push({
       kind: "closed_day",
-      text: `A day they asked about is a ${WEEKDAYS[day]} - you don't work ${WEEKDAYS[day]}s`,
+      text: `A day they mentioned is a ${WEEKDAYS[day]} - you don't work ${WEEKDAYS[day]}s, the reply says so`,
     });
   }
   const ranges = details.flatMap((d) => (d.kind === "closed_dates" ? [d] : []));
-  const inClosed = jobDates.find((iso) =>
-    ranges.some((r) => {
-      const md = iso.slice(5);
-      return r.from <= r.to ? md >= r.from && md <= r.to : md >= r.from || md <= r.to;
-    }),
-  );
-  if (inClosed) {
+  const inRange = (iso: string, r: { from: string; to: string }) => {
+    const md = iso.slice(5);
+    return r.from <= r.to ? md >= r.from && md <= r.to : md >= r.from || md <= r.to;
+  };
+  const hit = ranges.find((r) => jobDates.some((iso) => inRange(iso, r)));
+  if (hit) {
     out.push({
       kind: "closed_day",
-      text: "A day they asked about is in your closed dates - the reply says so",
+      text: `A day they mentioned is in your closed dates (${spokenMonthDay(hit.from)} to ${spokenMonthDay(hit.to)}) - the reply says so`,
     });
   }
   return out;

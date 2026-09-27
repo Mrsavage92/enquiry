@@ -188,7 +188,7 @@ export function asksForAsap(text: string): boolean {
 const SLASH_FRACTION_AFTER =
   /^\s*(?:of|day|days|hr|hrs|hour|hours|the|tank|tanks|cup|cups|inch|inches|in|mm|cm|m|kg|l|litre|litres|a|an|price|off|full|size|done)\b/i;
 const SLASH_DATE_CUE =
-  /\b(?:on|by|until|till|from|before|after|free|available|avail|date|move|moving|keys|book|booked|come|due|this|next|is|do|suit|suits|works?)\b/i;
+  /\b(?:on|by|until|till|from|before|after|free|available|avail|date|move|moving|keys|book|booked|come|due|this|next|is|do|suit|suits|works?|mon(?:day)?|tue(?:s(?:day)?)?|wed(?:nesday)?|thu(?:r(?:s(?:day)?)?)?|fri(?:day)?|sat(?:urday)?|sun(?:day)?)\b/i;
 
 /** "3 may need a bath": "may" as a verb, not the month. */
 const MAY_AS_VERB =
@@ -376,7 +376,7 @@ function approxAsk(text: string): { span: string } | undefined {
 
 /** "Sunday 4th? or 20/10", "the 3rd, otherwise the 10th": two days offered, first preferred. */
 const OR_BETWEEN =
-  /^\s*[?,]?\s*(?:or|otherwise|or else|failing that|else)\s+(?:on\s+|the\s+|maybe\s+)?$/i;
+  /^\s*[?,]?\s*(?:or|otherwise|or else|failing that|else)\s+(?:on\s+|the\s+|maybe\s+)?(?:(?:mon|tue|wed|thu|fri|sat|sun)[a-z]*\.?,?\s+(?:the\s+)?)?$/i;
 
 /** A clause about something already done: "last clean was on", "they came on". */
 const HISTORY =
@@ -599,10 +599,13 @@ function readOffered(
   today: Date,
 ): DateReading["options"] | undefined {
   const first = resolveHit({ ...a, alt: undefined }, before, today);
-  const second = resolveHit(b, "", today);
+  const second = resolveHit(b, text.slice(Math.max(0, b.index - 14), b.index), today);
   if (first.kind !== "date" || second.kind !== "date") return undefined;
+  // Their words from the first weekday: "Sun 11 Oct or Sat 17 Oct".
+  const lead = WEEKDAY_BEFORE.exec(text.slice(Math.max(0, a.index - 14), a.index));
+  const from = a.index - (lead?.[0].length ?? 0);
   const span = text
-    .slice(a.index, b.index + b.length)
+    .slice(from, b.index + b.length)
     .replace(/\?/g, " ")
     .replace(/\s+/g, " ")
     .trim();

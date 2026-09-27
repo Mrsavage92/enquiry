@@ -43,6 +43,9 @@ export type ReplyContext = {
    * never opened with "Thanks for getting in touch", as if they were new.
    */
   followUp?: boolean;
+  /** A day read from the message but not asked about: checked against closed days only. */
+  mentionedDateIso?: string;
+  mentionedDateSpan?: string;
   /** The days offered, yyyy-mm-dd, first preferred: checked against closed days. */
   dateOptionIsos?: string[];
   /** "tuesdays pref": a day of the week they prefer, in their words. */
@@ -186,13 +189,14 @@ function dateSentence(opts: ReplyContext): string | null {
  * confirmed is the owner's call.
  */
 function closedDaySentence(opts: ReplyContext): string | null {
-  if (!opts.jobDateIso || opts.jobDateConfirmed) return null;
-  const reason = closedReason(opts.jobDateIso, opts.closed);
+  if (opts.jobDateConfirmed) return null;
+  const iso = opts.jobDateIso ?? opts.mentionedDateIso;
+  if (!iso) return null;
+  const reason = closedReason(iso, opts.closed);
   if (!reason) return null;
-  const said = opts.jobDateSpan?.trim()
-    ? spokenSpan(opts.jobDateSpan)
-    : spokenDate(opts.jobDateIso);
-  return `You mentioned ${said} - ${reason}. ${offerInstead(opts.jobDateIso, opts.closed)}`;
+  const span = opts.jobDateIso ? opts.jobDateSpan : opts.mentionedDateSpan;
+  const said = span?.trim() ? spokenSpan(span) : spokenDate(iso);
+  return `You mentioned ${said} - ${reason}. ${offerInstead(iso, opts.closed)}`;
 }
 
 /** Two days offered, the first preferred: a closed one is said, the other offered. */
@@ -220,7 +224,7 @@ function preferenceSentence(opts: ReplyContext): string | null {
   if (!pref) return null;
   const closedNames = DAY_NAMES.filter((name, i) => {
     if (!(opts.closed?.days ?? []).includes(i)) return false;
-    return new RegExp(`\b${name}`, "i").test(pref);
+    return new RegExp(String.raw`\b${name}`, "i").test(pref);
   });
   if (closedNames.length > 0) {
     return `You mentioned you'd prefer ${pref} - I don't work ${closedNames.map((n) => `${n}s`).join(" or ")}, so I'll let you know which days I can do.`;
