@@ -205,7 +205,14 @@ test("provider-failure case: the enquiry persists with a safe state and an hones
   assert.equal(run.kind, "ran");
   if (run.kind !== "ran") return;
 
-  assert.equal(run.facts.length, 0, "a read that did not happen must never leave a fact behind");
+  // The rule-based reader may note "in the next week or two" in their own
+  // words - only ever inferred. Nothing from the failed provider is left.
+  assert.equal(
+    run.facts.filter((f) => f.provenance_kind !== "message").length,
+    0,
+    "a read that did not happen must never leave a fact behind",
+  );
+  for (const f of run.facts) assert.equal(f.status, "inferred", `${f.field}: a reading only`);
   assert.equal(
     run.enquiryAfterInterpretation.decision_state,
     "NEEDS_HUMAN",
@@ -224,7 +231,8 @@ test("provider-failure case: a configured-but-failing provider ALSO persists saf
   assert.equal(run.kind, "ran");
   if (run.kind !== "ran") return;
 
-  assert.equal(run.facts.length, 0);
+  assert.equal(run.facts.filter((f) => f.provenance_kind !== "message").length, 0);
+  for (const f of run.facts) assert.equal(f.status, "inferred", `${f.field}: a reading only`);
   assert.equal(run.enquiryAfterInterpretation.decision_state, "NEEDS_HUMAN");
   assert.equal(run.enquiryAfterInterpretation.commercial_state, "UNASSESSED");
   assert.ok(

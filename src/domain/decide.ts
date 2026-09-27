@@ -470,6 +470,7 @@ function gateCoverage(decided: Decision, ctx: CoverageContext): Decision {
     label: l.label,
     amountMinor: l.amountMinor,
     ...(l.count ? { quantity: l.count } : {}),
+    ...(l.detail?.startsWith("minimum charge") ? { note: "minimum charge" } : {}),
     ...(recurring && firstVisit(l, i) ? { firstVisit: true } : {}),
   }));
   const keyFacts = ctx.facts.map((f) => ({

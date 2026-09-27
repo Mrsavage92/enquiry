@@ -34,6 +34,8 @@ export type CoverageLine = {
   quantity?: string;
   /** Asked for on the first visit only, on a recurring job. */
   firstVisit?: boolean;
+  /** "minimum charge": why the amount is not the count times the rate. */
+  note?: string;
 };
 
 export type CoverageFlag = {
