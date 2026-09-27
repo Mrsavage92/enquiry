@@ -70,3 +70,13 @@ export function pricingLinkSearch(enquiry: Pick<Enquiry, "id" | "serviceLabel" |
 export function isPricingStep(step: SetupStep | null): boolean {
   return step?.kind === "add_prices" || step?.kind === "add_price";
 }
+
+/**
+ * After "Add a price for this job": back to the enquiry only when a price for
+ * that job actually saved. Anything else saved stays on the business screen,
+ * which says what was saved.
+ */
+export function pricedTheJob(saved: readonly { service: string }[], service?: string): boolean {
+  const wanted = (service ?? "").trim().toLowerCase();
+  return saved.some((r) => !wanted || r.service.trim().toLowerCase() === wanted);
+}

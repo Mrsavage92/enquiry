@@ -18,6 +18,7 @@ import {
   Store,
 } from "lucide-react";
 import { Link, useNavigate, useSearch } from "@tanstack/react-router";
+import { pricedTheJob } from "@/domain/next-action";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -816,9 +817,9 @@ export function BrainScreen() {
                         // to that enquiry, now worked out with the new price.
                         // Only when a price for that job actually saved;
                         // otherwise stay here and say what did save.
-                        const wanted = (search.service ?? "").trim().toLowerCase();
-                        const pricedIt = livePrices.prices.some(
-                          (p) => !wanted || p.rule.service.trim().toLowerCase() === wanted,
+                        const pricedIt = pricedTheJob(
+                          livePrices.prices.map((p) => p.rule),
+                          search.service,
                         );
                         if (search.back && left.length === 0 && pricedIt) {
                           toast.success("Saved. Back to the enquiry, worked out with your price.");
@@ -837,10 +838,13 @@ export function BrainScreen() {
                           setInput("");
                           setComposerOpen(false);
                         }
+                        const count = res.saved + res.details;
                         toast.success(
-                          updated
-                            ? "Saved. Open enquiries that were waiting on these prices have been worked out again."
-                            : "Saved. Enquiry can price these now.",
+                          search.back && !pricedIt && search.service
+                            ? `Saved ${count} ${count === 1 ? "detail" : "details"}. There is still no price for ${search.service.toLowerCase()} - add one to finish that enquiry.`
+                            : updated
+                              ? "Saved. Open enquiries that were waiting on these prices have been worked out again."
+                              : "Saved. Enquiry can price these now.",
                         );
                       } catch (err) {
                         toast.error(

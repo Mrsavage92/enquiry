@@ -456,3 +456,82 @@ test("9: a real price replaces the practice sample cleanly - never 'two prices d
   assert.doesNotMatch(JSON.stringify(after.decision_snapshot), /more than one price|Brain/);
   assert.ok(after.decision_snapshot.coverage, "priced with the real price");
 });
+
+// Review of PR #72 ----------------------------------------------------------------
+
+test("PR72 H1: a second minimum for the same jobs keeps the highest; another tenant saves nothing", async () => {
+  const pg = await freshDb();
+  const a = await tenant(pg, "user-a", "Alpha Painting");
+  await tenant(pg, "user-b", "Bravo Painting");
+  const minimums = async () =>
+    (
+      await pg.query<{ amount: string; state: string }>(
+        "select rule_payload->>'amount' as amount, state from knowledge_item where business_id = $1 and rule_payload->>'kind' = 'minimum_charge' order by created_at",
+        [a.businessId],
+      )
+    ).rows.map((r) => `${r.amount}:${r.state}`);
+  await saveDetails(pg, "user-a", a.businessId, [{ kind: "minimum_charge", amount: 300 }]);
+  await assert.rejects(
+    saveDetails(pg, "user-b", a.businessId, [{ kind: "minimum_charge", amount: 900 }]),
+    ForbiddenError,
+  );
+  assert.deepEqual(await minimums(), ["300:Active"]);
+  await saveDetails(pg, "user-a", a.businessId, [{ kind: "minimum_charge", amount: 450 }]);
+  assert.deepEqual(await minimums(), ["300:Superseded", "450:Active"]);
+  await saveDetails(pg, "user-a", a.businessId, [{ kind: "minimum_charge", amount: 200 }]);
+  assert.deepEqual(await minimums(), ["300:Superseded", "450:Active"], "a lower one is not saved");
+  // Both in one save: only the highest stands.
+  await saveDetails(pg, "user-a", a.businessId, [
+    { kind: "minimum_charge", amount: 500, service: "Deck staining" },
+    { kind: "minimum_charge", amount: 600, service: "Deck staining" },
+  ]);
+  const deck = await pg.query(
+    "select 1 from knowledge_item where business_id = $1 and state = 'Active' and rule_payload->>'service' = 'Deck staining'",
+    [a.businessId],
+  );
+  assert.equal(deck.rows.length, 1);
+});
+
+test("PR72: confirming a rough count keeps it rough; another tenant cannot confirm it", async () => {
+  const pg = await freshDb();
+  const a = await tenant(pg, "user-a", "Alpha Painting");
+  await tenant(pg, "user-b", "Bravo Painting");
+  await saveRule(pg, a.businessId, "Interior painting $30 per square metre");
+  const e = await enquiry(
+    pg,
+    a.businessId,
+    "interior painting one room, maybe 12sqm. Mick",
+    "Interior painting",
+  );
+  const before = await row(pg, e.enquiryId);
+  assert.equal(before.decision_snapshot.missing[0]?.inferred?.value, "12");
+  await assert.rejects(answer(pg, "user-b", e.enquiryId, "square metres", "12"), ForbiddenError);
+  const still = await row(pg, e.enquiryId);
+  assert.equal(still.decision_revision, before.decision_revision);
+  assert.deepEqual(still.decision_snapshot, before.decision_snapshot);
+  await answer(pg, "user-a", e.enquiryId, "square metres", "12");
+  assert.equal((await confirmCoverage(pg, "user-a", e.enquiryId)).ok, true);
+  const body = (await row(pg, e.enquiryId)).decision_snapshot.draft.body;
+  assert.match(body, /about \$360 \(about 12 square metres at \$30 each\)/);
+});
+
+test("PR72 H4: a closed-dates day only mentioned is said in the reply", async () => {
+  const pg = await freshDb();
+  const a = await tenant(pg, "user-a", "Alpha Painting");
+  await saveRule(pg, a.businessId, "Interior painting $30 per square metre");
+  await saveDetails(pg, "user-a", a.businessId, [
+    { kind: "closed_dates", from: "12-20", to: "01-05" },
+  ]);
+  const e = await enquiry(
+    pg,
+    a.businessId,
+    "Hi, need the lounge painted, 10 square metres, on the 22nd of December",
+    "Interior painting",
+  );
+  await answer(pg, "user-a", e.enquiryId, "square metres", "10");
+  assert.equal((await confirmCoverage(pg, "user-a", e.enquiryId)).ok, true);
+  assert.match(
+    (await row(pg, e.enquiryId)).decision_snapshot.draft.body,
+    /I'm not working from 20 December to 5 January\. Would Wednesday 6 January suit instead\?/,
+  );
+});
