@@ -18,7 +18,7 @@ export function blockerInput(field: string, label = ""): BlockerInput {
     return { inputMode: "text", placeholder: "e.g. Paddington" };
   }
   if (/hour|duration|length|time/.test(key))
-    return { inputMode: "text", placeholder: "e.g. 3 hours" };
+    return { inputMode: "numeric", placeholder: "e.g. 3" };
   if (/service|package|type/.test(key))
     return { inputMode: "text", placeholder: "e.g. Full repaint" };
   return { inputMode: "numeric", placeholder: "e.g. 4" };

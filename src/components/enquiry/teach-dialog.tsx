@@ -45,7 +45,7 @@ export function TeachDialog() {
           <Button
             className="min-h-12 w-full"
             onClick={() => {
-              const name = business?.name ?? "Business Brain";
+              const name = business?.name ?? "your business";
               decideTeach("teach");
               setBrainTab("learning");
               toast(`Proposed for ${name}. Confirm it if this should apply next time.`);

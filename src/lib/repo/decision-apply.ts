@@ -238,6 +238,10 @@ async function workOutDecision(
 function withPracticePrice(inputs: DecisionInputs, facts: LiveFact[]): DecisionInputs {
   const rule = practicePriceFrom(facts);
   if (!rule) return inputs;
+  // Once the owner saves a real price for the same job, the sample steps
+  // aside: never "two prices disagree" over a price they never set.
+  const same = (s: string) => s.trim().toLowerCase() === rule.service.trim().toLowerCase();
+  if (activeRules({ knowledge: inputs.knowledge }).some((r) => same(r.service))) return inputs;
   return {
     ...inputs,
     knowledge: [...inputs.knowledge, { state: "Active", rulePayload: rule }],

@@ -12,7 +12,8 @@ test("a count gets a number pad and a number example", () => {
 test("dates and places get a text field with an example in their own shape", () => {
   assert.equal(blockerInput("event_date", "Event date").placeholder, "e.g. Sat 17 Oct");
   assert.equal(blockerInput("suburb", "Suburb").inputMode, "text");
-  assert.equal(blockerInput("hours", "Hours needed").placeholder, "e.g. 3 hours");
+  // Hours are a count too (review 5b): a number pad, "3" not "3 hours".
+  assert.deepEqual(blockerInput("hours", "Hours needed"), { inputMode: "numeric", placeholder: "e.g. 3" });
 });
 
 test("notices default off and a half-typed time zone is never stored", async () => {

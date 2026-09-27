@@ -18,7 +18,8 @@ export type NoteDetail = {
   service?: string;
 };
 
-export type NotOfferedDetail = { kind: "not_offered"; service: string };
+/** `verb` keeps the owner's own verb: "We don't paint roofs" reads back "You don't paint roofs". */
+export type NotOfferedDetail = { kind: "not_offered"; service: string; verb?: string };
 
 /** 0 is Sunday, 6 is Saturday. */
 export type ClosedDaysDetail = { kind: "closed_days"; days: number[] };
@@ -110,7 +111,9 @@ export function parseBusinessDetail(
   if (r.kind === "not_offered") {
     const service = text(r.service);
     if (!service) return { ok: false, reason: "Say which service you do not offer." };
-    return { ok: true, detail: { kind: "not_offered", service } };
+    const verb = text(r.verb).toLowerCase();
+    const ownVerb = /^[a-z]{3,12}$/.test(verb) && !GENERIC_VERBS.has(verb) ? { verb } : {};
+    return { ok: true, detail: { kind: "not_offered", service, ...ownVerb } };
   }
   if (r.kind === "closed_days") {
     const days = Array.isArray(r.days) ? r.days : [];
@@ -250,7 +253,7 @@ export function describeDetail(detail: BusinessDetail): string {
     case "note":
       return detail.text;
     case "not_offered":
-      return `You don't offer ${detail.service.toLowerCase()}`;
+      return `You don't ${detail.verb ?? "offer"} ${detail.service.toLowerCase()}`;
     case "closed_days":
       return `You don't work ${dayList(detail.days)}`;
     case "minimum_charge":
@@ -350,7 +353,9 @@ const DAY_WORDS: [RegExp, number][] = [
 const NEGATIVE = /\b(?:don'?t|do not|never|not|no|closed)\b/i;
 const WORK_WORDS = /\b(?:work|working|open|trade|available|jobs?|bookings?)\b|\bclosed\b/i;
 const OFFER =
-  /^\s*(?:we|i)\s+(?:don'?t|do not|never|can'?t|cannot|won'?t)\s+(?:do|offer|provide|handle|take on|clean|paint|cover)\s+(?:any\s+)?(.+?)\s*[.!]*$/i;
+  /^\s*(?:we|i)\s+(?:don'?t|do not|never|can'?t|cannot|won'?t)\s+(do|offer|provide|handle|take on|clean|paint|cover)\s+(?:any\s+)?(.+?)\s*[.!]*$/i;
+/** Verbs that say nothing more than "offer": the read-back keeps "offer". */
+const GENERIC_VERBS = new Set(["do", "offer", "provide", "handle"]);
 
 /** The weekdays a line names ("Saturdays or Sundays", "weekends"). */
 function daysIn(line: string): number[] {
@@ -392,7 +397,7 @@ export function readDetailLine(line: string): DetailLineRead {
     return { kind: "closed_days", days };
   }
   const offer = OFFER.exec(line.replace(TRAIL, ""));
-  const service = (offer?.[1] ?? "")
+  const service = (offer?.[2] ?? "")
     .replace(/[.,;!]+$/, "")
     .replace(TRAIL, "")
     .trim();
@@ -406,7 +411,12 @@ export function readDetailLine(line: string): DetailLineRead {
   if (QUALIFIER.test(service) || service.split(/\s+/).length > 5 || daysIn(service).length > 0) {
     return { kind: "note", text: line.trim().replace(/[.;]+$/, "") };
   }
-  return { kind: "not_offered", service: service.toLowerCase() };
+  const verb = offer[1]!.toLowerCase();
+  return {
+    kind: "not_offered",
+    service: service.toLowerCase(),
+    ...(GENERIC_VERBS.has(verb) || verb.includes(" ") ? {} : { verb }),
+  };
 }
 
 export type DetailRead = { line: string; detail: BusinessDetail };

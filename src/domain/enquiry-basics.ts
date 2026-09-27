@@ -829,7 +829,7 @@ const NOT_A_NAME = new Set(
 /** "Mel", "O'Connor", "Smith-Jones", "McDonald". */
 const NAME_WORD = String.raw`[A-Z][a-z]*(?:['’-]?[A-Z][a-z]+|['’-][a-z]+)*`;
 /** "Priya Nair", or two first names joined as written: "Margaret & Tony", "Margaret and Tony". */
-const NAME = String.raw`(${NAME_WORD}(?:\s+(?:&|and)\s+${NAME_WORD}|\s+${NAME_WORD})?)`;
+const NAME = String.raw`(${NAME_WORD}(?:\s+(?:&|and)\s+${NAME_WORD})?(?:\s+${NAME_WORD})?)`;
 const PHONE = String.raw`\+?\d[\d\s()-]{6,}\d`;
 const EMAIL = String.raw`[\w.+-]+@[\w-]+(?:\.[\w-]+)+`;
 const CONTACT_TAIL = String.raw`(?:[\s,|]+(?:${PHONE}|${EMAIL}))*`;
@@ -1177,8 +1177,24 @@ function nameAboveRoleLines(text: string, ctx: NameContext): string | undefined 
   return name && name.includes(" ") ? name : undefined;
 }
 
+/**
+ * What is not the message: emoji ("Thx, Priya 😊"), a phone's footer ("Sent
+ * from my iPad"), and a one-line signature split by pipes ("Sarah Nguyen |
+ * Office Manager | Acme | 07 3000 1234"), which reads like the lines it is.
+ */
+const DEVICE_FOOTER =
+  /^\s*(?:sent from my\b.*|get outlook for\b.*|sent from (?:yahoo|mail|gmail|outlook)\b.*)$/gim;
+
+function withoutNoise(text: string): string {
+  return text
+    .replace(/\p{Extended_Pictographic}|\u200d|\ufe0f/gu, "")
+    .replace(DEVICE_FOOTER, "")
+    .replace(/[ \t]*\|[ \t]*/g, "\n")
+    .replace(/[ \t]+$/gm, "");
+}
+
 export function readCustomerName(text: string, ctx: NameContext = {}): string | undefined {
-  const trimmed = dropTrailingParen(text.trim());
+  const trimmed = dropTrailingParen(withoutNoise(text).trim());
   const fromLines = nameFromSignOffLines(trimmed, ctx);
   if (fromLines) return fromLines;
   if (fromLines === null) return nameAboveRoleLines(trimmed, ctx);

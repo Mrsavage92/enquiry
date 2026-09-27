@@ -359,7 +359,9 @@ const CLOSE = "Just let me know if you'd like to go ahead.";
  * asked is unanswered, the reply names no price at all.
  */
 export function composeReply(decision: Decision, opts: ReplyContext = {}): string {
-  const first = (opts.customerName ?? "").trim().split(/\s+/)[0] ?? "";
+  // "Margaret & Tony Russo" is greeted as "Margaret & Tony"; one name by its first word.
+  const who = (opts.customerName ?? "").trim();
+  const first = /^(\S+\s+(?:&|and)\s+\S+)/.exec(who)?.[1] ?? who.split(/\s+/)[0] ?? "";
   const greeting = first ? `Hi ${first},` : "Hi there,";
   const date = dateSentence(opts);
   const dateBlock = date ? [date, ""] : [];
@@ -426,7 +428,7 @@ export function composeReply(decision: Decision, opts: ReplyContext = {}): strin
       "",
       ...notesBlock(decision),
       ...dateBlock,
-      "Once I have that I can send the full cost straight back.",
+      "Once I have that I can send the price straight back.",
       "",
       signOff,
     ].join("\n");

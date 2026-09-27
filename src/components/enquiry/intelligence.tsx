@@ -1556,11 +1556,13 @@ function ConfidenceBadge({ confidence }: { confidence: ConfidenceBand }) {
   if (confidence === "Low") {
     return (
       <span className="inline-flex items-center gap-1 rounded-sm bg-warn-bg px-2 py-1 text-sm font-semibold text-warn">
-        Confidence Low
+        Check this one before you reply
       </span>
     );
   }
-  return <span className="text-xs text-stone">Confidence {confidence}</span>;
+  // A plain word only when it asks something of the owner; "Confidence High"
+  // was jargon beside a decision they can already read.
+  return null;
 }
 
 function groundedSummary(enquiry: Enquiry): string | null {

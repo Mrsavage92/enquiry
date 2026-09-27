@@ -18,7 +18,7 @@ import {
 } from "./extras.ts";
 import { formatMinorAud } from "./money-format.ts";
 import { digitsForWrittenNumber } from "./number-words.ts";
-import { activeDetails, type BusinessDetail } from "./business-detail.ts";
+import { activeDetails, describeDetail, type BusinessDetail } from "./business-detail.ts";
 import {
   COVERAGE_FIELD,
   coverageConfirmed,
@@ -58,6 +58,8 @@ export type QuestionPending = {
   span?: string;
   /** Read as "No" from the owner's own "we don't do ..." rule, not yet confirmed. */
   readAs?: "no";
+  /** That rule in the owner's words: "You don't paint roofs". */
+  said?: string;
 };
 
 /**
@@ -236,7 +238,11 @@ export function decideEnquiry(
   const decided = primary.price.kind === "EXACT" ? decideExtras(rules, primary, facts) : primary;
   const notes = replyNotesFrom(facts);
   const withNotes = notes.length ? { ...decided, replyNotes: notes } : decided;
-  const question = pendingQuestion(facts);
+  const pending = pendingQuestion(facts);
+  const rule = pending?.readAs
+    ? details.find((d) => d.kind === "not_offered" && namesService(pending.thing, d.service))
+    : undefined;
+  const question = pending && rule ? { ...pending, said: describeDetail(rule) } : pending;
   if (question) {
     return {
       ...withNotes,

@@ -15,11 +15,24 @@ import type { Business, Enquiry } from "./types";
 
 const IGNORED = new Set(["and", "the", "for", "with", "our", "your", "service", "services"]);
 
+/**
+ * The ways customers say what a service name says: "the inside" is interior,
+ * "3 bed" and "(3 bedroom)" are one word, "bond clean" is an end of lease
+ * clean. Applied to the message and the service names alike.
+ */
+const SAME_WORDS: [RegExp, string][] = [
+  [/\b(?:inside|internal|indoors?)\b/g, " interior "],
+  [/\b(?:outside|external|outdoors?)\b/g, " exterior "],
+  [/\bbond\s+clean/g, " end lease clean"],
+  [/\b(\d+)\s*-?\s*(?:bed(?:room)?s?|brs?|bdrms?)\b/g, " $1bedroom "],
+  [/\b(\d+)\s*-?\s*(?:bath(?:room)?s?)\b/g, " $1bathroom "],
+];
+
 function words(text: string): string[] {
-  return text
-    .toLowerCase()
-    .split(/[^a-z]+/)
-    .filter((w) => w.length >= 3 && !IGNORED.has(w));
+  const said = SAME_WORDS.reduce((t, [re, to]) => t.replace(re, to), text.toLowerCase());
+  return said
+    .split(/[^a-z0-9]+/)
+    .filter((w) => w.length >= 3 && !IGNORED.has(w) && !/^\d+$/.test(w));
 }
 
 /** A shared stem: "paint" in "painted" and "painting", "clean" in "cleaning". */
@@ -59,14 +72,13 @@ export function isFeeOrMinimum(service: string): boolean {
 export function rankServices(message: string, services: readonly string[]): string[] {
   const said = new Set(words(message).map(stem));
   return services
-    .map((service, i) => ({
-      service,
-      i,
-      score: words(service)
-        .map(stem)
-        .filter((w) => said.has(w)).length,
-    }))
-    .sort((a, b) => b.score - a.score || a.i - b.i)
+    .map((service, i) => {
+      const need = words(service).map(stem);
+      const hit = need.filter((w) => said.has(w)).length;
+      // More of its words said ranks first; then the one they said all of.
+      return { service, i, score: hit, share: need.length ? hit / need.length : 0 };
+    })
+    .sort((a, b) => b.score - a.score || b.share - a.share || a.i - b.i)
     .map((s) => s.service);
 }
 

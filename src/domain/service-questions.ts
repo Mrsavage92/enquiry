@@ -39,7 +39,7 @@ export type ServiceQuestion = {
 };
 
 const ASKS = [
-  /\b(?:do|would|could|can|will)\s+(?:you|u|ya)\s+(?:guys\s+)?(?:also\s+)?(?:do|offer|provide|handle|remove|fix|clean|paint|treat)\s+(?:any\s+)?([a-z][a-z' -]{2,50}?)\s*(\?|\.|,|!|$|\s+(?:as well|too|at all|also)\b)/gi,
+  /\b(?:do|would|could|can|will)\s+(?:you|u|ya)\s+(?:guys\s+)?(?:also\s+)?(?:do|offer|provide|handle|remove|fix|clean|paint|treat)\s+(?:any\s+)?([a-z][a-z0-9' -]{2,60}?)\s*(\?|\.|,|!|$|\s+(?:as well|too|at all|also)\b)/gi,
   /\bare\s+(?:you|u)\s+able\s+to\s+(?:do|remove|fix|clean|paint)\s+([a-z][a-z' -]{2,50}?)\s*(\?|\.|,|!|$)/gi,
   /\bis\s+([a-z][a-z' -]{2,40}?)\s+something\s+(?:you|u)\s+(?:do|offer)\b[^?]*(\?)/gi,
 ];
