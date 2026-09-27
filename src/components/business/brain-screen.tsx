@@ -814,7 +814,13 @@ export function BrainScreen() {
                         setLivePrices(null);
                         // Came from "Add a price for this job": straight back
                         // to that enquiry, now worked out with the new price.
-                        if (search.back && left.length === 0) {
+                        // Only when a price for that job actually saved;
+                        // otherwise stay here and say what did save.
+                        const wanted = (search.service ?? "").trim().toLowerCase();
+                        const pricedIt = livePrices.prices.some(
+                          (p) => !wanted || p.rule.service.trim().toLowerCase() === wanted,
+                        );
+                        if (search.back && left.length === 0 && pricedIt) {
                           toast.success("Saved. Back to the enquiry, worked out with your price.");
                           void navigate({
                             to: "/enquiries/$enquiryId",

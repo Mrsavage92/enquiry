@@ -30,6 +30,9 @@ export function readBusinessDetails(text: string): BusinessDetailsRead {
       }
       const service = price && "rule" in price ? price.rule.service : undefined;
       if (price && "rule" in price) out.prices.push({ ...price, line });
+      for (const part of rule.remainder ?? []) {
+        out.unread.push({ line: part, reason: NOT_A_PRICE, note: true });
+      }
       for (const detail of rule.details) {
         const tied =
           detail.kind === "minimum_charge" && !detail.service && service

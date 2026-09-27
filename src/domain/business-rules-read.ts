@@ -14,7 +14,27 @@ import type { BusinessDetail } from "./business-detail.ts";
  * metre, minimum charge $450") comes back with `priceLine`: the caller reads
  * the price from it and ties the minimum to that price's service.
  */
-export type RuleLineRead = { details: BusinessDetail[]; priceLine?: string };
+export type RuleLineRead = {
+  details: BusinessDetail[];
+  priceLine?: string;
+  /** Parts of the line that are not one of these rules, kept as a note, never dropped. */
+  remainder?: string[];
+};
+
+/**
+ * "Open through the Christmas break 20 Dec - 5 Jan", "Not closed ...", "No
+ * Saturday surcharge", "except", "unless": the line says a rule does NOT apply
+ * or only applies with a condition. Never read as the rule it names.
+ */
+const NEGATED =
+  /\b(?:open|work(?:ing)?|available)\s+(?:right\s+)?(?:through|over|during)\b|\bnot\s+closed\b|\bno\s+(?:\w+\s+)?(?:surcharge|loading|extra|penalty)\b|\bexcept\b|\bunless\b|\bno\s+longer\b/i;
+
+/** A condition a percentage rule cannot carry: "after 5pm", "public holidays". */
+const TIME_CONDITION = /\b(?:after|before|from|until)\s+\d|\d\s*(?:am|pm)\b|\bpublic\s+holidays?\b|\bnights?\b|\bevenings?\b/i;
+
+/** Work words: a service is named by one ("Exterior painting"); "Cash" is not a service. */
+const WORK_NOUN =
+  /(?:ing|clean|cleans|paint|repaint|repair|repairs|removal|wash|install|service|staining|mow|makeover|makeup|shoot|session)\b/i;
 
 const AMOUNT = String.raw`\$\s?(\d[\d,]*(?:\.\d{1,2})?)`;
 const ALL_AMOUNTS = /\$\s?\d/g;
@@ -167,7 +187,7 @@ function readMinimum(line: string): RuleLineRead | null {
 
 function readSurcharge(line: string): RuleLineRead | null {
   const pct = PERCENT.exec(line);
-  if (!pct || HAS_AMOUNT.test(line) || !MORE.test(line)) return null;
+  if (!pct || HAS_AMOUNT.test(line) || !MORE.test(line) || TIME_CONDITION.test(line)) return null;
   const days = daysIn(line);
   if (days.length === 0 || days.length === 7) return null;
   if (/\b(?:off|discount|less|cheaper)\b/i.test(line)) return null;
@@ -178,9 +198,13 @@ function readFee(line: string): RuleLineRead | null {
   if ((line.match(ALL_AMOUNTS) ?? []).length !== 1) return null;
   const amount = new RegExp(AMOUNT).exec(line);
   if (!amount) return null;
+  // Only a line that says it is a fee or a charge: "Rubbish removal $150" and
+  // "Tip run $120" are prices, and "End of lease clean $350 including
+  // parking" is the price of the job.
+  const saysFee = /\b(?:fees?|charges?|call[- ]?outs?|callouts?|surcharges?)\b/i.test(line);
+  if (!saysFee && !EXTRA_FOR.test(line)) return null;
+  if (/\b(?:incl(?:udes|uding)?|inclusive of)\b/i.test(line)) return null;
   const kind = FEE_KINDS.find(([re]) => re.test(line));
-  const isFee = /\bfees?\b/i.test(line) || Boolean(kind);
-  if (!isFee && !EXTRA_FOR.test(line)) return null;
   if (/\bper\b|\/\s*[a-z]|\ban?\s+(?:hour|room|window|metre)/i.test(line)) return null;
   const text = line.trim().replace(/[.;]+$/, "");
   return {
@@ -195,6 +219,7 @@ function readEligibility(line: string): RuleLineRead | null {
   const m = ONLY_DO.exec(line) ?? SERVICE_ONLY.exec(line);
   if (!m) return null;
   const service = serviceName(m[1]!.replace(/^(?:we|i)\s+(?:do\s+)?/i, ""));
+  if (!service || !WORK_NOUN.test(service)) return null;
   const condition = m[2]!.trim().replace(PLACE_TAIL, "").trim().toLowerCase();
   if (!service || !condition || condition.split(/\s+/).length > 6) return null;
   return {
@@ -217,11 +242,8 @@ function readClosedDates(line: string): RuleLineRead | null {
   return from && to ? { details: [{ kind: "closed_dates", from, to }] } : null;
 }
 
-/** A rule about money or eligibility, when the line is one; null otherwise. */
-export function readRuleLine(line: string): RuleLineRead | null {
-  const written = line
-    .replace(/(\d[\d,]*(?:\.\d{1,2})?)\s*(?:dollars?|bucks|aud)\b/gi, "$$$1")
-    .replace(/\b(?:aud|a\$)\s?(?=\d)/gi, "$$");
+function readOne(written: string): RuleLineRead | null {
+  if (NEGATED.test(written)) return null;
   return (
     readClosedDates(written) ??
     readMinimum(written) ??
@@ -229,4 +251,40 @@ export function readRuleLine(line: string): RuleLineRead | null {
     readEligibility(written) ??
     readFee(written)
   );
+}
+
+/** How many separate rules a line seems to state: percentages and date ranges. */
+function ruleSignals(line: string): number {
+  const percents = (line.match(/\d\s*%/g) ?? []).length;
+  const ranges =
+    (line.match(new RegExp(WORDED_RANGE.source, "gi")) ?? []).length +
+    (line.match(new RegExp(NUMERIC_RANGE.source, "gi")) ?? []).length;
+  return percents + ranges;
+}
+
+/**
+ * A rule about money or eligibility, when the line is one; null otherwise. A
+ * line stating more than one ("Saturdays 20% more, 25/12 to 26/12 closed") is
+ * split and each part read on its own; a part that is not a rule comes back as
+ * `remainder` so it is kept as a note, never silently dropped.
+ */
+export function readRuleLine(line: string): RuleLineRead | null {
+  const written = line
+    .replace(/(\d[\d,]*(?:\.\d{1,2})?)\s*(?:dollars?|bucks|aud)\b/gi, "$$$1")
+    .replace(/\b(?:aud|a\$)\s?(?=\d)/gi, "$$");
+  if (NEGATED.test(written)) return null;
+  if (ruleSignals(written) <= 1) return readOne(written);
+  const parts = written
+    .split(/[;.]\s+|,\s+|\s+and\s+(?=\w+days?\b)/i)
+    .map((p) => p.trim().replace(/[.;,]+$/, ""))
+    .filter(Boolean);
+  const details: BusinessDetail[] = [];
+  const remainder: string[] = [];
+  for (const part of parts) {
+    const read = readOne(part);
+    if (read && !read.priceLine) details.push(...read.details);
+    else remainder.push(part);
+  }
+  if (details.length === 0) return null;
+  return remainder.length ? { details, remainder } : { details };
 }

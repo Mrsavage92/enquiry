@@ -149,13 +149,15 @@ function askingSentences(message: string): string {
 const GENERIC_WORK = new Set(["clean", "paint", "servi", "wash", "repai", "insta"]);
 
 /**
- * Things that are part of the work itself, not something extra: the walls and
- * ceilings of an interior paint job, the skirting and the hair of a clean.
- * They fold into one "Included in ..." line instead of four buttons each.
+ * Things that are part of one service's own work, not something extra: the
+ * walls and ceilings of interior painting, the eaves of exterior painting, the
+ * skirting and the hair of an end of lease clean. They fold into one
+ * "Included in ..." line. Tied to the specific service: "walls" on a fence
+ * quote, or "cupboards" on an oven clean, stay a flag the owner settles.
  */
-const PART_OF: { work: RegExp; nouns: ReadonlySet<string> }[] = [
+const PART_OF: { work: RegExp; nouns: ReadonlySet<string>; notWith: RegExp }[] = [
   {
-    work: /\bpaint/i,
+    work: /\b(?:interior|inside|internal|indoor)\b/i,
     nouns: new Set([
       "wall",
       "walls",
@@ -168,30 +170,53 @@ const PART_OF: { work: RegExp; nouns: ReadonlySet<string> }[] = [
       "frames",
       "door",
       "doors",
-      "eaves",
-      "facade",
     ]),
+    notWith: /\b(?:outside|outdoors?|external|exterior|garage|fence|shed)\b/i,
   },
   {
-    work: /\bclean/i,
-    nouns: new Set([
-      "hair",
-      "skirting",
-      "skirtings",
-      "tracks",
-      "cupboards",
-      "cabinets",
-      "wardrobes",
-      "vents",
-      "fans",
-      "lights",
-    ]),
+    work: /\b(?:exterior|outside|external)\b/i,
+    nouns: new Set(["eaves", "facade"]),
+    notWith: /\b(?:inside|indoors?|internal|interior)\b/i,
+  },
+  {
+    work: /\b(?:end of lease|bond|regular|house|deep|spring|general|move[- ]?out)\b[^,]*\bclean|\bclean\b[^,]*\b(?:lease|bond)\b/i,
+    nouns: new Set(["hair", "skirting", "skirtings", "tracks", "cupboards", "cabinets", "wardrobes"]),
+    notWith: /(?!)/,
   },
 ];
 
-/** The quoted service a thing belongs to, if it is part of its work. */
-function partOf(noun: string, covered: readonly string[]): string | undefined {
-  return covered.find((c) => PART_OF.some((p) => p.work.test(c) && p.nouns.has(noun)));
+/** Words that make a thing separate work, whatever it is: "also the eaves". */
+const SEPARATE = /\b(?:also|as well|plus|extra|too|separately|another|additional)\b/i;
+
+/** The clauses of a message that hold a word. */
+function clausesWith(message: string, noun: string): string[] {
+  const re = new RegExp(`\\b${noun}\\b`, "i");
+  return message.split(/[.,;!?\n]|\s-\s|\s–\s/).filter((c) => re.test(c));
+}
+
+/**
+ * The quoted service a thing belongs to, only when it is clearly part of that
+ * service's own work: never when another of their saved services is about it,
+ * and never when they say it separately ("also", "outside").
+ */
+function partOf(
+  noun: string,
+  covered: readonly string[],
+  others: readonly string[],
+  message: string,
+): string | undefined {
+  const s = stem(noun);
+  if (others.some((o) => stemsOf(o).includes(s))) return undefined;
+  const clauses = clausesWith(message, noun);
+  return covered.find((c) =>
+    PART_OF.some(
+      (p) =>
+        p.work.test(c) &&
+        p.nouns.has(noun) &&
+        clauses.length > 0 &&
+        clauses.every((clause) => !SEPARATE.test(clause) && !p.notWith.test(clause)),
+    ),
+  );
 }
 
 /**
@@ -226,7 +251,10 @@ function mentionFlags(
     const s = stem(noun);
     if (coveredStems.has(s) || named.has(s)) continue;
     named.add(s);
-    const owner = partOf(noun, covered);
+    const others = services.filter(
+      (o) => !covered.some((c) => c.trim().toLowerCase() === o.trim().toLowerCase()),
+    );
+    const owner = partOf(noun, covered, others, text);
     if (owner) {
       folded.set(owner, [...(folded.get(owner) ?? []), noun]);
       continue;
