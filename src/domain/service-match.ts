@@ -41,13 +41,40 @@ function stem(word: string): string {
   return word.length > 5 ? word.slice(0, 5) : word;
 }
 
+/** "inside is fine", "no need to do the deck": not what they want. */
+const NOT_WANTED =
+  /\b(?:is|are)\s+(?:fine|ok|okay|good|done|sorted)\b|\bno need\b|\bdon'?t need\b|\bnot needed\b|\bdoesn'?t need\b/i;
+
+function plainWords(text: string): string[] {
+  return text
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .filter((w) => w.length >= 3 && !IGNORED.has(w));
+}
+
+/**
+ * What the message asks for, each stem weighted: their own word counts 1, a
+ * word only read through a synonym ("outside" for exterior) counts half, so
+ * "paint the fence outside" is fence painting before exterior painting.
+ */
+function saidWeights(message: string): Map<string, number> {
+  const text = message
+    .split(/[,.;!?\n]|\s-\s|\bbut\b/i)
+    .filter((c) => !NOT_WANTED.test(c))
+    .join(". ");
+  const plain = new Set(plainWords(text).map(stem));
+  const out = new Map<string, number>();
+  for (const w of words(text).map(stem)) out.set(w, plain.has(w) ? 1 : 0.5);
+  return out;
+}
+
 export function suggestService(message: string, services: readonly string[]): string | undefined {
-  const said = new Set(words(message).map(stem));
+  const said = saidWeights(message);
   const scored = [...new Set(services.map((s) => s.trim()).filter(Boolean))]
     .map((service) => {
       const need = words(service).map(stem);
       const all = need.length > 0 && need.every((w) => said.has(w));
-      return { service, score: all ? need.length : 0 };
+      return { service, score: all ? need.reduce((n, w) => n + (said.get(w) ?? 0), 0) : 0 };
     })
     .filter((s) => s.score > 0)
     .sort((a, b) => b.score - a.score);
@@ -71,13 +98,14 @@ export function isFeeOrMinimum(service: string): boolean {
  * service's words the message uses; ties keep the business's own order.
  */
 export function rankServices(message: string, services: readonly string[]): string[] {
-  const said = new Set(words(message).map(stem));
+  const said = saidWeights(message);
   return services
     .map((service, i) => {
       const need = words(service).map(stem);
+      const score = need.reduce((n, w) => n + (said.get(w) ?? 0), 0);
       const hit = need.filter((w) => said.has(w)).length;
       // More of its words said ranks first; then the one they said all of.
-      return { service, i, score: hit, share: need.length ? hit / need.length : 0 };
+      return { service, i, score, share: need.length ? hit / need.length : 0 };
     })
     .sort((a, b) => b.score - a.score || b.share - a.share || a.i - b.i)
     .map((s) => s.service);

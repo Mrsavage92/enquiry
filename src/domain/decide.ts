@@ -238,7 +238,7 @@ export function decideEnquiry(
   const primary = decidePrimary(rules, serviceLabel, facts);
   const knownServices = [...new Set(rules.map((r) => r.service))];
   const decided = primary.price.kind === "EXACT" ? decideExtras(rules, primary, facts) : primary;
-  const notes = replyNotesFrom(facts);
+  const notes = replyNotesFrom(facts, details);
   const withNotes = notes.length ? { ...decided, replyNotes: notes } : decided;
   const pending = pendingQuestion(facts);
   const rule = pending?.readAs
@@ -287,19 +287,13 @@ function questionOnlyNo(
   asked: { message: string; services: readonly string[] },
 ): string[] | undefined {
   if (primary.setup !== "choose_service") return undefined;
-  // Only a message that is nothing but the question: "paint the inside ...
-  // Do you paint roofs?" also asks for painting, and that is never dropped.
-  const rest = asked.message
-    .split(/(?<=[.!?\n])/)
-    .filter((sentence) => !sentence.includes("?"))
-    .join(" ");
-  if (mentionsAny(rest, [...new Set(asked.services.flatMap(stemsOf))])) return undefined;
   const answered = facts.filter((f) => isQuestionField(f.field) && f.status === "confirmed");
   const noes = answered.filter((f) => String(f.value) === QUESTION_ANSWER.no);
   if (noes.length === 0 || noes.length !== answered.length) return undefined;
-  return noes.flatMap((f) => {
-    const thing = questionThing(f.field);
-    const line = questionReplyLine(thing, QUESTION_ANSWER.no);
+  const things = noes.map((f) => questionThing(f.field));
+  if (!onlyTheQuestions(asked.message, things, asked.services)) return undefined;
+  return things.flatMap((thing) => {
+    const line = noLine(thing, details);
     const referral = details.find(
       (d) =>
         d.kind === "note" &&
@@ -309,6 +303,61 @@ function questionOnlyNo(
     const said = referral && referral.kind === "note" ? referral.text.replace(/[.!]*$/, ".") : null;
     return [line, said].filter((x): x is string => Boolean(x));
   });
+}
+
+/** "Sorry, I don't paint roofs." - in the owner's own verb when they saved one. */
+export function noLine(thing: string, details: readonly BusinessDetail[]): string {
+  const rule = details.find(
+    (d) => d.kind === "not_offered" && Boolean(d.verb) && namesService(thing, d.service),
+  );
+  const verb = rule && rule.kind === "not_offered" ? rule.verb : undefined;
+  return verb ? `Sorry, I don't ${verb} ${thing}.` : `Sorry, I don't do ${thing}.`;
+}
+
+/** Hello, thanks and a name: never content of their own. */
+const PLEASANTRY =
+  /^(?:hi|hello|hey|g'?day|morning|thanks|thank you|thx|cheers|regards|kind regards|ta)\b/i;
+/** Words that ask for more than the question: "also", "if so", "as well", "quote". */
+const ASKS_MORE =
+  /\b(?:also|as well|if so|too|and|quote|price|cost|can you|could you|would you|do you|please|pls|need|needs|want|keen|after|looking|book)\b/i;
+
+function escapeRe(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+/**
+ * The message is nothing but the questions answered No: every sentence is one
+ * of those questions, a pleasantry, a name, or a few words about the thing
+ * asked ("Driveway only."). Anything else - another service, "also", "if so",
+ * "as well", "and painting" - keeps the enquiry open.
+ */
+function onlyTheQuestions(
+  message: string,
+  things: readonly string[],
+  services: readonly string[],
+): boolean {
+  const serviceStems = [...new Set(services.flatMap(stemsOf))];
+  const questions = things.map(
+    (t) =>
+      new RegExp(
+        String.raw`\b(?:do|would|could|can|will|are)\s+(?:you|u|ya)\s+(?:guys\s+)?(?:also\s+)?(?:able\s+to\s+)?(?:\w+\s+)?(?:any\s+)?${escapeRe(t)}\s*[?.!]*`,
+        "gi",
+      ),
+  );
+  const sentences = message
+    .split(/(?<=[.!?\n])/)
+    .map((x) => x.trim())
+    .filter(Boolean);
+  for (const sentence of sentences) {
+    const rest = questions.reduce((r, q) => r.replace(q, " "), sentence).trim();
+    const words = rest.replace(/[^\p{L}\p{N}' ]/gu, " ").trim();
+    if (!words) continue;
+    if (PLEASANTRY.test(words) && words.split(/\s+/).length <= 4) continue;
+    if (/^[A-Z][a-z]+(?:\s+[A-Z][a-z]+)?$/.test(words)) continue;
+    if (ASKS_MORE.test(words) || mentionsAny(words, serviceStems)) return false;
+    if (words.split(/\s+/).length > 6) return false;
+  }
+  return true;
 }
 
 /** The first question they asked that the owner has not answered. */
@@ -331,12 +380,19 @@ function pendingQuestion(facts: ReadonlyArray<DecideFact>): QuestionPending | un
 }
 
 /** Answered questions and things the owner will come back on, in the order asked. */
-function replyNotesFrom(facts: ReadonlyArray<DecideFact>): string[] {
+function replyNotesFrom(
+  facts: ReadonlyArray<DecideFact>,
+  details: readonly BusinessDetail[] = [],
+): string[] {
   const out: string[] = [];
   for (const f of facts) {
     if (f.status !== "confirmed") continue;
     if (isQuestionField(f.field)) {
-      const line = questionReplyLine(questionThing(f.field), String(f.value));
+      const thing = questionThing(f.field);
+      const line =
+        String(f.value) === QUESTION_ANSWER.no
+          ? noLine(thing, details)
+          : questionReplyLine(thing, String(f.value));
       if (line) out.push(line);
     }
     if (isExtraField(f.field) && String(f.value) === EXTRA_CHOICE.comeBack) {
