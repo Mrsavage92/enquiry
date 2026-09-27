@@ -1175,13 +1175,36 @@ html.embed .site-nav {
   .app-root [role="tab"] {
     touch-action: manipulation;
   }
+  /*
+    Each position keeps only its own edge. Forcing "bottom" on every toaster
+    stretched the top-centred one on /enquiries/:id from y 8 to y 772, and
+    that transparent box caught the taps meant for the buttons under it.
+  */
   body:has(.app-root) [data-sonner-toaster] {
     width: min(24rem, calc(100vw - 1.5rem));
     transform: translate(-50%);
-    bottom: calc(4.5rem + var(--app-safe-bottom)) !important;
     left: 50% !important;
     right: auto !important;
   }
+  body:has(.app-root) [data-sonner-toaster][data-y-position="bottom"] {
+    top: auto !important;
+    bottom: calc(4.5rem + var(--app-safe-bottom)) !important;
+  }
+  body:has(.app-root) [data-sonner-toaster][data-y-position="top"] {
+    top: calc(0.5rem + var(--app-safe-top)) !important;
+    bottom: auto !important;
+  }
+}
+
+/*
+  The toaster list never takes a tap or focus: only a toast itself does, so a
+  tap beside a toast lands on the button underneath it.
+*/
+[data-sonner-toaster] {
+  pointer-events: none;
+}
+[data-sonner-toaster] [data-sonner-toast][data-visible="true"] {
+  pointer-events: auto;
 }
 
 @media (prefers-reduced-motion: reduce) {
