@@ -261,7 +261,9 @@ test("a saved note shows on the quote it concerns; a weekend note flags a weeken
   });
   const flags = d.coverage?.flagged.map((f) => f.text) ?? [];
   assert.ok(flags.includes("Your note: Carpet steam $40 a room, not available on weekends"));
-  assert.ok(flags.includes("A day they asked about is a Sunday - you don't work Sundays"));
+  assert.ok(
+    flags.includes("A day they mentioned is a Sunday - you don't work Sundays, the reply says so"),
+  );
 });
 
 // 4. Non-price business details and questions -------------------------------

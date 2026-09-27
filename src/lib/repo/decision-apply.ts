@@ -1,8 +1,9 @@
 import type { Sql } from "../db.ts";
 import { activeRules, decideEnquiry } from "../../domain/decide.ts";
-import { ASAP_VALUE, replyContextFromFacts } from "../../domain/reply-context.ts";
+import { ASAP_VALUE, isFollowUp, replyContextFromFacts } from "../../domain/reply-context.ts";
 import { practicePriceFrom } from "./practice-price.ts";
 import { COVERAGE_FIELD } from "../../domain/coverage.ts";
+import { activeDetails, closedTimesOf } from "../../domain/business-detail.ts";
 import { snapshotFromDecision, stateFromDecision } from "../../domain/decision-snapshot.ts";
 import type { Decision } from "../../domain/decide.ts";
 import {
@@ -178,6 +179,7 @@ function decideFrom(
   enquiry: { serviceLabel: string; customerName: string },
   facts: LiveFact[],
   messageText = "",
+  followUp = false,
 ): WorkedDecision {
   const decision = decideEnquiry(
     { knowledge: inputs.knowledge },
@@ -195,6 +197,8 @@ function decideFrom(
       customerName: enquiry.customerName,
       ownerFirstName: inputs.ownerFirstName,
       serviceLabel: enquiry.serviceLabel,
+      closed: closedTimesOf(activeDetails({ knowledge: inputs.knowledge })),
+      followUp,
     }),
   );
   return { decision, snapshot, state: stateFromDecision(decision) };
@@ -234,6 +238,10 @@ async function workOutDecision(
 function withPracticePrice(inputs: DecisionInputs, facts: LiveFact[]): DecisionInputs {
   const rule = practicePriceFrom(facts);
   if (!rule) return inputs;
+  // Once the owner saves a real price for the same job, the sample steps
+  // aside: never "two prices disagree" over a price they never set.
+  const same = (s: string) => s.trim().toLowerCase() === rule.service.trim().toLowerCase();
+  if (activeRules({ knowledge: inputs.knowledge }).some((r) => same(r.service))) return inputs;
   return {
     ...inputs,
     knowledge: [...inputs.knowledge, { state: "Active", rulePayload: rule }],
@@ -269,9 +277,17 @@ async function readAndDecide(
   facts = [...facts, ...extras, ...questions];
   const text = messages.map((m) => m.body).join("\n");
   const priced = withPracticePrice(inputs, facts);
-  let worked = decideFrom(priced, who, facts, text);
+  const [sent] = await sql<{ n: number }>`
+    select count(*)::int as n from message
+    where enquiry_id = ${enquiryId} and direction = ${"outbound"}
+  `;
+  const followUp = isFollowUp(
+    messages.map((m) => m.body),
+    Number(sent?.n ?? 0) > 0,
+  );
+  let worked = decideFrom(priced, who, facts, text, followUp);
   const read = await inferBlockedQuantity(sql, enquiryId, worked.decision, facts, messages);
-  if (read) worked = decideFrom(priced, who, [...facts, read], text);
+  if (read) worked = decideFrom(priced, who, [...facts, read], text, followUp);
   return worked;
 }
 

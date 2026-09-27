@@ -117,7 +117,7 @@ export const STATUS = {
   followUp: "Follow up",
   // The action that parks an enquiry. Its chip says when it comes back.
   later: "Later",
-  parked: "Parked",
+  parked: "Later",
   // A quoted customer who has gone quiet. Was "Needs a look", which read as a
   // second "Needs you" queue beside the real one.
   goneQuiet: "Gone quiet",

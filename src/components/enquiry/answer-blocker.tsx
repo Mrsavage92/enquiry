@@ -136,7 +136,11 @@ export function AnswerBlocker({
         <p className="text-sm leading-relaxed text-ink">From their message: “{said}”. Correct?</p>
         <div className="mt-3 flex flex-wrap gap-2">
           <Button className="min-h-11" disabled={saving} onClick={() => void submit(reading.value)}>
-            {saving ? "Working it out…" : `Yes, ${phrase}`}
+            {saving
+              ? "Working it out…"
+              : /\b(?:about|roughly|around|approx|maybe|nearly|almost|ish)\b|~/i.test(said)
+                ? `Yes, about ${phrase}`
+                : `Yes, ${phrase}`}
           </Button>
           <Button
             className="min-h-11"

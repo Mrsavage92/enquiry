@@ -20,7 +20,10 @@ test("a message that names one service pre-selects it", () => {
 test("a message that could be two services selects nothing", () => {
   // "painted" fits neither name completely: Enquiry does not guess.
   assert.equal(
-    suggestService("we need the inside of our house painted before we sell", PAINTER),
+    suggestService("we need our house painted before we sell", [
+      "Interior painting",
+      "Exterior painting",
+    ]),
     undefined,
   );
   assert.equal(suggestService("clean please", ["Regular clean", "Deep clean"]), undefined);
@@ -36,4 +39,25 @@ test("the more specific of two matching names wins", () => {
 test("nothing to match against, nothing suggested", () => {
   assert.equal(suggestService("anything", []), undefined);
   assert.equal(suggestService("", PAINTER), undefined);
+});
+
+test("review 5b: the customer's own words for a service count - 'the inside', '3 bed'", async () => {
+  const { rankServices } = await import("./service-match.ts");
+  // "the inside ... painted" is interior painting, ranked and pre-selected first.
+  assert.equal(
+    suggestService("we need the inside of our house painted before we sell", PAINTER),
+    "Interior painting",
+  );
+  const all = ["Deck staining", "Exterior painting", "Interior painting", "Oven clean"];
+  assert.equal(rankServices("paint the inside of our house", all)[0], "Interior painting");
+  // "3 bed" is the 3-bedroom clean, never the oven clean they also mention.
+  const clean = ["End of lease clean (2 bedroom)", "End of lease clean (3 bedroom)", "Oven clean"];
+  assert.equal(
+    suggestService("end of lease clean 3 bed + oven asap", clean),
+    "End of lease clean (3 bedroom)",
+  );
+  assert.equal(
+    suggestService("2br end of lease clean pls", clean),
+    "End of lease clean (2 bedroom)",
+  );
 });

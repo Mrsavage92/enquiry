@@ -5,6 +5,7 @@ import { formatMinorAud } from "./money-format.ts";
 import { dateQuestion, type DateIssue } from "./enquiry-basics.ts";
 import { countOf, countParts, howMany, humanField, isOwnerEstimate } from "./count-phrase.ts";
 import { SERVICE_NOUNS } from "./extras.ts";
+import { spokenMonthDay } from "./business-detail.ts";
 
 export { humanField, howMany };
 
@@ -37,7 +38,81 @@ export type ReplyContext = {
    * back as written, and the owner says which works.
    */
   dateOptions?: string;
+  /**
+   * A reply in a conversation already going ("the quote you sent last week"):
+   * never opened with "Thanks for getting in touch", as if they were new.
+   */
+  followUp?: boolean;
+  /** A day read from the message but not asked about: checked against closed days only. */
+  mentionedDateIso?: string;
+  mentionedDateSpan?: string;
+  /** The days offered, yyyy-mm-dd, first preferred: checked against closed days. */
+  dateOptionIsos?: string[];
+  /** "tuesdays pref": a day of the week they prefer, in their words. */
+  dayPreference?: string;
+  /** "week of the 12th", "tomorrow arvo": a loose ask, quoted back as written. */
+  approxSpan?: string;
+  /**
+   * When the business does not work, from its own saved rules: the reply never
+   * says it will "confirm whether" a day the owner already said is closed.
+   */
+  closed?: ClosedTimes;
 };
+
+/**
+ * Days of the week (0 is Sunday) and yearly date ranges ("12-24" to "01-02",
+ * month-day) the owner said they don't work.
+ */
+export type ClosedTimes = {
+  days: readonly number[];
+  ranges?: readonly { from: string; to: string }[];
+};
+
+function inRange(iso: string, r: { from: string; to: string }): boolean {
+  const md = iso.slice(5);
+  return r.from <= r.to ? md >= r.from && md <= r.to : md >= r.from || md <= r.to;
+}
+
+const DAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+
+function dateOf(iso: string): Date | null {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso.trim());
+  if (!m) return null;
+  return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+}
+
+function isoOf(d: Date): string {
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+}
+
+/** "I don't work Sundays", "I'm not working from 24 December to 2 January", or null. */
+export function closedReason(iso: string, closed: ClosedTimes | undefined): string | null {
+  const date = dateOf(iso);
+  if (!date || !closed) return null;
+  if (closed.days.includes(date.getDay())) return `I don't work ${DAY_NAMES[date.getDay()]}s`;
+  const range = (closed.ranges ?? []).find((r) => inRange(iso, r));
+  if (!range) return null;
+  return `I'm not working from ${spokenMonthDay(range.from)} to ${spokenMonthDay(range.to)}`;
+}
+
+/** The first day after this one the owner works, within about two months. */
+export function nextWorkingDay(iso: string, closed: ClosedTimes | undefined): string | null {
+  const date = dateOf(iso);
+  if (!date) return null;
+  for (let i = 1; i <= 62; i += 1) {
+    const next = new Date(date.getFullYear(), date.getMonth(), date.getDate() + i);
+    if (!closedReason(isoOf(next), closed)) return isoOf(next);
+  }
+  return null;
+}
+
+/** "Would Monday 12 October suit instead?", or asking them for another day. */
+function offerInstead(iso: string, closed: ClosedTimes | undefined): string {
+  const next = nextWorkingDay(iso, closed);
+  const day = next ? spokenDate(next) : null;
+  return day ? `Would ${day} suit instead?` : "What other day would suit you?";
+}
 
 /** "2026-10-03" -> "Saturday 3 October", or null for anything else. */
 export function spokenDate(iso: string | undefined): string | null {
@@ -89,16 +164,72 @@ export function dateLine(iso: string | undefined, span?: string, confirmed = tru
 /** The one date sentence a reply carries, if any. */
 function dateSentence(opts: ReplyContext): string | null {
   if (opts.dateIssue) return dateQuestion(opts.dateIssue, opts.asap);
-  if (opts.dateOptions?.trim()) {
-    return `You mentioned ${spokenSpan(opts.dateOptions)} - I'll confirm which day works.`;
-  }
+  if (opts.dateOptions?.trim()) return optionsSentence(opts.dateOptions, opts);
+  const closedLine = closedDaySentence(opts);
+  if (closedLine) return closedLine;
   const line = dateLine(
     opts.jobDateIso,
     opts.jobDateSpan,
     opts.jobDateConfirmed ?? !opts.jobDateSpan,
   );
   if (line) return line;
-  return opts.asap ? "I'll let you know the soonest day I can do it." : null;
+  if (opts.asap) return "I'll let you know the soonest day I can do it.";
+  if (opts.approxSpan?.trim()) {
+    const span = spokenSpan(opts.approxSpan);
+    return /\b(?:week|fortnight|month|days)\b/i.test(span)
+      ? `You mentioned ${span} - I'll confirm which day works.`
+      : `You mentioned ${span} - I'll confirm whether that works.`;
+  }
+  return preferenceSentence(opts);
+}
+
+/**
+ * A day they asked for that the owner said they don't work: said plainly, with
+ * the next day they do. Only for a day read from the message - a day the owner
+ * confirmed is the owner's call.
+ */
+function closedDaySentence(opts: ReplyContext): string | null {
+  if (opts.jobDateConfirmed) return null;
+  const iso = opts.jobDateIso ?? opts.mentionedDateIso;
+  if (!iso) return null;
+  const reason = closedReason(iso, opts.closed);
+  if (!reason) return null;
+  const span = opts.jobDateIso ? opts.jobDateSpan : opts.mentionedDateSpan;
+  const said = span?.trim() ? spokenSpan(span) : spokenDate(iso);
+  return `You mentioned ${said} - ${reason}. ${offerInstead(iso, opts.closed)}`;
+}
+
+/** Two days offered, the first preferred: a closed one is said, the other offered. */
+function optionsSentence(span: string, opts: ReplyContext): string {
+  const said = spokenSpan(span);
+  const [first, second] = opts.dateOptionIsos ?? [];
+  const firstClosed = first ? closedReason(first, opts.closed) : null;
+  const secondClosed = second ? closedReason(second, opts.closed) : null;
+  if (!first || !second || (!firstClosed && !secondClosed)) {
+    return `You mentioned ${said} - I'll confirm which day works.`;
+  }
+  if (firstClosed && !secondClosed) {
+    return `You mentioned ${said} - ${firstClosed}, so would ${spokenDate(second)} suit?`;
+  }
+  if (!firstClosed) {
+    return `You mentioned ${said} - I'll confirm whether ${spokenDate(first)} works.`;
+  }
+  const reasons = [...new Set([firstClosed, secondClosed])].join(" and ");
+  return `You mentioned ${said} - ${reasons}. ${offerInstead(first, opts.closed)}`;
+}
+
+/** "tuesdays pref": a preference, never a date. A closed day in it is said plainly. */
+function preferenceSentence(opts: ReplyContext): string | null {
+  const pref = opts.dayPreference?.trim();
+  if (!pref) return null;
+  const closedNames = DAY_NAMES.filter((name, i) => {
+    if (!(opts.closed?.days ?? []).includes(i)) return false;
+    return new RegExp(String.raw`\b${name}`, "i").test(pref);
+  });
+  if (closedNames.length > 0) {
+    return `You mentioned you'd prefer ${pref} - I don't work ${closedNames.map((n) => `${n}s`).join(" or ")}, so I'll let you know which days I can do.`;
+  }
+  return `You mentioned you'd prefer ${pref} - I'll confirm which day I can do.`;
 }
 
 /** "120 square metres", "1 bedroom": a count said the way a person says it. */
@@ -171,10 +302,14 @@ function priceBlock(decision: Decision): string[] {
   // One line with its workings already says the count: "(3 bedrooms at $70
   // each)" is not repeated as "(3 bedrooms)".
   const single = lines.length === 1 && lines[0]?.detail;
-  const covered = single ? `the ${lines[0]!.label.toLowerCase()}` : listPhrase(lines);
+  // "For the oven clean, that comes to $108" - a Saturday rate or a travel fee
+  // is itemised below, never named as something they asked for.
+  const jobs = lines.filter((l) => !l.adjustment);
+  const covered = single ? `the ${lines[0]!.label.toLowerCase()}` : listPhrase(jobs);
+  const about = decision.approximate ? "about " : "";
   const head = recurring
-    ? `For ${covered}, that's ${total} per visit`
-    : `For ${covered}, that comes to ${total}`;
+    ? `For ${covered}, that's ${about}${total} per visit`
+    : `For ${covered}, that comes to ${about}${total}`;
   const body =
     lines.length > 1
       ? [`${head}:`, ...itemised(lines, currency)]
@@ -185,7 +320,10 @@ function priceBlock(decision: Decision): string[] {
   const left = decision.leftOut?.length
     ? [`I haven't included ${joinLabels(decision.leftOut.map(withArticle))} in this price.`]
     : [];
-  const after = [...firstVisit, ...left];
+  const rough = decision.approximate
+    ? ["That's from the rough size you gave - I'll confirm the final price once I've seen it."]
+    : [];
+  const after = [...firstVisit, ...left, ...rough];
   return after.length ? [...body, "", ...after] : body;
 }
 
@@ -234,15 +372,24 @@ const CLOSE = "Just let me know if you'd like to go ahead.";
  * asked is unanswered, the reply names no price at all.
  */
 export function composeReply(decision: Decision, opts: ReplyContext = {}): string {
-  const first = (opts.customerName ?? "").trim().split(/\s+/)[0] ?? "";
+  // "Margaret & Tony Russo" is greeted as "Margaret & Tony"; one name by its first word.
+  const who = (opts.customerName ?? "").trim();
+  const first = /^(\S+\s+(?:&|and)\s+\S+)/.exec(who)?.[1] ?? who.split(/\s+/)[0] ?? "";
   const greeting = first ? `Hi ${first},` : "Hi there,";
   const date = dateSentence(opts);
   const dateBlock = date ? [date, ""] : [];
   const signOff = opts.ownerFirstName?.trim() ? `Thanks,\n${opts.ownerFirstName.trim()}` : "Thanks";
   const service = (opts.serviceLabel ?? "").trim();
-  const thanks = service
-    ? `Thanks for getting in touch about ${service.toLowerCase()}.`
-    : "Thanks for getting in touch.";
+  const hello = opts.followUp ? "Thanks for your message." : "Thanks for getting in touch.";
+  const thanks = opts.followUp
+    ? hello
+    : service
+      ? `Thanks for getting in touch about ${service.toLowerCase()}.`
+      : hello;
+  // A kind no: their question or the job is outside what the owner does.
+  if (decision.action === "DECLINE" && decision.declined?.length) {
+    return [greeting, "", hello, "", ...decision.declined, "", signOff].join("\n");
+  }
   const coverageOpen = decision.coverage ? !decision.coverage.confirmed : false;
   // Nothing priced goes in the reply while something they asked for is unsettled.
   const onHold =
@@ -294,7 +441,7 @@ export function composeReply(decision: Decision, opts: ReplyContext = {}): strin
       "",
       ...notesBlock(decision),
       ...dateBlock,
-      "Once I have that I can send the full cost straight back.",
+      "Once I have that I can send the price straight back.",
       "",
       signOff,
     ].join("\n");
@@ -305,7 +452,7 @@ export function composeReply(decision: Decision, opts: ReplyContext = {}): strin
   return [
     greeting,
     "",
-    "Thanks for getting in touch.",
+    hello,
     "",
     service
       ? `Let me check the details on ${service.toLowerCase()} and come straight back to you.`

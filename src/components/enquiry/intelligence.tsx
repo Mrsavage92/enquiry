@@ -61,7 +61,7 @@ import { discardSavedDraft, useDraftSaver, useDraftSaveState } from "@/lib/works
 import { comesBackCue, jobDateCue, lastSent, parkedUntil, statusChip } from "@/domain/time-cues";
 import { nextStepLabel, promiseVerdict, STATUS } from "@/domain/labels";
 import { LaterChoices } from "./later-choices";
-import { isPricingStep, setupStep } from "@/domain/next-action";
+import { isPricingStep, pricingLinkSearch, setupStep } from "@/domain/next-action";
 import { toastRecordedSend } from "@/lib/workspace/send-undo";
 import { PracticeBadge, PracticeNote } from "./practice-note";
 import { ExtraDecision } from "./extra-decision";
@@ -1126,14 +1126,7 @@ export function Intelligence({
                     asChild
                     className={cn("w-full", compact ? "min-h-14 text-base" : "min-h-11")}
                   >
-                    <Link
-                      to="/business"
-                      search={
-                        enquiry.decision.extraPending?.kind === "no_price"
-                          ? { section: "pricing", service: enquiry.decision.extraPending.label }
-                          : { section: "pricing" }
-                      }
-                    >
+                    <Link to="/business" search={pricingLinkSearch(enquiry)}>
                       {setup.label}
                     </Link>
                   </Button>
@@ -1556,11 +1549,13 @@ function ConfidenceBadge({ confidence }: { confidence: ConfidenceBand }) {
   if (confidence === "Low") {
     return (
       <span className="inline-flex items-center gap-1 rounded-sm bg-warn-bg px-2 py-1 text-sm font-semibold text-warn">
-        Confidence Low
+        Check this one before you reply
       </span>
     );
   }
-  return <span className="text-xs text-stone">Confidence {confidence}</span>;
+  // A plain word only when it asks something of the owner; "Confidence High"
+  // was jargon beside a decision they can already read.
+  return null;
 }
 
 function groundedSummary(enquiry: Enquiry): string | null {

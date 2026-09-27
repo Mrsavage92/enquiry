@@ -17,7 +17,8 @@ import {
   ShieldCheck,
   Store,
 } from "lucide-react";
-import { useNavigate, useSearch } from "@tanstack/react-router";
+import { Link, useNavigate, useSearch } from "@tanstack/react-router";
+import { pricedTheJob } from "@/domain/next-action";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -42,7 +43,13 @@ import { PRICE_EXAMPLE } from "@/domain/price-sentence";
 import { describeRule } from "@/domain/business-rule";
 import { replacementsFor } from "@/domain/price-replacement";
 import { readBusinessDetails, type BusinessDetailsRead } from "@/domain/business-details-read";
-import { describeDetail, noteFor } from "@/domain/business-detail";
+import {
+  activeDetails,
+  describeDetail,
+  detailEffect,
+  minimumClash,
+  noteFor,
+} from "@/domain/business-detail";
 import { activeRules } from "@/domain/decide";
 import { concreteWhen } from "@/domain/time-cues";
 import { decidingPhrase } from "@/domain/price-compiler";
@@ -100,7 +107,11 @@ export function BrainScreen() {
   const [notesChosen, setNotesChosen] = useState<Set<string>>(new Set());
   const [savingPrices, setSavingPrices] = useState(false);
   const firstBeta = useFirstBetaActions();
-  const search = useSearch({ strict: false }) as { section?: string; service?: string };
+  const search = useSearch({ strict: false }) as {
+    section?: string;
+    service?: string;
+    back?: string;
+  };
   const pricingRef = useRef<HTMLDivElement>(null);
   const tellRef = useRef<HTMLTextAreaElement>(null);
   const focusComposer = usePrototype((s) => s.brainFocusComposer);
@@ -437,6 +448,15 @@ export function BrainScreen() {
           </div>
         ) : null}
 
+        {search.back ? (
+          <Link
+            to="/enquiries/$enquiryId"
+            params={{ enquiryId: search.back }}
+            className="ui-text-link mt-4 inline-flex min-h-11 items-center"
+          >
+            Back to the enquiry
+          </Link>
+        ) : null}
         {!composerOpen ? (
           <Button variant="ghost" className="mt-5" onClick={() => setComposerOpen(true)}>
             <Plus size={16} />
@@ -711,13 +731,18 @@ export function BrainScreen() {
                   {livePrices.details.map((d) => (
                     <li key={d.line}>
                       <p className="font-medium">{describeDetail(d.detail)}</p>
-                      <p className="mt-0.5 text-ink-2">
-                        {d.detail.kind === "closed_days"
-                          ? "Enquiry flags a day they ask for that you don't work."
-                          : d.detail.kind === "not_offered"
-                            ? "When a customer asks if you do it, Enquiry reads that as No for you to confirm."
-                            : "Shown to you on the quotes it concerns."}
-                      </p>
+                      <p className="mt-0.5 text-ink-2">{detailEffect(d.detail)}</p>
+                      {minimumClash(d.detail, [
+                        ...activeDetails(business ?? {}),
+                        ...livePrices.details.map((x) => x.detail),
+                      ]) ? (
+                        <p className="mt-0.5 font-medium text-warn">
+                          {minimumClash(d.detail, [
+                            ...activeDetails(business ?? {}),
+                            ...livePrices.details.map((x) => x.detail),
+                          ])}
+                        </p>
+                      ) : null}
                     </li>
                   ))}
                 </ul>
@@ -788,6 +813,22 @@ export function BrainScreen() {
                           (u) => !(u.note && notesChosen.has(u.line)),
                         );
                         setLivePrices(null);
+                        // Came from "Add a price for this job": straight back
+                        // to that enquiry, now worked out with the new price.
+                        // Only when a price for that job actually saved;
+                        // otherwise stay here and say what did save.
+                        const pricedIt = pricedTheJob(
+                          livePrices.prices.map((p) => p.rule),
+                          search.service,
+                        );
+                        if (search.back && left.length === 0 && pricedIt) {
+                          toast.success("Saved. Back to the enquiry, worked out with your price.");
+                          void navigate({
+                            to: "/enquiries/$enquiryId",
+                            params: { enquiryId: search.back },
+                          });
+                          return;
+                        }
                         if (left.length > 0) {
                           setInput(left.map((u) => u.line).join("\n"));
                           setTellError(
@@ -797,10 +838,13 @@ export function BrainScreen() {
                           setInput("");
                           setComposerOpen(false);
                         }
+                        const count = res.saved + res.details;
                         toast.success(
-                          updated
-                            ? "Saved. Open enquiries that were waiting on these prices have been worked out again."
-                            : "Saved. Enquiry can price these now.",
+                          search.back && !pricedIt && search.service
+                            ? `Saved ${count} ${count === 1 ? "detail" : "details"}. There is still no price for ${search.service.toLowerCase()} - add one to finish that enquiry.`
+                            : updated
+                              ? "Saved. Open enquiries that were waiting on these prices have been worked out again."
+                              : "Saved. Enquiry can price these now.",
                         );
                       } catch (err) {
                         toast.error(

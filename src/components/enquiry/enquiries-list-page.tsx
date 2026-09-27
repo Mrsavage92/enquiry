@@ -11,13 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Segmented } from "@/components/ui/segmented";
 import { channelLabel } from "@/domain/channel";
 import { jobDateCue, rowTimeCue, statusChip } from "@/domain/time-cues";
-import {
-  emptyTabMessage,
-  filteredEnquiries,
-  nextStepLabel,
-  queueSection,
-  QUEUE_NAMES,
-} from "@/domain/labels";
+import { emptyTabMessage, filteredEnquiries, nextStepLabel, QUEUE_NAMES } from "@/domain/labels";
 import { statusTone } from "@/domain/status-tone";
 import { usePrototype, type QueueFilter } from "@/store/prototype-store";
 
@@ -157,14 +151,14 @@ export function EnquiriesListPage() {
                             </p>
                             <PracticeBadge enquiry={enquiry} />
                           </div>
+                          {/* The owner's next step leads, as on Today; a
+                              waiting row says who it waits on and for what. */}
+                          <p className="mt-1 text-sm font-medium text-ink">
+                            {nextStepLabel(enquiry)}
+                          </p>
                           <p className="enquiries-customer-service mt-1 truncate text-sm text-ink-2">
                             {enquiry.serviceLabel}
                           </p>
-                          {queueSection(enquiry) === "waiting" && !enquiry.snoozedUntil ? (
-                            // Who it waits on and for what, so nothing relies
-                            // on remembering what was asked.
-                            <p className="mt-1 text-sm text-ink-2">{nextStepLabel(enquiry)}</p>
-                          ) : null}
                           {businessFilter === "all" && business?.name ? (
                             <p className="enquiries-customer-business mt-1 truncate text-xs text-stone">
                               {business.name}

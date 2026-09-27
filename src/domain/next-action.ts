@@ -51,7 +51,32 @@ export function setupStep(enquiry: Pick<Enquiry, "state" | "decision">): SetupSt
   return { kind, label: LABELS[kind] };
 }
 
+/**
+ * Where "Add a price for this job" goes: the pricing box, started with the
+ * job's name, and the enquiry to come back to once the price is saved.
+ */
+export function pricingLinkSearch(enquiry: Pick<Enquiry, "id" | "serviceLabel" | "decision">): {
+  section: "pricing";
+  service?: string;
+  back: string;
+} {
+  const extra = enquiry.decision?.extraPending;
+  const service =
+    extra?.kind === "no_price" ? extra.label : (enquiry.serviceLabel ?? "").trim() || undefined;
+  return { section: "pricing", ...(service ? { service } : {}), back: enquiry.id };
+}
+
 /** Whether the step is done on the business pricing screen. */
 export function isPricingStep(step: SetupStep | null): boolean {
   return step?.kind === "add_prices" || step?.kind === "add_price";
+}
+
+/**
+ * After "Add a price for this job": back to the enquiry only when a price for
+ * that job actually saved. Anything else saved stays on the business screen,
+ * which says what was saved.
+ */
+export function pricedTheJob(saved: readonly { service: string }[], service?: string): boolean {
+  const wanted = (service ?? "").trim().toLowerCase();
+  return saved.some((r) => !wanted || r.service.trim().toLowerCase() === wanted);
 }

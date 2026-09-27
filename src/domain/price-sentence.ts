@@ -150,11 +150,11 @@ export function unitFromService(service: string): string {
 }
 
 function conditionReason(word: string): string {
-  return `It only applies in some cases ("${word} ..."), so it is a conditional price, not one set price. Enquiry will not quote it by itself. Save it as a note Enquiry shows you, and put the plain price on its own line if there is one.`;
+  return `It only applies in some cases ("${word} ..."), so it is a conditional price, not one set price. Put the plain price on its own line if there is one.`;
 }
 
 const FEE_REASON =
-  "A fee or a minimum is added to a job only in some cases, so Enquiry will not put it on a quote by itself. Save it as a note Enquiry shows you on each quote.";
+  "A fee or a minimum is added to a job only in some cases, so Enquiry will not put it on a quote by itself.";
 // Whole words only: "flat" is not "fl" + "at".
 const TRAIL_FILLER =
   /(?:(?:^|\s+)(?:will be|would be|is|are|costs?|charged at|priced at|at|for|flat rate|flat fee|flat|fixed price|fixed)|\s*(?:=|:|-|–))\s*$/i;
@@ -199,8 +199,11 @@ function unitWord(raw: string): string {
   return UNIT_WORDS[u] ?? u;
 }
 
+/** "Oven clean $90 extra": an add-on price, the same as "Oven clean $90". */
+const ADD_ON_TAIL = /\s+(?:extra|additional|add[- ]?on)\s*[.!]*\s*$/i;
+
 export function readPriceLine(original: string): ReadPrice | UnreadLine {
-  const line = dollarsWritten(original);
+  const line = dollarsWritten(original).replace(ADD_ON_TAIL, "");
   const condition = CONDITIONAL.exec(line);
   if (condition && AMOUNT.test(line)) {
     const word = condition[0].replace(/[()]/g, "").trim().toLowerCase() || "only";
@@ -307,7 +310,7 @@ function readSetPrice(line: string): ReadPrice | UnreadLine {
   if (/[a-z]/i.test(left)) {
     return {
       line,
-      reason: `It says "${left}" as well as the price, so it only applies in some cases. Enquiry will not quote it by itself. Save it as a note Enquiry shows you, or write the price as its own service (for example "${service} (${left})").`,
+      reason: `It says "${left}" as well as the price, so it only applies in some cases. To quote it, write it as its own service (for example "${service} (${left})").`,
       note: true,
     };
   }

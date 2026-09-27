@@ -41,7 +41,7 @@ import { statusTone } from "@/domain/status-tone";
 import type { Enquiry, WorkspacePrefs } from "@/domain/types";
 import { usePrototype } from "@/store/prototype-store";
 import { AddEnquiry } from "./add-enquiry";
-import { isPricingStep, setupStep } from "@/domain/next-action";
+import { isPricingStep, pricingLinkSearch, setupStep } from "@/domain/next-action";
 import { useFirstBetaActions } from "@/lib/workspace/live-mutations";
 import { toast } from "sonner";
 import { PracticeBadge } from "./practice-note";
@@ -122,7 +122,7 @@ function StartHere({ enquiry, prefs }: { enquiry: Enquiry; prefs: WorkspacePrefs
         // business screen, so the button goes there, enabled.
         <>
           <Button asChild className="mt-4 min-h-12 w-full sm:w-auto">
-            <Link to="/business" search={{ section: "pricing" }}>
+            <Link to="/business" search={pricingLinkSearch(enquiry)}>
               {setup?.label} <ArrowRight size={16} aria-hidden />
             </Link>
           </Button>

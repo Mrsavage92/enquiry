@@ -279,7 +279,7 @@ test("C13: the chip and the verdict use one word each; a parked chip says when i
     snoozedUntil: "2026-09-29T08:00:00+10:00",
   };
   const chip = statusChip(parked, new Date("2026-09-26T09:00:00+10:00"), "Australia/Brisbane");
-  assert.equal(chip, "Parked until Tue 29 Sep");
+  assert.equal(chip, "Later until Tue 29 Sep");
   assert.equal(derivedLabel(parked.state, parked), STATUS.parked);
 });
 

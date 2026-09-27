@@ -1,7 +1,8 @@
 import type { BusinessDetail } from "./business-detail.ts";
-import { WEEKDAYS } from "./business-detail.ts";
+import { WEEKDAYS, spokenMonthDay } from "./business-detail.ts";
 import { DECLINED, NOT_A_REQUEST, SERVICE_NOUNS } from "./extras.ts";
 import { distinctiveStems, mentionsAny, namesService, stem, stemsOf } from "./service-words.ts";
+import type { RuleCheck } from "./rule-checks.ts";
 
 /**
  * What a price covers, confirmed by the owner before any reply may name it.
@@ -33,11 +34,21 @@ export type CoverageLine = {
   quantity?: string;
   /** Asked for on the first visit only, on a recurring job. */
   firstVisit?: boolean;
+  /** "minimum charge": why the amount is not the count times the rate. */
+  note?: string;
 };
 
 export type CoverageFlag = {
-  kind: "mention" | "note" | "closed_day" | "not_offered" | "recurring";
+  kind: "mention" | "note" | "closed_day" | "not_offered" | "recurring" | "rule" | "included";
   text: string;
+  /** A rule of the owner's to apply or waive for this job (kind "rule"). */
+  check?: RuleCheck;
+  /**
+   * Things they mention that are part of the quoted service ("walls",
+   * "ceilings" for interior painting), folded into one line (kind "included").
+   * Not blocking: the owner changes one only if it is not included.
+   */
+  things?: string[];
   /**
    * What was mentioned ("deck", "Fence painting", "mould removal"). Set on a
    * flag the owner must settle before confirming: add it, leave it out and
@@ -138,6 +149,85 @@ function askingSentences(message: string): string {
 const GENERIC_WORK = new Set(["clean", "paint", "servi", "wash", "repai", "insta"]);
 
 /**
+ * Things that are part of one service's own work, not something extra: the
+ * walls and ceilings of interior painting, the eaves of exterior painting, the
+ * skirting and the hair of an end of lease clean. They fold into one
+ * "Included in ..." line. Tied to the specific service: "walls" on a fence
+ * quote, or "cupboards" on an oven clean, stay a flag the owner settles.
+ */
+const PART_OF: { work: RegExp; nouns: ReadonlySet<string>; notWith: RegExp }[] = [
+  {
+    work: /\b(?:interior|inside|internal|indoor)\b/i,
+    nouns: new Set([
+      "wall",
+      "walls",
+      "ceiling",
+      "ceilings",
+      "skirting",
+      "skirtings",
+      "trim",
+      "architraves",
+      "frames",
+      "door",
+      "doors",
+    ]),
+    notWith: /\b(?:outside|outdoors?|external|exterior|garage|fence|shed)\b/i,
+  },
+  {
+    work: /\b(?:exterior|outside|external)\b/i,
+    nouns: new Set(["eaves", "facade"]),
+    notWith: /\b(?:inside|indoors?|internal|interior)\b/i,
+  },
+  {
+    work: /\b(?:end of lease|bond|regular|house|deep|spring|general|move[- ]?out)\b[^,]*\bclean|\bclean\b[^,]*\b(?:lease|bond)\b/i,
+    nouns: new Set([
+      "hair",
+      "skirting",
+      "skirtings",
+      "tracks",
+      "cupboards",
+      "cabinets",
+      "wardrobes",
+    ]),
+    notWith: /(?!)/,
+  },
+];
+
+/** Words that make a thing separate work, whatever it is: "also the eaves". */
+const SEPARATE = /\b(?:also|as well|plus|extra|too|separately|another|additional)\b/i;
+
+/** The clauses of a message that hold a word. */
+function clausesWith(message: string, noun: string): string[] {
+  const re = new RegExp(`\\b${noun}\\b`, "i");
+  return message.split(/[.,;!?\n]|\s-\s|\s–\s/).filter((c) => re.test(c));
+}
+
+/**
+ * The quoted service a thing belongs to, only when it is clearly part of that
+ * service's own work: never when another of their saved services is about it,
+ * and never when they say it separately ("also", "outside").
+ */
+function partOf(
+  noun: string,
+  covered: readonly string[],
+  others: readonly string[],
+  message: string,
+): string | undefined {
+  const s = stem(noun);
+  if (others.some((o) => stemsOf(o).includes(s))) return undefined;
+  const clauses = clausesWith(message, noun);
+  return covered.find((c) =>
+    PART_OF.some(
+      (p) =>
+        p.work.test(c) &&
+        p.nouns.has(noun) &&
+        clauses.length > 0 &&
+        clauses.every((clause) => !SEPARATE.test(clause) && !p.notWith.test(clause)),
+    ),
+  );
+}
+
+/**
  * Things the message mentions that nothing on the quote covers: another saved
  * service, or a thing a business does ("deck", "gutters"). Shown to the owner
  * as flags; never priced, never assumed.
@@ -163,12 +253,28 @@ function mentionFlags(
     out.push({ kind: "mention", text: `They mention ${service.toLowerCase()}`, thing: service });
   }
   const words = new Set(text.toLowerCase().match(/[a-z]+/g) ?? []);
+  const folded = new Map<string, string[]>();
   for (const noun of SERVICE_NOUNS) {
     if (noun.includes(" ") || !words.has(noun)) continue;
     const s = stem(noun);
     if (coveredStems.has(s) || named.has(s)) continue;
     named.add(s);
+    const others = services.filter(
+      (o) => !covered.some((c) => c.trim().toLowerCase() === o.trim().toLowerCase()),
+    );
+    const owner = partOf(noun, covered, others, text);
+    if (owner) {
+      folded.set(owner, [...(folded.get(owner) ?? []), noun]);
+      continue;
+    }
     out.push({ kind: "mention", text: `They mention the ${noun}`, thing: noun });
+  }
+  for (const [service, things] of folded) {
+    out.push({
+      kind: "included",
+      text: `Included in ${service.toLowerCase()}: ${things.join(", ")}`,
+      things,
+    });
   }
   return out;
 }
@@ -185,8 +291,13 @@ function noteConcerns(
   note: { text: string; service?: string },
   message: string,
   onQuote: (service: string) => boolean,
+  services: readonly string[] = [],
 ): boolean {
   if (note.service) return onQuote(note.service);
+  // A note that names another of their services is about that service: a
+  // painting minimum never shows on a cleaning quote.
+  const about = services.filter((s) => namesService(note.text, s));
+  if (about.length > 0) return about.some(onQuote);
   const subject = note.text.split(/\$|\d/)[0] ?? note.text;
   if (EVERY_QUOTE.test(subject)) return true;
   return mentionsAny(message, stemsOf(subject));
@@ -197,12 +308,13 @@ function detailFlags(
   covered: readonly string[],
   message: string,
   jobDates: readonly string[] = [],
+  services: readonly string[] = [],
 ): CoverageFlag[] {
   const onQuote = (service: string) =>
     covered.some((c) => c.trim().toLowerCase() === service.trim().toLowerCase());
   const out: CoverageFlag[] = [];
   for (const d of details) {
-    if (d.kind === "note" && noteConcerns(d, message, onQuote)) {
+    if (d.kind === "note" && noteConcerns(d, message, onQuote, services)) {
       out.push({ kind: "note", text: `Your note: ${d.text}` });
     }
     if (d.kind === "not_offered" && namesService(message, d.service) && !onQuote(d.service)) {
@@ -222,7 +334,19 @@ function detailFlags(
     flaggedDays.add(day);
     out.push({
       kind: "closed_day",
-      text: `A day they asked about is a ${WEEKDAYS[day]} - you don't work ${WEEKDAYS[day]}s`,
+      text: `A day they mentioned is a ${WEEKDAYS[day]} - you don't work ${WEEKDAYS[day]}s, the reply says so`,
+    });
+  }
+  const ranges = details.flatMap((d) => (d.kind === "closed_dates" ? [d] : []));
+  const inRange = (iso: string, r: { from: string; to: string }) => {
+    const md = iso.slice(5);
+    return r.from <= r.to ? md >= r.from && md <= r.to : md >= r.from || md <= r.to;
+  };
+  const hit = ranges.find((r) => jobDates.some((iso) => inRange(iso, r)));
+  if (hit) {
+    out.push({
+      kind: "closed_day",
+      text: `A day they mentioned is in your closed dates (${spokenMonthDay(hit.from)} to ${spokenMonthDay(hit.to)}) - the reply says so`,
     });
   }
   return out;
@@ -241,10 +365,22 @@ export function coverageFlags(input: {
   details: readonly BusinessDetail[];
   jobDates?: readonly string[];
 }): CoverageFlag[] {
-  return [
-    ...mentionFlags(input.message, input.covered, input.services),
-    ...detailFlags(input.details, input.covered, input.message, input.jobDates),
-  ];
+  const details = detailFlags(
+    input.details,
+    input.covered,
+    input.message,
+    input.jobDates,
+    input.services,
+  );
+  // "carpets" and "carpet cleaning - you don't offer it" are one thing: the
+  // not-offered flag says it, the bare mention goes.
+  const notOffered = details
+    .filter((f) => f.kind === "not_offered")
+    .flatMap((f) => stemsOf(f.thing ?? ""));
+  const mentions = mentionFlags(input.message, input.covered, input.services).filter(
+    (f) => f.kind !== "mention" || !stemsOf(f.thing ?? "").some((s) => notOffered.includes(s)),
+  );
+  return [...mentions, ...details];
 }
 
 /**

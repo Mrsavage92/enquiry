@@ -7,8 +7,14 @@ import { applyDecision, isClosed, lockEnquiry } from "./decision-apply.ts";
 import type { EnquiryInterpreter, InterpretFailureReason } from "../interpret/types.ts";
 import { readEnquiryBasics, type DateReading } from "../../domain/enquiry-basics.ts";
 import { blockedQuantity, findQuantityInMessages, newExtraRequests } from "./quantity-inference.ts";
-import { ASAP_VALUE, replyContextFromFacts } from "../../domain/reply-context.ts";
-import { activeDetails } from "../../domain/business-detail.ts";
+import {
+  APPROX_VALUE,
+  ASAP_VALUE,
+  DAY_PREFERENCE_FIELD,
+  isFollowUp,
+  replyContextFromFacts,
+} from "../../domain/reply-context.ts";
+import { activeDetails, closedTimesOf } from "../../domain/business-detail.ts";
 import { questionField, readServiceQuestions } from "../../domain/service-questions.ts";
 import { namesService } from "../../domain/service-words.ts";
 
@@ -170,12 +176,18 @@ export async function insertManualEnquiry(
         customerName,
         ownerFirstName: owner?.owner_first_name ?? undefined,
         serviceLabel: input.serviceLabel,
+        closed: closedTimesOf(activeDetails(business)),
+        followUp: isFollowUp([input.body]),
       },
     ),
   );
   const state = stateFromDecision(decision);
   const dateLabel =
-    basics.jobDate?.label ?? basics.dates.options?.label ?? (basics.dates.asap ? "ASAP" : null);
+    basics.jobDate?.label ??
+    basics.dates.options?.label ??
+    (basics.dates.asap ? "ASAP" : null) ??
+    (basics.dates.approx ? `"${basics.dates.approx.span}"` : null) ??
+    (basics.dates.preference ? `Prefers ${basics.dates.preference}` : null);
 
   const rows = await sql<{ id: string }>`
     insert into enquiry (
@@ -265,7 +277,7 @@ export function modelFactsToKeep<T extends { field: string }>(
   let questions = 0;
   return facts.filter((f) => {
     const field = f.field.trim().toLowerCase();
-    if (OWNER_ONLY_FIELDS.has(field)) return false;
+    if (OWNER_ONLY_FIELDS.has(field) || field.startsWith("rule:")) return false;
     const isExtra = field.startsWith("extra:");
     const isQuestion = field.startsWith("question:");
     if (!isExtra && !isQuestion) return true;
@@ -379,6 +391,30 @@ function dateFacts(dates: DateReading): ArrivalFact[] {
     });
   } else if (dates.asap) {
     out.push(readFact("date", ASAP_VALUE, "As soon as possible", "asap", "Job date"));
+  } else if (dates.approx) {
+    // "week of the 12th", "tomorrow arvo": their words, never a worked-out day.
+    const span = dates.approx.span;
+    out.push({
+      ...readFact("date", APPROX_VALUE, `"${span}"`, span, "Job date"),
+      provenance: {
+        kind: "message",
+        label: "Read from the customer's message",
+        span,
+        asked: true,
+      },
+    });
+  }
+  if (dates.preference) {
+    // "tuesdays pref": a preference, never turned into the next Tuesday.
+    out.push(
+      readFact(
+        DAY_PREFERENCE_FIELD,
+        dates.preference,
+        `Prefers ${dates.preference}`,
+        dates.preference,
+        "Day they prefer",
+      ),
+    );
   }
   if (dates.context.length) {
     out.push(

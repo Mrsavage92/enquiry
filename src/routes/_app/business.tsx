@@ -7,13 +7,20 @@ import { BrainScreen } from "@/components/business/brain-screen";
  * thing a customer asked for that has no price yet ("Add a price for oven
  * cleaning"), so the box starts with its name.
  */
-type BusinessSearch = { section?: "pricing"; service?: string };
+type BusinessSearch = { section?: "pricing"; service?: string; back?: string };
 
 export const Route = createFileRoute("/_app/business")({
   validateSearch: (search: Record<string, unknown>): BusinessSearch => {
     if (search.section !== "pricing") return {};
     const service = typeof search.service === "string" ? search.service.trim().slice(0, 80) : "";
-    return service ? { section: "pricing", service } : { section: "pricing" };
+    // The enquiry to return to after saving: an id, nothing else.
+    const back =
+      typeof search.back === "string" && /^[\w-]{1,64}$/.test(search.back) ? search.back : "";
+    return {
+      section: "pricing",
+      ...(service ? { service } : {}),
+      ...(back ? { back } : {}),
+    };
   },
   component: BrainScreen,
 });

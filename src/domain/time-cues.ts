@@ -42,13 +42,13 @@ export function concreteWhen(iso: string, now = new Date(), tz = DEFAULT_ZONE): 
 }
 
 /**
- * Where a parked enquiry is: "Parked until 3:15pm today", "Parked until
- * tomorrow 8:00am", "Parked until Mon 28 Sep". The day keeps its capitals
+ * Where a parked enquiry is: "Later until 3:15pm today", "Later until
+ * tomorrow 8:00am", "Later until Mon 28 Sep". The day keeps its capitals
  * wherever the sentence is used.
  */
 /**
  * The chip on a row or header: the status word, except a parked enquiry says
- * when it comes back ("Parked until Tue 29 Sep") rather than a second word.
+ * when it comes back ("Later until Tue 29 Sep") rather than a second word.
  */
 export function statusChip(enquiry: Enquiry, now = new Date(), tz = DEFAULT_ZONE): string {
   const label = derivedLabel(enquiry.state, enquiry);
@@ -66,6 +66,8 @@ export function statusChip(enquiry: Enquiry, now = new Date(), tz = DEFAULT_ZONE
 export function jobDateCue(enquiry: Pick<Enquiry, "dateLabel" | "facts">): string {
   const label = enquiry.dateLabel?.trim();
   if (!label) return "";
+  // A preference ("Prefers Tuesdays") is never a date: shown as it is.
+  if (/^Prefers /.test(label)) return label;
   const date = (enquiry.facts ?? []).find(
     (f) => !f.superseded && f.field.trim().toLowerCase() === "date",
   );
@@ -105,13 +107,13 @@ export function byDueness(a: Enquiry, b: Enquiry): number {
 export function parkedUntil(untilIso: string, now = new Date(), tz = DEFAULT_ZONE): string {
   const back = wall(untilIso, tz);
   const today = wall(now, tz);
-  if (!back || !today) return "Parked";
+  if (!back || !today) return "Later";
   const key = dayKeyFromDate(back);
-  if (key === dayKeyFromDate(today)) return `Parked until ${clock(back)} today`;
+  if (key === dayKeyFromDate(today)) return `Later until ${clock(back)} today`;
   if (key === dayKeyFromDate(addCalendarDays(today, 1))) {
-    return `Parked until tomorrow ${clock(back)}`;
+    return `Later until tomorrow ${clock(back)}`;
   }
-  return `Parked until ${format(back, "EEE d MMM", { locale: enAU })}`;
+  return `Later until ${format(back, "EEE d MMM", { locale: enAU })}`;
 }
 
 /** A day to come back on: "today", "tomorrow", "Tue 29 Sep". */

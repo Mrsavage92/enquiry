@@ -244,7 +244,7 @@ function ambiguityMessage(
 ): string {
   const names = [...new Set(choices.map((c) => c.service))];
   if (reason === "conflicting_rules") {
-    return `${names[0] ?? service} has more than one price marked Active right now, so Enquiry will not choose between them. Settle which price applies in the Brain.`;
+    return `${names[0] ?? service} has more than one price marked Active right now, so Enquiry will not choose between them. Choose which price applies on the Business screen.`;
   }
   return `"${service}" could be ${names.slice(0, -1).join(", ")} or ${names[names.length - 1]}. Confirm which one they are asking for.`;
 }

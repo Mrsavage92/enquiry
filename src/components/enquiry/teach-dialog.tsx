@@ -18,8 +18,10 @@ export function TeachDialog() {
   const navigate = useNavigate();
   const phone = useNarrow(860);
   const enquiry = enquiries.find((e) => e.id === teach?.enquiryId);
-  const business =
-    resolveBusiness(businesses, enquiry?.businessId, { demoMode, fixtures: BUSINESS_BY_ID });
+  const business = resolveBusiness(businesses, enquiry?.businessId, {
+    demoMode,
+    fixtures: BUSINESS_BY_ID,
+  });
   const Panel = phone ? SheetContent : DialogContent;
 
   return (
@@ -27,9 +29,10 @@ export function TeachDialog() {
       <Panel title="Is this just for this enquiry?">
         <p className="text-sm leading-relaxed text-ink-2">{teach?.proposal}</p>
         {phone ? null : (
-        <p className="mt-3 text-sm text-ink-2">
-          Customer-specific facts stay here. If this is how {business?.name ?? "the business"} works, you can teach Enquiry.
-        </p>
+          <p className="mt-3 text-sm text-ink-2">
+            Customer-specific facts stay here. If this is how {business?.name ?? "the business"}{" "}
+            works, you can teach Enquiry.
+          </p>
         )}
         <div className="mt-5 flex flex-col gap-2">
           <Button
@@ -45,7 +48,7 @@ export function TeachDialog() {
           <Button
             className="min-h-12 w-full"
             onClick={() => {
-              const name = business?.name ?? "Business Brain";
+              const name = business?.name ?? "your business";
               decideTeach("teach");
               setBrainTab("learning");
               toast(`Proposed for ${name}. Confirm it if this should apply next time.`);
@@ -56,9 +59,10 @@ export function TeachDialog() {
           </Button>
         </div>
         {phone ? null : (
-        <p className="mt-3 text-xs text-stone">
-          Teaching proposes a learning item. High-impact prices still need confirmation before they become Active.
-        </p>
+          <p className="mt-3 text-xs text-stone">
+            Teaching proposes a learning item. High-impact prices still need confirmation before
+            they become Active.
+          </p>
         )}
       </Panel>
     </Dialog>

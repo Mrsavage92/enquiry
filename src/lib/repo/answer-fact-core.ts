@@ -3,6 +3,7 @@ import { normaliseFactAnswer, validateFactAnswer, type Decision } from "../../do
 import { EXTRA_CHOICE, isExtraField } from "../../domain/extras.ts";
 import { QUESTION_ANSWER, isQuestionField } from "../../domain/service-questions.ts";
 import { COVERAGE_FIELD } from "../../domain/coverage.ts";
+import { isRuleChoice, isRuleField } from "../../domain/rule-checks.ts";
 
 /**
  * Fields only their own server functions may write: the coverage confirmation
@@ -43,6 +44,12 @@ export type AnswerFactResult = {
 
 /** How an owner's choice about an extra reads back in the case file. */
 function displayFor(field: string, value: string): string {
+  if (isRuleField(field)) {
+    if (value === "apply") return "Your rule applied to this quote";
+    if (value === "decline") return "Declined - outside your rule";
+    if (value === "quote") return "Quoted - it fits your rule";
+    return "Your rule doesn't apply here";
+  }
   if (isQuestionField(field)) {
     return value === QUESTION_ANSWER.yes ? "Yes - you do this" : "No - you don't do this";
   }
@@ -96,6 +103,11 @@ export async function answerFactForUser(
   if (input.field.trim().toLowerCase() === "recurring" && value !== "yes" && value !== "no") {
     throw new Error("Answer yes or no.");
   }
+  // One of the owner's own rules on this quote: applied, waived, or (for an
+  // "only if" rule) quoted anyway or declined. Nothing else is a choice.
+  if (isRuleField(input.field) && !isRuleChoice(value)) {
+    throw new Error("Choose whether your rule applies to this job.");
+  }
   const problem = validateFactAnswer(brain, enq.service_label ?? "", input.field, value);
   if (problem) throw new Error(problem);
 
@@ -107,6 +119,21 @@ export async function answerFactForUser(
     if (isClosed(locked.lifecycle)) {
       throw new Error("That enquiry is closed. Reopen it before answering.");
     }
+    // Confirming their own rough figure ("maybe 12sqm") keeps it rough: the
+    // reply then says "about", never states it as exact.
+    const [reading] = await tx<{ value: string; display_value: string | null }>`
+      select value, display_value from enquiry_fact
+      where enquiry_id = ${enquiryId} and lower(field) = lower(${input.field})
+        and superseded = false and status <> ${"confirmed"}
+      limit 1
+    `;
+    const rough =
+      reading &&
+      String(reading.value).trim() === value &&
+      /\b(?:about|roughly|around|approx(?:imately)?|maybe|~|nearly|almost|ish)\b|~/i.test(
+        reading.display_value ?? "",
+      );
+    const display = rough ? `about ${value}` : displayFor(input.field, value);
     // One live answer per field: an earlier one is superseded, not deleted,
     // so the case file still shows what was believed and when.
     await tx`
@@ -119,7 +146,7 @@ export async function answerFactForUser(
         (enquiry_id, field, label, value, display_value, status, confidence,
          asserted_by, provenance, customer_specific)
       values (
-        ${enquiryId}, ${input.field}, ${input.field}, ${value}, ${displayFor(input.field, value)},
+        ${enquiryId}, ${input.field}, ${input.field}, ${value}, ${display},
         ${"confirmed"}, ${"High"}, ${"user"},
         ${JSON.stringify({ kind: "user", label: "Confirmed by the owner" })}::jsonb,
         ${true}

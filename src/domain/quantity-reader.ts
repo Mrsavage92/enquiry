@@ -254,11 +254,12 @@ export function readQuantityFromMessage(
     String.raw`(?:\b(${APPROX})\s+)?(?<![\w.$,])(?<!\d )${NUM}(ish)?\s*(?:x\s*)?-?\s*${words}(?![a-z])`,
     "gi",
   );
-  // "bedrooms: 3", "bedrooms - 3".
+  // "bedrooms: 3", "bedrooms - 3", "windows x12", "x12 windows".
   const labelled = new RegExp(
-    String.raw`\b${words}\s*[:=]\s*(?:(${APPROX})\s+)?${NUM}(?!\w|\.\d|,\d)`,
+    String.raw`\b${words}\s*(?:[:=]|x(?=\s*\d))\s*(?:(${APPROX})\s+)?${NUM}(?!\w|\.\d|,\d)`,
     "gi",
   );
+  const timesFirst = new RegExp(String.raw`\bx\s*(\d{1,4})\s+${words}(?![a-z])`, "gi");
 
   const reads: (MessageQuantity & { index: number; length: number })[] = [];
   let ranged = false;
@@ -287,6 +288,17 @@ export function readQuantityFromMessage(
       span: m[0].trim(),
       approximate: Boolean(m[1] || m[3]),
       index,
+      length: m[0].length,
+    });
+  }
+  for (const m of text.matchAll(timesFirst)) {
+    const n = toNumber(m[1]!);
+    if (n === null) continue;
+    reads.push({
+      value: String(n),
+      span: m[0].trim(),
+      approximate: false,
+      index: m.index ?? 0,
       length: m[0].length,
     });
   }

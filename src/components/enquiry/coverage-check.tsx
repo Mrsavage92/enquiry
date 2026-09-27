@@ -11,6 +11,7 @@ import type { Business, Enquiry } from "@/domain/types";
 import { unsettledFlags, type CoverageFlag } from "@/domain/coverage";
 import { QUESTION_ANSWER, questionField } from "@/domain/service-questions";
 import type { LineChoice } from "@/domain/line-choices";
+import type { RuleChoice } from "@/domain/rule-checks";
 
 /**
  * "What this price covers": every line (service x count = amount), anything
@@ -38,6 +39,13 @@ export function CoverageCheck({
   const perJob = coverage.lines.filter((l) => !l.firstVisit);
   const total = perJob.reduce((sum, l) => sum + l.amountMinor, 0);
   const unsettled = unsettledFlags(coverage.flagged).length;
+  // What needs a tap comes first; what is only for reading goes under the
+  // buttons, so "That's everything" stays on the first screen.
+  const toSettle = coverage.flagged.filter((f) => f.thing);
+  const included = coverage.flagged.filter((f) => f.kind === "included");
+  const toRead = coverage.flagged.filter((f) => !f.thing && f.kind !== "included");
+  const notes = toRead.filter((f) => f.kind === "note");
+  const heads = toRead.filter((f) => f.kind !== "note");
   const choices = lineChoicesFor(
     activeRules(business ?? {}),
     enquiry.facts,
@@ -92,6 +100,7 @@ export function CoverageCheck({
             <span className="text-ink">
               {l.label}
               {l.quantity ? <span className="text-ink-2"> x {l.quantity}</span> : null}
+              {l.note ? <span className="text-ink-2"> ({l.note})</span> : null}
             </span>
             <span className="tabular-nums text-ink">{formatMinorAud(l.amountMinor)}</span>
           </li>
@@ -107,14 +116,32 @@ export function CoverageCheck({
           </li>
         ))}
       </ul>
-      {coverage.flagged.length > 0 ? (
+      {included.map((f) => (
+        <IncludedLine
+          key={f.text}
+          flag={f}
+          saving={saving}
+          onChoose={(key, job, done) => void run(key, job, done)}
+          enquiryId={enquiry.id}
+        />
+      ))}
+      {toSettle.length > 0 ? (
         <div className="callout mt-3 bg-warn-bg text-warn">
-          <p className="text-sm font-medium">Not on this price - check these</p>
+          <p className="text-sm font-medium">
+            Check {toSettle.length === 1 ? "this" : "these"} first
+          </p>
           <ul className="mt-1 space-y-3 text-sm text-ink">
-            {coverage.flagged.map((f) => (
+            {toSettle.map((f) => (
               <li key={f.text}>
                 <p>{f.text}</p>
-                {f.thing ? (
+                {f.kind === "rule" && f.check ? (
+                  <RuleChoices
+                    flag={f}
+                    saving={saving}
+                    onChoose={(key, job, done) => void run(key, job, done)}
+                    enquiryId={enquiry.id}
+                  />
+                ) : (
                   <FlagChoices
                     flag={f as CoverageFlag & { thing: string }}
                     priced={choices.find(
@@ -124,7 +151,7 @@ export function CoverageCheck({
                     onChoose={(key, job, done) => void run(key, job, done)}
                     enquiryId={enquiry.id}
                   />
-                ) : null}
+                )}
               </li>
             ))}
           </ul>
@@ -132,7 +159,7 @@ export function CoverageCheck({
       ) : null}
       {unsettled > 0 ? (
         <p id="coverage-unsettled" className="mt-3 text-sm text-ink-2">
-          Settle each thing flagged above first. Then say whether that is everything.
+          Answer the {unsettled === 1 ? "check" : "checks"} above first.
         </p>
       ) : null}
       <p className="mt-3 text-sm font-medium text-ink">Did they ask for anything else?</p>
@@ -228,9 +255,124 @@ export function CoverageCheck({
           {error}
         </p>
       ) : null}
+      {heads.map((f) => (
+        <p key={f.text} className="mt-3 text-sm text-ink-2">
+          {f.text}
+        </p>
+      ))}
+      {notes.length > 0 ? (
+        <details className="mt-3 text-sm">
+          <summary className="min-h-11 cursor-pointer py-2 font-medium text-ink">
+            Your notes for this job ({notes.length})
+          </summary>
+          <ul className="space-y-1 text-ink-2">
+            {notes.map((f) => (
+              <li key={f.text}>{f.text.replace(/^Your note: /, "")}</li>
+            ))}
+          </ul>
+        </details>
+      ) : null}
     </div>
   );
 }
+
+/**
+ * "Included in interior painting: walls, ceilings" - one line, one Change.
+ * Only when the owner says one is not part of the price do the per-thing
+ * choices open.
+ */
+function IncludedLine({
+  flag,
+  saving,
+  onChoose,
+  enquiryId,
+}: {
+  flag: CoverageFlag;
+  saving: string | null;
+  onChoose: Chooser;
+  enquiryId: string;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="mt-3 text-sm">
+      <p className="flex flex-wrap items-center gap-x-2 text-ink">
+        <span>{flag.text}</span>
+        <button
+          type="button"
+          className="min-h-11 font-medium text-mark-strong underline underline-offset-4"
+          aria-expanded={open}
+          onClick={() => setOpen((o) => !o)}
+        >
+          {open ? "Done" : "Change"}
+        </button>
+      </p>
+      {open ? (
+        <ul className="mt-1 space-y-3">
+          {(flag.things ?? []).map((thing) => (
+            <li key={thing}>
+              <p className="text-ink">The {thing}</p>
+              <FlagChoices
+                flag={{ kind: "mention", text: `They mention the ${thing}`, thing }}
+                priced={undefined}
+                saving={saving}
+                onChoose={onChoose}
+                enquiryId={enquiryId}
+              />
+            </li>
+          ))}
+        </ul>
+      ) : null}
+    </div>
+  );
+}
+
+/** One of the owner's own rules on this quote: apply or waive, one tap. */
+function RuleChoices({
+  flag,
+  saving,
+  onChoose,
+  enquiryId,
+}: {
+  flag: CoverageFlag;
+  saving: string | null;
+  onChoose: Chooser;
+  enquiryId: string;
+}) {
+  const actions = useFirstBetaActions();
+  const check = flag.check!;
+  return (
+    <div className="mt-2 flex flex-wrap gap-2">
+      {check.choices.map(([value, label], i) => {
+        const key = `${check.field}:${value}`;
+        return (
+          <Button
+            key={value}
+            size="sm"
+            variant={i === 0 ? "primary" : "secondary"}
+            className="min-h-11"
+            disabled={saving !== null}
+            onClick={() =>
+              onChoose(
+                key,
+                () => actions.answerFact(enquiryId, check.field, value),
+                RULE_DONE[value],
+              )
+            }
+          >
+            {saving === key ? "Saving…" : label}
+          </Button>
+        );
+      })}
+    </div>
+  );
+}
+
+const RULE_DONE: Record<RuleChoice, string> = {
+  apply: "Applied. The total includes it.",
+  waive: "Not applied to this job.",
+  quote: "Noted: it fits. The price stays.",
+  decline: "The reply declines it kindly. Nothing is sent until you send it.",
+};
 
 type Chooser = (key: string, job: () => Promise<unknown>, done: string) => void;
 

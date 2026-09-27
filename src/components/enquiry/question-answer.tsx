@@ -65,7 +65,11 @@ export function QuestionAnswer({ enquiry }: { enquiry: Enquiry }) {
       </p>
       {question.readAs === "no" ? (
         <p className="mt-1 text-sm text-ink-2">
-          No - you don't offer {question.thing} (from your business details). Check and confirm.
+          No -{" "}
+          {question.said
+            ? question.said.charAt(0).toLowerCase() + question.said.slice(1)
+            : `you don't offer ${question.thing}`}{" "}
+          (from your business details). Check and confirm.
         </p>
       ) : null}
       <div className="mt-3 flex flex-wrap gap-2">

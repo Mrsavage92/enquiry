@@ -9,6 +9,10 @@ import type { DateIssue } from "./enquiry-basics.ts";
  */
 
 export const ASAP_VALUE = "asap";
+/** A date fact holding a loose ask ("week of the 12th"): their words are the span. */
+export const APPROX_VALUE = "approx";
+/** "tuesdays pref": the day of the week they prefer, as a reading. */
+export const DAY_PREFERENCE_FIELD = "day_preference";
 
 export type ReplyFact = {
   field: string;
@@ -44,6 +48,19 @@ function safeParse(text: string): unknown {
   }
 }
 
+/**
+ * Words that say the message continues a conversation: "the quote you sent",
+ * "as discussed", "following up", "thanks for the quote".
+ */
+const FOLLOW_UP =
+  /\b(?:the|your)\s+quote\s+(?:you\s+)?(?:sent|gave|emailed|did|quoted)\b|\bas\s+discussed\b|\bfollowing\s+up\b|\bfurther\s+to\b|\bthanks\s+for\s+(?:the|your)\s+quote\b|\bgot\s+(?:the|your)\s+quote\b|\bwe\s+spoke\b|\bjust\s+(?:checking|following)\s+(?:in|up|back)\b|\bre\s*:\s/i;
+
+/** Whether a reply answers a conversation already going, not a first enquiry. */
+export function isFollowUp(inbound: readonly string[], hasOutbound = false): boolean {
+  if (hasOutbound || inbound.length > 1) return true;
+  return inbound.some((t) => FOLLOW_UP.test(t));
+}
+
 /** The greeting name: only a name the owner typed or confirmed. */
 export function greetingName(customerName: string, facts: readonly ReplyFact[]): string {
   const read = facts.find((f) => field(f) === "name");
@@ -53,13 +70,17 @@ export function greetingName(customerName: string, facts: readonly ReplyFact[]):
 
 export function replyContextFromFacts(
   facts: readonly ReplyFact[],
-  base: Pick<ReplyContext, "ownerFirstName" | "serviceLabel"> & { customerName: string },
+  base: Pick<ReplyContext, "ownerFirstName" | "serviceLabel" | "closed" | "followUp"> & {
+    customerName: string;
+  },
 ): ReplyContext {
   const date = facts.find((f) => field(f) === "date");
   const value = String(date?.value ?? "").trim();
   const confirmed = date?.status === "confirmed";
   const issue = date && !confirmed ? asIssue(date.date_issue) : undefined;
   const asked = String(date?.date_asked) === "true";
+  const preference = facts.find((f) => field(f) === DAY_PREFERENCE_FIELD);
+  const options = value.split("|").filter((d) => ISO_DAY.test(d));
   return {
     customerName: greetingName(base.customerName, facts),
     ownerFirstName: base.ownerFirstName,
@@ -71,11 +92,25 @@ export function replyContextFromFacts(
           ...(date.date_span ? { jobDateSpan: String(date.date_span) } : {}),
         }
       : {}),
+    // A day only mentioned, not asked about: never quoted back as a question,
+    // but a day the owner does not work is still said plainly.
+    ...(date && ISO_DAY.test(value) && !asked && !confirmed
+      ? {
+          mentionedDateIso: value,
+          ...(date.date_span ? { mentionedDateSpan: String(date.date_span) } : {}),
+        }
+      : {}),
     ...(issue ? { dateIssue: issue } : {}),
     // Two days offered ("Sat 26 or Sun 27 Sep"): quoted back, never picked.
     ...(!confirmed && value.includes("|") && date?.date_span
-      ? { dateOptions: String(date.date_span) }
+      ? { dateOptions: String(date.date_span), dateOptionIsos: options }
       : {}),
+    ...(value === APPROX_VALUE && date?.date_span ? { approxSpan: String(date.date_span) } : {}),
+    ...(preference && String(preference.value ?? "").trim()
+      ? { dayPreference: String(preference.value).trim() }
+      : {}),
+    ...(base.closed ? { closed: base.closed } : {}),
+    ...(base.followUp ? { followUp: true } : {}),
     asap: value === ASAP_VALUE,
   };
 }
