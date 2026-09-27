@@ -17,7 +17,7 @@ import {
   ShieldCheck,
   Store,
 } from "lucide-react";
-import { useNavigate, useSearch } from "@tanstack/react-router";
+import { Link, useNavigate, useSearch } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -100,7 +100,11 @@ export function BrainScreen() {
   const [notesChosen, setNotesChosen] = useState<Set<string>>(new Set());
   const [savingPrices, setSavingPrices] = useState(false);
   const firstBeta = useFirstBetaActions();
-  const search = useSearch({ strict: false }) as { section?: string; service?: string };
+  const search = useSearch({ strict: false }) as {
+    section?: string;
+    service?: string;
+    back?: string;
+  };
   const pricingRef = useRef<HTMLDivElement>(null);
   const tellRef = useRef<HTMLTextAreaElement>(null);
   const focusComposer = usePrototype((s) => s.brainFocusComposer);
@@ -437,6 +441,15 @@ export function BrainScreen() {
           </div>
         ) : null}
 
+        {search.back ? (
+          <Link
+            to="/enquiries/$enquiryId"
+            params={{ enquiryId: search.back }}
+            className="ui-text-link mt-4 inline-flex min-h-11 items-center"
+          >
+            Back to the enquiry
+          </Link>
+        ) : null}
         {!composerOpen ? (
           <Button variant="ghost" className="mt-5" onClick={() => setComposerOpen(true)}>
             <Plus size={16} />
@@ -782,6 +795,16 @@ export function BrainScreen() {
                           (u) => !(u.note && notesChosen.has(u.line)),
                         );
                         setLivePrices(null);
+                        // Came from "Add a price for this job": straight back
+                        // to that enquiry, now worked out with the new price.
+                        if (search.back && left.length === 0) {
+                          toast.success("Saved. Back to the enquiry, worked out with your price.");
+                          void navigate({
+                            to: "/enquiries/$enquiryId",
+                            params: { enquiryId: search.back },
+                          });
+                          return;
+                        }
                         if (left.length > 0) {
                           setInput(left.map((u) => u.line).join("\n"));
                           setTellError(

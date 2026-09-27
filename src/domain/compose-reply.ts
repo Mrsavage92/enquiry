@@ -189,7 +189,9 @@ function closedDaySentence(opts: ReplyContext): string | null {
   if (!opts.jobDateIso || opts.jobDateConfirmed) return null;
   const reason = closedReason(opts.jobDateIso, opts.closed);
   if (!reason) return null;
-  const said = opts.jobDateSpan?.trim() ? spokenSpan(opts.jobDateSpan) : spokenDate(opts.jobDateIso);
+  const said = opts.jobDateSpan?.trim()
+    ? spokenSpan(opts.jobDateSpan)
+    : spokenDate(opts.jobDateIso);
   return `You mentioned ${said} - ${reason}. ${offerInstead(opts.jobDateIso, opts.closed)}`;
 }
 

@@ -244,7 +244,9 @@ export function dollars(amount: number): string {
 
 function dayList(days: readonly number[]): string {
   const names = days.map((d) => `${WEEKDAYS[d]!}s`);
-  return names.length > 1 ? `${names.slice(0, -1).join(", ")} or ${names.at(-1)}` : (names[0] ?? "");
+  return names.length > 1
+    ? `${names.slice(0, -1).join(", ")} or ${names.at(-1)}`
+    : (names[0] ?? "");
 }
 
 /** What the owner reads back on the business screen. */

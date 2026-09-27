@@ -17,8 +17,7 @@ export function blockerInput(field: string, label = ""): BlockerInput {
   if (/address|suburb|location|where|postcode/.test(key)) {
     return { inputMode: "text", placeholder: "e.g. Paddington" };
   }
-  if (/hour|duration|length|time/.test(key))
-    return { inputMode: "numeric", placeholder: "e.g. 3" };
+  if (/hour|duration|length|time/.test(key)) return { inputMode: "numeric", placeholder: "e.g. 3" };
   if (/service|package|type/.test(key))
     return { inputMode: "text", placeholder: "e.g. Full repaint" };
   return { inputMode: "numeric", placeholder: "e.g. 4" };

@@ -127,7 +127,9 @@ export function CoverageCheck({
       ))}
       {toSettle.length > 0 ? (
         <div className="callout mt-3 bg-warn-bg text-warn">
-          <p className="text-sm font-medium">Check {toSettle.length === 1 ? "this" : "these"} first</p>
+          <p className="text-sm font-medium">
+            Check {toSettle.length === 1 ? "this" : "these"} first
+          </p>
           <ul className="mt-1 space-y-3 text-sm text-ink">
             {toSettle.map((f) => (
               <li key={f.text}>

@@ -339,7 +339,9 @@ export function coverageFlags(input: {
   );
   // "carpets" and "carpet cleaning - you don't offer it" are one thing: the
   // not-offered flag says it, the bare mention goes.
-  const notOffered = details.filter((f) => f.kind === "not_offered").flatMap((f) => stemsOf(f.thing ?? ""));
+  const notOffered = details
+    .filter((f) => f.kind === "not_offered")
+    .flatMap((f) => stemsOf(f.thing ?? ""));
   const mentions = mentionFlags(input.message, input.covered, input.services).filter(
     (f) => f.kind !== "mention" || !stemsOf(f.thing ?? "").some((s) => notOffered.includes(s)),
   );

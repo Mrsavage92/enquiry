@@ -61,7 +61,7 @@ import { discardSavedDraft, useDraftSaver, useDraftSaveState } from "@/lib/works
 import { comesBackCue, jobDateCue, lastSent, parkedUntil, statusChip } from "@/domain/time-cues";
 import { nextStepLabel, promiseVerdict, STATUS } from "@/domain/labels";
 import { LaterChoices } from "./later-choices";
-import { isPricingStep, setupStep } from "@/domain/next-action";
+import { isPricingStep, pricingLinkSearch, setupStep } from "@/domain/next-action";
 import { toastRecordedSend } from "@/lib/workspace/send-undo";
 import { PracticeBadge, PracticeNote } from "./practice-note";
 import { ExtraDecision } from "./extra-decision";
@@ -1126,14 +1126,7 @@ export function Intelligence({
                     asChild
                     className={cn("w-full", compact ? "min-h-14 text-base" : "min-h-11")}
                   >
-                    <Link
-                      to="/business"
-                      search={
-                        enquiry.decision.extraPending?.kind === "no_price"
-                          ? { section: "pricing", service: enquiry.decision.extraPending.label }
-                          : { section: "pricing" }
-                      }
-                    >
+                    <Link to="/business" search={pricingLinkSearch(enquiry)}>
                       {setup.label}
                     </Link>
                   </Button>

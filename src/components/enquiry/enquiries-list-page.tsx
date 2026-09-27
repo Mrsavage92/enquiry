@@ -11,12 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Segmented } from "@/components/ui/segmented";
 import { channelLabel } from "@/domain/channel";
 import { jobDateCue, rowTimeCue, statusChip } from "@/domain/time-cues";
-import {
-  emptyTabMessage,
-  filteredEnquiries,
-  nextStepLabel,
-  QUEUE_NAMES,
-} from "@/domain/labels";
+import { emptyTabMessage, filteredEnquiries, nextStepLabel, QUEUE_NAMES } from "@/domain/labels";
 import { statusTone } from "@/domain/status-tone";
 import { usePrototype, type QueueFilter } from "@/store/prototype-store";
 

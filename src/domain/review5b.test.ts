@@ -398,3 +398,72 @@ test("6: a message about 'the quote you sent' reads as a follow-up", () => {
   const d = decideEnquiry(brain(INTERIOR), { serviceLabel: "", facts: [] as never });
   assert.doesNotMatch(composeReply(d, { followUp: true }), /Thanks for getting in touch/);
 });
+
+// 7. Read what the customer gave --------------------------------------------
+
+test("7: counts written the customer's way are read, never asked for again", async () => {
+  const { readQuantityFromMessage } = await import("./quantity-reader.ts");
+  const { blockerInput } = await import("./blocker-input.ts");
+  assert.equal(
+    readQuantityFromMessage("fortnightly, 3hrs, tuesdays pref", "hours", "hour")?.value,
+    "3",
+  );
+  assert.equal(readQuantityFromMessage("do the windows x12", "windows", "window")?.value, "12");
+  assert.equal(readQuantityFromMessage("x12 windows please", "windows", "window")?.value, "12");
+  const approx = readQuantityFromMessage("maybe 40sqm", "square metres", "square metre");
+  assert.deepEqual(approx, { value: "40", span: "maybe 40sqm", approximate: true });
+  assert.equal(blockerInput("hours", "Hours").inputMode, "numeric");
+  assert.equal(blockerInput("windows", "Windows").inputMode, "numeric");
+});
+
+test("7: names under emoji, device footers and pipe signatures", async () => {
+  const { readCustomerName } = await import("./enquiry-basics.ts");
+  assert.equal(readCustomerName("tuesdays pref. Thx, Priya 😊"), "Priya");
+  assert.equal(
+    readCustomerName("Quote please.\n\nKind regards,\nMargaret & Tony Russo\n\nSent from my iPad"),
+    "Margaret & Tony Russo",
+  );
+  assert.equal(
+    readCustomerName(
+      "Office clean.\n\nSarah Nguyen | Office Manager | Acme Pty Ltd | 07 3000 1234",
+    ),
+    "Sarah Nguyen",
+  );
+  // Two names greet as the two of them.
+  const d = decideEnquiry(brain(INTERIOR), { serviceLabel: "", facts: [] as never });
+  assert.match(composeReply(d, { customerName: "Margaret & Tony Russo" }), /^Hi Margaret & Tony,/);
+});
+
+test("7: a reply that asks for one detail never promises 'the full cost'", () => {
+  const d = decideEnquiry(brain(INTERIOR), {
+    serviceLabel: "Interior painting",
+    facts: [fact("service", "Interior painting")] as never,
+  });
+  assert.equal(d.action, "REQUEST_INFORMATION");
+  assert.doesNotMatch(composeReply(d, {}), /full cost/);
+});
+
+// 9. Plain owner words --------------------------------------------------------
+
+test("9: 'We don't paint roofs' keeps its verb; 'also do you do bond cleans?' is a question", async () => {
+  const { readDetailLine, describeDetail } = await import("./business-detail.ts");
+  const { readServiceQuestions } = await import("./service-questions.ts");
+  const roofs = readDetailLine("We don't paint roofs");
+  assert.deepEqual(roofs, { kind: "not_offered", service: "roofs", verb: "paint" });
+  assert.equal(describeDetail(roofs as BusinessDetail), "You don't paint roofs");
+  const asked = readServiceQuestions(
+    "Weekly office clean, 4 hours. Also do you do bond cleans for 5 bedroom houses?",
+    ["Regular clean"],
+  );
+  assert.deepEqual(
+    asked.map((q) => q.thing),
+    ["bond cleans"],
+  );
+});
+
+test("9: the Later action's status says Later, the same word as the button", async () => {
+  const { parkedUntil } = await import("./time-cues.ts");
+  const { STATUS } = await import("./labels.ts");
+  assert.equal(STATUS.parked, STATUS.later);
+  assert.match(parkedUntil("2026-09-28T08:00:00+10:00", NOW), /^Later until /);
+});
