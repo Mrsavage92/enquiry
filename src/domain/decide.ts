@@ -420,7 +420,7 @@ function withRuledLines(
       amountMinor: total,
       workings,
       lines: after,
-      alsoImplied: [...impliedAmountsMinor(decided.price), ...implied],
+      alsoImplied: [...impliedAmountsMinor(decided.price), ...implied].filter((n) => n > 0),
     },
     explanation: workings,
     lines: after,
@@ -449,7 +449,10 @@ function gateCoverage(decided: Decision, ctx: CoverageContext): Decision {
     return declineDecision(decided, ruled.declined);
   }
   const lines = ruled.lines as QuoteLine[];
-  decided = withRuledLines(decided, unruled, lines, ruled.implied, ruled.declined);
+  decided = withRuledLines(decided, unruled, lines, ruled.implied, [
+    ...ruled.declined,
+    ...ruled.notes,
+  ]);
   const handled = ctx.facts
     .filter((f) => isExtraField(f.field) && f.status === "confirmed")
     .map((f) => extraLabel(f.field))

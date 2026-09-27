@@ -8,6 +8,7 @@ import {
 import { redecideOpenEnquiries } from "./decision-apply.ts";
 import { requireBusinessAccess } from "./tenancy.server.ts";
 import {
+  minimumScope,
   describeDetail,
   detailSection,
   detailTitle,
@@ -212,20 +213,39 @@ export async function saveBusinessDetailsInTransaction(
   input: { businessId: string; details: BusinessDetail[] },
 ): Promise<string[]> {
   if (input.details.length === 0) return [];
-  const existing = await sql<{ rule_payload: unknown }>`
-    select rule_payload from knowledge_item
+  const existing = await sql<{ id: string; rule_payload: unknown }>`
+    select id, rule_payload from knowledge_item
     where business_id = ${input.businessId} and state = ${"Active"} and rule_payload is not null
     for update
   `;
   const have = new Set<string>();
+  // One minimum per scope: the highest stands, a lower one is never saved
+  // beside it, and a higher one supersedes it (the preview says which).
+  const minimums = new Map<string, { id?: string; amount: number }>();
   for (const row of existing) {
     const parsed = parseBusinessDetail(row.rule_payload);
-    if (parsed.ok) have.add(detailKey(parsed.detail));
+    if (!parsed.ok) continue;
+    have.add(detailKey(parsed.detail));
+    if (parsed.detail.kind === "minimum_charge") {
+      minimums.set(minimumScope(parsed.detail), { id: row.id, amount: parsed.detail.amount });
+    }
   }
   const ids: string[] = [];
   for (const detail of input.details) {
     const key = detailKey(detail);
     if (have.has(key)) continue;
+    if (detail.kind === "minimum_charge") {
+      const scope = minimumScope(detail);
+      const held = minimums.get(scope);
+      if (held && held.amount >= detail.amount) continue;
+      if (held?.id) {
+        await sql`
+          update knowledge_item
+          set state = ${"Superseded"}, effective_to = now(), updated_at = now()
+          where id = ${held.id} and business_id = ${input.businessId}
+        `;
+      }
+    }
     have.add(key);
     const [row] = await sql<{ id: string }>`
       insert into knowledge_item
@@ -240,6 +260,9 @@ export async function saveBusinessDetailsInTransaction(
       returning id
     `;
     if (!row?.id) throw new Error("Could not save that business detail.");
+    if (detail.kind === "minimum_charge") {
+      minimums.set(minimumScope(detail), { id: row.id, amount: detail.amount });
+    }
     ids.push(row.id);
   }
   return ids;

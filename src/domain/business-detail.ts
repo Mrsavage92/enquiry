@@ -273,6 +273,32 @@ export function describeDetail(detail: BusinessDetail): string {
   }
 }
 
+/** Which jobs a minimum covers: one service, or every job (""). */
+export function minimumScope(d: MinimumChargeDetail): string {
+  return (d.service ?? "").trim().toLowerCase();
+}
+
+/**
+ * What saving this minimum does to the ones already there: two minimums for
+ * the same jobs never stand side by side - the highest stays.
+ */
+export function minimumClash(
+  detail: BusinessDetail,
+  current: readonly BusinessDetail[],
+): string | null {
+  if (detail.kind !== "minimum_charge") return null;
+  const same = current.filter(
+    (d): d is MinimumChargeDetail =>
+      d.kind === "minimum_charge" && d !== detail && minimumScope(d) === minimumScope(detail),
+  );
+  const top = same.reduce((m, d) => Math.max(m, d.amount), 0);
+  if (!top) return null;
+  if (top >= detail.amount) {
+    return `You already have a ${dollars(top)} minimum for these jobs - that one stays and this one is not saved.`;
+  }
+  return `Replaces your ${dollars(top)} minimum for these jobs.`;
+}
+
 /** What Enquiry does with a detail, one sentence, for the save preview. */
 export function detailEffect(detail: BusinessDetail): string {
   switch (detail.kind) {

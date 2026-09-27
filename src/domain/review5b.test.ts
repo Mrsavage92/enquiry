@@ -56,6 +56,16 @@ const SINGLE: BusinessDetail = {
   text: "Exterior painting only if the house is single storey",
 };
 
+/** The field an "only if" rule's choice is stored under, as the check names it. */
+function onlyField(service: string): string {
+  const d = decideEnquiry(brain(EXTERIOR, SINGLE), {
+    serviceLabel: service,
+    facts: [fact("service", service), fact("square metres", "220")] as never,
+    messageText: "Two storey house",
+  });
+  return d.coverage!.flagged.find((f) => f.kind === "rule")!.check!.field;
+}
+
 const brain = (...items: unknown[]) => ({
   knowledge: items.map((rulePayload) => ({ state: "Active", rulePayload })),
 });
@@ -127,7 +137,7 @@ test("2: Whitfield - a Sunday they asked for is said plainly, with the next day 
     fact("service", "Exterior painting"),
     fact("square metres", "220"),
     ...dateFactsOf(message),
-    fact("rule:only:exterior painting", RULE_CHOICE.quote),
+    fact(onlyField("Exterior painting"), RULE_CHOICE.quote),
   ];
   const { reply } = replyFor([EXTERIOR, SUNDAYS, SINGLE], "Exterior painting", facts, message);
   assert.match(
@@ -289,7 +299,7 @@ test("3: Jo - moved to Saturday with 'Saturday jobs cost 20% more' asks for the 
     followUp: true,
   });
   assert.equal(decision.price.kind === "EXACT" && decision.price.amountMinor, 10800);
-  assert.match(reply, /- Saturday rate \(20% more\): \$18/);
+  assert.match(reply, /- Saturday rate \(20% of \$90\): \$18/);
   assert.doesNotMatch(reply, /Thanks for getting in touch/);
 });
 

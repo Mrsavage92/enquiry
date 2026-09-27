@@ -61,13 +61,6 @@ function norm(s: string): string {
   return s.trim().toLowerCase();
 }
 
-function slug(s: string): string {
-  return norm(s)
-    .replace(/[^a-z0-9]+/g, " ")
-    .trim()
-    .slice(0, 48);
-}
-
 /** A rule for "Interior painting" concerns the interior painting line, and no other. */
 function concerns(line: RuleLine, service: string | undefined): boolean {
   if (!service) return true;
@@ -107,95 +100,293 @@ function capitalise(s: string): string {
   return s ? s[0]!.toUpperCase() + s.slice(1) : s;
 }
 
-function surchargeName(days: readonly number[]): string {
-  return days.map((d) => WEEKDAYS[d]!).join(" or ");
+/** FNV-1a: a short stable id for a rule's own words, never a truncated slug. */
+function idOf(text: string): string {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < text.length; i += 1) {
+    h ^= text.charCodeAt(i);
+    h = Math.imul(h, 0x01000193);
+  }
+  return (h >>> 0).toString(16).padStart(8, "0");
 }
 
-/** Every rule that concerns these lines and is not yet settled or satisfied. */
-export function ruleChecks(input: {
+type Eligibility = Extract<BusinessDetail, { kind: "eligibility" }>;
+type Minimum = Extract<BusinessDetail, { kind: "minimum_charge" }>;
+type Fee = Extract<BusinessDetail, { kind: "fee" }>;
+
+/** The job lines: what they asked for, never a rate, fee or top-up. */
+function jobLines(lines: readonly RuleLine[]): RuleLine[] {
+  return lines.filter((l) => !l.adjustment);
+}
+
+function eligibilityCheck(d: Eligibility, lines: readonly RuleLine[], message: string) {
+  if (!lines.some((l) => concerns(l, d.service))) return undefined;
+  const { read, why } = eligibilityRead(d.condition, message);
+  if (read === "fits") return undefined;
+  const field = `${RULE_PREFIX}only:${idOf(norm(d.service))}`;
+  const check: RuleCheck =
+    read === "conflict"
+      ? {
+          field,
+          kind: "eligibility",
+          text: `${capitalise(why!.toLowerCase())} - you said ${d.service.toLowerCase()} only if ${d.condition}`,
+          choices: [
+            [RULE_CHOICE.decline, "Decline kindly"],
+            [RULE_CHOICE.quote, "Quote anyway"],
+          ],
+        }
+      : {
+          field,
+          kind: "eligibility",
+          text: `You do ${d.service.toLowerCase()} only if ${d.condition} - does this job fit?`,
+          choices: [
+            [RULE_CHOICE.quote, "It fits - quote it"],
+            [RULE_CHOICE.decline, "Decline kindly"],
+          ],
+        };
+  return check;
+}
+
+/**
+ * One minimum per scope (a service, or every job), the highest when the owner
+ * saved two, service minimums before a minimum on every job. Two minimums
+ * never share one tap.
+ */
+function minimumsInOrder(details: readonly BusinessDetail[]): Minimum[] {
+  const byScope = new Map<string, Minimum>();
+  for (const d of details) {
+    if (d.kind !== "minimum_charge") continue;
+    const scope = norm(d.service ?? "");
+    const have = byScope.get(scope);
+    if (!have || d.amount > have.amount) byScope.set(scope, d);
+  }
+  return [...byScope.values()].sort((a, b) => Number(!a.service) - Number(!b.service));
+}
+
+/** "Sunday or Saturday", "Saturdays". */
+function daysWord(days: readonly number[]): string {
+  return days.map((d) => `${WEEKDAYS[d]!}s`).join(" and ");
+}
+
+/**
+ * Lift the one job line to the minimum, or add a top-up for the difference.
+ * Worked out from the same lines the owner was shown; never a line of $0 or less.
+ */
+function liftToMinimum(
+  lines: RuleLine[],
+  target: readonly RuleLine[],
+  minimum: number,
+  implied: number[],
+): RuleLine[] {
+  const subtotal = sum(target);
+  const gap = minimum - subtotal;
+  if (gap <= 0) return lines;
+  implied.push(minimum, subtotal);
+  const only = target.length === 1 ? target[0]! : undefined;
+  if (only && !only.detail?.startsWith("minimum charge")) {
+    const workings = only.detail ? `${only.detail} comes to` : "the work comes to";
+    return lines.map((l) =>
+      l === only
+        ? {
+            ...l,
+            amountMinor: minimum,
+            detail: `minimum charge - ${workings} ${formatMinorAud(subtotal)}`,
+          }
+        : l,
+    );
+  }
+  implied.push(gap);
+  return [...lines, { label: "Minimum charge top-up", amountMinor: gap, adjustment: true }];
+}
+
+export type RulesApplied = {
+  lines: RuleLine[];
+  /** Checks still waiting on the owner. */
+  open: RuleCheck[];
+  /** Sentences the reply carries for a declined part ("Sorry, I only do ..."). */
+  declined: string[];
+  /** Sentences the reply carries about a rule it could not price ("Saturdays are 20% more."). */
+  notes: string[];
+  /** Every amount the applied rules put on the quote, all above zero. */
+  implied: number[];
+};
+
+/** "Sorry, I only do exterior painting if the house is single storey, so ..." */
+function declineSentence(d: Eligibility, all: boolean): string {
+  const text = d.text.trim();
+  const only = /^\s*(?:we|i)\s+only\b/i.test(text)
+    ? text.replace(/^\s*we\b/i, "I").replace(/^\s*i\b/i, "I")
+    : `I only do ${d.service.toLowerCase()} ${text.slice(text.search(/\bonly\b/i) + 5).trim()}`;
+  const tail = all ? "so I can't quote this one" : "so I haven't included it";
+  return `Sorry, ${only.replace(/[.!]+$/, "")}, ${tail}.`;
+}
+
+type Ctx = {
+  details: readonly BusinessDetail[];
+  message: string;
+  jobDates: readonly string[];
+  settled: Settled;
+  open: RuleCheck[];
+  implied: number[];
+};
+
+/** Ask, or apply what the owner chose. Returns the lines after the choice. */
+function settle(ctx: Ctx, check: RuleCheck, onApply: () => RuleLine[], lines: RuleLine[]) {
+  const choice = ctx.settled.get(norm(check.field));
+  if (!choice) {
+    ctx.open.push(check);
+    return lines;
+  }
+  return choice === RULE_CHOICE.apply ? onApply() : lines;
+}
+
+function applyMinimums(ctx: Ctx, start: RuleLine[]): RuleLine[] {
+  let lines = start;
+  for (const m of minimumsInOrder(ctx.details)) {
+    const target = jobLines(lines).filter((l) => concerns(l, m.service));
+    const subtotal = sum(target);
+    const minimum = Math.round(m.amount * 100);
+    if (target.length === 0 || subtotal >= minimum) continue;
+    const what = m.service ? `for ${m.service.toLowerCase()} ` : "";
+    const check: RuleCheck = {
+      field: `${RULE_PREFIX}minimum:${m.service ? idOf(norm(m.service)) : "any"}:${minimum}`,
+      kind: "minimum",
+      text: `Your minimum ${what}is ${formatMinorAud(minimum)} - this comes to ${formatMinorAud(subtotal)}`,
+      choices: [
+        [RULE_CHOICE.apply, `Apply ${formatMinorAud(minimum)} minimum`],
+        [RULE_CHOICE.waive, "Doesn't apply here"],
+      ],
+    };
+    lines = settle(ctx, check, () => liftToMinimum(lines, target, minimum, ctx.implied), lines);
+  }
+  return lines;
+}
+
+/**
+ * A surcharge applies to the job price after any minimum, and only when one
+ * day was asked for and it is that day. Several days offered, one of them a
+ * surcharge day: the reply says the rate plainly, the total does not guess.
+ */
+function applySurcharges(ctx: Ctx, start: RuleLine[], notes: string[]): RuleLine[] {
+  let lines = start;
+  const days = ctx.jobDates.map(weekdayOf).filter((d): d is number => d !== undefined);
+  for (const s of ctx.details) {
+    if (s.kind !== "surcharge") continue;
+    const target = jobLines(lines).filter((l) => concerns(l, s.service));
+    if (target.length === 0 || !days.some((d) => s.days.includes(d))) continue;
+    if (days.length !== 1) {
+      notes.push(`Just so you know, ${daysWord(s.days)} are ${s.percent}% more.`);
+      continue;
+    }
+    const base = sum(target);
+    const extra = Math.round((base * s.percent) / 100);
+    if (extra <= 0) continue;
+    const name = WEEKDAYS[days[0]!]!;
+    const check: RuleCheck = {
+      field: `${RULE_PREFIX}surcharge:${s.days.join("")}:${s.percent}`,
+      kind: "surcharge",
+      text: `They asked for a ${name} - your ${name} rate is ${s.percent}% more (${s.percent}% of ${formatMinorAud(base)} is ${formatMinorAud(extra)})`,
+      choices: [
+        [RULE_CHOICE.apply, `Add ${s.percent}% ${name} rate (${formatMinorAud(extra)})`],
+        [RULE_CHOICE.waive, "Doesn't apply"],
+      ],
+    };
+    const line: RuleLine = {
+      label: `${name} rate (${s.percent}% of ${formatMinorAud(base)})`,
+      amountMinor: extra,
+      adjustment: true,
+    };
+    lines = settle(
+      ctx,
+      check,
+      () => {
+        ctx.implied.push(extra);
+        return [...lines, line];
+      },
+      lines,
+    );
+  }
+  return lines;
+}
+
+function applyFees(ctx: Ctx, start: RuleLine[]): RuleLine[] {
+  let lines = start;
+  for (const f of ctx.details) {
+    if (f.kind !== "fee" || !jobLines(lines).some((l) => concerns(l, (f as Fee).service))) continue;
+    const amount = Math.round(f.amount * 100);
+    if (amount <= 0) continue;
+    const check: RuleCheck = {
+      field: `${RULE_PREFIX}fee:${idOf(norm(f.text))}`,
+      kind: "fee",
+      text: `Your ${f.label.toLowerCase()}: "${f.text}"`,
+      choices: [
+        [RULE_CHOICE.apply, `Add ${formatMinorAud(amount)} ${f.label.toLowerCase()}`],
+        [RULE_CHOICE.waive, "Doesn't apply"],
+      ],
+    };
+    lines = settle(
+      ctx,
+      check,
+      () => {
+        ctx.implied.push(amount);
+        return [...lines, { label: f.label, amountMinor: amount, adjustment: true }];
+      },
+      lines,
+    );
+  }
+  return lines;
+}
+
+/**
+ * The owner's rules on the lines, always in the same order whatever order
+ * they were saved in: "only if" first (a declined service takes nothing
+ * else), then minimums against the job lines, then a day rate on the job
+ * price after the minimum, then fees. Unsettled checks are returned so the
+ * coverage step can ask; a stale choice for a rule that no longer applies is
+ * ignored.
+ */
+export function applyRules(input: {
   details: readonly BusinessDetail[];
   lines: readonly RuleLine[];
   message: string;
   jobDates: readonly string[];
-}): RuleCheck[] {
-  const out: RuleCheck[] = [];
+  facts: ReadonlyArray<{ field: string; value: unknown; status: string }>;
+}): RulesApplied {
+  const ctx: Ctx = {
+    details: input.details,
+    message: input.message,
+    jobDates: input.jobDates,
+    settled: settledRules(input.facts),
+    open: [],
+    implied: [],
+  };
+  const declined: string[] = [];
+  const notes: string[] = [];
+  let lines: RuleLine[] = [...input.lines];
   for (const d of input.details) {
-    if (d.kind === "minimum_charge") {
-      const target = input.lines.filter((l) => concerns(l, d.service));
-      const subtotal = sum(target);
-      const minimum = Math.round(d.amount * 100);
-      if (target.length === 0 || subtotal >= minimum) continue;
-      const what = d.service ? `for ${d.service.toLowerCase()} ` : "";
-      out.push({
-        field: `${RULE_PREFIX}minimum:${slug(d.service ?? "any")}`,
-        kind: "minimum",
-        text: `Your minimum ${what}is ${formatMinorAud(minimum)} - this comes to ${formatMinorAud(subtotal)}`,
-        choices: [
-          [RULE_CHOICE.apply, `Apply ${formatMinorAud(minimum)} minimum`],
-          [RULE_CHOICE.waive, "Doesn't apply here"],
-        ],
-      });
+    if (d.kind !== "eligibility") continue;
+    const check = eligibilityCheck(d, lines, input.message);
+    if (!check) continue;
+    const choice = ctx.settled.get(norm(check.field));
+    if (!choice) {
+      ctx.open.push(check);
+      continue;
     }
-    if (d.kind === "surcharge") {
-      const day = input.jobDates.map(weekdayOf).find((w) => w !== undefined && d.days.includes(w));
-      const target = input.lines.filter((l) => concerns(l, d.service));
-      if (day === undefined || target.length === 0) continue;
-      const extra = Math.round((sum(target) * d.percent) / 100);
-      const name = WEEKDAYS[day]!;
-      out.push({
-        field: `${RULE_PREFIX}surcharge:${d.days.join("")}:${d.percent}`,
-        kind: "surcharge",
-        text: `They asked for a ${name} - your ${surchargeName(d.days)} rate is ${d.percent}% more`,
-        choices: [
-          [RULE_CHOICE.apply, `Add ${d.percent}% ${name} rate (${formatMinorAud(extra)})`],
-          [RULE_CHOICE.waive, "Doesn't apply"],
-        ],
-      });
-    }
-    if (d.kind === "fee") {
-      if (!input.lines.some((l) => concerns(l, d.service))) continue;
-      out.push({
-        field: `${RULE_PREFIX}fee:${slug(d.text)}`,
-        kind: "fee",
-        text: `Your ${d.label.toLowerCase()}: "${d.text}"`,
-        choices: [
-          [
-            RULE_CHOICE.apply,
-            `Add ${formatMinorAud(Math.round(d.amount * 100))} ${d.label.toLowerCase()}`,
-          ],
-          [RULE_CHOICE.waive, "Doesn't apply"],
-        ],
-      });
-    }
-    if (d.kind === "eligibility") {
-      if (!input.lines.some((l) => concerns(l, d.service))) continue;
-      const { read, why } = eligibilityRead(d.condition, input.message);
-      if (read === "fits") continue;
-      const field = `${RULE_PREFIX}only:${slug(d.service)}`;
-      out.push(
-        read === "conflict"
-          ? {
-              field,
-              kind: "eligibility",
-              text: `${capitalise(why!.toLowerCase())} - you said ${d.service.toLowerCase()} only if ${d.condition}`,
-              choices: [
-                [RULE_CHOICE.decline, "Decline kindly"],
-                [RULE_CHOICE.quote, "Quote anyway"],
-              ],
-            }
-          : {
-              field,
-              kind: "eligibility",
-              text: `You do ${d.service.toLowerCase()} only if ${d.condition} - does this job fit?`,
-              choices: [
-                [RULE_CHOICE.quote, "It fits - quote it"],
-                [RULE_CHOICE.decline, "Decline kindly"],
-              ],
-            },
-      );
-    }
+    if (choice !== RULE_CHOICE.decline) continue;
+    const kept = lines.filter((l) => !concerns(l, d.service));
+    declined.push(declineSentence(d, kept.length === 0));
+    lines = kept;
   }
-  return out;
+  lines = applyMinimums(ctx, lines);
+  lines = applySurcharges(ctx, lines, notes);
+  lines = applyFees(ctx, lines);
+  return {
+    lines,
+    open: ctx.open,
+    declined,
+    notes,
+    implied: [...new Set(ctx.implied.filter((n) => n > 0))],
+  };
 }
 
 /** The owner's settled choices, by field. */
@@ -209,136 +400,4 @@ export function settledRules(
     if (isRuleChoice(value)) out.set(norm(f.field), value);
   }
   return out;
-}
-
-export type RulesApplied = {
-  lines: RuleLine[];
-  /** Checks still waiting on the owner. */
-  open: RuleCheck[];
-  /** Sentences the reply carries for a declined part ("Sorry, I only do ..."). */
-  declined: string[];
-  /** Every amount the applied rules put on the quote. */
-  implied: number[];
-};
-
-/** "Sorry, I only do exterior painting if the house is single storey, so ..." */
-function declineSentence(
-  d: Extract<BusinessDetail, { kind: "eligibility" }>,
-  all: boolean,
-): string {
-  const text = d.text.trim();
-  const only = /^\s*(?:we|i)\s+only\b/i.test(text)
-    ? text.replace(/^\s*we\b/i, "I").replace(/^\s*i\b/i, "I")
-    : `I only do ${d.service.toLowerCase()} ${text.slice(text.search(/\bonly\b/i) + 5).trim()}`;
-  const tail = all ? "so I can't quote this one" : "so I haven't included it";
-  return `Sorry, ${only.replace(/[.!]+$/, "")}, ${tail}.`;
-}
-
-/**
- * Put the owner's settled choices on the lines: a minimum lifts its line (or
- * tops up the total), a surcharge or fee is its own line, a declined service
- * comes off the quote with a kind sentence. Unsettled checks are returned so
- * the coverage step can ask; a stale choice for a rule that no longer applies
- * (the count went over the minimum) is simply ignored.
- */
-export function applyRules(input: {
-  details: readonly BusinessDetail[];
-  lines: readonly RuleLine[];
-  message: string;
-  jobDates: readonly string[];
-  facts: ReadonlyArray<{ field: string; value: unknown; status: string }>;
-}): RulesApplied {
-  const settled = settledRules(input.facts);
-  const declined: string[] = [];
-  const implied: number[] = [];
-  let lines: RuleLine[] = [...input.lines];
-  // Eligibility first: a declined service takes no minimum, rate or fee.
-  for (const d of input.details) {
-    if (d.kind !== "eligibility") continue;
-    const check = ruleChecks({ ...input, details: [d], lines }).at(0);
-    if (!check || settled.get(norm(check.field)) !== RULE_CHOICE.decline) continue;
-    const kept = lines.filter((l) => !concerns(l, d.service));
-    declined.push(declineSentence(d, kept.length === 0));
-    lines = kept;
-  }
-  const checks = ruleChecks({ ...input, lines });
-  const open: RuleCheck[] = [];
-  const base = [...lines];
-  for (const check of checks) {
-    const choice = settled.get(norm(check.field));
-    if (!choice) {
-      open.push(check);
-      continue;
-    }
-    if (choice !== RULE_CHOICE.apply) continue;
-    const detail = input.details.find((d) => matches(check, d));
-    if (!detail) continue;
-    lines = applyOne(lines, base, detail, input.jobDates, implied);
-  }
-  return { lines, open, declined, implied };
-}
-
-function matches(check: RuleCheck, d: BusinessDetail): boolean {
-  if (check.kind === "minimum" && d.kind === "minimum_charge") {
-    return check.field === `${RULE_PREFIX}minimum:${slug(d.service ?? "any")}`;
-  }
-  if (check.kind === "surcharge" && d.kind === "surcharge") {
-    return check.field === `${RULE_PREFIX}surcharge:${d.days.join("")}:${d.percent}`;
-  }
-  if (check.kind === "fee" && d.kind === "fee") {
-    return check.field === `${RULE_PREFIX}fee:${slug(d.text)}`;
-  }
-  return false;
-}
-
-function applyOne(
-  lines: RuleLine[],
-  base: readonly RuleLine[],
-  d: BusinessDetail,
-  jobDates: readonly string[],
-  implied: number[],
-): RuleLine[] {
-  if (d.kind === "minimum_charge") {
-    const minimum = Math.round(d.amount * 100);
-    const target = lines.filter((l) => concerns(l, d.service));
-    const subtotal = sum(target);
-    implied.push(minimum, subtotal);
-    if (target.length === 1) {
-      const line = target[0]!;
-      const workings = line.detail ? `${line.detail} comes to ` : "";
-      return lines.map((l) =>
-        l === line
-          ? {
-              ...l,
-              amountMinor: minimum,
-              detail: `minimum charge - ${workings}${formatMinorAud(subtotal)}`,
-            }
-          : l,
-      );
-    }
-    implied.push(minimum - subtotal);
-    return [
-      ...lines,
-      { label: "Minimum charge top-up", amountMinor: minimum - subtotal, adjustment: true },
-    ];
-  }
-  if (d.kind === "surcharge") {
-    const day = jobDates.map(weekdayOf).find((w) => w !== undefined && d.days.includes(w));
-    const extra = Math.round((sum(base.filter((l) => concerns(l, d.service))) * d.percent) / 100);
-    implied.push(extra);
-    return [
-      ...lines,
-      {
-        label: `${WEEKDAYS[day ?? d.days[0]!]} rate (${d.percent}% more)`,
-        amountMinor: extra,
-        adjustment: true,
-      },
-    ];
-  }
-  if (d.kind === "fee") {
-    const amount = Math.round(d.amount * 100);
-    implied.push(amount);
-    return [...lines, { label: d.label, amountMinor: amount, adjustment: true }];
-  }
-  return lines;
 }
