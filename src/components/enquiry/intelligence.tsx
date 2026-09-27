@@ -9,7 +9,6 @@ import { SheetContent } from "@/components/ui/sheet";
 import { ScrollFade } from "@/components/ui/scroll-fade";
 import { useScrollFade } from "@/lib/use-scroll-fade";
 import {
-  derivedLabel,
   EVALUATOR_LABELS,
   formatAud,
   commercialValue,
@@ -59,7 +58,7 @@ import { SendPreview, type SendPreviewCopyState } from "./send-preview";
 import { DeclineConfirm } from "./decline-confirm";
 import { isWaitingForInformation } from "./reply-presentation";
 import { discardSavedDraft, useDraftSaver, useDraftSaveState } from "@/lib/workspace/owner-sync";
-import { comesBackCue, lastSent, parkedUntil } from "@/domain/time-cues";
+import { comesBackCue, jobDateCue, lastSent, parkedUntil, statusChip } from "@/domain/time-cues";
 import { nextStepLabel, promiseVerdict, STATUS } from "@/domain/labels";
 import { LaterChoices } from "./later-choices";
 import { isPricingStep, setupStep } from "@/domain/next-action";
@@ -68,6 +67,10 @@ import { PracticeBadge, PracticeNote } from "./practice-note";
 import { ExtraDecision } from "./extra-decision";
 import { DateNotes } from "./date-notes";
 import { NameCheck } from "./name-check";
+import { CoverageCheck } from "./coverage-check";
+import { QuestionAnswer } from "./question-answer";
+import { isInternalFact } from "@/domain/coverage";
+import { isOwnerEstimate } from "@/domain/count-phrase";
 import { formatMinorAud } from "@/domain/money-format";
 import { activeRules } from "@/domain/decide";
 import { describeRule } from "@/domain/business-rule";
@@ -150,13 +153,29 @@ export function Intelligence({
     !demoMode && setupStep(enquiry)?.kind === "choose_service" && serviceNeedsOwner(enquiry);
   // Nothing to send yet: the next step is the owner's (check a reading, say
   // which service, add a price), so the reply preview stays out of the way.
-  const replyOnHold = readingToCheck || choosingService || Boolean(setupStep(enquiry));
+  // The owner answers a question they asked, or confirms what the price
+  // covers, before any reply is ready: both controls live in the card.
+  const questionPending = !demoMode && Boolean(enquiry.decision.questionPending);
+  const coveragePending =
+    !demoMode && Boolean(enquiry.decision.coverage && !enquiry.decision.coverage.confirmed);
+  // Hours are the owner's estimate: the next step is theirs, not a reply.
+  const ownerEstimate =
+    !demoMode && Boolean(blockingMissing && isOwnerEstimate(blockingMissing.factField));
+  const replyOnHold =
+    ownerEstimate ||
+    readingToCheck ||
+    choosingService ||
+    Boolean(setupStep(enquiry)) ||
+    questionPending ||
+    coveragePending;
   // Worked out from prices the owner confirmed: "Confidence Low" beside that
   // would tell them to doubt their own price list.
   const ruleDerived =
     Boolean(enquiry.decision.price) ||
     Boolean(setup) ||
     Boolean(enquiry.decision.extraPending) ||
+    Boolean(enquiry.decision.coverage) ||
+    Boolean(enquiry.decision.questionPending) ||
     (rec.action === "REQUEST_INFORMATION" && Boolean(blockingMissing));
   const showConfidence = !ruleDerived;
   // One fact, one place: when the recommendation's reason is the exact same
@@ -359,7 +378,10 @@ export function Intelligence({
     !rec.blockedReason &&
     ((sendable && readingToCheck && !demoMode) ||
       (!sendable && Boolean(setup) && !isPricingStep(setup)) ||
-      (!demoMode && enquiry.decision.extraPending?.kind === "check"));
+      (!demoMode && enquiry.decision.extraPending?.kind === "check") ||
+      questionPending ||
+      coveragePending ||
+      (sendable && ownerEstimate));
   const short = isShortChannel(reply);
   const integ = integrationForChannel(business, reply, enquiry);
   const Panel = compact ? SheetContent : DialogContent;
@@ -428,13 +450,13 @@ export function Intelligence({
                   <p className="mt-1 text-sm text-ink-2">{identityLine(enquiry)}</p>
                   <p className="mt-1.5 text-sm text-ink-2">
                     {enquiry.serviceLabel}
-                    {enquiry.dateLabel ? ` · ${enquiry.dateLabel}` : ""}
+                    {enquiry.dateLabel ? ` · ${jobDateCue(enquiry)}` : ""}
                     {enquiry.locationLabel ? ` · ${enquiry.locationLabel}` : ""}
                   </p>
                 </div>
                 <div className="flex flex-wrap items-center justify-end gap-2">
                   <PracticeBadge enquiry={enquiry} />
-                  <Badge tone={statusTone(enquiry)}>{derivedLabel(enquiry.state, enquiry)}</Badge>
+                  <Badge tone={statusTone(enquiry)}>{statusChip(enquiry)}</Badge>
                 </div>
               </div>
             </header>
@@ -587,9 +609,10 @@ export function Intelligence({
                           </span>
                         </p>
                       ) : null}
-                      {demoMode ? null : <NameCheck enquiry={enquiry} />}
                       {demoMode ? null : <DateNotes enquiry={enquiry} />}
+                      {demoMode ? null : <QuestionAnswer enquiry={enquiry} />}
                       {demoMode ? null : <ExtraDecision enquiry={enquiry} />}
+                      {demoMode ? null : <CoverageCheck enquiry={enquiry} business={business} />}
                       {/* On the phone the card holds one heading and one
                           control; the reasoning is behind Why?. */}
                       {inline || recReasonIsMissingReason ? null : (
@@ -649,6 +672,8 @@ export function Intelligence({
                 </section>
               )}
 
+              {/* The name is its own small step, never inside the next-step card. */}
+              {demoMode || (compact && !inline) ? null : <NameCheck enquiry={enquiry} separate />}
               {inline &&
               enquiry.decision.failedGates.some(
                 (gate) => !/^Action class .* is set to /i.test(gate),
@@ -789,12 +814,16 @@ export function Intelligence({
                   </p>
                   <FactList
                     heading="This enquiry only"
-                    facts={enquiry.facts.filter((f) => !f.superseded && f.customerSpecific)}
+                    facts={enquiry.facts.filter(
+                      (f) => !f.superseded && f.customerSpecific && !isInternalFact(f.field),
+                    )}
                     onCorrect={setCorrecting}
                   />
                   <FactList
                     heading="From the request"
-                    facts={enquiry.facts.filter((f) => !f.superseded && !f.customerSpecific)}
+                    facts={enquiry.facts.filter(
+                      (f) => !f.superseded && !f.customerSpecific && !isInternalFact(f.field),
+                    )}
                     onCorrect={setCorrecting}
                   />
                 </section>
@@ -1111,10 +1140,38 @@ export function Intelligence({
                   <p className="text-xs text-stone">
                     This enquiry updates as soon as you save a price.
                   </p>
+                  {enquiry.practice && setup.kind === "add_prices" && !demoMode ? (
+                    <Button
+                      variant="secondary"
+                      className={cn("w-full", compact ? "min-h-12" : "min-h-11")}
+                      disabled={sending}
+                      onClick={() => {
+                        setSending(true);
+                        void firstBeta
+                          .applyPracticeSample(enquiry.id)
+                          .then((res) => {
+                            if (!res.ok) toast.error(res.message);
+                            else toast.success("Priced with a sample price, for practice only.");
+                          })
+                          .catch((err: unknown) =>
+                            toast.error(err instanceof Error ? err.message : "Could not do that."),
+                          )
+                          .finally(() => setSending(false));
+                      }}
+                    >
+                      Use a sample price for practice
+                    </Button>
+                  ) : null}
                 </>
-              ) : setup ? null : enquiry.decision.extraPending ? (
+              ) : setup ? null : questionPending ? (
+                <p className="text-sm text-ink-2">Answer their question above first.</p>
+              ) : enquiry.decision.extraPending ? (
                 <p className="text-sm text-ink-2">
                   Add or leave out what else they asked for above.
+                </p>
+              ) : coveragePending ? (
+                <p className="text-sm text-ink-2">
+                  Check what the price covers above. The reply names the total after that.
                 </p>
               ) : situation ? (
                 <p className="text-sm text-ink-2">Settle the detail above first.</p>
@@ -1225,7 +1282,7 @@ export function Intelligence({
           {compact ? (
             <ul className="mt-5 space-y-2 border-t border-line pt-4">
               {enquiry.facts
-                .filter((f) => !f.superseded)
+                .filter((f) => !f.superseded && !isInternalFact(f.field))
                 .map((f) => (
                   <li key={f.id} className="flex items-start justify-between gap-2 py-1">
                     <div>
@@ -1291,7 +1348,7 @@ export function Intelligence({
           </dl>
           <ul className="mt-4 space-y-2">
             {enquiry.facts
-              .filter((f) => !f.superseded)
+              .filter((f) => !f.superseded && !isInternalFact(f.field))
               .map((f) => (
                 <li
                   key={f.id}

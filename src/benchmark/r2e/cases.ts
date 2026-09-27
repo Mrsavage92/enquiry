@@ -474,7 +474,8 @@ export const BENCHMARK_CASES: BenchmarkCase[] = [
         blockerField: "hours",
       },
       trust: { neverConfirmedFields: ["service"], primaryEnabled: true },
-      draft: { mustContain: ["hours"], mustNotContain: ["$"] },
+      // Hours are the owner's estimate (pass 5): the reply never asks the customer.
+      draft: { mustContain: ["how long it will take"], mustNotContain: ["$", "how many hours"] },
     },
     nullModeBusiness: {
       priceKind: "NO_RULE",
@@ -660,7 +661,7 @@ export const BENCHMARK_CASES: BenchmarkCase[] = [
       },
       trust: { neverConfirmedFields: ["date"], primaryEnabled: true },
       draft: {
-        mustContain: ["$320", "Happy to lock it in if that works"],
+        mustContain: ["$320", "Just let me know if you'd like to go ahead."],
         mustNotContain: ["we're available", "yes we can make Friday", "confirmed for Friday"],
       },
     },
@@ -765,7 +766,8 @@ export const BENCHMARK_CASES: BenchmarkCase[] = [
           blockerField: "hours",
         },
         trust: { neverConfirmedFields: [], primaryEnabled: true },
-        draft: { mustContain: ["hours"], mustNotContain: ["$"] },
+        // Hours are the owner's estimate (pass 5): the reply never asks the customer.
+        draft: { mustContain: ["how long it will take"], mustNotContain: ["$", "how many hours"] },
       },
     },
   },

@@ -1,10 +1,19 @@
 import type { Sql } from "../db.ts";
 import {
+  describeRule,
   parseBusinessRule,
   ruleFingerprint,
   type BusinessRule,
 } from "../../domain/business-rule.ts";
 import { redecideOpenEnquiries } from "./decision-apply.ts";
+import { requireBusinessAccess } from "./tenancy.server.ts";
+import {
+  describeDetail,
+  detailSection,
+  detailTitle,
+  parseBusinessDetail,
+  type BusinessDetail,
+} from "../../domain/business-detail.ts";
 
 /**
  * Saving a confirmed pricing rule, as pure SQL logic - separate from
@@ -157,8 +166,16 @@ export async function saveBusinessRuleAndRedecide(
  */
 export async function saveBusinessRulesAndRedecide(
   sql: Sql,
-  input: { businessId: string; rules: { rule: BusinessRule; readable: string }[] },
-): Promise<{ saved: SaveBusinessRuleResult[]; updatedEnquiryIds: string[] }> {
+  input: {
+    businessId: string;
+    rules: { rule: BusinessRule; readable: string }[];
+    details?: BusinessDetail[];
+  },
+): Promise<{
+  saved: SaveBusinessRuleResult[];
+  detailIds: string[];
+  updatedEnquiryIds: string[];
+}> {
   const saved: SaveBusinessRuleResult[] = [];
   for (const r of input.rules) {
     saved.push(
@@ -169,7 +186,86 @@ export async function saveBusinessRulesAndRedecide(
       }),
     );
   }
-  const changedAny = saved.some((s) => s.outcome !== "duplicate");
+  const detailIds = await saveBusinessDetailsInTransaction(sql, {
+    businessId: input.businessId,
+    details: input.details ?? [],
+  });
+  const changedAny = saved.some((s) => s.outcome !== "duplicate") || detailIds.length > 0;
   const updatedEnquiryIds = changedAny ? await redecideOpenEnquiries(sql, input.businessId) : [];
-  return { saved, updatedEnquiryIds };
+  return { saved, detailIds, updatedEnquiryIds };
+}
+
+function detailKey(detail: BusinessDetail): string {
+  if (detail.kind === "note") return `note|${norm(detail.text)}|${norm(detail.service ?? "")}`;
+  if (detail.kind === "not_offered") return `not_offered|${norm(detail.service)}`;
+  return `closed_days|${detail.days.join(",")}`;
+}
+
+/**
+ * Business details that are not prices - notes, services not offered, days not
+ * worked - saved Active because the owner confirmed them in the preview. The
+ * same detail saved twice is one row. Returns the ids of new rows.
+ */
+export async function saveBusinessDetailsInTransaction(
+  sql: Sql,
+  input: { businessId: string; details: BusinessDetail[] },
+): Promise<string[]> {
+  if (input.details.length === 0) return [];
+  const existing = await sql<{ rule_payload: unknown }>`
+    select rule_payload from knowledge_item
+    where business_id = ${input.businessId} and state = ${"Active"} and rule_payload is not null
+    for update
+  `;
+  const have = new Set<string>();
+  for (const row of existing) {
+    const parsed = parseBusinessDetail(row.rule_payload);
+    if (parsed.ok) have.add(detailKey(parsed.detail));
+  }
+  const ids: string[] = [];
+  for (const detail of input.details) {
+    const key = detailKey(detail);
+    if (have.has(key)) continue;
+    have.add(key);
+    const [row] = await sql<{ id: string }>`
+      insert into knowledge_item
+        (business_id, section, title, body, class, state, source, version, rule_payload,
+         effective_from)
+      values (
+        ${input.businessId}, ${detailSection(detail)}, ${detailTitle(detail)},
+        ${describeDetail(detail)}, ${"authoritative"}, ${"Active"},
+        ${JSON.stringify({ kind: "user", label: "Confirmed by the owner" })}::jsonb,
+        ${"1"}, ${JSON.stringify(detail)}::jsonb, now()
+      )
+      returning id
+    `;
+    if (!row?.id) throw new Error("Could not save that business detail.");
+    ids.push(row.id);
+  }
+  return ids;
+}
+
+/**
+ * The "Add a business detail" save as the server function runs it: the
+ * caller's membership of the business is checked first, then every price and
+ * detail saves in one transaction. Another tenant gets Forbidden and nothing
+ * is written.
+ */
+export async function saveBusinessDetailsForUser(
+  sql: Sql,
+  runInTransaction: <T>(fn: (tx: Sql) => Promise<T>) => Promise<T>,
+  userId: string,
+  input: { businessId: string; rules: BusinessRule[]; details: BusinessDetail[] },
+): Promise<{
+  businessId: string;
+  rules: { rule: BusinessRule; readable: string }[];
+  saved: SaveBusinessRuleResult[];
+  detailIds: string[];
+  updatedEnquiryIds: string[];
+}> {
+  const businessId = await requireBusinessAccess(userId, input.businessId, sql);
+  const rules = input.rules.map((rule) => ({ rule, readable: describeRule(rule) }));
+  const result = await runInTransaction((tx) =>
+    saveBusinessRulesAndRedecide(tx, { businessId, rules, details: input.details }),
+  );
+  return { businessId, rules, ...result };
 }

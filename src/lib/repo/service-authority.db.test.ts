@@ -6,6 +6,7 @@ import test from "node:test";
 import { PGlite } from "@electric-sql/pglite";
 import type { Sql } from "../db.ts";
 import { insertManualEnquiry, interpretAndApply } from "./manual-enquiry-core.ts";
+import { confirmShownCoverage } from "./coverage-core.ts";
 import type { EnquiryInterpreter, InterpretationResult } from "../interpret/types.ts";
 
 /**
@@ -173,6 +174,8 @@ test("A03: a service the OWNER typed is recorded as owner-asserted authority, no
   assert.equal(svc.rows[0]!.asserted_by, "user");
   assert.equal(svc.rows[0]!.provenance.kind, "user");
 
+  // Priced; the reply names it once the owner confirms what it covers.
+  await confirmShownCoverage(sql, enquiryId);
   const enq = await readEnquiry(pg, enquiryId);
   assert.equal(enq.decision_snapshot.recommendation.action, "SEND_QUOTE");
   assert.equal(enq.decision_snapshot.price?.amountMinor, 19_000);
@@ -249,28 +252,16 @@ test("A02: confirming the service recomputes to a real quote, and it survives a 
      values ($1,'service','service','Bridal makeup','Bridal makeup','confirmed','High','user','{"kind":"user"}'::jsonb, true)`,
     [enquiryId],
   );
-  const { decideEnquiry } = await import("../../domain/decide.ts");
-  const { snapshotFromDecision, stateFromDecision } = await import(
-    "../../domain/decision-snapshot.ts"
-  );
-  const facts = await pg.query<{ field: string; value: string; status: string }>(
-    "select field, value, status from enquiry_fact where enquiry_id = $1 and superseded = false",
-    [enquiryId],
-  );
-  const decision = decideEnquiry(
-    { knowledge: [{ state: "Active", rulePayload: BRIDAL_RULE }] },
-    { serviceLabel: "Bridal makeup", facts: facts.rows as never },
-  );
-  const state = stateFromDecision(decision);
-  await pg.query(
-    `update enquiry set decision_snapshot = $2::jsonb, decision_state = $3, commercial_state = $4 where id = $1`,
-    [
-      enquiryId,
-      JSON.stringify(snapshotFromDecision(decision)),
-      state.decisionState,
-      state.commercialState,
-    ],
-  );
+  await pg.query("update enquiry set service_label = 'Bridal makeup' where id = $1", [enquiryId]);
+  const { applyDecision } = await import("./decision-apply.ts");
+  await applyDecision(sql, {
+    enquiryId,
+    businessId,
+    serviceLabel: "Bridal makeup",
+    customerName: "Sarah",
+  });
+  // "That's everything": the owner confirms what the price covers.
+  await confirmShownCoverage(sql, enquiryId);
 
   // Reload from the database, not from memory.
   const after = await readEnquiry(pg, enquiryId);
@@ -319,6 +310,7 @@ test("A04: a model result arriving after the owner set the service never overrid
     runInTransaction: txRunner(pg),
   });
 
+  await confirmShownCoverage(sql, enquiryId);
   const enq = await readEnquiry(pg, enquiryId);
   assert.equal(enq.service_label, "Bridal trial", "the owner's decision stands");
   const svc = await pg.query<{ value: string; status: string; asserted_by: string }>(

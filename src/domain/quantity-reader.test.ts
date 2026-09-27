@@ -85,8 +85,10 @@ test("the unit must be the one the price needs", () => {
     "Hi there, we need the inside of our 3 bedroom house painted before we sell. Walls and ceilings, roughly 120 square metres. Could you do it on Saturday 3 October?";
   assert.equal(read(karen, "square metres", "square metre"), "120");
   assert.equal(read(karen, "bedrooms", "bedroom"), "3");
-  // "bedroom" is not "rooms".
-  assert.equal(read("3 bedroom house", "rooms", "room"), undefined);
+  // Pass 5 (C4): "3 bedrooms" to paint is read as three rooms - only a
+  // reading, which the owner confirms with one tap before it prices anything.
+  assert.equal(read("3 bedroom house", "rooms", "room"), "3");
+  assert.equal(read("3 bathrooms", "rooms", "room"), undefined);
   assert.equal(read("Moving out on the 30th", "bedrooms"), undefined);
 });
 

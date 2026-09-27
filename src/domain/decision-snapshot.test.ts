@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { decideConfirmed } from "./coverage-testing.ts";
 import test from "node:test";
 import {
   emptyDecisionSnapshot,
@@ -81,7 +82,7 @@ test("a priced decision is sendable and carries the workings", () => {
     ],
   };
   const snapshot = snapshotFromDecision(
-    decideEnquiry(business, { serviceLabel: "Bridal trial", facts: [] }),
+    decideConfirmed(business, { serviceLabel: "Bridal trial", facts: [] }),
   );
   assert.equal(snapshot.recommendation.action, "SEND_QUOTE");
   assert.equal(snapshot.recommendation.primaryEnabled, true);
@@ -100,7 +101,7 @@ test("a business with no rules escalates rather than inventing a price", () => {
 });
 
 test("a decided enquiry never sits on EVALUATING, waiting on nothing", () => {
-  const priced = decideEnquiry(
+  const priced = decideConfirmed(
     {
       knowledge: [
         {
@@ -117,7 +118,7 @@ test("a decided enquiry never sits on EVALUATING, waiting on nothing", () => {
     responsibility: "BUSINESS",
   });
 
-  const blocked = decideEnquiry(
+  const blocked = decideConfirmed(
     {
       knowledge: [
         {
@@ -137,7 +138,7 @@ test("a decided enquiry never sits on EVALUATING, waiting on nothing", () => {
   );
   assert.equal(stateFromDecision(blocked).decisionState, "NEEDS_INFORMATION");
 
-  const noRule = decideEnquiry({ knowledge: [] }, { serviceLabel: "Anything", facts: [] });
+  const noRule = decideConfirmed({ knowledge: [] }, { serviceLabel: "Anything", facts: [] });
   assert.equal(stateFromDecision(noRule).decisionState, "NEEDS_HUMAN");
 });
 
@@ -161,11 +162,11 @@ test("answering the blocker turns a blocked enquiry into a priced one", () => {
     ],
   };
 
-  const blocked = decideEnquiry(business, { serviceLabel: "Group makeup", facts: [] });
+  const blocked = decideConfirmed(business, { serviceLabel: "Group makeup", facts: [] });
   assert.equal(stateFromDecision(blocked).decisionState, "NEEDS_INFORMATION");
   assert.equal(snapshotFromDecision(blocked).missing[0]?.factField, "guests");
 
-  const answered = decideEnquiry(business, {
+  const answered = decideConfirmed(business, {
     serviceLabel: "Group makeup",
     facts: [{ field: "guests", value: "4", status: "confirmed" }],
   } as never);
@@ -209,7 +210,7 @@ test("a priced decision's snapshot carries the price structurally, not only in p
     ],
   };
   const snapshot = snapshotFromDecision(
-    decideEnquiry(business, { serviceLabel: "Bridal trial", facts: [] }),
+    decideConfirmed(business, { serviceLabel: "Bridal trial", facts: [] }),
   );
   assert.deepEqual(snapshot.price, { kind: "EXACT", amountMinor: 12000, currency: "AUD" });
 });

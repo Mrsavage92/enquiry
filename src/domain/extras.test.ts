@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { decideConfirmed } from "./coverage-testing.ts";
 import test from "node:test";
 import { decideEnquiry, normaliseFactAnswer, validateFactAnswer } from "./decide.ts";
 import { readExtraRequests, extraField, extraQuantityField } from "./extras.ts";
@@ -106,7 +107,7 @@ test("the review repro: $760 is never quoted while the oven they asked for has n
 });
 
 test("left out on purpose: the total is the main job and the reply says what was left out", () => {
-  const d = decideEnquiry(brain(EOL), {
+  const d = decideConfirmed(brain(EOL), {
     serviceLabel: "End of lease clean",
     facts: [
       fact("service", "End of lease clean"),
@@ -134,7 +135,7 @@ test("a priced extra waits for the owner, then becomes its own line on the total
   assert.equal(read.extraPending?.kind, "check");
   assert.equal(read.extraPending?.amountMinor, 12000);
 
-  const added = decideEnquiry(brain(EOL, OVEN), {
+  const added = decideConfirmed(brain(EOL, OVEN), {
     serviceLabel: "End of lease clean",
     facts: [
       fact("service", "End of lease clean"),
@@ -154,7 +155,12 @@ test("a priced extra waits for the owner, then becomes its own line on the total
   const snap = snapshotFromDecision(added, { customerName: "Mel" });
   assert.equal(snap.price?.kind === "EXACT" && snap.price.amountMinor, 88000);
   const reply = snap.draft.body;
-  assert.match(reply, /That comes to \$880 all up:/);
+  // Pass 5: the reply names exactly what the total covers, never "all up".
+  assert.match(
+    reply,
+    /For the end of lease clean \(4 bedrooms\) and the oven clean, that comes to \$880:/,
+  );
+  assert.doesNotMatch(reply, /all up/);
   assert.match(reply, /- End of lease clean: \$760 \(4 bedrooms at \$190 each\)/);
   assert.match(reply, /- Oven clean: \$120/);
   // The product's own reply passes the amount check it is recorded against.
@@ -252,7 +258,7 @@ test("both services asked for: each gets its own line from its own count", () =>
   assert.equal(d.blocker?.field, "square metres for ceilings");
   assert.equal(d.blocker?.inferred?.value, "45");
 
-  const priced = decideEnquiry(brain(WALLS, CEILINGS), {
+  const priced = decideConfirmed(brain(WALLS, CEILINGS), {
     serviceLabel: "Interior wall painting",
     facts: [
       fact("service", "Interior wall painting"),

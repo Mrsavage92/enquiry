@@ -58,7 +58,16 @@ const NUM_RAW = String.raw`\d{1,3}(?:,\d{3})+(?:\.\d{1,2})?|\d{1,3}(?: \d{3})+(?
 const NUM = `(${NUM_RAW})`;
 
 /** "12 Bedroom St" is an address, not twelve bedrooms. */
-const NOT_A_STREET = String.raw`(?!\s+(?:st|street|rd|road|ave|avenue|court|ct|place|pl|lane|ln|drive|dr|cres|crescent|way|parade|pde|close|cl|tce|terrace|blvd|boulevard|hwy|highway|grove|gr)\b)`;
+/**
+ * "12 Bedroom St" is an address: a street word after a Capitalised unit
+ * word. "our 3 bedroom place" is a count - the unit word is not a name.
+ */
+const STREET_AFTER =
+  /^\s+(?:st|street|rd|road|ave|avenue|court|ct|place|pl|lane|ln|drive|dr|cres|crescent|way|parade|pde|close|cl|tce|terrace|blvd|boulevard|hwy|highway|grove|gr)\b/i;
+
+function isStreet(matched: string, after: string): boolean {
+  return STREET_AFTER.test(after) && /\d\s*-?\s*[A-Z]/.test(matched);
+}
 
 /** Hedges: the customer means about this many. Kept and shown, never dropped. */
 const APPROX = String.raw`(?:roughly|about|around|approximately|approx\.?|~|circa|nearly|almost|close to|maybe|give or take)`;
@@ -86,7 +95,12 @@ const RANGE_BEFORE = new RegExp(
 );
 
 /** "one hour or two", "3 bedrooms - 4", after the unit. */
-const RANGE_AFTER = new RegExp(String.raw`^\s*(?:or|-|–|to|and|\/)\s*(?:${NUM_RAW})`, "i");
+// "3 doors and 2 rooms" is two counts of two things, not a range: after
+// "and", a range's second number has no word of its own.
+const RANGE_AFTER = new RegExp(
+  String.raw`^\s*(?:(?:or|-|–|to|\/)\s*(?:${NUM_RAW})|and\s*(?:${NUM_RAW})(?!\s*(?:x\s*)?[a-z]))`,
+  "i",
+);
 
 /**
  * A correction just after the count: "not 3 bedrooms, 4", "3 bedrooms, sorry
@@ -116,7 +130,8 @@ const FAMILIES: { match: RegExp; words: string }[] = [
     match: /^(square metres?|square meters?|sqm|m2|m²|sq m|square)$/,
     words: String.raw`(?:square\s*met(?:re|er)s?|sq\.?\s*m(?:et(?:re|er)s?)?|sqm|m2|m²|met(?:re|er)s?\s*squared)`,
   },
-  { match: /^(rooms?)$/, words: String.raw`(?:rooms?)` },
+  // "3 bedrooms" to paint is three rooms: a reading the owner confirms.
+  { match: /^(rooms?)$/, words: String.raw`(?:(?:bed)?rooms?)` },
   { match: /^(hours?|hrs?)$/, words: String.raw`(?:hours?|hrs?)` },
   {
     match: /^(guests?|people|persons?|person|pax|attendees?|heads?)$/,
@@ -218,6 +233,9 @@ function tieOf(text: string, index: number, spanLength: number, context: Quantit
   return "none";
 }
 
+/** Units that measure an amount rather than count things. */
+const MEASURE_UNIT = /metre|meter|sq|m2|m²|hour|hr|day|minute|kg|litre|people|person|guest/i;
+
 export function readQuantityFromMessage(
   text: string,
   field: string,
@@ -233,7 +251,7 @@ export function readQuantityFromMessage(
   // Not after a word character, a decimal point, a dollar sign, a thousands
   // comma or a digit and space, so no number is ever read from its own tail.
   const forward = new RegExp(
-    String.raw`(?:\b(${APPROX})\s+)?(?<![\w.$,])(?<!\d )${NUM}(ish)?\s*(?:x\s*)?-?\s*${words}(?![a-z])${NOT_A_STREET}`,
+    String.raw`(?:\b(${APPROX})\s+)?(?<![\w.$,])(?<!\d )${NUM}(ish)?\s*(?:x\s*)?-?\s*${words}(?![a-z])`,
     "gi",
   );
   // "bedrooms: 3", "bedrooms - 3".
@@ -248,6 +266,7 @@ export function readQuantityFromMessage(
     const index = m.index ?? 0;
     const before = text.slice(0, index);
     const after = text.slice(index + m[0].length);
+    if (isStreet(m[0], after)) continue;
     if (
       RANGE_BEFORE.test(before) ||
       BOUND_BEFORE.test(before) ||
@@ -289,8 +308,12 @@ export function readQuantityFromMessage(
     // Several services priced by this unit: a count counts only when it is
     // tied to this one. Anything untied or tied to both is a question.
     const ties = reads.map((r) => tieOf(text, r.index, r.length, context));
-    if (ties.some((t) => t === "both")) return undefined;
-    candidates = reads.filter((_, i) => ties[i] === "this");
+    // "feature wall + ceiling in 1 room": a count of things (rooms, doors)
+    // written for both services belongs to both. A measure (square metres,
+    // hours) written once for two services is never split or doubled.
+    const shared = !MEASURE_UNIT.test(`${unit} ${field}`);
+    if (ties.some((t) => t === "both") && !shared) return undefined;
+    candidates = reads.filter((_, i) => ties[i] === "this" || ties[i] === "both");
   }
   const values = new Set(candidates.map((r) => r.value));
   // Two different counts for the same thing: the customer has not said which.

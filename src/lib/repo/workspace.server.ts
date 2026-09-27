@@ -1,4 +1,5 @@
-import { getSql } from "@/lib/db";
+import { getSql, withTransaction } from "@/lib/db";
+import { redecideLegacyOpen } from "./decision-apply";
 import type { AuditEvent, Booking, Business, Enquiry, WorkspacePrefs } from "@/domain/types";
 import { withFollowUpDue } from "@/domain/time-cues";
 import { withDefaults } from "@/domain/workspace-prefs";
@@ -106,6 +107,12 @@ export async function loadWorkspace(
   if (businessIds.length === 0) return EMPTY;
 
   const sql = db ?? (await getSql());
+
+  // An open quote decided before the price check existed has no check to
+  // confirm, so the owner could not send it. Re-decide those first, under
+  // their locks, for this user's own businesses only.
+  if (db) await redecideLegacyOpen(db, businessIds);
+  else await withTransaction((tx) => redecideLegacyOpen(tx, businessIds));
 
   // Ten statements (plus two for owner state), fixed, regardless of how many businesses or enquiries exist.
   const [

@@ -45,13 +45,17 @@ test("an introduction names the customer", () => {
 });
 
 test("'the 10th of October' is read as the next 10 October", () => {
-  const d = readJobDate("moving out on the 10th of October. Tom", NOW);
+  const d = readJobDate("We'd like it done on the 10th of October. Tom", NOW);
   assert.deepEqual(d, {
     iso: "2026-10-10",
     label: "Sat 10 Oct",
     span: "10th of October",
     asked: false,
   });
+  // Pass 5 (C11): a move-out day is context, never the job date.
+  const moving = readDates("moving out on the 10th of October. Tom", NOW);
+  assert.equal(moving.jobDate, undefined);
+  assert.equal(moving.context[0]?.iso, "2026-10-10");
 });
 
 test("a date is 'asked about' only when the customer asks, not when they mention it", () => {
@@ -59,11 +63,11 @@ test("a date is 'asked about' only when the customer asks, not when they mention
   assert.equal(readJobDate("Is 14/11 free?", NOW)?.asked, true);
   assert.equal(readJobDate("Are you available 3 Oct for a quote", NOW)?.asked, true);
   assert.equal(readJobDate("Our wedding is on the 14th of Feb at Sirromet.", NOW)?.asked, false);
-  assert.equal(readJobDate("Keys go back Saturday 3 October. Can you help?", NOW)?.asked, false);
+  assert.equal(readJobDate("Saturday 3 October works for us. Can you help?", NOW)?.asked, false);
 });
 
 test("weekday, month-first and Australian numeric dates are read", () => {
-  assert.equal(readJobDate("Keys go back Saturday 3 October.", NOW)?.iso, "2026-10-03");
+  assert.equal(readJobDate("We'd like Saturday 3 October.", NOW)?.iso, "2026-10-03");
   assert.equal(readJobDate("Could you do October 12th?", NOW)?.iso, "2026-10-12");
   assert.equal(readJobDate("Is 14/11 free?", NOW)?.iso, "2026-11-14");
   assert.equal(readJobDate("Booked for 3 Oct 2027", NOW)?.iso, "2027-10-03");
@@ -246,7 +250,7 @@ test("P2: fractions and 'may' are not dates; a date months away is a date to che
   assert.equal(readJobDate("1/2 day clean please", SAT_26_SEP), undefined);
   assert.equal(readJobDate("the dog 3 may need a bath", SAT_26_SEP), undefined);
   assert.equal(readJobDate("Is 14/11 free?", SAT_26_SEP)?.iso, "2026-11-14");
-  assert.equal(readJobDate("Moving on 3 May 2027", SAT_26_SEP)?.iso, "2027-05-03");
+  assert.equal(readJobDate("Could you do 3 May 2027?", SAT_26_SEP)?.iso, "2027-05-03");
   const far = readDates("Could you do 3 April?", SAT_26_SEP);
   assert.equal(far.jobDate, undefined, "rolled more than six months ahead");
   assert.equal(far.issue?.kind, "check_date");

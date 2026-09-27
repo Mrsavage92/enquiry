@@ -51,3 +51,32 @@ export function mentionsAny(text: string, stems: readonly string[]): boolean {
   const said = new Set(stemsOf(text));
   return stems.some((s) => said.has(s));
 }
+
+/** Work words most services share: never enough on their own to name one. */
+const GENERIC_STEMS = new Set([
+  "remov",
+  "clean",
+  "servi",
+  "job",
+  "work",
+  "repai",
+  "paint",
+  "wash",
+  "insta",
+  "treat",
+  "fix",
+]);
+
+/**
+ * Whether text names this service: every one of its own words (not the work
+ * word it shares with others) is there. "rubbish removal" does not name
+ * "mould removal"; "mould inspections" does not name "black mould".
+ */
+export function namesService(text: string, service: string): boolean {
+  const all = [...new Set(stemsOf(service))];
+  const own = all.filter((s) => !GENERIC_STEMS.has(s));
+  const need = own.length ? own : all;
+  if (need.length === 0) return false;
+  const said = new Set(stemsOf(text));
+  return need.every((s) => said.has(s));
+}

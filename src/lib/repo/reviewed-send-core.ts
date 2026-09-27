@@ -1,8 +1,9 @@
 import { createHash } from "node:crypto";
 import type { Sql } from "../db.ts";
 import type { Channel, DecisionPrice, EvaluatorResult } from "../../domain/types.ts";
-import { dollarAmounts } from "../../domain/voice-detect.ts";
+import { dollarAmounts, unreadableMoney } from "../../domain/voice-detect.ts";
 import { formatMinorAud } from "../../domain/money-format.ts";
+import { COVERAGE_FIELD } from "../../domain/coverage.ts";
 import { isClosed, lockEnquiry } from "./decision-apply.ts";
 
 /**
@@ -73,7 +74,9 @@ export type PrepareReviewResult =
         | "service_unconfirmed"
         | "amount_mismatch"
         | "practice"
-        | "unconfirmed_reading";
+        | "unconfirmed_reading"
+        | "coverage_unconfirmed"
+        | "amount_unreadable";
       message: string;
       /**
        * For `amount_mismatch`: which figures in the text the decision does not
@@ -213,6 +216,33 @@ export function amountAgrees(
   return required.every((r) => namedMinor.has(r));
 }
 
+/**
+ * Whether the price the current decision shows has been confirmed by the
+ * owner: the snapshot says so AND a live, owner-asserted coverage fact holds
+ * the same key. A decision with a price but no coverage at all (made before
+ * this existed) counts as unconfirmed; one with no price at all is "none".
+ */
+async function coverageNow(
+  sql: Sql,
+  enquiryId: string,
+): Promise<"none" | "unconfirmed" | "confirmed"> {
+  const [snap] = await sql<{ key: string | null; confirmed: string | null; priced: boolean }>`
+    select decision_snapshot -> 'coverage' ->> 'key' as key,
+      decision_snapshot -> 'coverage' ->> 'confirmed' as confirmed,
+      (decision_snapshot -> 'price') is not null as priced
+    from enquiry where id = ${enquiryId}
+  `;
+  if (!snap?.key) return snap?.priced ? "unconfirmed" : "none";
+  if (snap.confirmed !== "true") return "unconfirmed";
+  const [fact] = await sql<{ id: string }>`
+    select id from enquiry_fact
+    where enquiry_id = ${enquiryId} and lower(field) = ${COVERAGE_FIELD} and superseded = false
+      and status = ${"confirmed"} and asserted_by = ${"user"} and value = ${snap.key}
+    limit 1
+  `;
+  return fact ? "confirmed" : "unconfirmed";
+}
+
 type SnapshotRow = {
   customer_email: string;
   customer_phone: string | null;
@@ -273,6 +303,31 @@ export async function prepareReviewedSendInTransaction(
   `;
   if (!enq) {
     return { ok: false, reason: "closed", message: "That enquiry no longer exists." };
+  }
+
+  // Money Enquiry cannot read ("nine-ish hundred dollars") cannot be checked
+  // against the quote, so it is never recorded.
+  if (unreadableMoney(input.body)) {
+    return {
+      ok: false,
+      reason: "amount_unreadable",
+      message: "Write the amount in numbers so Enquiry can check it.",
+    };
+  }
+
+  // A reply may state a price only once the owner has confirmed what it
+  // covers, for this revision. Checked against the stored confirmation itself,
+  // not only the snapshot, so a crafted body cannot name a total early.
+  if (dollarAmounts(input.body).length > 0) {
+    const coverage = await coverageNow(sql, input.enquiryId);
+    if (coverage === "unconfirmed") {
+      return {
+        ok: false,
+        reason: "coverage_unconfirmed",
+        message:
+          "Check what this price covers first. A reply can only name the total once you have confirmed it covers everything they asked for.",
+      };
+    }
   }
 
   const action = enq.action ?? "";

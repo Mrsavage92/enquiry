@@ -3,6 +3,8 @@ import type { Decision } from "../../domain/decide.ts";
 import { quantityContextFor, readQuantityFromMessage } from "../../domain/quantity-reader.ts";
 import { extraField, extraLabel, isExtraField, readExtraRequests } from "../../domain/extras.ts";
 import { stemsOf } from "../../domain/service-words.ts";
+import { activeDetails } from "../../domain/business-detail.ts";
+import { questionField, readServiceQuestions } from "../../domain/service-questions.ts";
 
 /**
  * The count a price needs, read from what the customer already wrote.
@@ -137,6 +139,50 @@ export async function inferExtras(
       status: "inferred",
       display_value: extra.span,
     });
+  }
+  return written;
+}
+
+/**
+ * Record their "do you do X?" questions that have no fact yet, as readings the
+ * owner answers. Read as "no" when the owner said they don't offer it.
+ * Caller holds the lock.
+ */
+export async function inferQuestions(
+  sql: Sql,
+  enquiryId: string,
+  services: readonly string[],
+  knowledge: ReadonlyArray<{ state: string; rulePayload: unknown }>,
+  facts: LiveFact[],
+  messages: InboundBody[],
+): Promise<LiveFact[]> {
+  const have = new Set(facts.map((f) => f.field.trim().toLowerCase()));
+  const details = activeDetails({ knowledge });
+  const written: LiveFact[] = [];
+  for (const m of [...messages].reverse()) {
+    for (const q of readServiceQuestions(m.body ?? "", services, details)) {
+      const field = questionField(q.thing);
+      if (have.has(field.toLowerCase())) continue;
+      have.add(field.toLowerCase());
+      const value = q.notOffered ? "no" : "open";
+      await sql`
+        insert into enquiry_fact
+          (enquiry_id, field, label, value, display_value, status, confidence,
+           asserted_by, provenance, customer_specific)
+        values (
+          ${enquiryId}, ${field}, ${`They asked if you do ${q.thing}`}, ${value}, ${q.span},
+          ${"inferred"}, ${"Medium"}, ${"system"},
+          ${JSON.stringify({
+            kind: "message",
+            label: "Read from the customer's message",
+            messageId: m.id || undefined,
+            span: q.span,
+          })}::jsonb,
+          ${true}
+        )
+      `;
+      written.push({ field, value, status: "inferred", display_value: q.span });
+    }
   }
   return written;
 }

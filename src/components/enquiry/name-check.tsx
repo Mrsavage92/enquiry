@@ -8,7 +8,7 @@ import type { Enquiry } from "@/domain/types";
  * until the owner confirms it with one tap. A suburb or a job title read as a
  * name would otherwise have gone straight into the greeting.
  */
-export function NameCheck({ enquiry }: { enquiry: Enquiry }) {
+export function NameCheck({ enquiry, separate = false }: { enquiry: Enquiry; separate?: boolean }) {
   const actions = useFirstBetaActions();
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -18,7 +18,14 @@ export function NameCheck({ enquiry }: { enquiry: Enquiry }) {
   if (!read || !String(read.value ?? "").trim()) return null;
   const name = String(read.value).trim();
   return (
-    <div className="mt-2 flex flex-wrap items-center gap-x-3 text-sm text-ink-2">
+    <div
+      className={
+        separate
+          ? "flex flex-wrap items-center gap-x-3 border-b border-line px-5 py-2 text-sm text-ink-2"
+          : "mt-2 flex flex-wrap items-center gap-x-3 text-sm text-ink-2"
+      }
+      data-testid="name-check"
+    >
       <span>Name from their message: {name}.</span>
       <button
         type="button"

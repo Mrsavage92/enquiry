@@ -7,6 +7,7 @@ export function statusTone(enquiry: Enquiry): "neutral" | "ok" | "warn" | "dange
   switch (label) {
     case STATUS.reading:
     case STATUS.later:
+    case STATUS.parked:
     case STATUS.waiting:
     case STATUS.bookingToConfirm:
       return "info";

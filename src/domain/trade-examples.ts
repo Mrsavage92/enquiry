@@ -88,7 +88,7 @@ const EXAMPLES: Record<Trade, TradeExamples> = {
     intakeNote: "They rang, I typed it up",
     price: { service: "Standard job", amount: "90", unit: "hour", field: "hours", minimum: "" },
     sentence: "Standard job $90 per hour",
-    flatSentence: "Call-out $80",
+    flatSentence: "Small repair $150",
   },
 };
 

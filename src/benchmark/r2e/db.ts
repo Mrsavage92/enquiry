@@ -3,8 +3,8 @@ import { txRunner } from "../../lib/repo/pglite-tx.ts";
 import { join } from "node:path";
 import { PGlite } from "@electric-sql/pglite";
 import type { Sql } from "../../lib/db.ts";
-import { decideEnquiry } from "../../domain/decide.ts";
-import { snapshotFromDecision, stateFromDecision } from "../../domain/decision-snapshot.ts";
+import { applyDecision } from "../../lib/repo/decision-apply.ts";
+import { COVERAGE_FIELD } from "../../domain/coverage.ts";
 import { insertManualEnquiry, interpretAndApply } from "../../lib/repo/manual-enquiry-core.ts";
 import { nullInterpreter } from "../../lib/interpret/null-interpreter.ts";
 import {
@@ -244,39 +244,44 @@ export async function confirmFact(
       enquiryId,
     ]);
   }
+  await redecide(pg, businessId, enquiryId);
+}
+
+/** The server's own re-decide (decision-apply.ts), in one transaction. */
+async function redecide(pg: PGlite, businessId: string, enquiryId: string): Promise<void> {
   const enqRows = await pg.query<{ service_label: string; customer_name: string }>(
     "select service_label, customer_name from enquiry where id = $1",
     [enquiryId],
   );
   const enq = enqRows.rows[0]!;
-  const factRows = await pg.query<{ field: string; value: string; status: string }>(
-    "select field, value, status from enquiry_fact where enquiry_id = $1 and superseded = false",
+  await txRunner(pg)((sql) =>
+    applyDecision(sql, {
+      enquiryId,
+      businessId,
+      serviceLabel: enq.service_label,
+      customerName: enq.customer_name,
+    }),
+  );
+}
+
+/**
+ * The owner's "That's everything" on a priced enquiry: a price is only a
+ * ready reply once the owner confirmed what it covers (pass 5). The benchmark
+ * measures the decision, so it takes that step the way the owner would, for
+ * the exact coverage the decision showed.
+ */
+export async function settleCoverage(
+  pg: PGlite,
+  businessId: string,
+  enquiryId: string,
+): Promise<void> {
+  const rows = await pg.query<{ key: string | null; confirmed: string | null }>(
+    "select decision_snapshot->'coverage'->>'key' as key, decision_snapshot->'coverage'->>'confirmed' as confirmed from enquiry where id = $1",
     [enquiryId],
   );
-  const knowledgeRows = await pg.query<{ state: string; rule_payload: unknown }>(
-    "select state, rule_payload from knowledge_item where business_id = $1 and rule_payload is not null",
-    [businessId],
-  );
-  const decision = decideEnquiry(
-    { knowledge: knowledgeRows.rows.map((k) => ({ state: k.state, rulePayload: k.rule_payload })) },
-    { serviceLabel: enq.service_label, facts: factRows.rows as never },
-  );
-  const snapshot = snapshotFromDecision(decision, {
-    customerName: enq.customer_name,
-    serviceLabel: enq.service_label,
-  });
-  const state = stateFromDecision(decision);
-  await pg.query(
-    `update enquiry set decision_snapshot = $1::jsonb, decision_state = $2, commercial_state = $3,
-       responsibility = $4, updated_at = now() where id = $5`,
-    [
-      JSON.stringify(snapshot),
-      state.decisionState,
-      state.commercialState,
-      state.responsibility,
-      enquiryId,
-    ],
-  );
+  const row = rows.rows[0];
+  if (!row?.key || row.confirmed === "true") return;
+  await confirmFact(pg, businessId, enquiryId, COVERAGE_FIELD, row.key);
 }
 
 export type FollowUpOutcome = { label: string; enquiry: EnquiryRow };
@@ -330,6 +335,7 @@ export async function runCase(kase: BenchmarkCase, mode: RunMode): Promise<CaseR
   if (!interpretOutcome)
     throw new Error(`interpretAndApply never called the interpreter for ${kase.id}`);
 
+  await settleCoverage(pg, businessId, enquiryId);
   const enquiryAfterInterpretation = await readEnquiry(pg, enquiryId);
   const factRows = await pg.query<{
     field: string;
@@ -352,6 +358,7 @@ export async function runCase(kase: BenchmarkCase, mode: RunMode): Promise<CaseR
   const followUps: FollowUpOutcome[] = [];
   for (const step of kase.followUps) {
     await confirmFact(pg, businessId, enquiryId, step.field, step.value);
+    await settleCoverage(pg, businessId, enquiryId);
     followUps.push({ label: step.label, enquiry: await readEnquiry(pg, enquiryId) });
   }
 

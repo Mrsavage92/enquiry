@@ -1,7 +1,8 @@
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { PageHeader } from "@/components/ui/page-header";
 import { briefing, funnel, waitingAge } from "@/domain/briefing";
-import { formatAud } from "@/domain/labels";
+import { formatAud, nextStepLabel, queueSection } from "@/domain/labels";
+import { byDueness } from "@/domain/time-cues";
 import { usePrototype } from "@/store/prototype-store";
 import { useNarrow } from "@/lib/use-narrow";
 import { channelLabel } from "@/domain/channel";
@@ -33,6 +34,8 @@ function InsightsPage() {
       return { biz, slice };
     });
   const phone = useNarrow(860) !== false;
+  // What is next, not how many are behind (attention plan C9).
+  const next = scoped.filter((e) => queueSection(e) === "needs_you").sort(byDueness)[0];
 
   return (
     <div className="ui-page-scroll">
@@ -40,14 +43,29 @@ function InsightsPage() {
         <PageHeader title="Insights" description="A clear view of your current enquiries." />
 
         <section className="mt-8">
-          <dl className="insights-summary">
-            <Stat
-              icon={Clock3}
-              label="Need your reply"
-              value={`${b.needsYou}`}
-              tone="amber"
-              priority
-            />
+          <p className="insights-next text-sm text-ink" data-testid="insights-next">
+            <Clock3
+              size={18}
+              strokeWidth={1.7}
+              aria-hidden="true"
+              className="inline align-text-bottom"
+            />{" "}
+            {next ? (
+              <>
+                Next: {nextStepLabel(next)} for {next.customerName}.{" "}
+                <Link
+                  to="/enquiries/$enquiryId"
+                  params={{ enquiryId: next.id }}
+                  className="font-medium text-mark-strong underline-offset-4 hover:underline"
+                >
+                  Open it
+                </Link>
+              </>
+            ) : (
+              "Nothing needs you right now."
+            )}
+          </p>
+          <dl className="insights-summary mt-4">
             <Stat icon={Inbox} label="Total enquiries" value={`${scoped.length}`} tone="violet" />
             <Stat icon={FileCheck2} label="Quoted" value={`${b.quoted}`} tone="neutral" />
             <Stat icon={CalendarCheck2} label="Booked" value={`${b.bookedCount}`} tone="green" />
@@ -172,7 +190,8 @@ function InsightsPage() {
                     <span>
                       <span className="font-medium">{biz.name}</span>
                       <span className="mt-0.5 block text-xs text-stone">
-                        {slice.needsYou} need you · {slice.quotedWaiting} waiting
+                        {slice.needsYou > 0 ? "Something needs you" : "Nothing needs you"} ·{" "}
+                        {slice.quotedWaiting} waiting
                       </span>
                     </span>
                     <span className="tabular-nums">

@@ -1,6 +1,7 @@
 import type { Decision } from "./decide.ts";
 import { composeReply } from "./compose-reply.ts";
 import { decidingPhrase, impliedAmountsMinor } from "./price-compiler.ts";
+import { countParts, isOwnerEstimate } from "./count-phrase.ts";
 import type { ReplyContext } from "./compose-reply.ts";
 import type {
   CommercialState,
@@ -57,6 +58,9 @@ export const SETUP_REASON = {
 } as const;
 
 function recommendationLabel(decision: Decision): string {
+  if (decision.questionPending) return `Answer: do you do ${decision.questionPending.thing}?`;
+  if (decision.coverage && !decision.coverage.confirmed)
+    return "Check it covers everything they asked for";
   if (decision.extraPending?.kind === "no_price") {
     return `Add a price for ${decision.extraPending.label.toLowerCase()}`;
   }
@@ -65,6 +69,11 @@ function recommendationLabel(decision: Decision): string {
   }
   if (decision.action === "SEND_QUOTE") return "Send the quote";
   if (decision.blocker?.inferred) return `Check ${decidingPhrase(decision.blocker.field)}`;
+  if (decision.action === "REQUEST_INFORMATION" && decision.blocker) {
+    if (isOwnerEstimate(decision.blocker.field)) {
+      return `Estimate the ${countParts(decision.blocker.field).noun}`;
+    }
+  }
   if (decision.action === "REQUEST_INFORMATION") return "Ask for what's missing";
   if (decision.setup === "add_prices") return "Add your prices";
   if (decision.setup === "add_price") return "Add a price for this job";
@@ -83,17 +92,21 @@ export function snapshotFromDecision(decision: Decision, who: ReplyContext = {})
     reason: decision.explanation,
     // Nothing is ever sent without the owner, so approval is always required.
     requiredApproval: true,
-    reasonCodes: decision.extraPending
-      ? decision.extraPending.kind === "no_price"
-        ? [SETUP_REASON.add_price, "EXTRA"]
-        : ["CHECK_EXTRA"]
-      : decision.setup
-        ? [SETUP_REASON[decision.setup]]
-        : decision.provisional
-          ? ["CONFIRM_SERVICE"]
-          : decision.serviceChoices?.length
-            ? ["CHOOSE_BETWEEN"]
-            : [],
+    reasonCodes: decision.questionPending
+      ? ["ANSWER_QUESTION"]
+      : decision.coverage && !decision.coverage.confirmed
+        ? ["CONFIRM_COVERAGE"]
+        : decision.extraPending
+          ? decision.extraPending.kind === "no_price"
+            ? [SETUP_REASON.add_price, "EXTRA"]
+            : ["CHECK_EXTRA"]
+          : decision.setup
+            ? [SETUP_REASON[decision.setup]]
+            : decision.provisional
+              ? ["CONFIRM_SERVICE"]
+              : decision.serviceChoices?.length
+                ? ["CHOOSE_BETWEEN"]
+                : [],
     // `primaryEnabled` is about the SEND control. An escalation has nothing to
     // send; its next step (add prices, choose the service) is a link the desk
     // renders from the reason code, never this flag.
@@ -132,7 +145,7 @@ export function snapshotFromDecision(decision: Decision, who: ReplyContext = {})
     // never-sent enquiry's figure lives, since `quote_version` (and so
     // `quotes` above) is only written once a send actually happens.
     price:
-      decision.price.kind === "EXACT" && !decision.extraPending
+      decision.price.kind === "EXACT" && !decision.extraPending && replyMayNameTotal(decision)
         ? {
             kind: "EXACT",
             amountMinor: decision.price.amountMinor,
@@ -141,6 +154,8 @@ export function snapshotFromDecision(decision: Decision, who: ReplyContext = {})
           }
         : undefined,
     ...(decision.extraPending ? { extraPending: decision.extraPending } : {}),
+    ...(decision.coverage ? { coverage: decision.coverage } : {}),
+    ...(decision.questionPending ? { questionPending: decision.questionPending } : {}),
     ...(decision.leftOut?.length ? { leftOut: decision.leftOut } : {}),
     // Shown to the owner as a provisional figure, never as a decided one. The
     // send path reads `price`, which stays undefined until the service premise
@@ -159,8 +174,21 @@ export function snapshotFromDecision(decision: Decision, who: ReplyContext = {})
     // What the reviewed message is allowed to say about money. Stored with the
     // decision because it is derived from the rule that produced the price, not
     // from the text of any particular draft.
-    impliedAmountsMinor: decision.extraPending ? [] : impliedAmountsMinor(decision.price),
+    impliedAmountsMinor:
+      decision.extraPending || !replyMayNameTotal(decision)
+        ? []
+        : impliedAmountsMinor(decision.price),
   };
+}
+
+/**
+ * A total is only authorised once the owner has confirmed what it covers, and
+ * never while a question they asked is unanswered. Until then the snapshot
+ * carries no `price`, so no send path can record one.
+ */
+export function replyMayNameTotal(decision: Decision): boolean {
+  if (decision.questionPending) return false;
+  return decision.coverage ? decision.coverage.confirmed : true;
 }
 
 /**

@@ -7,7 +7,6 @@ import { Segmented } from "@/components/ui/segmented";
 import { ScrollFade } from "@/components/ui/scroll-fade";
 import { useScrollFade } from "@/lib/use-scroll-fade";
 import {
-  derivedLabel,
   commercialValue,
   filteredEnquiries,
   formatAud,
@@ -21,7 +20,7 @@ import {
 import { CommercialValueMark } from "@/components/ui/commercial-value";
 import { enquirySituation, queueSituationLabel } from "@/domain/situation";
 import { statusTone } from "@/domain/status-tone";
-import { rowTimeCue } from "@/domain/time-cues";
+import { jobDateCue, rowTimeCue, statusChip } from "@/domain/time-cues";
 import { channelLabel } from "@/domain/channel";
 import type { Enquiry, WorkspacePrefs } from "@/domain/types";
 import { usePrototype } from "@/store/prototype-store";
@@ -405,7 +404,7 @@ export function Queue({ activeId, phone = false }: { activeId?: string; phone?: 
                         the value mark into a wrap.
                       */}
                       <div className="mt-1.5">
-                        <Badge tone={statusTone(e)}>{derivedLabel(e.state, e)}</Badge>
+                        <Badge tone={statusTone(e)}>{statusChip(e)}</Badge>
                       </div>
                       {blocking ? (
                         <p className="mt-1 text-2xs text-warn-on-paper-2">
@@ -419,11 +418,11 @@ export function Queue({ activeId, phone = false }: { activeId?: string; phone?: 
                         <p className="min-w-0 flex-1 truncate font-medium leading-snug">
                           {e.customerName}
                         </p>
-                        <Badge tone={statusTone(e)}>{derivedLabel(e.state, e)}</Badge>
+                        <Badge tone={statusTone(e)}>{statusChip(e)}</Badge>
                       </div>
                       <p className="mt-1 truncate text-sm text-ink-2">
                         {e.serviceLabel}
-                        {e.dateLabel ? ` · ${e.dateLabel}` : ""}
+                        {e.dateLabel ? ` · ${jobDateCue(e)}` : ""}
                       </p>
                       <div className="mt-2 flex items-baseline justify-between gap-2 text-xs text-stone-on-paper-2">
                         {situation?.kind === "evaluating" ? (

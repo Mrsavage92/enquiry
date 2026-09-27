@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { decideConfirmed } from "./coverage-testing.ts";
 import test from "node:test";
 import { activeRules, decideEnquiry } from "./decide.ts";
 
@@ -38,7 +39,7 @@ const fact = (field: string, value: string, status = "confirmed") =>
   }) as never;
 
 test("a priced enquiry is ready to quote", () => {
-  const d = decideEnquiry(
+  const d = decideConfirmed(
     { knowledge: [knowledge("Active")] },
     { serviceLabel: "Group makeup", facts: [fact("guests", "4")] },
   );

@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { guarded } from "@/lib/server/alert";
 import { authMiddleware } from "@/lib/auth/middleware";
 import { cleanOnboardingProfile } from "@/domain/onboarding-profile";
+import { normaliseTrustMode } from "@/domain/trust-mode";
 
 /**
  * The operator app's server boundary.
@@ -260,13 +261,12 @@ export const setTrustMode = createServerFn({ method: "POST" })
   .validator((raw: unknown) => {
     const d = (raw ?? {}) as Record<string, unknown>;
     const businessId = typeof d.businessId === "string" ? d.businessId : "";
-    const mode = typeof d.mode === "string" ? d.mode : "";
     if (!businessId) throw new Error("A business id is required.");
     // Whitelisted, not passed through - this column widens what the system may
-    // be permitted to do.
-    if (!["Private", "Observe", "Assist", "Autopilot"].includes(mode)) {
-      throw new Error("Unknown trust mode.");
-    }
+    // be permitted to do. The retired autonomous value is read as Assist and
+    // never stored again.
+    const mode = normaliseTrustMode(typeof d.mode === "string" ? d.mode : "");
+    if (!mode) throw new Error("Unknown trust mode.");
     return { businessId, mode };
   })
   .handler(async ({ context, data }) => {

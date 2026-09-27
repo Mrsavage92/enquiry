@@ -1,12 +1,15 @@
 import type { Sql } from "../db.ts";
 import { activeRules, decideEnquiry } from "../../domain/decide.ts";
 import { ASAP_VALUE, replyContextFromFacts } from "../../domain/reply-context.ts";
+import { practicePriceFrom } from "./practice-price.ts";
+import { COVERAGE_FIELD } from "../../domain/coverage.ts";
 import { snapshotFromDecision, stateFromDecision } from "../../domain/decision-snapshot.ts";
 import type { Decision } from "../../domain/decide.ts";
 import {
   inboundBodies,
   inferBlockedQuantity,
   inferExtras,
+  inferQuestions,
   type LiveFact,
 } from "./quantity-inference.ts";
 
@@ -174,12 +177,15 @@ function decideFrom(
   inputs: DecisionInputs,
   enquiry: { serviceLabel: string; customerName: string },
   facts: LiveFact[],
+  messageText = "",
 ): WorkedDecision {
   const decision = decideEnquiry(
     { knowledge: inputs.knowledge },
     {
       serviceLabel: enquiry.serviceLabel,
       facts: facts.map((f) => ({ ...f, displayValue: f.display_value ?? undefined })) as never,
+      messageText,
+      services: inputs.services,
     },
   );
   // A name or day only read from their message is never stated as fact.
@@ -220,6 +226,21 @@ async function workOutDecision(
  * `inferred` reading the owner checks; the decision is taken again after each
  * so the next step is "check it", never "ask for it".
  */
+/**
+ * A practice enquiry's sample price, added to this one decision only. It is a
+ * fact on the practice enquiry (written only by the practice-only server
+ * function), never a knowledge row, so no real enquiry can ever be priced by it.
+ */
+function withPracticePrice(inputs: DecisionInputs, facts: LiveFact[]): DecisionInputs {
+  const rule = practicePriceFrom(facts);
+  if (!rule) return inputs;
+  return {
+    ...inputs,
+    knowledge: [...inputs.knowledge, { state: "Active", rulePayload: rule }],
+    services: [...new Set([...inputs.services, rule.service])],
+  };
+}
+
 async function readAndDecide(
   sql: Sql,
   enquiryId: string,
@@ -237,10 +258,20 @@ async function readAndDecide(
     facts,
     messages,
   );
-  facts = [...facts, ...extras];
-  let worked = decideFrom(inputs, who, facts);
+  const questions = await inferQuestions(
+    sql,
+    enquiryId,
+    [who.serviceLabel, ...inputs.services],
+    inputs.knowledge,
+    facts,
+    messages,
+  );
+  facts = [...facts, ...extras, ...questions];
+  const text = messages.map((m) => m.body).join("\n");
+  const priced = withPracticePrice(inputs, facts);
+  let worked = decideFrom(priced, who, facts, text);
   const read = await inferBlockedQuantity(sql, enquiryId, worked.decision, facts, messages);
-  if (read) worked = decideFrom(inputs, who, [...facts, read]);
+  if (read) worked = decideFrom(priced, who, [...facts, read], text);
   return worked;
 }
 
@@ -255,6 +286,14 @@ async function writeDecision(sql: Sql, enquiryId: string, worked: WorkedDecision
         updated_at = now()
     where id = ${enquiryId}
     returning decision_revision
+  `;
+  // A confirmation of what the price covers counts only for the coverage it
+  // was given for. The moment the key moves it is retired, never revived.
+  const key = worked.decision.coverage?.key ?? "";
+  await sql`
+    update enquiry_fact set superseded = true, updated_at = now()
+    where enquiry_id = ${enquiryId} and lower(field) = ${COVERAGE_FIELD}
+      and superseded = false and value <> ${key}
   `;
   return Number(updated?.decision_revision ?? 0);
 }
@@ -339,4 +378,43 @@ export async function redecideOpenEnquiries(sql: Sql, businessId: string): Promi
     changed.push(row.id);
   }
   return changed;
+}
+
+/**
+ * Open enquiries decided before the price check existed: a stored price and no
+ * coverage key. The Send button showed, the server refused the send, and there
+ * was no check to confirm - the owner was stuck. Each is re-decided under its
+ * lock so the check appears. Idempotent (a re-decided snapshot carries a key,
+ * or no price), and scoped to the business ids the caller already checked.
+ * What was sent is left alone: only enquiries whose turn it is are touched.
+ *
+ * Returns the ids re-decided.
+ */
+export async function redecideLegacyOpen(sql: Sql, businessIds: string[]): Promise<string[]> {
+  if (businessIds.length === 0) return [];
+  const rows = await sql<{
+    id: string;
+    business_id: string;
+    service_label: string | null;
+    customer_name: string | null;
+  }>`
+    select id, business_id, service_label, customer_name from enquiry
+    where business_id = any(${businessIds}::uuid[]) and lifecycle = ${"OPEN"}
+      and responsibility = ${"BUSINESS"}
+      and decision_state in (${"NEEDS_HUMAN"}, ${"NEEDS_INFORMATION"}, ${"ACTION_READY"})
+      and (decision_snapshot -> 'coverage') is null
+      and ((decision_snapshot -> 'price') is not null
+        or decision_snapshot -> 'recommendation' ->> 'action' = ${"SEND_QUOTE"})
+    order by received_at
+    for update
+  `;
+  for (const r of rows) {
+    await applyDecision(sql, {
+      enquiryId: r.id,
+      businessId: r.business_id,
+      serviceLabel: r.service_label ?? "",
+      customerName: r.customer_name ?? "",
+    });
+  }
+  return rows.map((r) => r.id);
 }

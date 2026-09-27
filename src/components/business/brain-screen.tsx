@@ -38,8 +38,12 @@ import { cn } from "@/lib/utils";
 import { applyVoiceToDraft } from "@/domain/voice-apply";
 import { useNarrow } from "@/lib/use-narrow";
 import { useScrollFade } from "@/lib/use-scroll-fade";
-import { readPriceSentences, PRICE_EXAMPLE, type ReadPrice } from "@/domain/price-sentence";
+import { PRICE_EXAMPLE } from "@/domain/price-sentence";
 import { describeRule } from "@/domain/business-rule";
+import { replacementsFor } from "@/domain/price-replacement";
+import { readBusinessDetails, type BusinessDetailsRead } from "@/domain/business-details-read";
+import { describeDetail, noteFor } from "@/domain/business-detail";
+import { activeRules } from "@/domain/decide";
 import { concreteWhen } from "@/domain/time-cues";
 import { decidingPhrase } from "@/domain/price-compiler";
 import { useFirstBetaActions } from "@/lib/workspace/live-mutations";
@@ -91,10 +95,9 @@ export function BrainScreen() {
   const [composerOpen, setComposerOpen] = useState(false);
   // What "Preview" could not use, said beside the box - never a silent no-op.
   const [tellError, setTellError] = useState<string | null>(null);
-  const [livePrices, setLivePrices] = useState<{
-    prices: ReadPrice[];
-    unread: { line: string; reason: string }[];
-  } | null>(null);
+  const [livePrices, setLivePrices] = useState<BusinessDetailsRead | null>(null);
+  // Conditional prices and other lines the owner chose to keep as notes.
+  const [notesChosen, setNotesChosen] = useState<Set<string>>(new Set());
   const [savingPrices, setSavingPrices] = useState(false);
   const firstBeta = useFirstBetaActions();
   const search = useSearch({ strict: false }) as { section?: string; service?: string };
@@ -457,16 +460,19 @@ export function BrainScreen() {
                 }
                 return;
               }
-              // A real business: read the owner's own words as prices they can
-              // confirm, and name every line that could not be read.
-              const read = readPriceSentences(input);
-              if (read.prices.length === 0) {
+              // A real business: read the owner's own words as prices, days
+              // they don't work, services they don't offer and notes - each
+              // confirmed before it saves - and name every line not read.
+              const read = readBusinessDetails(input);
+              const noteable = read.unread.filter((u) => u.note);
+              if (read.prices.length === 0 && read.details.length === 0 && noteable.length === 0) {
                 const why = read.unread[0]?.reason ?? "There is no dollar amount in it.";
                 setTellError(
-                  `Enquiry could not read a price from that. ${why} Write one price per line, for example: ${trade.sentence}, or ${trade.flatSentence}.`,
+                  `Enquiry could not read that. ${why} Write one detail per line, for example: ${trade.sentence}, or We don't work Sundays.`,
                 );
                 return;
               }
+              setNotesChosen(new Set(noteable.map((u) => u.line)));
               setLivePrices(read);
             }}
           >
@@ -671,28 +677,88 @@ export function BrainScreen() {
         )}
 
         <Dialog open={Boolean(livePrices)} onOpenChange={(o) => !o && setLivePrices(null)}>
-          <DialogContent title="Prices to save">
+          <DialogContent title="Business details to save">
             {livePrices ? (
               <div className="space-y-3 text-sm">
                 <ul className="space-y-2">
-                  {livePrices.prices.map((p) => (
-                    <li key={p.line}>
-                      <p className="font-medium">{describeRule(p.rule)}</p>
+                  {livePrices.prices.map((p, i) => {
+                    const change = replacementsFor(
+                      activeRules(business ?? {}),
+                      livePrices.prices.map((x) => x.rule),
+                    )[i]!;
+                    return (
+                      <li key={p.line}>
+                        <p className="font-medium">{describeRule(p.rule)}</p>
+                        {change.replaces.length ? (
+                          <p className="mt-0.5 font-medium text-warn">
+                            Replaces {change.replaces.join(" and ")}
+                          </p>
+                        ) : null}
+                        {change.clashesWith.length ? (
+                          <p className="mt-0.5 font-medium text-warn">
+                            Also in this list: {change.clashesWith.join(" and ")}. Only one price
+                            per service can stand - the last one saved replaces the others.
+                          </p>
+                        ) : null}
+                        <p className="mt-0.5 text-ink-2">
+                          {p.rule.kind === "per_unit"
+                            ? `When a customer does not say how many, Enquiry asks for ${decidingPhrase(p.rule.quantityField)}.`
+                            : "One flat price for this job."}
+                        </p>
+                      </li>
+                    );
+                  })}
+                  {livePrices.details.map((d) => (
+                    <li key={d.line}>
+                      <p className="font-medium">{describeDetail(d.detail)}</p>
                       <p className="mt-0.5 text-ink-2">
-                        {p.rule.kind === "per_unit"
-                          ? `When a customer does not say how many, Enquiry asks for ${decidingPhrase(p.rule.quantityField)}.`
-                          : "One flat price for this job."}
+                        {d.detail.kind === "closed_days"
+                          ? "Enquiry flags a day they ask for that you don't work."
+                          : d.detail.kind === "not_offered"
+                            ? "When a customer asks if you do it, Enquiry reads that as No for you to confirm."
+                            : "Shown to you on the quotes it concerns."}
                       </p>
                     </li>
                   ))}
                 </ul>
-                {livePrices.unread.length > 0 ? (
+                {livePrices.unread.some((u) => u.note) ? (
+                  <fieldset className="space-y-2">
+                    <legend className="font-medium">Not a set price - keep as a note?</legend>
+                    {livePrices.unread
+                      .filter((u) => u.note)
+                      .map((u) => (
+                        <label key={u.line} className="flex items-start gap-2">
+                          <input
+                            type="checkbox"
+                            className="mt-1 size-4 accent-mark"
+                            checked={notesChosen.has(u.line)}
+                            onChange={(e) => {
+                              const next = new Set(notesChosen);
+                              if (e.target.checked) next.add(u.line);
+                              else next.delete(u.line);
+                              setNotesChosen(next);
+                            }}
+                          />
+                          <span>
+                            <span className="font-medium">{u.line}</span>
+                            <span className="mt-0.5 block text-ink-2">
+                              {u.reason} As a note, Enquiry shows it to you on each quote it
+                              concerns and never adds it to a price.
+                            </span>
+                          </span>
+                        </label>
+                      ))}
+                  </fieldset>
+                ) : null}
+                {livePrices.unread.some((u) => !u.note) ? (
                   <div className="callout bg-warn-bg text-warn">
                     <p className="font-medium">Not saved - Enquiry could not read these:</p>
                     <ul className="mt-1 space-y-1 text-ink-2">
-                      {livePrices.unread.map((u) => (
-                        <li key={u.line}>{`"${u.line}" - ${u.reason}`}</li>
-                      ))}
+                      {livePrices.unread
+                        .filter((u) => !u.note)
+                        .map((u) => (
+                          <li key={u.line}>{`"${u.line}" - ${u.reason}`}</li>
+                        ))}
                     </ul>
                   </div>
                 ) : null}
@@ -705,15 +771,22 @@ export function BrainScreen() {
                     onClick={async () => {
                       setSavingPrices(true);
                       try {
-                        // One call: every price saves, or none does.
+                        // One call: every price and detail saves, or none does.
+                        const services = activeRules(business).map((r) => r.service);
+                        const notes = livePrices.unread
+                          .filter((u) => u.note && notesChosen.has(u.line))
+                          .map((u) => noteFor(u.line, services));
                         const res = await firstBeta.saveRules(
                           business.id,
                           livePrices.prices.map((p) => p.rule),
+                          [...livePrices.details.map((d) => d.detail), ...notes],
                         );
                         const updated = res.updatedEnquiries > 0;
                         // Only what was saved leaves the box. Lines Enquiry
                         // could not read stay, with the reason beside them.
-                        const left = livePrices.unread;
+                        const left = livePrices.unread.filter(
+                          (u) => !(u.note && notesChosen.has(u.line)),
+                        );
                         setLivePrices(null);
                         if (left.length > 0) {
                           setInput(left.map((u) => u.line).join("\n"));
@@ -740,9 +813,12 @@ export function BrainScreen() {
                   >
                     {savingPrices
                       ? "Saving…"
-                      : livePrices.prices.length === 1
-                        ? "Save this price"
-                        : `Save these ${livePrices.prices.length} prices`}
+                      : saveLabel(
+                          livePrices.prices.length +
+                            livePrices.details.length +
+                            livePrices.unread.filter((u) => u.note && notesChosen.has(u.line))
+                              .length,
+                        )}
                   </Button>
                   <Button variant="secondary" onClick={() => setLivePrices(null)}>
                     Cancel
@@ -1005,4 +1081,9 @@ function VoicePlayground({ businessId }: { businessId: string }) {
       </div>
     </section>
   );
+}
+
+function saveLabel(count: number): string {
+  if (count === 0) return "Nothing to save";
+  return count === 1 ? "Save this detail" : `Save these ${count} details`;
 }

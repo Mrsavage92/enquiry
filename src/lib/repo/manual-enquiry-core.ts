@@ -8,6 +8,9 @@ import type { EnquiryInterpreter, InterpretFailureReason } from "../interpret/ty
 import { readEnquiryBasics, type DateReading } from "../../domain/enquiry-basics.ts";
 import { blockedQuantity, findQuantityInMessages, newExtraRequests } from "./quantity-inference.ts";
 import { ASAP_VALUE, replyContextFromFacts } from "../../domain/reply-context.ts";
+import { activeDetails } from "../../domain/business-detail.ts";
+import { questionField, readServiceQuestions } from "../../domain/service-questions.ts";
+import { namesService } from "../../domain/service-words.ts";
 
 /**
  * Creating a real enquiry, as pure SQL logic - deliberately separate from
@@ -107,10 +110,27 @@ export async function insertManualEnquiry(
   )) {
     facts.push(readFact(extra.field, "include", extra.span, extra.span, extra.label));
   }
+  // "Do you do mould removal?": a question the owner answers before any reply
+  // is ready. Read as "No" when they said they don't offer it.
+  facts.push(...questionFacts(input.body, [input.serviceLabel, ...services], business));
+  // Every reading goes in before the decision: what the price covers is
+  // fingerprinted over all of them, so the first decision already knows them.
+  facts.push(...dateFacts(basics.dates));
+  if (!typedName && basics.customerName) {
+    facts.push(readFact("name", basics.customerName, basics.customerName, basics.customerName));
+  }
+  if (!input.customerPhone.trim() && basics.contact.phone) {
+    facts.push(readFact("phone", basics.contact.phone, basics.contact.phone, basics.contact.phone));
+  }
+  if (!input.customerEmail.trim() && basics.contact.email) {
+    facts.push(readFact("email", basics.contact.email, basics.contact.email, basics.contact.email));
+  }
   const decide = () =>
     decideEnquiry(business, {
       serviceLabel: input.serviceLabel,
       facts: facts.map((f) => ({ ...f })) as never,
+      messageText: input.body,
+      services,
     });
   let decision = decide();
   // The count the price needs, when the message already gives it: read now,
@@ -131,16 +151,6 @@ export async function insertManualEnquiry(
       confidence: quantityRead.approximate ? "Medium" : "High",
     });
     decision = decide();
-  }
-  facts.push(...dateFacts(basics.dates));
-  if (!typedName && basics.customerName) {
-    facts.push(readFact("name", basics.customerName, basics.customerName, basics.customerName));
-  }
-  if (!input.customerPhone.trim() && basics.contact.phone) {
-    facts.push(readFact("phone", basics.contact.phone, basics.contact.phone, basics.contact.phone));
-  }
-  if (!input.customerEmail.trim() && basics.contact.email) {
-    facts.push(readFact("email", basics.contact.email, basics.contact.email, basics.contact.email));
   }
 
   // The reply only states what the owner typed or confirmed: a read name
@@ -164,7 +174,8 @@ export async function insertManualEnquiry(
     ),
   );
   const state = stateFromDecision(decision);
-  const dateLabel = basics.jobDate?.label ?? (basics.dates.asap ? "ASAP" : null);
+  const dateLabel =
+    basics.jobDate?.label ?? basics.dates.options?.label ?? (basics.dates.asap ? "ASAP" : null);
 
   const rows = await sql<{ id: string }>`
     insert into enquiry (
@@ -234,6 +245,55 @@ type ArrivalFact = {
   provenance: Record<string, unknown>;
 };
 
+/** At most this many extras and questions a model may propose for one message. */
+const MAX_MODEL_ASKS = 3;
+/** Fields only the owner's own steps write; a model never proposes them. */
+const OWNER_ONLY_FIELDS = new Set(["coverage", "practice_price", "recurring"]);
+
+/**
+ * What a model reading may write. It may propose an extra ("extra:...") or a
+ * question ("question:...") only when the message itself names it, and only a
+ * few of each - a model that invents twenty asks, or one the customer never
+ * wrote, would block the reply behind things nobody asked for. Fields that
+ * record an owner's own step are never taken from a model.
+ */
+export function modelFactsToKeep<T extends { field: string }>(
+  facts: readonly T[],
+  message: string,
+): T[] {
+  let extras = 0;
+  let questions = 0;
+  return facts.filter((f) => {
+    const field = f.field.trim().toLowerCase();
+    if (OWNER_ONLY_FIELDS.has(field)) return false;
+    const isExtra = field.startsWith("extra:");
+    const isQuestion = field.startsWith("question:");
+    if (!isExtra && !isQuestion) return true;
+    const thing = field.slice(field.indexOf(":") + 1).trim();
+    if (!thing || !namesService(message, thing)) return false;
+    if (isExtra) extras += 1;
+    else questions += 1;
+    return (isExtra ? extras : questions) <= MAX_MODEL_ASKS;
+  });
+}
+
+/** Their "do you do X?" questions, each a reading the owner answers. */
+export function questionFacts(
+  body: string,
+  services: readonly string[],
+  business: { knowledge?: ReadonlyArray<{ state?: string | null; rulePayload?: unknown }> },
+): ArrivalFact[] {
+  return readServiceQuestions(body, services, activeDetails(business)).map((q) =>
+    readFact(
+      questionField(q.thing),
+      q.notOffered ? "no" : "open",
+      q.span,
+      q.span,
+      `They asked if you do ${q.thing}`,
+    ),
+  );
+}
+
 /** A reading of the customer's own words: `inferred`, never confirmed. */
 function readFact(
   field: string,
@@ -298,8 +358,38 @@ function dateFacts(dates: DateReading): ArrivalFact[] {
         },
       },
     });
+  } else if (dates.options) {
+    // Two days offered: neither is the job date. The owner says which works.
+    const o = dates.options;
+    out.push({
+      ...readFact(
+        "date",
+        o.days.map((d) => d.iso).join("|"),
+        `Asked about: ${o.label}`,
+        o.span,
+        "Job date",
+      ),
+      provenance: {
+        kind: "message",
+        label: "Read from the customer's message",
+        span: o.span,
+        asked: o.days.some((d) => d.asked),
+        options: o.days.map((d) => d.iso),
+      },
+    });
   } else if (dates.asap) {
     out.push(readFact("date", ASAP_VALUE, "As soon as possible", "asap", "Job date"));
+  }
+  if (dates.context.length) {
+    out.push(
+      readFact(
+        "date_context",
+        dates.context.map((d) => d.iso).join(","),
+        dates.context.map((d) => `${d.what} ${d.label}`).join("; "),
+        dates.context.map((d) => d.span).join("; "),
+        "Also mentioned",
+      ),
+    );
   }
   if (dates.unavailable.length) {
     const labels = dates.unavailable.map((d) => d.label).join(", ");
@@ -505,7 +595,7 @@ export async function interpretAndApply(
       return { ok: true, model, factsWritten, serviceLabelSet } as InterpretAndApplyResult;
     }
 
-    for (const fact of result.facts) {
+    for (const fact of modelFactsToKeep(result.facts, input.rawMessage)) {
       const status: FactStatus = fact.confidence === "low" ? "check_this" : "inferred";
       const written = await supersedeAndInsertFact(
         tx,

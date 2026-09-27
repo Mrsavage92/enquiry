@@ -1,5 +1,6 @@
 import type { VoiceProfile } from "./types";
 import { formatMinorAud } from "./money-format.ts";
+import { NUMBER_PHRASE, wordsToNumber } from "./number-words.ts";
 
 export type VoiceProposal = {
   patch: Partial<VoiceProfile>;
@@ -17,21 +18,84 @@ export type DollarMatch = { raw: string; amount: number; index: number };
  * "A$" and "AU$" are written with no space: "A $50 deposit" is the word "A".
  */
 const AMOUNT = String.raw`(\d{1,3}(?:,\d{3})+|\d+)(?:\.(\d{1,2}))?`;
-const MONEY = new RegExp(
-  String.raw`(?:\bAUD\s?\$|\bAU\$|\bA\$|\bAUD\b|\$)\s?${AMOUNT}(\s?k\b)?|\b${AMOUNT}\s?(k\b|dollars?\b|bucks\b)`,
+/** "$880", "A$880", "AUD 880", "USD 880", "$3.6k". */
+const PREFIXED = new RegExp(
+  String.raw`(?:\bAUD\s?\$|\bAU\$|\bA\$|\bUS\$|\bAUD\b|\bUSD\b|\$)\s?${AMOUNT}(\s?k\b)?`,
   "gi",
 );
+/** "880 dollars", "880 AUD", "880AUD", "880$", "3k". */
+const SUFFIXED = new RegExp(
+  String.raw`\b${AMOUNT}\s?(k\b|dollars?\b|bucks\b|aud\b|usd\b|\$)`,
+  "gi",
+);
+/** "That comes to 880.": a bare number where a total is said is money. */
+const TOTAL_WORDS = new RegExp(
+  String.raw`\b(?:comes?\s+to|came\s+to|total(?:\s+(?:of|is))?|all\s+up|price\s+(?:is|of)|costs?(?:\s+is)?|quote\s+(?:is|of))\s*:?\s*${AMOUNT}\b(?!\s*(?:%|per\b|x\b|hours?|hrs?|rooms?|bed|bath|sq|m2|metres?|meters?|people|guests|doors?|windows?|days?|weeks?|visits?|items?|k\b|dollars?|bucks|aud|usd|\$))`,
+  "gi",
+);
+/** "eight hundred and eighty dollars". */
+const WRITTEN = new RegExp(String.raw`(${NUMBER_PHRASE})\s+(?:dollars?|bucks|aud)\b`, "gi");
 
+type Hit = DollarMatch & { end: number };
+
+function numberFrom(whole: string, cents: string | undefined, suffix: string): number {
+  const base = Number(cents ? `${whole.replace(/,/g, "")}.${cents}` : whole.replace(/,/g, ""));
+  return suffix.trim().toLowerCase() === "k" ? Math.round(base * 1000 * 100) / 100 : base;
+}
+
+function hitsOf(text: string): Hit[] {
+  const hits: Hit[] = [];
+  const push = (m: RegExpMatchArray, amount: number) =>
+    hits.push({ raw: m[0], amount, index: m.index ?? 0, end: (m.index ?? 0) + m[0].length });
+  for (const m of text.matchAll(PREFIXED)) push(m, numberFrom(m[1]!, m[2], m[3] ?? ""));
+  for (const m of text.matchAll(SUFFIXED)) push(m, numberFrom(m[1]!, m[2], m[3] ?? ""));
+  for (const m of text.matchAll(TOTAL_WORDS)) {
+    const at = m[0].search(/\d/);
+    hits.push({
+      raw: m[0].slice(at),
+      amount: numberFrom(m[1]!, m[2], ""),
+      index: (m.index ?? 0) + at,
+      end: (m.index ?? 0) + m[0].length,
+    });
+  }
+  for (const m of text.matchAll(WRITTEN)) {
+    const n = wordsToNumber(m[1]!);
+    if (n !== null && n > 0) push(m, n);
+  }
+  return hits;
+}
+
+/**
+ * Every way a message can name money: "$3,000", "$ 3000", "A$3000", "AU$3000",
+ * "AUD 3000", "USD 880", "3,000 dollars", "880 AUD", "880$", "3k", "$3.6k",
+ * "eight hundred and eighty dollars", and a bare number where a total is said
+ * ("That comes to 880."). A kept edit that says the old price in any of these
+ * forms must be caught. "A$" and "AU$" are written with no space: "A $50
+ * deposit" is the word "A".
+ */
 export function dollarMatches(text: string): DollarMatch[] {
-  return [...text.matchAll(MONEY)].map((m) => {
-    const prefixed = m[1] !== undefined;
-    const whole = (prefixed ? m[1] : m[4])!.replace(/,/g, "");
-    const cents = prefixed ? m[2] : m[5];
-    const suffix = ((prefixed ? m[3] : m[6]) ?? "").trim().toLowerCase();
-    const base = Number(cents ? `${whole}.${cents}` : whole);
-    const amount = suffix === "k" ? Math.round(base * 1000 * 100) / 100 : base;
-    return { raw: m[0], amount, index: m.index ?? 0 };
-  });
+  const sorted = hitsOf(text).sort((a, b) => a.index - b.index || b.end - a.end);
+  const out: Hit[] = [];
+  for (const h of sorted) {
+    const prev = out[out.length - 1];
+    if (prev && h.index < prev.end) continue;
+    out.push(h);
+  }
+  return out.map(({ raw, amount, index }) => ({ raw, amount, index }));
+}
+
+/**
+ * Money words ("dollars", "bucks", "AUD") that no readable amount goes with:
+ * "about nine-ish hundred dollars". Enquiry cannot check an amount it cannot
+ * read, so the owner is asked to write it in numbers.
+ */
+export function unreadableMoney(text: string): boolean {
+  const covered = hitsOf(text);
+  for (const m of text.matchAll(/\b(?:dollars?|bucks|aud|usd)\b/gi)) {
+    const at = m.index ?? 0;
+    if (!covered.some((h) => at >= h.index && at < h.end)) return true;
+  }
+  return false;
 }
 
 /** A figure about something else: a deposit, last year's price, a rate. */

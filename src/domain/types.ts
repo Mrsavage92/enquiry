@@ -445,6 +445,13 @@ export type DecisionSnapshot = {
   };
   /** Extras the owner chose to leave out; the reply says so. */
   leftOut?: string[];
+  /**
+   * What the price covers and whether the owner confirmed it for exactly these
+   * facts. `price` above is only set once it is confirmed.
+   */
+  coverage?: import("./coverage.ts").Coverage;
+  /** A "do you do X?" the owner has not answered; nothing is ready until they do. */
+  questionPending?: import("./decide.ts").QuestionPending;
 };
 
 export type WhyItem = {
@@ -491,6 +498,11 @@ export type Enquiry = {
    * nothing, and never sendable (migrations/0012).
    */
   practice?: boolean;
+  /**
+   * The server's decision revision this copy was read at. A confirmation (what
+   * the price covers) names it, so it can never land on a decision that moved.
+   */
+  decisionRevision?: number;
 };
 
 export type BrainChangePreview = {

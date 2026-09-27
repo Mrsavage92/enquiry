@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { authMiddleware } from "@/lib/auth/middleware";
 import { parseBusinessRule } from "@/domain/business-rule";
+import { parseBusinessDetail } from "@/domain/business-detail";
 import type { Channel } from "@/domain/types";
 
 /**
@@ -514,6 +515,71 @@ export const deletePracticeEnquiry = createServerFn({ method: "POST" })
     );
   });
 
+/**
+ * "That's everything": the owner confirms what the price covers, for the exact
+ * coverage key and decision revision they were shown. Only then may a reply
+ * name the total (see coverage-core.ts and reviewed-send-core.ts).
+ */
+export const confirmQuoteCoverage = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .validator((raw: unknown) => {
+    const d = (raw ?? {}) as Record<string, unknown>;
+    const enquiryId = typeof d.enquiryId === "string" ? d.enquiryId : "";
+    const key = typeof d.key === "string" ? d.key.trim().slice(0, 80) : "";
+    const revision = typeof d.revision === "number" ? d.revision : Number.NaN;
+    if (!UUID_RE.test(enquiryId)) throw new Error("That enquiry id is not valid.");
+    if (!key) throw new Error("There is no price to confirm.");
+    if (!Number.isInteger(revision) || revision < 0) throw new Error("Reload and check again.");
+    return { enquiryId, key, revision };
+  })
+  .handler(async ({ context, data }) => {
+    const { getSql, withTransaction } = await import("@/lib/db");
+    const { recordAudit } = await import("@/lib/repo/tenancy.server");
+    const { confirmCoverageForUser } = await import("@/lib/repo/coverage-core");
+    const sql = await getSql();
+    const result = await confirmCoverageForUser(sql, withTransaction, context.userId, data);
+    if (result.ok) {
+      await recordAudit(result.businessId, {
+        actor: context.userId,
+        summary: "Confirmed what the price covers",
+        objectType: "enquiry",
+        objectId: result.enquiryId,
+      });
+    }
+    return result;
+  });
+
+/**
+ * "Use a sample price for practice": prices the practice enquiry with a sample
+ * price in the owner's trade. Refused on any real enquiry; never a business rule.
+ */
+export const applyPracticeSamplePrice = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .validator((raw: unknown) => {
+    const d = (raw ?? {}) as Record<string, unknown>;
+    const enquiryId = typeof d.enquiryId === "string" ? d.enquiryId : "";
+    if (!UUID_RE.test(enquiryId)) throw new Error("That enquiry id is not valid.");
+    return { enquiryId };
+  })
+  .handler(async ({ context, data }) => {
+    const { withTransaction } = await import("@/lib/db");
+    const { requireEnquiryAccess, recordAudit } = await import("@/lib/repo/tenancy.server");
+    const { applyPracticeSampleInTransaction } = await import("@/lib/repo/practice-core");
+    const { enquiryId, businessId } = await requireEnquiryAccess(context.userId, data.enquiryId);
+    const result = await withTransaction((sql) =>
+      applyPracticeSampleInTransaction(sql, { businessId, enquiryId }),
+    );
+    if (result.ok) {
+      await recordAudit(businessId, {
+        actor: context.userId,
+        summary: "Sample price used on the practice enquiry (practice only, not a business price)",
+        objectType: "enquiry",
+        objectId: enquiryId,
+      });
+    }
+    return result;
+  });
+
 /** At most this many prices from one "Add business detail" preview. */
 const MAX_RULES_PER_SAVE = 20;
 
@@ -529,27 +595,32 @@ export const saveBusinessRules = createServerFn({ method: "POST" })
     const businessId = typeof d.businessId === "string" ? d.businessId : "";
     if (!businessId) throw new Error("A business id is required.");
     const list = Array.isArray(d.rules) ? d.rules : [];
-    if (list.length === 0) throw new Error("There are no prices to save.");
-    if (list.length > MAX_RULES_PER_SAVE) {
-      throw new Error(`Save up to ${MAX_RULES_PER_SAVE} prices at a time.`);
+    const detailList = Array.isArray(d.details) ? d.details : [];
+    if (list.length === 0 && detailList.length === 0) {
+      throw new Error("There is nothing to save.");
+    }
+    if (list.length + detailList.length > MAX_RULES_PER_SAVE) {
+      throw new Error(`Save up to ${MAX_RULES_PER_SAVE} details at a time.`);
     }
     const rules = list.map((r) => {
       const parsed = parseBusinessRule(r);
       if (!parsed.ok) throw new Error(parsed.reason);
       return parsed.rule;
     });
-    return { businessId, rules };
+    const details = detailList.map((r) => {
+      const parsed = parseBusinessDetail(r);
+      if (!parsed.ok) throw new Error(parsed.reason);
+      return parsed.detail;
+    });
+    return { businessId, rules, details };
   })
   .handler(async ({ context, data }) => {
-    const { withTransaction } = await import("@/lib/db");
-    const { requireBusinessAccess, recordAudit } = await import("@/lib/repo/tenancy.server");
-    const { describeRule } = await import("@/domain/business-rule");
-    const { saveBusinessRulesAndRedecide } = await import("@/lib/repo/business-rule-core");
-    const businessId = await requireBusinessAccess(context.userId, data.businessId);
-    const rules = data.rules.map((rule) => ({ rule, readable: describeRule(rule) }));
-    const result = await withTransaction((sql) =>
-      saveBusinessRulesAndRedecide(sql, { businessId, rules }),
-    );
+    const { getSql, withTransaction } = await import("@/lib/db");
+    const { recordAudit } = await import("@/lib/repo/tenancy.server");
+    const { saveBusinessDetailsForUser } = await import("@/lib/repo/business-rule-core");
+    const sql = await getSql();
+    const result = await saveBusinessDetailsForUser(sql, withTransaction, context.userId, data);
+    const { businessId, rules } = result;
     for (const [i, saved] of result.saved.entries()) {
       if (saved.outcome === "duplicate") continue;
       await recordAudit(businessId, {
@@ -563,9 +634,18 @@ export const saveBusinessRules = createServerFn({ method: "POST" })
         objectId: saved.id,
       });
     }
+    for (const id of result.detailIds) {
+      await recordAudit(businessId, {
+        actor: context.userId,
+        summary: "Business detail confirmed",
+        objectType: "brain",
+        objectId: id,
+      });
+    }
     return {
       ok: true as const,
       saved: result.saved.filter((s) => s.outcome !== "duplicate").length,
+      details: result.detailIds.length,
       updatedEnquiries: result.updatedEnquiryIds.length,
     };
   });

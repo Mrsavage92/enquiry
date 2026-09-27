@@ -42,6 +42,34 @@ export function suggestService(message: string, services: readonly string[]): st
   return scored[0]!.service;
 }
 
+/**
+ * A fee or a minimum ("Travel fee", "Minimum call out") is added to a job; it
+ * is never the job a customer asks for, so it is never offered as a service.
+ */
+const FEE_OR_MINIMUM = /\b(?:fees?|call[- ]?outs?|surcharges?|minimum|min|deposit|levy)\b/i;
+
+export function isFeeOrMinimum(service: string): boolean {
+  return FEE_OR_MINIMUM.test(service);
+}
+
+/**
+ * The services a message most likely means, best first: how many of each
+ * service's words the message uses; ties keep the business's own order.
+ */
+export function rankServices(message: string, services: readonly string[]): string[] {
+  const said = new Set(words(message).map(stem));
+  return services
+    .map((service, i) => ({
+      service,
+      i,
+      score: words(service)
+        .map(stem)
+        .filter((w) => said.has(w)).length,
+    }))
+    .sort((a, b) => b.score - a.score || a.i - b.i)
+    .map((s) => s.service);
+}
+
 /** The business's own services, the ones with a price first. */
 export function businessServices(business: Business | undefined): string[] {
   const priced = activeRules(business ?? {}).map((r) => r.service);
@@ -50,7 +78,7 @@ export function businessServices(business: Business | undefined): string[] {
   const out: string[] = [];
   for (const s of [...priced, ...listed]) {
     const key = (s ?? "").trim().toLowerCase();
-    if (!key || seen.has(key)) continue;
+    if (!key || seen.has(key) || isFeeOrMinimum(key)) continue;
     seen.add(key);
     out.push(s.trim());
   }

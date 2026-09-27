@@ -1,6 +1,7 @@
 import { formatMajorAmount } from "./money-format.ts";
 import { pluraliseUnit, ruleFingerprint, type BusinessRule } from "./business-rule.ts";
 import { amountMinorFor, parseQuantity, type QuantityProblem } from "./quantity.ts";
+import { countParts, isOwnerEstimate, numberOf } from "./count-phrase.ts";
 
 // Re-exported so callers reasoning about a priced line get it from one place.
 export { pluraliseUnit };
@@ -57,6 +58,8 @@ export type PriceOutcome =
       lines?: { label: string; amountMinor: number; detail?: string }[];
       /** Every amount the extra lines imply (their totals and rates). */
       alsoImplied?: number[];
+      /** For a price per something: how many were asked for, "3 bedrooms". */
+      count?: string;
     }
   | {
       /**
@@ -276,7 +279,7 @@ export function compilePrice(
    * A completed calculation, presented as decided only when the premise it
    * rests on has actually been confirmed by a human.
    */
-  const priced = (amountMinor: number, workings: string): PriceOutcome => {
+  const priced = (amountMinor: number, workings: string, count?: string): PriceOutcome => {
     if (unconfirmedService) {
       return {
         kind: "PROVISIONAL",
@@ -288,7 +291,14 @@ export function compilePrice(
         service: unconfirmedService.value,
       };
     }
-    return { kind: "EXACT", amountMinor, currency: "AUD", rule, workings };
+    return {
+      kind: "EXACT",
+      amountMinor,
+      currency: "AUD",
+      rule,
+      workings,
+      ...(count ? { count } : {}),
+    };
   };
 
   if (rule.kind === "fixed_price") {
@@ -311,7 +321,7 @@ export function compilePrice(
     return {
       kind: "BLOCKED",
       missingField: rule.quantityField,
-      reason: `${rule.service} is priced per ${rule.unit}, so ${decidingPhrase(rule.quantityField)} decides the price.`,
+      reason: blockedReason(rule.service, rule.unit, rule.quantityField),
       rule,
     };
   }
@@ -347,6 +357,7 @@ export function compilePrice(
     appliedMinimum
       ? `${count(quantity)} ${pluraliseUnit(rule.unit, quantity)}, billed at the ${rule.minimumQuantity} ${rule.unit} minimum, at ${formatMajorAmount(rule.amount)} each.`
       : `${count(billable)} ${pluraliseUnit(rule.unit, billable)} at ${formatMajorAmount(rule.amount)} each.`,
+    `${count(quantity)} ${pluraliseUnit(rule.unit, quantity)}`,
   );
 }
 
@@ -388,9 +399,17 @@ export function impliedAmountsMinor(outcome: PriceOutcome): number[] {
  * A plural field name ("bedrooms", "guests") read as "the bedrooms decides".
  */
 export function decidingPhrase(field: string): string {
-  // Verbatim: the field is the owner's own name for it, and the explanation
-  // must name exactly the fact the answer box asks for.
-  const name = field.trim();
-  if (!name) return "the quantity";
-  return /[^s]s$/i.test(name) ? `the number of ${name}` : `the ${name}`;
+  return numberOf(field);
+}
+
+/**
+ * Why one count decides a price. A count only the owner can know (the hours a
+ * job takes) is the owner's estimate, never something to ask the customer.
+ */
+export function blockedReason(service: string, unit: string, field: string, part = false): string {
+  const decides = part ? "decides that part of the price" : "decides the price";
+  if (isOwnerEstimate(field)) {
+    return `${service} is priced per ${unit}, so your estimate of the ${countParts(field).noun} ${decides}.`;
+  }
+  return `${service} is priced per ${unit}, so ${numberOf(field)} ${decides}.`;
 }

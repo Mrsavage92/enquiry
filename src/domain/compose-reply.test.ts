@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { decideConfirmed } from "./coverage-testing.ts";
 import test from "node:test";
 import { askFor, composeReply, quantityPhrase, spokenDate } from "./compose-reply.ts";
 import { decideEnquiry } from "./decide.ts";
@@ -21,7 +22,7 @@ const perUnit = {
 };
 
 test("a priced reply states the business's own total and its workings", () => {
-  const decision = decideEnquiry(perUnit, {
+  const decision = decideConfirmed(perUnit, {
     serviceLabel: "Group makeup",
     facts: [{ field: "guests", value: "4", status: "confirmed" }],
   } as never);

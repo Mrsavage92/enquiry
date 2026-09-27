@@ -6,8 +6,8 @@ import test from "node:test";
 import { PGlite } from "@electric-sql/pglite";
 import { insertManualEnquiry, interpretAndApply } from "./manual-enquiry-core.ts";
 import type { Sql } from "../db.ts";
-import { decideEnquiry } from "../../domain/decide.ts";
-import { snapshotFromDecision, stateFromDecision } from "../../domain/decision-snapshot.ts";
+import { applyDecision } from "./decision-apply.ts";
+import { confirmShownCoverage } from "./coverage-core.ts";
 import type {
   EnquiryInterpreter,
   InterpretationResult,
@@ -503,30 +503,15 @@ async function confirmFact(
   const [enq] = await sql<{ service_label: string; customer_name: string }>`
     select service_label, customer_name from enquiry where id = ${enquiryId}
   `;
-  const facts = await sql<{ field: string; value: string; status: string }>`
-    select field, value, status from enquiry_fact where enquiry_id = ${enquiryId} and superseded = false
-  `;
-  const knowledge = await sql<{ state: string; rule_payload: unknown }>`
-    select state, rule_payload from knowledge_item where business_id = ${businessId} and rule_payload is not null
-  `;
-  const decision = decideEnquiry(
-    { knowledge: knowledge.map((k) => ({ state: k.state, rulePayload: k.rule_payload })) },
-    { serviceLabel: enq!.service_label, facts: facts as never },
-  );
-  const snapshot = snapshotFromDecision(decision, {
-    customerName: enq!.customer_name,
+  // The server's own re-decide, then the owner's "That's everything" on what
+  // the price now covers (pass 5).
+  await applyDecision(sql, {
+    enquiryId,
+    businessId,
     serviceLabel: enq!.service_label,
+    customerName: enq!.customer_name,
   });
-  const state = stateFromDecision(decision);
-  await sql`
-    update enquiry
-    set decision_snapshot = ${JSON.stringify(snapshot)}::jsonb,
-        decision_state = ${state.decisionState},
-        commercial_state = ${state.commercialState},
-        responsibility = ${state.responsibility},
-        updated_at = now()
-    where id = ${enquiryId}
-  `;
+  await confirmShownCoverage(sql, enquiryId);
 }
 
 test("an inferred quantity never prices the enquiry - decision stays BLOCKED until the owner confirms, then the price appears", async () => {

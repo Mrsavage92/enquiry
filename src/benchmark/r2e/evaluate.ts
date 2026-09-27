@@ -1,3 +1,4 @@
+import { humanField } from "../../domain/count-phrase.ts";
 import type { InterpretOutcome } from "../../lib/interpret/types.ts";
 import type { BenchmarkCase, ExpectedBusiness } from "./types.ts";
 import type { CaseRun, EnquiryRow, RunMode } from "./db.ts";
@@ -53,7 +54,8 @@ function checkBusiness(actual: EnquiryRow, expected: ExpectedBusiness): Dimensio
     }
   }
   if (expected.priceKind === "BLOCKED" && expected.blockerField) {
-    if (!snap.explanation.includes(expected.blockerField)) {
+    const named = [expected.blockerField, humanField(expected.blockerField)];
+    if (!named.some((n) => snap.explanation.includes(n))) {
       pass = false;
       notes.push(
         `explanation did not name blocker field "${expected.blockerField}": ${snap.explanation}`,

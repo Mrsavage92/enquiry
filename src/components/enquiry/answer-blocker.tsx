@@ -9,6 +9,7 @@ import { blockerInput } from "@/domain/blocker-input";
 import { decidingPhrase } from "@/domain/price-compiler";
 import { quantityPhrase } from "@/domain/compose-reply";
 import { formatMinorAud } from "@/domain/money-format";
+import { isOwnerEstimate, ownerQuestion } from "@/domain/count-phrase";
 
 /**
  * Answer the one thing standing between this enquiry and a price.
@@ -87,6 +88,10 @@ export function AnswerBlocker({
     ) : null;
   }
   const input = blockerInput(missing.factField, missing.label);
+  // Only the owner can know how long a job takes: the field is theirs, asked
+  // plainly and open, never folded behind "ask the customer".
+  const estimate = isOwnerEstimate(missing.factField);
+  const question = ownerQuestion(missing.factField);
 
   const submit = async (answer = value) => {
     if (!answer.trim()) {
@@ -158,7 +163,9 @@ export function AnswerBlocker({
   const field = (
     <div className="mt-3 flex flex-wrap items-end gap-2">
       <label className="min-w-40 flex-1 text-sm">
-        <span className="mb-1.5 block text-stone">{fieldLabel(missing.label)}</span>
+        <span className="mb-1.5 block text-stone">
+          {estimate ? question : fieldLabel(missing.label)}
+        </span>
         <input
           className="field w-full"
           value={value}
@@ -194,6 +201,19 @@ export function AnswerBlocker({
       ) : null}
     </div>
   );
+
+  if (folded && estimate) {
+    return (
+      <div className="mt-3">
+        {result ? (
+          <p className="text-sm text-ink-2" role="status">
+            {result}
+          </p>
+        ) : null}
+        {field}
+      </div>
+    );
+  }
 
   if (folded) {
     return (

@@ -25,6 +25,14 @@ export const EXTRA_CHOICE = {
   leaveOut: "leave_out",
   /** Enquiry misread the message: nothing is added and the reply says nothing. */
   notAsked: "not_asked",
+  /**
+   * Something they asked for that the owner does not price yet: nothing goes
+   * on the total, and the reply says "I'll come back to you on the deck
+   * staining." Never a made-up price.
+   */
+  comeBack: "come_back",
+  /** Already part of the job priced ("walls and ceilings" in a repaint): no line, nothing said. */
+  covered: "covered",
 } as const;
 
 export type ExtraRequest = {
@@ -64,12 +72,30 @@ export function splitExtraQuantityField(field: string): { field: string; service
  * "The carpets are fine, no carpet clean needed", "don't need the oven",
  * "the window cleaner came last week".
  */
-const DECLINED = /\b(?:no|not|don'?t|do not|doesn'?t|without|except|skip|minus|fine|already)\b/i;
-const NOT_A_REQUEST =
+export const DECLINED =
+  /\b(?:no|not|don'?t|do not|doesn'?t|without|except|skip|minus|fine|already)\b/i;
+export const NOT_A_REQUEST =
   /\b(?:came|did|was|were|had|last (?:week|time|month|year)|yesterday|ago|already|previously|used to)\b/i;
 
+// "+ oven + windows" is a list of things asked for, the same as "plus".
 const CONNECTOR =
-  /\b(?:plus|as well as|along with|and also|also\s+(?:clean|need|want|get|include|add|quote(?:\s+for)?)|(?:can|could)\s+(?:you|u)\s+(?:also\s+)?(?:add|include|throw\s+in))\s+(?:(?:the|a|an|my|our|your|some)\s+)?([a-z][a-z'-]*(?:\s+[a-z][a-z'-]*){0,2})/gi;
+  /(?:\+|\b(?:plus|as well as|along with|and also|also\s+(?:clean|need|want|get|include|add|quote(?:\s+for)?)|(?:can|could)\s+(?:you|u)\s+(?:also\s+)?(?:add|include|throw\s+in)))\s*(?:(?:the|a|an|my|our|your|some)\s+)?([a-z][a-z'-]*(?:\s+[a-z][a-z'-]*){0,2})/gi;
+
+/** "the deck, which needs staining": the work named for the thing itself. */
+const NEAR_ACTIVITY =
+  /^[^.!?\n]{0,40}?\b(stain|oil|sand|seal|clean|paint|wash|polish|repair|steam)(?:s|ed|ing)?\b/i;
+const ACTIVITY_NOUN: Record<string, string> = {
+  stain: "staining",
+  oil: "oiling",
+  sand: "sanding",
+  seal: "sealing",
+  clean: "cleaning",
+  paint: "painting",
+  wash: "washing",
+  polish: "polishing",
+  repair: "repairs",
+  steam: "steam cleaning",
+};
 
 /**
  * What a real extra ends on: the end of the sentence, "please", "too", "as
@@ -77,14 +103,14 @@ const CONNECTOR =
  * is not a thing to price.
  */
 const EXTRA_END =
-  /^\s*(?:$|[.,!?;\n)]|please\b|pls\b|too\b|as well\b|thanks?\b|thx\b|cheers\b|if (?:you|u) can\b)/i;
+  /^\s*(?:$|[.,!?;\n()+]|please\b|pls\b|too\b|as well\b|thanks?\b|thx\b|cheers\b|if (?:you|u) can\b)/i;
 
 /**
  * Things a customer asks to have done on top of the main job. A phrase that
  * names none of these (and no saved service) is read as nothing, never as an
  * extra - "the kids", "us moving out", "Saturday morning".
  */
-const SERVICE_NOUNS = new Set([
+export const SERVICE_NOUNS = new Set([
   "oven",
   "ovens",
   "rangehood",
@@ -410,7 +436,12 @@ export function readExtraRequests(
     // Only something a business does: never "the kids" or "Saturday morning".
     const head = words[words.length - 1]!;
     if (!SERVICE_NOUNS.has(head) && !SERVICE_NOUNS.has(thing)) continue;
-    const label = activity && !/ing$|s$/.test(head) ? `${thing} ${activity}` : thing;
+    const near = NEAR_ACTIVITY.exec(afterPhrase)?.[1]?.toLowerCase();
+    const label = near
+      ? `${thing} ${ACTIVITY_NOUN[near]}`
+      : activity && !/ing$|s$/.test(head)
+        ? `${thing} ${activity}`
+        : thing;
     if (seen.has(label)) continue;
     seen.add(label);
     out.push({ label, span: m[0].trim() });

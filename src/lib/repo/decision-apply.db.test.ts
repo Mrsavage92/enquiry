@@ -6,6 +6,7 @@ import test from "node:test";
 import { PGlite } from "@electric-sql/pglite";
 import type { Sql } from "../db.ts";
 import { applyDecision, isClosed, lockEnquiry } from "./decision-apply.ts";
+import { confirmShownCoverage } from "./coverage-core.ts";
 import { insertManualEnquiry, interpretAndApply } from "./manual-enquiry-core.ts";
 import type { EnquiryInterpreter } from "../interpret/types.ts";
 
@@ -97,10 +98,9 @@ async function readEnquiry(pg: PGlite, enquiryId: string) {
     decision_state: string;
     decision_revision: number;
     decision_snapshot: { recommendation: { action: string }; price?: { amountMinor: number } };
-  }>(
-    "select decision_state, decision_revision, decision_snapshot from enquiry where id = $1",
-    [enquiryId],
-  );
+  }>("select decision_state, decision_revision, decision_snapshot from enquiry where id = $1", [
+    enquiryId,
+  ]);
   return rows.rows[0]!;
 }
 
@@ -156,12 +156,16 @@ test("T01: confirming a fact and re-deciding land together - the decision follow
   assert.equal(before.decision_state, "NEEDS_INFORMATION", "blocked on the guest count");
 
   const res = await confirmFact(pg, ids, "guests", "4");
-  assert.equal(res.decision.action, "SEND_QUOTE");
+  // Priced, and waiting on the owner to confirm what the price covers.
+  assert.equal(res.decision.price.kind, "EXACT");
+  assert.equal(res.decision.coverage?.confirmed, false);
+  const priced = await readEnquiry(pg, ids.enquiryId);
+  assert.equal(priced.decision_revision, before.decision_revision + 1);
 
+  await inTransaction(pg, (sql) => confirmShownCoverage(sql, ids.enquiryId));
   const after = await readEnquiry(pg, ids.enquiryId);
   assert.equal(after.decision_state, "ACTION_READY");
   assert.equal(after.decision_snapshot.price?.amountMinor, 58_000);
-  assert.equal(after.decision_revision, before.decision_revision + 1);
 });
 
 test("T01: a failure before the snapshot write rolls the fact back too - never a new fact under an old decision", async () => {
@@ -203,6 +207,7 @@ test("T02: an interpreter result landing after an owner's confirm never overwrit
 
   // The owner confirms while the interpreter call is in flight.
   await confirmFact(pg, ids, "guests", "4");
+  await inTransaction(pg, (sql) => confirmShownCoverage(sql, ids.enquiryId));
   const afterConfirm = await readEnquiry(pg, ids.enquiryId);
   assert.equal(afterConfirm.decision_snapshot.recommendation.action, "SEND_QUOTE");
 
@@ -292,10 +297,13 @@ test("T05: an interpreter result landing after the enquiry is closed leaves it c
   });
   assert.equal(res.ok, true);
 
-  const after = await pg.query<{ lifecycle: string; decision_state: string; decision_revision: number }>(
-    "select lifecycle, decision_state, decision_revision from enquiry where id = $1",
-    [ids.enquiryId],
-  );
+  const after = await pg.query<{
+    lifecycle: string;
+    decision_state: string;
+    decision_revision: number;
+  }>("select lifecycle, decision_state, decision_revision from enquiry where id = $1", [
+    ids.enquiryId,
+  ]);
   assert.equal(after.rows[0]!.lifecycle, "DECLINED");
   assert.equal(after.rows[0]!.decision_state, "NONE", "a closed enquiry is not re-decided");
   assert.equal(after.rows[0]!.decision_revision, before.decision_revision);
@@ -328,9 +336,9 @@ test("B-3/T02: the interpreter's write-back is one transaction - a failure in it
   );
   const before = await readEnquiry(pg, ids.enquiryId);
 
-  const failingRunner = <T,>(fn: (sql: Sql) => Promise<T>): Promise<T> =>
+  const failingRunner = <T>(fn: (sql: Sql) => Promise<T>): Promise<T> =>
     pg.transaction(async (tx) => {
-      const sql = (async <R,>(strings: TemplateStringsArray, ...values: unknown[]) => {
+      const sql = (async <R>(strings: TemplateStringsArray, ...values: unknown[]) => {
         let text = strings[0] ?? "";
         for (let i = 0; i < values.length; i += 1) text += `$${i + 1}${strings[i + 1] ?? ""}`;
         // Fail once the facts are in but before the decision is stored.
@@ -356,7 +364,13 @@ test("B-3/T02: the interpreter's write-back is one transaction - a failure in it
             result: {
               serviceCandidate: null,
               facts: [
-                { field: "guests", value: "4", displayValue: "4", confidence: "high", span: "four" },
+                {
+                  field: "guests",
+                  value: "4",
+                  displayValue: "4",
+                  confidence: "high",
+                  span: "four",
+                },
               ],
               ambiguities: [],
               candidateMissingFacts: [],

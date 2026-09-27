@@ -13,9 +13,16 @@ export function dateNotes(enquiry: Pick<Enquiry, "facts">): string[] {
     const iso = /^\d{4}-\d{2}-\d{2}$/.test(String(date.value ?? "").trim());
     if (date.status === "conflict") {
       out.push(`From their message: ${date.displayValue} Check the day with them.`);
+    } else if (String(date.value ?? "").includes("|")) {
+      const days = String(date.displayValue ?? "").replace(/^Asked about:\s*/, "");
+      out.push(`They offered more than one day: ${days}. The reply asks which works`);
     } else if (!iso && date.displayValue) {
       out.push(`From their message: ${date.displayValue}`);
     }
+  }
+  const context = live.find((f) => f.field.trim().toLowerCase() === "date_context");
+  if (context?.displayValue) {
+    out.push(`Also mentioned: ${context.displayValue} (from their message, not the job date).`);
   }
   const away = live.find((f) => f.field.trim().toLowerCase() === "not_available");
   if (away?.displayValue) out.push(`Not available: ${away.displayValue} (from their message).`);

@@ -19,7 +19,6 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { activeBookings, sortedOnDay, weekDays as calendarWeekDays } from "@/domain/calendar";
 import {
-  derivedLabel,
   needsYouSentence,
   nextStepLabel,
   QUEUE_NAMES,
@@ -37,7 +36,7 @@ import {
   todayKey as todayKeyInZone,
   wallNow,
 } from "@/domain/format";
-import { catchUpSince, rowTimeCue } from "@/domain/time-cues";
+import { byDueness, catchUpSince, jobDateCue, rowTimeCue, statusChip } from "@/domain/time-cues";
 import { statusTone } from "@/domain/status-tone";
 import type { Enquiry, WorkspacePrefs } from "@/domain/types";
 import { usePrototype } from "@/store/prototype-store";
@@ -48,12 +47,6 @@ import { toast } from "sonner";
 import { PracticeBadge } from "./practice-note";
 import { useDeletePractice } from "@/lib/workspace/use-delete-practice";
 import { usePrefsSaver } from "@/lib/workspace/owner-sync";
-
-/** Oldest wait first: the person who has waited longest is the one to start with. */
-function waitingSince(e: Enquiry): number {
-  const lastIn = [...e.conversation].reverse().find((m) => m.direction === "inbound");
-  return Date.parse(lastIn?.at ?? e.receivedAt) || 0;
-}
 
 function EnquiryRow({ enquiry, prefs }: { enquiry: Enquiry; prefs: WorkspacePrefs }) {
   return (
@@ -70,14 +63,12 @@ function EnquiryRow({ enquiry, prefs }: { enquiry: Enquiry; prefs: WorkspacePref
           <span className="today-row-title">
             <strong>{enquiry.customerName}</strong>
             <PracticeBadge enquiry={enquiry} />
-            <Badge tone={statusTone(enquiry)}>{derivedLabel(enquiry.state, enquiry)}</Badge>
+            <Badge tone={statusTone(enquiry)}>{statusChip(enquiry)}</Badge>
           </span>
           {/* The owner's next step leads, not the customer's message. */}
           <span className="today-row-next">{nextStepLabel(enquiry)}</span>
           <span className="today-row-meta">
-            {[enquiry.serviceLabel, enquiry.dateLabel ? `Job ${enquiry.dateLabel}` : ""]
-              .filter(Boolean)
-              .join(" · ")}
+            {[enquiry.serviceLabel, jobDateCue(enquiry)].filter(Boolean).join(" · ")}
           </span>
           <span className="today-row-cue">{rowTimeCue(enquiry, prefs)}</span>
         </span>
@@ -95,13 +86,23 @@ function hasUnfinishedReply(enquiry: Enquiry, drafts: Record<string, string>): b
 
 function StartHere({ enquiry, prefs }: { enquiry: Enquiry; prefs: WorkspacePrefs }) {
   const drafts = usePrototype((s) => s.drafts);
-  const unfinished = hasUnfinishedReply(enquiry, drafts);
+  const staleEdit = usePrototype((s) => s.staleDrafts[enquiry.id]);
+  // An edit written before the facts moved: choosing which reply to keep is
+  // the action, before anything else on this enquiry.
+  const conflict =
+    staleEdit !== undefined &&
+    staleEdit.trim() !== "" &&
+    staleEdit !== enquiry.decision.draft.body &&
+    drafts[enquiry.id] === undefined;
+  const unfinished = !conflict && hasUnfinishedReply(enquiry, drafts);
   const setup = setupStep(enquiry);
-  const pricing = !unfinished && isPricingStep(setup);
+  const pricing = !unfinished && !conflict && isPricingStep(setup);
   const first = firstName(enquiry);
   return (
     <section className="today-start" aria-labelledby="start-here-title">
-      <p className="today-start-kicker">{unfinished ? "Unfinished reply" : "Start here"}</p>
+      <p className="today-start-kicker">
+        {conflict ? "Your edit is out of date" : unfinished ? "Unfinished reply" : "Start here"}
+      </p>
       <h2 id="start-here-title" className="flex flex-wrap items-center gap-2">
         {enquiry.customerName}
         <PracticeBadge enquiry={enquiry} />
@@ -110,7 +111,11 @@ function StartHere({ enquiry, prefs }: { enquiry: Enquiry; prefs: WorkspacePrefs
         {[enquiry.serviceLabel, rowTimeCue(enquiry, prefs)].filter(Boolean).join(" · ")}
       </p>
       <p className="today-start-next">
-        {unfinished ? `Finish your reply to ${first}` : nextStepLabel(enquiry)}
+        {conflict
+          ? "Choose which reply to keep"
+          : unfinished
+            ? `Finish your reply to ${first}`
+            : nextStepLabel(enquiry)}
       </p>
       {pricing ? (
         // No prices yet: the one step that moves this enquiry is on the
@@ -132,7 +137,11 @@ function StartHere({ enquiry, prefs }: { enquiry: Enquiry; prefs: WorkspacePrefs
       ) : (
         <Button asChild className="mt-4 min-h-12 w-full sm:w-auto">
           <Link to="/enquiries/$enquiryId" params={{ enquiryId: enquiry.id }}>
-            {unfinished ? "Continue your reply" : "Open this enquiry"}{" "}
+            {conflict
+              ? "Choose which reply to keep"
+              : unfinished
+                ? "Continue your reply"
+                : "Open this enquiry"}{" "}
             <ArrowRight size={16} aria-hidden />
           </Link>
         </Button>
@@ -305,14 +314,9 @@ export function TodayPage() {
   // the first step is still "Add your first enquiry".
   const practice = visible.find((e) => e.practice);
   const firstRun = !demoMode && visible.every((e) => e.practice);
-  const needsYou = visible
-    .filter((e) => queueSection(e) === "needs_you")
-    // Practice goes last: a real customer is always the one to start with.
-    .sort(
-      (a, b) =>
-        Number(Boolean(a.practice)) - Number(Boolean(b.practice)) ||
-        waitingSince(a) - waitingSince(b),
-    );
+  // What is due first: the soonest day asked for, then the longest wait.
+  // Practice goes last: a real customer is always the one to start with.
+  const needsYou = visible.filter((e) => queueSection(e) === "needs_you").sort(byDueness);
   const waiting = visible.filter((e) => queueSection(e) === "waiting");
   const start = needsYou[0];
   const showingWaiting = phone && view === "waiting";
