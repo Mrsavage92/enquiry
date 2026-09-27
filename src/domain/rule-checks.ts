@@ -37,7 +37,14 @@ export function isRuleChoice(value: string): value is RuleChoice {
 }
 
 /** A line of a quote, as the rules see it. */
-export type RuleLine = { label: string; amountMinor: number; detail?: string; count?: string };
+export type RuleLine = {
+  label: string;
+  amountMinor: number;
+  detail?: string;
+  count?: string;
+  /** A rate, fee or top-up the owner's rule adds: priced, but not a job. */
+  adjustment?: boolean;
+};
 
 export type RuleCheck = {
   field: string;
@@ -310,7 +317,10 @@ function applyOne(
       );
     }
     implied.push(minimum - subtotal);
-    return [...lines, { label: "Minimum charge top-up", amountMinor: minimum - subtotal }];
+    return [
+      ...lines,
+      { label: "Minimum charge top-up", amountMinor: minimum - subtotal, adjustment: true },
+    ];
   }
   if (d.kind === "surcharge") {
     const day = jobDates.map(weekdayOf).find((w) => w !== undefined && d.days.includes(w));
@@ -318,13 +328,17 @@ function applyOne(
     implied.push(extra);
     return [
       ...lines,
-      { label: `${WEEKDAYS[day ?? d.days[0]!]} rate (${d.percent}% more)`, amountMinor: extra },
+      {
+        label: `${WEEKDAYS[day ?? d.days[0]!]} rate (${d.percent}% more)`,
+        amountMinor: extra,
+        adjustment: true,
+      },
     ];
   }
   if (d.kind === "fee") {
     const amount = Math.round(d.amount * 100);
     implied.push(amount);
-    return [...lines, { label: d.label, amountMinor: amount }];
+    return [...lines, { label: d.label, amountMinor: amount, adjustment: true }];
   }
   return lines;
 }

@@ -15,7 +15,7 @@ export function dateNotes(enquiry: Pick<Enquiry, "facts">): string[] {
       out.push(`From their message: ${date.displayValue} Check the day with them.`);
     } else if (String(date.value ?? "").includes("|")) {
       const days = String(date.displayValue ?? "").replace(/^Asked about:\s*/, "");
-      out.push(`They offered more than one day: ${days}. The reply asks which works`);
+      out.push(`They offered more than one day: ${days}`);
     } else if (!iso && date.displayValue) {
       out.push(`From their message: ${date.displayValue}`);
     }

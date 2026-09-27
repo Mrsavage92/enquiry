@@ -22,6 +22,7 @@ const IGNORED = new Set(["and", "the", "for", "with", "our", "your", "service", 
  */
 const SAME_WORDS: [RegExp, string][] = [
   [/\b(?:inside|internal|indoors?)\b/g, " interior "],
+  [/\brepaint/g, " paint"],
   [/\b(?:outside|external|outdoors?)\b/g, " exterior "],
   [/\bbond\s+clean/g, " end lease clean"],
   [/\b(\d+)\s*-?\s*(?:bed(?:room)?s?|brs?|bdrms?)\b/g, " $1bedroom "],

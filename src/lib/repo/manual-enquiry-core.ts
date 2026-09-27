@@ -395,7 +395,7 @@ function dateFacts(dates: DateReading): ArrivalFact[] {
     // "week of the 12th", "tomorrow arvo": their words, never a worked-out day.
     const span = dates.approx.span;
     out.push({
-      ...readFact("date", APPROX_VALUE, `In their words: "${span}"`, span, "Job date"),
+      ...readFact("date", APPROX_VALUE, `"${span}"`, span, "Job date"),
       provenance: {
         kind: "message",
         label: "Read from the customer's message",

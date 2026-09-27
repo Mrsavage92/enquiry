@@ -38,7 +38,7 @@ import {
   questionThing,
 } from "./service-questions.ts";
 import { applyRules } from "./rule-checks.ts";
-import { namesService } from "./service-words.ts";
+import { mentionsAny, namesService, stemsOf } from "./service-words.ts";
 
 /** One priced line of a quote with more than one thing on it. */
 export type QuoteLine = {
@@ -49,6 +49,8 @@ export type QuoteLine = {
   count?: string;
   /** Asked for on the first visit only, on a recurring job. */
   firstVisit?: boolean;
+  /** A rate, fee or top-up from the owner's own rule, not a job they asked for. */
+  adjustment?: boolean;
 };
 
 /** A "do you do X?" the owner has not answered yet. */
@@ -254,7 +256,10 @@ export function decideEnquiry(
   }
   // "Do you do pressure washing?" answered No, and nothing else asked: the kind
   // "Sorry, I don't do ..." reply is ready now - no service to choose first.
-  const noOnly = questionOnlyNo(facts, primary, details);
+  const noOnly = questionOnlyNo(facts, primary, details, {
+    message: enquiry.messageText ?? "",
+    services: [...knownServices, ...(enquiry.services ?? [])],
+  });
   if (noOnly) return { ...declineDecision(withNotes, noOnly), knownServices };
   const gated =
     withNotes.action === "SEND_QUOTE"
@@ -279,8 +284,16 @@ function questionOnlyNo(
   facts: ReadonlyArray<DecideFact>,
   primary: Decision,
   details: readonly BusinessDetail[],
+  asked: { message: string; services: readonly string[] },
 ): string[] | undefined {
   if (primary.setup !== "choose_service") return undefined;
+  // Only a message that is nothing but the question: "paint the inside ...
+  // Do you paint roofs?" also asks for painting, and that is never dropped.
+  const rest = asked.message
+    .split(/(?<=[.!?\n])/)
+    .filter((sentence) => !sentence.includes("?"))
+    .join(" ");
+  if (mentionsAny(rest, [...new Set(asked.services.flatMap(stemsOf))])) return undefined;
   const answered = facts.filter((f) => isQuestionField(f.field) && f.status === "confirmed");
   const noes = answered.filter((f) => String(f.value) === QUESTION_ANSWER.no);
   if (noes.length === 0 || noes.length !== answered.length) return undefined;

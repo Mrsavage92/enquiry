@@ -298,7 +298,10 @@ function priceBlock(decision: Decision): string[] {
   // One line with its workings already says the count: "(3 bedrooms at $70
   // each)" is not repeated as "(3 bedrooms)".
   const single = lines.length === 1 && lines[0]?.detail;
-  const covered = single ? `the ${lines[0]!.label.toLowerCase()}` : listPhrase(lines);
+  // "For the oven clean, that comes to $108" - a Saturday rate or a travel fee
+  // is itemised below, never named as something they asked for.
+  const jobs = lines.filter((l) => !l.adjustment);
+  const covered = single ? `the ${lines[0]!.label.toLowerCase()}` : listPhrase(jobs);
   const head = recurring
     ? `For ${covered}, that's ${total} per visit`
     : `For ${covered}, that comes to ${total}`;

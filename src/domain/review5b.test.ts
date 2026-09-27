@@ -467,3 +467,24 @@ test("9: the Later action's status says Later, the same word as the button", asy
   assert.equal(STATUS.parked, STATUS.later);
   assert.match(parkedUntil("2026-09-28T08:00:00+10:00", NOW), /^Later until /);
 });
+
+test("5: a No to one question never drops the job they also asked for (Russo)", () => {
+  const d = decideEnquiry(brain(INTERIOR, EXTERIOR), {
+    serviceLabel: "",
+    facts: [fact(questionField("roofs"), "no")] as never,
+    messageText:
+      "We're after a quote to paint the inside of our 3 bedroom house. Do you paint roofs?",
+  });
+  assert.notEqual(d.action, "DECLINE");
+  assert.equal(d.setup, "choose_service");
+});
+
+test("3: a Saturday rate is itemised, never named as something they asked for", () => {
+  const facts = [
+    fact("service", "Oven clean"),
+    fact("date", "2026-10-03", "inferred", { date_asked: true, date_span: "Saturday" }),
+    fact("rule:surcharge:6:20", RULE_CHOICE.apply),
+  ];
+  const { reply } = replyFor([OVEN, SATURDAY], "Oven clean", facts, "Saturday please");
+  assert.match(reply, /For the oven clean, that comes to \$108:/);
+});
