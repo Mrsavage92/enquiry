@@ -119,6 +119,21 @@ export async function answerFactForUser(
     if (isClosed(locked.lifecycle)) {
       throw new Error("That enquiry is closed. Reopen it before answering.");
     }
+    // Confirming their own rough figure ("maybe 12sqm") keeps it rough: the
+    // reply then says "about", never states it as exact.
+    const [reading] = await tx<{ value: string; display_value: string | null }>`
+      select value, display_value from enquiry_fact
+      where enquiry_id = ${enquiryId} and lower(field) = lower(${input.field})
+        and superseded = false and status <> ${"confirmed"}
+      limit 1
+    `;
+    const rough =
+      reading &&
+      String(reading.value).trim() === value &&
+      /\b(?:about|roughly|around|approx(?:imately)?|maybe|~|nearly|almost|ish)\b|~/i.test(
+        reading.display_value ?? "",
+      );
+    const display = rough ? `about ${value}` : displayFor(input.field, value);
     // One live answer per field: an earlier one is superseded, not deleted,
     // so the case file still shows what was believed and when.
     await tx`
@@ -131,7 +146,7 @@ export async function answerFactForUser(
         (enquiry_id, field, label, value, display_value, status, confidence,
          asserted_by, provenance, customer_specific)
       values (
-        ${enquiryId}, ${input.field}, ${input.field}, ${value}, ${displayFor(input.field, value)},
+        ${enquiryId}, ${input.field}, ${input.field}, ${value}, ${display},
         ${"confirmed"}, ${"High"}, ${"user"},
         ${JSON.stringify({ kind: "user", label: "Confirmed by the owner" })}::jsonb,
         ${true}

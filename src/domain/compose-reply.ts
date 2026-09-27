@@ -306,9 +306,10 @@ function priceBlock(decision: Decision): string[] {
   // is itemised below, never named as something they asked for.
   const jobs = lines.filter((l) => !l.adjustment);
   const covered = single ? `the ${lines[0]!.label.toLowerCase()}` : listPhrase(jobs);
+  const about = decision.approximate ? "about " : "";
   const head = recurring
-    ? `For ${covered}, that's ${total} per visit`
-    : `For ${covered}, that comes to ${total}`;
+    ? `For ${covered}, that's ${about}${total} per visit`
+    : `For ${covered}, that comes to ${about}${total}`;
   const body =
     lines.length > 1
       ? [`${head}:`, ...itemised(lines, currency)]
@@ -319,7 +320,10 @@ function priceBlock(decision: Decision): string[] {
   const left = decision.leftOut?.length
     ? [`I haven't included ${joinLabels(decision.leftOut.map(withArticle))} in this price.`]
     : [];
-  const after = [...firstVisit, ...left];
+  const rough = decision.approximate
+    ? ["That's from the rough size you gave - I'll confirm the final price once I've seen it."]
+    : [];
+  const after = [...firstVisit, ...left, ...rough];
   return after.length ? [...body, "", ...after] : body;
 }
 

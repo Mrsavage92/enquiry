@@ -1055,7 +1055,15 @@ const PLACES = new Set(
 export type NameContext = {
   /** The business's own base location, so its suburb is never a customer name. */
   place?: string;
+  /**
+   * Read from a sign-off line ("Thanks, Jan Whitfield"): a month that is also a
+   * first name (Jan, May, June, April, August) is a name there.
+   */
+  signOff?: boolean;
 };
+
+/** Months that are also first names: names only on a sign-off line. */
+const MONTH_NAMES_OK = new Set(["jan", "may", "june", "april", "august"]);
 
 function isPlace(words: string[], ctx: NameContext): boolean {
   const lower = words.map((w) => w.toLowerCase());
@@ -1107,7 +1115,9 @@ function acceptName(raw: string | undefined, ctx: NameContext = {}): string | un
     break;
   }
   if (words.length === 0) return undefined;
-  if (words.some((w) => NOT_A_NAME.has(w.toLowerCase()))) return undefined;
+  const refused = (w: string) =>
+    NOT_A_NAME.has(w.toLowerCase()) && !(ctx.signOff && MONTH_NAMES_OK.has(w.toLowerCase()));
+  if (words.some(refused)) return undefined;
   const lower = words.map((w) => w.toLowerCase());
   if (lower.some((w) => TITLE_WORDS.has(w) || COMPANY_WORDS.has(w))) return undefined;
   if (isPlace(words, ctx)) return undefined;
@@ -1149,13 +1159,14 @@ function nameFromSignOffLines(text: string, ctx: NameContext): string | null | u
     // "Thanks for getting back to me." is a sentence, not a sign-off.
     if (rest && !NAME_LINE.test(rest)) continue;
     // A sign-off line settles it: whatever it gives (or does not) is final.
-    if (rest) return acceptName(NAME_LINE.exec(rest)?.[1], ctx) ?? null;
+    const sign = { ...ctx, signOff: true };
+    if (rest) return acceptName(NAME_LINE.exec(rest)?.[1], sign) ?? null;
     const next = lines[i + 1];
     if (!next || i + 1 >= end) return null;
-    const name = acceptName(NAME_LINE.exec(next)?.[1], ctx);
+    const name = acceptName(NAME_LINE.exec(next)?.[1], sign);
     if (!name) return null;
     const single = !name.includes(" ");
-    if (single && i + 2 >= total) return null;
+    if (single && i + 2 >= total && !MONTH_NAMES_OK.has(name.toLowerCase())) return null;
     return name;
   }
   return undefined;
@@ -1180,7 +1191,10 @@ function nameAboveRoleLines(text: string, ctx: NameContext): string | undefined 
   if (skipped === 0 || i < 0) return undefined;
   const m = NAME_LINE.exec(lines[i]!);
   const name = acceptName(m?.[1], ctx);
-  return name && name.includes(" ") ? name : undefined;
+  if (!name) return undefined;
+  // "Dave" above "Dave's Plumbing": one name, signed as their own business.
+  const own = lines.slice(i + 1).some((l) => l.toLowerCase().startsWith(`${name.toLowerCase()}'`));
+  return name.includes(" ") || own ? name : undefined;
 }
 
 /**
@@ -1193,9 +1207,11 @@ const DEVICE_FOOTER =
 
 function withoutNoise(text: string): string {
   return text
-    .replace(/\p{Extended_Pictographic}|\u200d|\ufe0f/gu, "")
+    .replace(/[ \t]*(?:\p{Extended_Pictographic}|\u200d|\ufe0f)+[ \t]*/gu, "\n")
     .replace(DEVICE_FOOTER, "")
     .replace(/[ \t]*\|[ \t]*/g, "\n")
+    // "- Dave" at the start of a signature line: the dash is not the name.
+    .replace(/^[ \t]*(?:-{1,2}|–|\u2014|~)[ \t]*(?=[A-Z])/gm, "")
     .replace(/[ \t]+$/gm, "");
 }
 

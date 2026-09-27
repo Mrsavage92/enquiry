@@ -151,6 +151,8 @@ export type Decision = {
   coverage?: Coverage;
   /** A question the customer asked that the owner has to answer Yes or No. */
   questionPending?: QuestionPending;
+  /** The count is their rough figure ("maybe 12sqm"): the reply says "about". */
+  approximate?: boolean;
   /** Lines the reply must carry: answered questions, things to come back on. */
   replyNotes?: string[];
 };
@@ -614,10 +616,29 @@ function decidePrimary(
   const enquiry = { facts };
 
   if (price.kind === "EXACT") {
+    // "maybe 12sqm", confirmed as their rough figure: the count and the total
+    // are said as "about", never as exact.
+    const rule = price.rule;
+    const rough =
+      rule.kind === "per_unit" &&
+      allFacts.some(
+        (f) =>
+          f.field.trim().toLowerCase() === rule.quantityField.trim().toLowerCase() &&
+          f.status === "confirmed" &&
+          APPROX_SAID.test(String(f.displayValue ?? "")),
+      );
+    const said = rough
+      ? {
+          ...price,
+          workings: `about ${price.workings}`,
+          ...(price.count ? { count: `about ${price.count}` } : {}),
+        }
+      : price;
     return {
-      price,
+      price: said,
       action: "SEND_QUOTE",
-      explanation: price.workings,
+      explanation: said.workings,
+      ...(rough ? { approximate: true } : {}),
     };
   }
 
@@ -688,6 +709,9 @@ function decidePrimary(
       rules.length === 0 ? "add_prices" : !price.service.trim() ? "choose_service" : "add_price",
   };
 }
+
+/** A count the customer hedged, kept in how it was confirmed: "about 12". */
+export const APPROX_SAID = /^\s*(?:about|roughly|around|approx(?:imately)?|maybe|~|nearly|almost|close to)\b/i;
 
 /** Whether a field is the count of one of the business's services as an extra. */
 function isExtraQuantityFor(rules: BusinessRule[], field: string): boolean {
