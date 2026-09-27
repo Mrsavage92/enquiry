@@ -366,7 +366,10 @@ function approxAsk(text: string): { span: string } | undefined {
     const { before, after } = clauseAround(text, m.index, m[0].length);
     if (contextOf(before, after) || HISTORY.test(before)) continue;
     if (DATE_NEGATED.test(sentenceAt(text, m.index))) continue;
-    return { span: m[0].trim() };
+    // "The week of the 12th" at the start of their sentence reads mid-sentence
+    // in a reply: "You mentioned the week of the 12th".
+    const span = m[0].trim();
+    return { span: span.charAt(0).toLowerCase() + span.slice(1) };
   }
   return undefined;
 }

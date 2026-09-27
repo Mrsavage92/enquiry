@@ -488,3 +488,9 @@ test("3: a Saturday rate is itemised, never named as something they asked for", 
   const { reply } = replyFor([OVEN, SATURDAY], "Oven clean", facts, "Saturday please");
   assert.match(reply, /For the oven clean, that comes to \$108:/);
 });
+
+test("2: a loose ask starting their sentence is quoted mid-sentence", () => {
+  assert.deepEqual(readDates("The week of the 12th would suit us.", NOW).approx, {
+    span: "the week of the 12th",
+  });
+});
