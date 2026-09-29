@@ -512,7 +512,10 @@ test("PR72: confirming a rough count keeps it rough; another tenant cannot confi
   await answer(pg, "user-a", e.enquiryId, "square metres", "12");
   assert.equal((await confirmCoverage(pg, "user-a", e.enquiryId)).ok, true);
   const body = (await row(pg, e.enquiryId)).decision_snapshot.draft.body;
-  assert.match(body, /about \$360 \(about 12 square metres at \$30 each\)/);
+  assert.match(
+    body,
+    /about \$360, I'll confirm once I've seen the job \(about 12 square metres at \$30 each, please confirm the size\)/,
+  );
 });
 
 test("PR72 H4: a closed-dates day only mentioned is said in the reply", async () => {

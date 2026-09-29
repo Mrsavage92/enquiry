@@ -57,11 +57,14 @@ const TOPICS: [string, RegExp][] = [
 
 /** "r u free", "are you available", "any availability", "can you fit us in". */
 const AVAILABILITY =
-  /\b(?:are|r)\s+(?:you|u|ya)\s+(?:free|available|around)\b|\b(?:do|would)\s+(?:you|u)\s+have\s+(?:any\s+)?(?:availability|time|room|space|a spot|spots|openings?)\b|\bany\s+availability\b|\bcan\s+(?:you|u)\s+fit\s+(?:me|us|it)\s+in\b|\bwhen\s+(?:are|r)\s+(?:you|u)\s+(?:free|available)\b/i;
+  /\b(?:are|r)\s+(?:you|u|ya)\s+(?:free|available|around)\b|\b(?:do|would)\s+(?:you|u)\s+have\s+(?:any\s+)?(?:availability|time|room|space|a spot|spots|openings?)\b|\bany\s+availability\b|\bhave\s+(?:a\s+|any\s+)?(?:crew|team|someone|anyone|spot|slot)s?\s+(?:free|available)\b|\bcan\s+(?:you|u)\s+fit\s+(?:me|us|it)\s+in\b|\bwhen\s+(?:are|r)\s+(?:you|u)\s+(?:free|available)\b/i;
 
 /** Questions the quote itself answers: the price, and asking for the job. */
 const ANSWERED_BY_QUOTE =
-  /\b(?:how\s+much|price|prices|pricing|cost|costs|quote|charge|rate|rates|fee|fees)\b|\b(?:can|could|would|will)\s+(?:you|u|ya)\s+(?:please\s+)?(?:do|come|paint|clean|quote|book|fit|help|send|let|give|pop|make|get)\b/i;
+  /\b(?:how\s+much|price|prices|pricing|cost|costs|quote|charge|rate|rates|fee|fees|run\s+(?:me|us)|set\s+(?:me|us)\s+back|what\s+would\s+(?:it|that|this)\s+be)\b|\b(?:can|could|would|will)\s+(?:you|u|ya)\s+(?:(?:please|still|also|just|maybe)\s+)*(?:do|come|paint|clean|quote|book|fit|help|send|let|give|pop|make|get|start)\b/i;
+/** A day, a date or "asap" in the question: the date line answers it, not a typed answer. */
+const ABOUT_A_DAY =
+  /\b(?:asap|today|tomorrow|tmrw|tonight|mon|tue|wed|thu|fri|sat|sun)[a-z]*\b|\b(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\s+\d|\d{1,2}(?:st|nd|rd|th)?\s+(?:of\s+)?(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)|\b\d{1,2}\/\d{1,2}\b/i;
 
 /** How a real question starts. */
 const QUESTION_START =
@@ -142,6 +145,7 @@ export function readCustomerAsks(
     }
     if (!s.question || !QUESTION_START.test(words)) continue;
     if (ANSWERED_BY_QUOTE.test(words) || words.split(/\s+/).length < 3) continue;
+    if (ABOUT_A_DAY.test(words)) continue;
     // "do you do a trial?" is a service or an extra, read and priced as one.
     if (SERVICE_ASK.test(words)) continue;
     if (services.some((svc) => mentionsAny(words, ownStems(svc)))) continue;
@@ -258,6 +262,7 @@ export function questionStep(q: { thing: string; kind?: "availability" | "ask"; 
     const when = q.when ? ` ${q.when}` : "";
     return { step: `Answer: are you free${when}?`, reason: `they asked if you're free${when}` };
   }
-  if (q.kind === "ask") return { step: "Answer their question", reason: "they asked you a question" };
+  if (q.kind === "ask")
+    return { step: "Answer their question", reason: "they asked you a question" };
   return { step: `Answer: do you do ${q.thing}?`, reason: `they asked if you do ${q.thing}` };
 }

@@ -284,6 +284,24 @@ export async function settleCoverage(
   await confirmFact(pg, businessId, enquiryId, COVERAGE_FIELD, row.key);
 }
 
+/**
+ * A question the customer asked beside the job ("have you a crew free that
+ * fast?") waits on the owner before a priced reply is ready (pass 7). The
+ * benchmark takes the step an owner can always take honestly - "I'll come
+ * back to you on it" - so the decision after it is what is measured.
+ */
+export async function settleAsks(pg: PGlite, businessId: string, enquiryId: string): Promise<void> {
+  for (let i = 0; i < 4; i += 1) {
+    const rows = await pg.query<{ field: string | null; kind: string | null }>(
+      "select decision_snapshot->'questionPending'->>'field' as field, decision_snapshot->'questionPending'->>'kind' as kind from enquiry where id = $1",
+      [enquiryId],
+    );
+    const row = rows.rows[0];
+    if (!row?.field || !row.kind) return;
+    await confirmFact(pg, businessId, enquiryId, row.field, "later");
+  }
+}
+
 export type FollowUpOutcome = { label: string; enquiry: EnquiryRow };
 
 export type CaseRun =
@@ -335,6 +353,7 @@ export async function runCase(kase: BenchmarkCase, mode: RunMode): Promise<CaseR
   if (!interpretOutcome)
     throw new Error(`interpretAndApply never called the interpreter for ${kase.id}`);
 
+  await settleAsks(pg, businessId, enquiryId);
   await settleCoverage(pg, businessId, enquiryId);
   const enquiryAfterInterpretation = await readEnquiry(pg, enquiryId);
   const factRows = await pg.query<{
@@ -358,6 +377,7 @@ export async function runCase(kase: BenchmarkCase, mode: RunMode): Promise<CaseR
   const followUps: FollowUpOutcome[] = [];
   for (const step of kase.followUps) {
     await confirmFact(pg, businessId, enquiryId, step.field, step.value);
+    await settleAsks(pg, businessId, enquiryId);
     await settleCoverage(pg, businessId, enquiryId);
     followUps.push({ label: step.label, enquiry: await readEnquiry(pg, enquiryId) });
   }

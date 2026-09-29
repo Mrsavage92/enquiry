@@ -275,27 +275,23 @@ export function decideEnquiry(
   const rule = pending?.readAs
     ? details.find((d) => d.kind === "not_offered" && namesService(pending.thing, d.service))
     : undefined;
-  const question = pending
-    ? rule
-      ? { ...pending, said: describeDetail(rule) }
-      : pending
-    : pendingAsk(facts, details);
-  if (question) {
-    return {
-      ...withNotes,
-      action: "ESCALATE_HUMAN",
-      explanation: questionExplanation(question),
-      questionPending: question,
-      knownServices,
-    };
-  }
+  const question = pending && rule ? { ...pending, said: describeDetail(rule) } : pending;
+  if (question) return askOwner(withNotes, question, knownServices);
   // "Do you do pressure washing?" answered No, and nothing else asked: the kind
   // "Sorry, I don't do ..." reply is ready now - no service to choose first.
   const noOnly = questionOnlyNo(facts, primary, details, {
     message: enquiry.messageText ?? "",
     services: [...knownServices, ...(enquiry.services ?? [])],
   });
-  if (noOnly) return { ...declineDecision(withNotes, noOnly), knownServices };
+  // Their other questions ("r u free sat or sun?", "are you insured?"): a
+  // reply that names a price, or says no, is not ready until the owner has
+  // answered them. A reply still asking them for a count waits for that first.
+  const ask = pendingAsk(facts, details);
+  if (noOnly) {
+    return ask
+      ? askOwner(withNotes, ask, knownServices)
+      : { ...declineDecision(withNotes, noOnly), knownServices };
+  }
   const gated =
     withNotes.action === "SEND_QUOTE"
       ? gateCoverage(withNotes, {
@@ -306,7 +302,23 @@ export function decideEnquiry(
           services: [...new Set([...knownServices, ...(enquiry.services ?? [])])],
         })
       : withNotes;
+  if (ask && (gated.price.kind === "EXACT" || gated.action === "DECLINE")) {
+    return askOwner(gated, ask, knownServices);
+  }
   return { ...gated, knownServices };
+}
+
+/** The decision while a question they asked waits on the owner: nothing is ready. */
+function askOwner(decided: Decision, question: QuestionPending, knownServices: string[]): Decision {
+  return {
+    ...decided,
+    action: "ESCALATE_HUMAN",
+    explanation: questionExplanation(question),
+    questionPending: question,
+    knownServices,
+    // One thing at a time: what the price covers is checked after the answer.
+    coverage: undefined,
+  };
 }
 
 /**

@@ -489,8 +489,12 @@ test("7c Rachel: 'do you have insurance?' is answered once and offered again nex
     "About 140 square metres of wall to paint inside. Do you have insurance? Rachel",
     "Interior painting",
   );
+  // Asked for a count first, nothing is priced; once it is, the question is
+  // what stands between the owner and a ready reply.
+  await confirmReadings(pg, "user-a", e.enquiryId);
   const open = await row(pg, e.enquiryId);
   const q = open.decision_snapshot.questionPending;
+  assert.equal(open.decision_snapshot.price, undefined, "never reply ready over the question");
   assert.equal(q?.kind, "ask");
   assert.equal(q?.field, "ask:insurance");
   await assert.rejects(
@@ -509,7 +513,6 @@ test("7c Rachel: 'do you have insurance?' is answered once and offered again nex
     "ask:insurance",
     "Yes, I'm fully insured with $20m public liability.",
   );
-  await confirmReadings(pg, "user-a", e.enquiryId);
   assert.equal((await confirmCoverage(pg, "user-a", e.enquiryId)).ok, true);
   assert.match(
     (await row(pg, e.enquiryId)).decision_snapshot.draft.body,
@@ -521,6 +524,7 @@ test("7c Rachel: 'do you have insurance?' is answered once and offered again nex
     "Painting two bedrooms, about 50 sqm. Are you insured? Tom",
     "Interior painting",
   );
+  await confirmReadings(pg, "user-a", next.enquiryId);
   assert.equal(
     (await row(pg, next.enquiryId)).decision_snapshot.questionPending?.saved,
     "Yes, I'm fully insured with $20m public liability.",

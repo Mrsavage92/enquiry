@@ -255,14 +255,14 @@ test("repro 2: a service the reader missed is flagged, and the reply says the ow
     c.coverage?.lines.map((l) => [l.label, l.quantity, l.amountMinor]),
     [
       ["Exterior painting", "16 hours", 104000],
-      ["Fence painting", "20 metres", 70000],
+      ["Fence painting", "about 20 metres (please confirm)", 70000],
     ],
   );
   const res = await confirmCoverage(pg, "user-a", e.enquiryId);
   assert.equal(res.ok, true);
   const body = (await row(pg, e.enquiryId)).decision_snapshot.draft.body;
   assert.match(body, /I'll come back to you on the deck staining\./);
-  assert.match(body, /that comes to \$1,740:/);
+  assert.match(body, /that comes to about \$1,740, I'll confirm once I've seen the job:/);
   assert.doesNotMatch(body, /all up/);
 });
 

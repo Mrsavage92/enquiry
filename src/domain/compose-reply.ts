@@ -287,7 +287,9 @@ function joinLabels(labels: string[]): string {
 /** "the end of lease clean (3 bedrooms)": one covered line, as the customer reads it. */
 function coveredPhrase(line: QuoteLine): string {
   const label = line.label.toLowerCase();
-  return line.count ? `the ${label} (${line.count})` : `the ${label}`;
+  // "(please confirm)" is said once, beside the line's own workings.
+  const count = line.count?.replace(/\s*\(please confirm\)$/, "");
+  return count ? `the ${label} (${count})` : `the ${label}`;
 }
 
 function listPhrase(lines: readonly QuoteLine[]): string {
