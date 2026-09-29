@@ -213,9 +213,7 @@ function StageBlock({
       <span className="roadmap-chip" data-status={stage.status}>
         {horizon?.label ?? stage.status}
       </span>
-      {showHorizon && horizon ? (
-        <span className="roadmap-item-horizon">{horizon.hint}</span>
-      ) : null}
+      {showHorizon && horizon ? <span className="roadmap-item-horizon">{horizon.hint}</span> : null}
     </span>
   );
   const detail = (

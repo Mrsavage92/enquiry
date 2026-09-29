@@ -2,8 +2,9 @@
    icon grids. Each horizon is a heading beside a plain list; each item carries
    its status as a text chip. Body text is 16px ink-2 (#4f4b55 on #fff 8.5:1),
    nothing below 13px. Chip colours measured: Now #583ac0 on #f3efff 6.69:1,
-   the other horizons #4f4b55 on #f0eef4 7.38:1; links #583ac0 on #fff 7.55:1. Layout direction from 21st
-   shadcnstore changelog-4 (id 28443): heading rail left, tagged plain rows. */
+   the other horizons #4f4b55 on #f0eef4 7.38:1; links #583ac0 on #fff
+   7.55:1. Layout direction from 21st shadcnstore changelog-4 (id 28443):
+   heading rail left, tagged plain rows. */
 .roadmap-page-heading {
   padding-block: 48px 28px;
 }
@@ -45,7 +46,7 @@
   min-height: 52px;
   padding: 0 4px;
   border-bottom: 2px solid transparent;
-  font-size: 15px;
+  font-size: 16px;
   color: #4f4b55;
 }
 .roadmap-horizon-nav a[aria-current],
@@ -160,7 +161,7 @@
   min-height: 44px;
   margin-top: 4px;
   color: #583ac0;
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 550;
 }
 .roadmap-detail-label svg {
@@ -196,7 +197,7 @@
   padding-top: 12px;
   border-top: 1px solid #eceaf0;
   color: #4f4b55;
-  font-size: 15px;
+  font-size: 16px;
 }
 .roadmap-pocket {
   display: flex;
@@ -243,7 +244,7 @@
   gap: 7px;
   align-items: center;
   min-height: 44px;
-  font-size: 15px;
+  font-size: 14px;
   text-align: left;
   cursor: pointer;
   color: #583ac0;
@@ -265,7 +266,7 @@
 .roadmap-feedback label {
   display: block;
   margin-bottom: 8px;
-  font-size: 15px;
+  font-size: 16px;
 }
 .roadmap-feedback textarea,
 .roadmap-feedback input[type="email"] {
@@ -289,7 +290,7 @@
 }
 .roadmap-load-error {
   padding-block: 16px;
-  font-size: 15px;
+  font-size: 16px;
 }
 .roadmap-load-error button {
   min-height: 44px;
@@ -380,7 +381,7 @@
   }
   .roadmap-horizon-nav a {
     min-height: 48px;
-    font-size: 15px;
+    font-size: 16px;
     padding-inline: 6px;
   }
   .roadmap-updated {

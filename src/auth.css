@@ -903,3 +903,8 @@
 .auth-page:has(.auth-offer) .auth-submit:not(:disabled):hover {
   background: #583ac0;
 }
+
+/* /early-access only: its back link sits at the 13px site floor. */
+.auth-page:has(.entry-waitlist) .auth-back {
+  font-size: 13px;
+}

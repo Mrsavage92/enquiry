@@ -1344,14 +1344,16 @@
    breakpoint was the other half of the P0 layout fix (critique pass 2). */
 @media (min-width: 861px) {
   .public-walkthrough-inner {
-    grid-template-columns: minmax(0, 1fr) 400px;
+    grid-template-columns: minmax(0, 1fr) calc(390px + 1.4rem);
     gap: 72px;
   }
 }
+/* 390px of screen plus the PhoneFrame's 0.7rem bezel each side, so the
+   capture shows at 1:1 (it measured 377.6px, 12px text at 11.6px). */
 .public-walkthrough-stage {
   justify-self: center;
   width: 100%;
-  max-width: 400px;
+  max-width: calc(390px + 1.4rem);
 }
 .public-walkthrough-phone {
   width: 100%;
@@ -1474,13 +1476,15 @@
   .public-decision-panel {
     padding: 18px 16px;
   }
-  /* Full column plus the gutters: exactly 390px on a 390px phone, so the
-     capture is never scaled below its own size. */
+  /* The column plus its 20px gutters (.public-container is 100% - 40px here):
+     exactly 390px on a 390px phone, so the capture is never scaled below its
+     own size. Measured from the column, not 100vw, so a desktop scrollbar
+     cannot push it past the page edge. */
   .public-adhd-figure,
   .public-walk-inline {
-    width: min(390px, 100vw);
+    width: min(390px, 100% + 40px);
     max-width: none;
-    margin-inline: calc((100% - min(390px, 100vw)) / 2);
+    margin-inline: calc((100% - min(390px, 100% + 40px)) / 2);
   }
   .public-adhd-shot,
   .public-walk-shot {
