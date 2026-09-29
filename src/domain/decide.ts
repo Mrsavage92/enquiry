@@ -273,22 +273,13 @@ function ownerAmounts(lines: readonly string[]): number[] {
 }
 
 /** A decision with the owner's own amounts from the lines it carries. */
-function withOwnerAmounts(
-  decided: Decision,
-  facts: ReadonlyArray<DecideFact>,
-  details: readonly BusinessDetail[],
-): Decision {
+function withOwnerAmounts(decided: Decision, facts: ReadonlyArray<DecideFact>): Decision {
+  // The owner's typed answers, and the kind no in their own words (a referral
+  // note they saved): both go into the reply exactly as they wrote them.
   const owned = facts
     .filter((f) => isAskField(f.field) && f.status === "confirmed")
     .map((f) => String(f.value ?? ""));
-  const notes = details.flatMap((d) => (d.kind === "note" ? [d.text] : []));
-  const amounts = ownerAmounts([
-    ...owned,
-    ...(decided.declined ?? []),
-    ...notes.filter((n) =>
-      (decided.declined ?? []).some((x) => x.includes(n.replace(/[.!]*$/, ""))),
-    ),
-  ]);
+  const amounts = ownerAmounts([...owned, ...(decided.declined ?? [])]);
   return amounts.length ? { ...decided, ownerAmountsMinor: amounts } : decided;
 }
 
@@ -299,12 +290,7 @@ export function decideEnquiry(
     services?: readonly string[];
   },
 ): Decision {
-  const details = activeDetails(business as { knowledge?: ReadonlyArray<RuleBearingKnowledge> });
-  return withOwnerAmounts(
-    decideCore(business, enquiry),
-    (enquiry.facts ?? []) as DecideFact[],
-    details,
-  );
+  return withOwnerAmounts(decideCore(business, enquiry), (enquiry.facts ?? []) as DecideFact[]);
 }
 
 function decideCore(
@@ -708,6 +694,7 @@ function gateCoverage(decided: Decision, ctx: CoverageContext): Decision {
     details: ctx.details,
     jobDates: jobDatesOf(ctx.facts),
   });
+  flagged.push(...ruled.infos.map((text) => ({ kind: "note" as const, text: `Your note: ${text}` })));
   // How often comes before the owner's rules: a repeat-job discount is only
   // asked about once they have said the job repeats.
   if (frequency && !recurringAnswer) {
