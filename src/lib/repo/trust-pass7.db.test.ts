@@ -240,7 +240,7 @@ test("1+2 Jess: a misread closed day can be removed, and her reply stops saying 
   const after = await knowledge(pg, a.businessId);
   assert.equal(after.find((k) => k.id === misread.id)?.state, "Disabled");
   assert.ok(
-    after.some((k) => k.state === "Active" && k.body === "Closed on Saturday 10 October only"),
+    after.some((k) => k.state === "Active" && k.body === "Closed on Saturday 10 October 2026 only"),
   );
   assert.equal((await confirmCoverage(pg, "user-a", jess.enquiryId)).ok, true);
   const fixed = await row(pg, jess.enquiryId);
@@ -265,7 +265,7 @@ test("1+2 Jess: a misread closed day can be removed, and her reply stops saying 
 
   // Remove it: retired (not deleted), audited, and Kim's reply updates.
   const closed = (await knowledge(pg, a.businessId)).find(
-    (k) => k.state === "Active" && k.body === "Closed on Saturday 10 October only",
+    (k) => k.state === "Active" && k.body === "Closed on Saturday 10 October 2026 only",
   )!;
   const removed = await retireBusinessFactForUser(sqlFor(pg), (fn) => tx(pg, fn), "user-a", {
     businessId: a.businessId,

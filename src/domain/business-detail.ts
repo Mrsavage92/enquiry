@@ -321,8 +321,8 @@ function describeClosedDates(d: ClosedDatesDetail): string {
   if (d.year !== undefined) {
     const toYear = d.to < d.from ? d.year + 1 : d.year;
     return d.from === d.to
-      ? `Closed on ${spokenDayOf(d.from, d.year)} only`
-      : `Closed from ${spokenDayOf(d.from, d.year)} to ${spokenDayOf(d.to, toYear)} only`;
+      ? `Closed on ${spokenDayOf(d.from, d.year)} ${d.year} only`
+      : `Closed from ${spokenDayOf(d.from, d.year)} to ${spokenDayOf(d.to, toYear)} ${toYear} only`;
   }
   return d.from === d.to
     ? `Closed on ${spokenMonthDay(d.from)} every year`
@@ -502,6 +502,9 @@ const NEGATIVE = /\b(?:don'?t|do not|never|not|no|closed)\b/i;
 /** A day of the month in the line: "10 October", "Oct 10", "10/10", "the 10th". */
 const DATED =
   /\b\d{1,2}(?:st|nd|rd|th)?\s+(?:of\s+)?(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\b|\b(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?\s+\d{1,2}(?:st|nd|rd|th)?\b|\b\d{1,2}\/\d{1,2}\b|\bthe\s+\d{1,2}(?:st|nd|rd|th)\b/i;
+/** "every second Saturday", "alternate Sundays", "the first Monday of the month". */
+const SOME_WEEKS =
+  /\bevery\s+(?:second|other|2nd|third|3rd|fourth|4th)\b|\balternate\b|\b(?:first|second|third|fourth|last)\s+(?:mon|tue|wed|thu|fri|sat|sun)[a-z]*\s+of\b|\bsome\b/i;
 /** "No Saturdays", "no weekends", "no Sundays or public holidays": nothing but the days. */
 const NO_DAYS =
   /^\s*no\s+(?:(?:work|jobs?|bookings?)\s+(?:on\s+)?)?(?:(?:mon|tue|wed|thu|fri|sat|sun)[a-z]*|weekends?)(?:\s*(?:,|or|and|\/)\s*(?:(?:mon|tue|wed|thu|fri|sat|sun)[a-z]*|weekends?))*\s*[.!]*\s*$/i;
@@ -547,6 +550,14 @@ export function readDetailLine(line: string): DetailLineRead {
   if (/\$\s?\d|\d\s*(?:dollars?|bucks)\b/i.test(line)) return null;
   const clause = negativeClause(line);
   const days = daysIn(clause);
+  // "closed every second Saturday" is not every Saturday: refused, never
+  // widened into a rule that closes all of them.
+  if (days.length > 0 && SOME_WEEKS.test(clause)) {
+    return {
+      refuse:
+        "It closes only some of those days, and Enquiry can only keep a day you never work. Write the dates you're closed instead, for example: Not available Saturday 10 October.",
+    };
+  }
   // "Not available Saturday 10 October" is that one date. Only a line with no
   // date in it can say every Saturday.
   if (days.length > 0 && DATED.test(clause)) {

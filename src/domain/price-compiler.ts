@@ -372,7 +372,18 @@ function tieredPrice(
   quantity: number,
   priced: (amountMinor: number, workings: string, count?: string) => PriceOutcome,
 ): PriceOutcome {
-  const extra = Math.max(0, Math.ceil(quantity - base.upTo));
+  // Bedrooms are counted whole: "3.5 bedrooms" is a question, never rounded.
+  if (!Number.isInteger(quantity)) {
+    return {
+      kind: "UNRESOLVED_QUANTITY",
+      field: rule.quantityField,
+      value: String(quantity),
+      problem: "malformed",
+      reason: `${pluraliseUnit(rule.unit, 2)} are counted in whole numbers, and ${quantity} is not one. Check how many with them.`,
+      rule,
+    };
+  }
+  const extra = Math.max(0, quantity - base.upTo);
   const baseMinor = amountMinorFor(base.amount, 1);
   const extraMinor = extra > 0 ? amountMinorFor(rule.amount, extra) : 0;
   if (baseMinor === null || extraMinor === null) {

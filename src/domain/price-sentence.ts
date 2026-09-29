@@ -285,8 +285,32 @@ export function extraOnly(line: string): { amount: number; unit: string } | null
   );
   const amount = AMOUNT.exec(written);
   if (!m || !amount || (written.match(ALL_AMOUNTS) ?? []).length !== 1) return null;
-  return { amount: Number(amount[1]!.replace(/,/g, "")), unit: unitNoun(m[1]!) };
+  // "Extra oven clean $90" is its own service; only a counted unit ("extra
+  // bedrooms", "each additional hour") follows a threshold.
+  const unit = unitNoun(m[1]!);
+  const counted = COUNTED_UNITS.has(unit) || /\b(?:each|per)\b/i.test(written);
+  if (!counted) return null;
+  return { amount: Number(amount[1]!.replace(/,/g, "")), unit };
 }
+
+/** Things a price counts in whole units after a threshold. */
+const COUNTED_UNITS = new Set([
+  "bedroom",
+  "bathroom",
+  "room",
+  "hour",
+  "window",
+  "person",
+  "guest",
+  "storey",
+  "level",
+  "door",
+  "toilet",
+  "car",
+  "pet",
+  "kid",
+  "child",
+]);
 
 export function readPriceLine(original: string): ReadPrice | UnreadLine {
   const tiered = readTieredLine(dollarsWritten(original));

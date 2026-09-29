@@ -19,6 +19,8 @@ export type RuleLineRead = {
   priceLine?: string;
   /** Parts of the line that are not one of these rules, kept as a note, never dropped. */
   remainder?: string[];
+  /** Why the line cannot be saved as it is written (a date and a weekday that disagree). */
+  refuse?: string;
 };
 
 /**
@@ -284,18 +286,6 @@ function readEligibility(line: string): RuleLineRead | null {
   };
 }
 
-/** The next time a month-day comes round from today, matching the weekday when one is written. */
-function nextYearFor(md: string, now: Date, weekday?: number): number | null {
-  const today = `${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
-  const first = md >= today ? now.getFullYear() : now.getFullYear() + 1;
-  if (weekday === undefined) return first;
-  const [m, d] = md.split("-").map(Number) as [number, number];
-  for (const year of [first, first + 1]) {
-    if (new Date(year, m - 1, d).getDay() === weekday) return year;
-  }
-  return null;
-}
-
 const WEEKDAY_INDEX: Record<string, number> = {
   sun: 0,
   mon: 1,
@@ -306,6 +296,42 @@ const WEEKDAY_INDEX: Record<string, number> = {
   sat: 6,
 };
 
+const WEEKDAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+const MONTH_NAMES = [
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
+];
+
+/**
+ * The year a one-off stretch falls in: the first whose END is today or later,
+ * so "away 28 Dec to 3 Jan" read on 30 December is this 28 December, still
+ * running, and a day already gone this year is next year's.
+ */
+function yearFor(from: string, to: string, now: Date): number {
+  const today = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+  for (const year of [now.getFullYear() - 1, now.getFullYear(), now.getFullYear() + 1]) {
+    const end = `${to < from ? year + 1 : year}-${to}`;
+    if (end >= today) return year;
+  }
+  return now.getFullYear() + 1;
+}
+
+/** "11 October" said plainly: "11 October". */
+function spokenMd(md: string): string {
+  const [m, d] = md.split("-").map(Number) as [number, number];
+  return `${d} ${MONTH_NAMES[m - 1]}`;
+}
+
 /** One closed stretch: every year, or only the next time it comes round. */
 function closedStretch(
   from: string,
@@ -314,8 +340,23 @@ function closedStretch(
   opts: { yearly: boolean; weekday?: number },
 ): RuleLineRead | null {
   if (opts.yearly) return { details: [{ kind: "closed_dates", from, to }] };
-  const year = nextYearFor(from, now, opts.weekday);
-  if (year === null) return null;
+  const year = yearFor(from, to, now);
+  if (opts.weekday !== undefined) {
+    const [m, d] = from.split("-").map(Number) as [number, number];
+    const actual = new Date(year, m - 1, d).getDay();
+    if (actual !== opts.weekday) {
+      // Never guess which of the two they meant: say what the date is.
+      const thisYear = new Date(now.getFullYear(), m - 1, d);
+      const passed = year !== now.getFullYear() && thisYear < now;
+      const said = `${WEEKDAY_NAMES[opts.weekday]} ${spokenMd(from)}`;
+      return {
+        details: [],
+        refuse: passed
+          ? `${spokenMd(from)} this year has passed, and ${spokenMd(from)} ${year} is a ${WEEKDAY_NAMES[actual]}, not a ${WEEKDAY_NAMES[opts.weekday]}. Write the date you mean, with its year if it is next year.`
+          : `"${said}": ${spokenMd(from)} ${year} is a ${WEEKDAY_NAMES[actual]}. Write the date with the right day, or leave the day out.`,
+      };
+    }
+  }
   return { details: [{ kind: "closed_dates", from, to, year }] };
 }
 

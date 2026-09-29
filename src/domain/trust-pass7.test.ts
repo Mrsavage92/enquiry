@@ -21,7 +21,7 @@ test("2: 'Not available Saturday 10 October' is one closed date, never every Sat
     const [detail, ...rest] = detailsOf(line);
     assert.equal(rest.length, 0, line);
     assert.deepEqual(detail, { kind: "closed_dates", from: "10-10", to: "10-10", year: 2026 });
-    assert.equal(describeDetail(detail!), "Closed on Saturday 10 October only");
+    assert.equal(describeDetail(detail!), "Closed on Saturday 10 October 2026 only");
     assert.equal(closedRangeCovers("2026-10-10", detail as never), true);
     assert.equal(closedRangeCovers("2026-10-17", detail as never), false, "not the next Saturday");
     assert.equal(closedRangeCovers("2027-10-10", detail as never), false, "not next year");
