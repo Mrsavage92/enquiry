@@ -10,6 +10,7 @@ import { isPricingStep, setupStep } from "./next-action.ts";
 import { decidingPhrase } from "./price-compiler.ts";
 import { firstName } from "./customer-name.ts";
 import { countParts, isOwnerEstimate } from "./count-phrase.ts";
+import { questionStep } from "./customer-asks.ts";
 
 /**
  * The one place a fact's status becomes reader-facing text.
@@ -165,7 +166,7 @@ export function promiseVerdict(enquiry: Enquiry): { word: PromiseWord; line: str
       : v(PROMISE_WORDS.notYet, "waiting on their answer");
   }
   const question = enquiry.decision?.questionPending;
-  if (question) return v(PROMISE_WORDS.notYet, `they asked if you do ${question.thing}`);
+  if (question) return v(PROMISE_WORDS.notYet, questionStep(question).reason);
   const extra = enquiry.decision?.extraPending;
   if (extra) return v(PROMISE_WORDS.notYet, `they also asked for ${extra.label.toLowerCase()}`);
   if (coverageToCheck(enquiry)) return v(PROMISE_WORDS.notYet, "check what the price covers");
@@ -287,7 +288,7 @@ export function nextStepLabel(enquiry: Enquiry): string {
   if (enquiry.state.decision === "EVALUATING") return "Enquiry is reading it";
   if (enquiry.followUpDue) return "Decide whether to follow up";
   const question = enquiry.decision?.questionPending;
-  if (question) return `Answer: do you do ${question.thing}?`;
+  if (question) return questionStep(question).step;
   const extra = enquiry.decision?.extraPending;
   if (extra?.kind === "check") return `Add or leave out ${extra.label.toLowerCase()}`;
   const blocking = enquiry.decision?.missing?.find((m) => m.blocking);

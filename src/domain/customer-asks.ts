@@ -245,3 +245,19 @@ export function askAnswerProblem(field: string, value: string): string | null {
   if (v.length > 300) return "Keep the answer to one or two sentences.";
   return null;
 }
+
+/**
+ * The owner's next step for a question waiting on them, and why it is "Not
+ * yet": one wording for the row, the chip reason and the card.
+ */
+export function questionStep(q: { thing: string; kind?: "availability" | "ask"; when?: string }): {
+  step: string;
+  reason: string;
+} {
+  if (q.kind === "availability") {
+    const when = q.when ? ` ${q.when}` : "";
+    return { step: `Answer: are you free${when}?`, reason: `they asked if you're free${when}` };
+  }
+  if (q.kind === "ask") return { step: "Answer their question", reason: "they asked you a question" };
+  return { step: `Answer: do you do ${q.thing}?`, reason: `they asked if you do ${q.thing}` };
+}

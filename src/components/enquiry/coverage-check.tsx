@@ -125,13 +125,37 @@ export function CoverageCheck({
           enquiryId={enquiry.id}
         />
       ))}
+      {perJob
+        .filter((l) => l.rough)
+        .map((l) => (
+          <p key={`rough-${l.label}`} className="mt-2 flex flex-wrap items-center gap-x-2 text-sm">
+            <span className="text-ink-2">
+              {l.label}: their rough size, so the reply says &ldquo;about&rdquo;.
+            </span>
+            <button
+              type="button"
+              className="min-h-11 font-medium text-mark-strong underline underline-offset-4"
+              disabled={saving !== null}
+              onClick={() =>
+                void run(
+                  `exact-${l.label}`,
+                  () => actions.answerFact(enquiry.id, l.rough!.field, `exactly ${l.rough!.value}`),
+                  `Noted: exactly ${l.rough!.value}. The reply no longer says "about".`,
+                )
+              }
+            >
+              {saving === `exact-${l.label}` ? "Saving…" : `It's exactly ${l.rough!.value}`}
+            </button>
+          </p>
+        ))}
       {toSettle.length > 0 ? (
         <div className="callout mt-3 bg-warn-bg text-warn">
+          {/* One check at a time: the next appears once this one is answered. */}
           <p className="text-sm font-medium">
-            Check {toSettle.length === 1 ? "this" : "these"} first
+            {toSettle.length === 1 ? "Check this first" : `Check 1 of ${toSettle.length}`}
           </p>
           <ul className="mt-1 space-y-3 text-sm text-ink">
-            {toSettle.map((f) => (
+            {toSettle.slice(0, 1).map((f) => (
               <li key={f.text}>
                 <p>{f.text}</p>
                 {f.kind === "rule" && f.check ? (
