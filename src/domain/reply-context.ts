@@ -1,6 +1,6 @@
 import type { ReplyContext } from "./compose-reply.ts";
 import type { DateIssue } from "./enquiry-basics.ts";
-import { ASK_AVAILABILITY } from "./customer-asks.ts";
+import { ASK_AVAILABILITY, availabilitySettled } from "./customer-asks.ts";
 import { fixedEventNear } from "./fixed-event.ts";
 
 /**
@@ -86,7 +86,12 @@ export function replyContextFromFacts(
     (f) =>
       field(f) === ASK_AVAILABILITY &&
       f.status === "confirmed" &&
-      ["yes", "no", "later"].includes(String(f.value ?? "").trim()),
+      availabilitySettled(
+        String(f.value ?? ""),
+        String(date?.value ?? "")
+          .split("|")
+          .filter((d) => ISO_DAY.test(d.trim())),
+      ),
   );
   const fixedEvent = base.message
     ? fixedEventNear(base.message, date?.date_span ?? undefined)

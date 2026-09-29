@@ -44,11 +44,14 @@ import {
 } from "./service-questions.ts";
 import { applyRules } from "./rule-checks.ts";
 import {
-  ASK_CHOICE,
-  askReplyLine,
+  askReplyLines,
   askTopic,
   askWhen,
+  availabilitySettled,
   isAskField,
+  isReusableTopic,
+  laterLine,
+  shortDay,
   topicWords,
 } from "./customer-asks.ts";
 import { closedReason } from "./compose-reply.ts";
@@ -86,6 +89,10 @@ export type QuestionPending = {
   when?: string;
   /** The owner's saved answer to this kind of question, offered with one tap. */
   saved?: string;
+  /** Kept for the next customer who asks (insurance, licence, how long ...). */
+  reusable?: boolean;
+  /** The days an availability question asks about; `closed` is the owner's own reason. */
+  days?: { iso: string; label: string; closed?: string }[];
 };
 
 /**
@@ -305,6 +312,12 @@ export function decideEnquiry(
   if (ask && (gated.price.kind === "EXACT" || gated.action === "DECLINE")) {
     return askOwner(gated, ask, knownServices);
   }
+  // Still asking them for a count: their question is answered with the price,
+  // and the reply says so rather than passing over it.
+  if (ask) {
+    const line = laterLine(askTopic(ask.field));
+    return { ...gated, replyNotes: [...(gated.replyNotes ?? []), line], knownServices };
+  }
   return { ...gated, knownServices };
 }
 
@@ -427,13 +440,15 @@ function pendingQuestion(facts: ReadonlyArray<DecideFact>): QuestionPending | un
   };
 }
 
-/** Whether the owner has settled a question they asked (answered it, or chosen to leave it). */
-function askSettled(f: DecideFact): boolean {
+/**
+ * Whether the owner has settled a question they asked (answered it, or chosen
+ * to leave it). An availability answer settles it only for the days it was
+ * given for: move the day and the question is open again.
+ */
+function askSettled(f: DecideFact, askedIsos: readonly string[]): boolean {
   if (f.status !== "confirmed") return false;
   const v = String(f.value ?? "").trim();
-  if (askTopic(f.field) === "availability") {
-    return v === ASK_CHOICE.yes || v === ASK_CHOICE.no || v === ASK_CHOICE.later;
-  }
+  if (askTopic(f.field) === "availability") return availabilitySettled(v, askedIsos);
   return Boolean(v) && v !== "open";
 }
 
@@ -447,22 +462,29 @@ function pendingAsk(
   facts: ReadonlyArray<DecideFact>,
   details: readonly BusinessDetail[],
 ): QuestionPending | undefined {
-  const open = facts.find((f) => isAskField(f.field) && !askSettled(f));
+  const when = askWhen(facts);
+  const open = facts.find((f) => isAskField(f.field) && !askSettled(f, when.isos));
   if (!open) return undefined;
   const topic = askTopic(open.field);
+  // Their words: an answer keeps the question it answered as its display.
   const question = String(open.displayValue ?? "").trim();
   if (topic === "availability") {
-    const when = askWhen(facts);
     const closed = closedTimesOf(details);
-    const reasons = when.isos.map((iso) => closedReason(iso, closed));
-    const allClosed = reasons.length > 0 && reasons.every(Boolean);
+    // Each day asked, with the owner's own reason when it is one they don't
+    // work: never a Yes on it.
+    const days = when.isos.map((iso) => {
+      const reason = closedReason(iso, closed);
+      return { iso, label: shortDay(iso), ...(reason ? { closed: reason } : {}) };
+    });
+    const allClosed = days.length > 0 && days.every((d) => d.closed);
     return {
       field: open.field,
       thing: "availability",
       kind: "availability",
       ...(question ? { span: question } : {}),
       ...(when.short ? { when: when.short } : {}),
-      ...(allClosed ? { readAs: "no" as const, said: reasons[0]! } : {}),
+      ...(days.length ? { days } : {}),
+      ...(allClosed ? { readAs: "no" as const, said: days[0]!.closed! } : {}),
     };
   }
   const saved = details.find((d) => d.kind === "answer" && d.topic === topic);
@@ -472,6 +494,7 @@ function pendingAsk(
     kind: "ask",
     ...(question ? { span: question } : {}),
     ...(saved && saved.kind === "answer" ? { saved: saved.text } : {}),
+    ...(isReusableTopic(topic) ? { reusable: true } : {}),
   };
 }
 
@@ -496,8 +519,7 @@ function replyNotesFrom(
   for (const f of facts) {
     if (f.status !== "confirmed") continue;
     if (isAskField(f.field)) {
-      const line = askReplyLine(f.field, String(f.value ?? ""), { phrase: when.phrase });
-      if (line) out.push(line);
+      if (askSettled(f, when.isos)) out.push(...askReplyLines(f.field, String(f.value ?? "")));
       continue;
     }
     if (isQuestionField(f.field)) {
@@ -1117,6 +1139,20 @@ export function validateFactAnswer(
  * answer box accepts the way people actually type. Anything else is kept
  * exactly as typed.
  */
+/** Whether a field is a count a price reads: the main job's, or an extra's. */
+export function isCountField(
+  business: { knowledge?: ReadonlyArray<RuleBearingKnowledge | KnowledgeItem> | null },
+  field: string,
+): boolean {
+  const rules = activeRules(business);
+  const norm = (s: string) => s.trim().toLowerCase();
+  const split = splitExtraQuantityField(field);
+  return (
+    (split !== null && rules.some((r) => extraCountMatches(r, split))) ||
+    rules.some((r) => r.kind === "per_unit" && norm(r.quantityField) === norm(field))
+  );
+}
+
 export function normaliseFactAnswer(
   business: { knowledge?: ReadonlyArray<RuleBearingKnowledge | KnowledgeItem> | null },
   field: string,

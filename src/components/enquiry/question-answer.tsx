@@ -3,7 +3,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { useFirstBetaActions } from "@/lib/workspace/live-mutations";
 import { QUESTION_ANSWER } from "@/domain/service-questions";
-import { ASK_CHOICE } from "@/domain/customer-asks";
+import { ASK_CHOICE, availabilityValue } from "@/domain/customer-asks";
 import type { QuestionPending } from "@/domain/decide";
 import type { Enquiry } from "@/domain/types";
 
@@ -130,41 +130,72 @@ function ServiceAnswer(props: Props) {
 function AvailabilityAnswer(props: Props) {
   const { question } = props;
   const when = question.when ? ` ${question.when}` : "";
+  const days = question.days ?? [];
+  const open = days.filter((d) => !d.closed);
+  const closed = days.filter((d) => d.closed);
   const readNo = question.readAs === "no";
+  // One answer per day asked: closed days are always No, never a Yes by accident.
+  const value = (choice: (iso: string) => "yes" | "no" | "later") =>
+    days.length
+      ? availabilityValue(days.map((d) => [d.iso, d.closed ? "no" : choice(d.iso)]))
+      : choice("");
+  const openWords = open.map((d) => d.label).join(" or ");
   return (
     <>
       <p className="text-sm leading-relaxed text-ink">
         They asked if you&apos;re free{when}
         {question.span ? `: “${question.span}”` : "."}
       </p>
-      {readNo && question.said ? (
-        <p className="mt-1 text-sm text-ink-2">
-          No - {question.said.charAt(0).toLowerCase() + question.said.slice(1)} (from your business
-          details). Check and confirm.
+      {closed.map((d) => (
+        <p key={d.iso} className="mt-1 text-sm text-ink-2">
+          {d.label}: {d.closed!.charAt(0).toLowerCase() + d.closed!.slice(1)} (from your business
+          details), so the reply says no to it.
         </p>
-      ) : null}
+      ))}
       <div className="mt-3 flex flex-wrap gap-2">
+        {open.length > 0 || days.length === 0 ? (
+          <Choice
+            value={value(() => "yes")}
+            label={
+              open.length > 1
+                ? "Yes, free on all of them"
+                : closed.length
+                  ? `Yes, free ${openWords}`
+                  : "Yes, I'm free"
+            }
+            primary={!readNo}
+            props={props}
+            done="The reply tells them the days you're free."
+          />
+        ) : null}
+        {open.length > 1
+          ? open.map((d) => (
+              <Choice
+                key={d.iso}
+                value={value((iso) => (iso === d.iso ? "yes" : "no"))}
+                label={`Only ${d.label}`}
+                primary={false}
+                props={props}
+                done={`The reply says you're free ${d.label} only.`}
+              />
+            ))
+          : null}
         <Choice
-          value={ASK_CHOICE.yes}
-          label="Yes, I'm free"
-          primary={!readNo}
-          props={props}
-          done="The reply tells them you're available."
-        />
-        <Choice
-          value={ASK_CHOICE.no}
+          value={value(() => "no")}
           label="No"
           primary={readNo}
           props={props}
           done="The reply tells them you're not available then."
         />
-        <Choice
-          value={ASK_CHOICE.later}
-          label="Come back to them"
-          primary={false}
-          props={props}
-          done="The reply says you'll check and come back to them."
-        />
+        {open.length > 0 || days.length === 0 ? (
+          <Choice
+            value={value(() => "later")}
+            label="Come back to them"
+            primary={false}
+            props={props}
+            done="The reply says you'll check and come back to them."
+          />
+        ) : null}
       </div>
     </>
   );
@@ -196,8 +227,8 @@ function AskAnswer(props: Props) {
       ) : null}
       <label className="mt-3 block text-sm" htmlFor={id}>
         <span className="text-ink-2">
-          {question.saved ? "Or write a new answer" : "Your answer, in a sentence"} - kept for the
-          next customer who asks
+          {question.saved ? "Or write a new answer" : "Your answer, in a sentence"}
+          {question.reusable ? " - kept for the next customer who asks" : ""}
         </span>
       </label>
       <textarea
@@ -215,7 +246,11 @@ function AskAnswer(props: Props) {
             label="Use my answer"
             primary={!question.saved}
             props={props}
-            done="The reply carries your answer. It's saved for next time."
+            done={
+              question.reusable
+                ? "The reply carries your answer. It's saved for next time."
+                : "The reply carries your answer."
+            }
           />
         ) : null}
         <Choice

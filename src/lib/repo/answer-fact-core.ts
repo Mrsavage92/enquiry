@@ -1,5 +1,10 @@
 import type { Sql } from "../db.ts";
-import { normaliseFactAnswer, validateFactAnswer, type Decision } from "../../domain/decide.ts";
+import {
+  isCountField,
+  normaliseFactAnswer,
+  validateFactAnswer,
+  type Decision,
+} from "../../domain/decide.ts";
 import { EXTRA_CHOICE, isExtraField } from "../../domain/extras.ts";
 import { QUESTION_ANSWER, isQuestionField } from "../../domain/service-questions.ts";
 import { COVERAGE_FIELD } from "../../domain/coverage.ts";
@@ -8,10 +13,15 @@ import {
   ASK_CHOICE,
   askAnswerProblem,
   askTopic,
+  askWhen,
+  availabilityProblem,
   isAskField,
   isReusableTopic,
 } from "../../domain/customer-asks.ts";
+import { closedReason } from "../../domain/compose-reply.ts";
 import {
+  activeDetails,
+  closedTimesOf,
   describeDetail,
   detailSection,
   detailTitle,
@@ -93,6 +103,7 @@ async function saveAskAnswer(
   topic: string,
   question: string,
   text: string,
+  who: { actor: string; enquiryId: string },
 ): Promise<void> {
   if (!isReusableTopic(topic)) return;
   const detail = parseBusinessDetail({
@@ -119,6 +130,47 @@ async function saveAskAnswer(
       ${"1"}, ${JSON.stringify(detail.detail)}::jsonb, now()
     )
   `;
+  await tx`
+    insert into audit_event (business_id, actor, summary, detail, object_type, object_id)
+    values (
+      ${businessId}, ${who.actor}, ${`Answer saved for next time: ${question.trim() || topic}`},
+      ${text}, ${"enquiry"}, ${who.enquiryId}
+    )
+  `;
+}
+
+/**
+ * An answer to one of their questions: only to a question they actually asked
+ * (a reading on this enquiry), and for availability, for exactly the days asked
+ * now - never a Yes on a day the owner doesn't work.
+ */
+async function checkAskAnswer(
+  sql: Sql,
+  enquiryId: string,
+  field: string,
+  value: string,
+  brain: { knowledge: { state: string; rulePayload: unknown }[] },
+): Promise<void> {
+  const rows = await sql<{ field: string; value: string; display_value: string | null }>`
+    select field, value, display_value from enquiry_fact
+    where enquiry_id = ${enquiryId} and superseded = false
+      and (lower(field) = lower(${field}) or lower(field) = ${"date"})
+  `;
+  if (!rows.some((r) => r.field.trim().toLowerCase() === field.trim().toLowerCase())) {
+    throw new Error("They didn't ask that question on this enquiry.");
+  }
+  if (askTopic(field) !== "availability") {
+    const problem = askAnswerProblem(field, value);
+    if (problem) throw new Error(problem);
+    return;
+  }
+  const when = askWhen(
+    rows.map((r) => ({ field: r.field, value: r.value, displayValue: r.display_value ?? "" })),
+  );
+  const closed = closedTimesOf(activeDetails(brain));
+  const closedIsos = new Set(when.isos.filter((iso) => closedReason(iso, closed)));
+  const problem = availabilityProblem(value, when.isos, closedIsos);
+  if (problem) throw new Error(problem);
 }
 
 export async function answerFactForUser(
@@ -150,14 +202,14 @@ export async function answerFactForUser(
     knowledge: knowledge.map((k) => ({ state: k.state, rulePayload: k.rule_payload })),
   };
   // "It's exactly 90": the owner confirms their rough figure is exact, so the
-  // reply stops saying "about".
-  const exact = EXACTLY.test(input.value);
+  // reply stops saying "about". Only on a count - any other answer is kept
+  // exactly as the owner typed it ("Exactly 3 hours for a house your size").
+  const exact = isCountField(brain, input.field) && EXACTLY.test(input.value);
   const typed = exact ? input.value.replace(EXACTLY, "") : input.value;
   // "three" is 3: a written count is stored as digits, then checked.
   const value = normaliseFactAnswer(brain, input.field, typed);
   if (isAskField(input.field)) {
-    const problem = askAnswerProblem(input.field, value);
-    if (problem) throw new Error(problem);
+    await checkAskAnswer(sql, enquiryId, input.field, value, brain);
   }
   if (isExtraField(input.field) && !EXTRA_CHOICES.has(value)) {
     throw new Error("Choose whether to add it to the quote or leave it out.");
@@ -203,7 +255,21 @@ export async function answerFactForUser(
       /\b(?:about|roughly|around|approx(?:imately)?|maybe|~|nearly|almost|ish)\b|~/i.test(
         reading.display_value ?? "",
       );
-    const display = rough ? `about ${value}` : displayFor(input.field, value);
+    // A question keeps their words as its display, answered or not: moving
+    // the day re-opens it, and the card still shows what they asked.
+    const [asked] = isAskField(input.field)
+      ? await tx<{ display_value: string | null }>`
+          select display_value from enquiry_fact
+          where enquiry_id = ${enquiryId} and lower(field) = lower(${input.field})
+            and superseded = false
+          limit 1
+        `
+      : [];
+    const display = rough
+      ? `about ${value}`
+      : isAskField(input.field)
+        ? (asked?.display_value ?? displayFor(input.field, value))
+        : displayFor(input.field, value);
     // One live answer per field: an earlier one is superseded, not deleted,
     // so the case file still shows what was believed and when.
     await tx`
@@ -232,8 +298,12 @@ export async function answerFactForUser(
         tx,
         businessId,
         askTopic(input.field),
-        reading?.display_value ?? "",
+        asked?.display_value ?? "",
         value,
+        {
+          actor: userId,
+          enquiryId,
+        },
       );
     }
     // Confirming (or correcting) the name read from their message is what
