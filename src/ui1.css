@@ -1582,6 +1582,9 @@ li:nth-child(3n + 3) .customer-avatar {
     display: inline;
     margin-left: 8px;
   }
+  .enquiries-date .enquiries-date-sep {
+    display: inline;
+  }
   .enquiries-list-row > .inline-flex {
     grid-column: 2;
     grid-row: 1;
@@ -1802,4 +1805,9 @@ li:nth-child(3n + 3) .customer-avatar {
   .more-page .ui-page-header h1 {
     font-size: 22px;
   }
+}
+
+/* The dot between the date cue and the channel shows only where they share a line. */
+.enquiries-date-sep {
+  display: none;
 }

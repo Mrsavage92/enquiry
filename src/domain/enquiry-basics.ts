@@ -76,10 +76,17 @@ export type DateReading = {
    */
   preference?: string;
   /**
-   * A loose ask with no one date in it: "week of the 12th", "tomorrow arvo",
-   * "next fortnight". Kept in their words and quoted back, never resolved.
+   * A loose ask with no one date in it: "week of the 12th", "next fortnight".
+   * Kept in their words and quoted back, never resolved.
    */
   approx?: { span: string };
+  /**
+   * "Any day between 12 and 16 October except Friday": a stretch they are
+   * free, never one day in it. `except` holds weekdays ruled out (0 Sunday).
+   */
+  window?: { from: string; to: string; except: number[]; label: string; span: string };
+  /** Weekdays they ruled out without a date: "except Friday", "not weekends". */
+  exceptDays?: number[];
 };
 
 /**
@@ -353,7 +360,6 @@ function weekdayWords(text: string): WeekdayWords {
  */
 const APPROX = [
   /\b(?:the\s+)?week\s+(?:of|starting|beginning|commencing)\s+(?:the\s+)?\d{1,2}(?:st|nd|rd|th)?\b/i,
-  /\b(?:tomorrow|tmrw|tmr)(?:\s+(?:morning|arvo|afternoon|evening|night|am|pm))?\b/i,
   /\b(?:this|next)\s+(?:week(?:end)?|fortnight|month)\b/i,
   /\bthis\s+arvo\b/i,
   /\b(?:in\s+)?(?:the\s+)?next\s+(?:few\s+days|couple\s+(?:of\s+)?weeks|week\s+or\s+two)\b/i,
@@ -627,23 +633,209 @@ function contextOf(before: string, after: string): string | undefined {
   return nearest?.[1]?.toLowerCase();
 }
 
+/** "between 12 and 16 October", "from the 2nd to the 9th of November". */
+const WINDOW_SAME_MONTH = new RegExp(
+  String.raw`\b(?:between|from)\s+(?:the\s+)?(\d{1,2})(?:st|nd|rd|th)?\s*(?:and|to|-|–|until|till)\s*(?:the\s+)?(\d{1,2})(?:st|nd|rd|th)?\s+(?:of\s+)?${MONTH}\b`,
+  "i",
+);
+/** "12-16 October": one month, two days, a dash between. */
+const WINDOW_DASH = new RegExp(
+  String.raw`\b(\d{1,2})(?:st|nd|rd|th)?\s*(?:-|–)\s*(\d{1,2})(?:st|nd|rd|th)?\s+(?:of\s+)?${MONTH}\b`,
+  "i",
+);
+/** "between 28 October and 3 November". */
+const WINDOW_TWO_MONTHS = new RegExp(
+  String.raw`\b(?:between|from)\s+(?:the\s+)?(\d{1,2})(?:st|nd|rd|th)?\s+(?:of\s+)?${MONTH}\s*(?:and|to|-|–|until|till)\s*(?:the\s+)?(\d{1,2})(?:st|nd|rd|th)?\s+(?:of\s+)?${MONTH}\b`,
+  "i",
+);
+/** "except Friday", "not weekends", "no Sundays": a weekday ruled out with no date. */
+const EXCEPT_DAYS = new RegExp(
+  String.raw`\b(?:except|excluding|other than|apart from|but not|not|no)\s+(?:on\s+)?(?:(?:a|the)\s+)?(weekends?|${WEEKDAY_WORD})s?\b(?![,.]?\s+(?:the\s+)?\d)`,
+  "gi",
+);
+const WEEKDAY_SHORT = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+function exceptDaysIn(text: string): number[] {
+  const out = new Set<number>();
+  for (const m of text.matchAll(EXCEPT_DAYS)) {
+    const word = m[1]!.toLowerCase();
+    if (word.startsWith("weekend")) [0, 6].forEach((d) => out.add(d));
+    else {
+      const d = weekdayIndex(word);
+      if (d !== undefined) out.add(d);
+    }
+  }
+  return [...out].sort((a, b) => ((a + 6) % 7) - ((b + 6) % 7));
+}
+
+/** "not Fri", "not weekends". */
+function exceptLabel(days: readonly number[]): string {
+  if (days.length === 2 && days.includes(0) && days.includes(6)) return "not weekends";
+  return `not ${days.map((d) => WEEKDAY_SHORT[d]).join(" or ")}`;
+}
+
+function exceptWords(days: readonly number[]): string {
+  if (days.length === 2 && days.includes(0) && days.includes(6)) return "not weekends";
+  return `not ${days.map((d) => `${capitalise(WEEKDAY_NAMES[d]!)}s`).join(" or ")}`;
+}
+
+type Taken = [number, number];
+
+/**
+ * "sometime between 2 and 9 November, not weekends": a stretch of days they
+ * are free, read as one window. Never one day of it - the last day of a range
+ * is not the day they asked for, and a weekday they ruled out is not a date.
+ */
+function readWindow(
+  text: string,
+  today: Date,
+): { window: DateReading["window"]; at: Taken } | undefined {
+  const two = WINDOW_TWO_MONTHS.exec(text);
+  const same = two ? null : (WINDOW_SAME_MONTH.exec(text) ?? WINDOW_DASH.exec(text));
+  const m = two ?? same;
+  if (!m) return undefined;
+  const index = m.index ?? 0;
+  const { before, after } = clauseAround(text, index, m[0].length);
+  if (contextOf(before, after) || HISTORY.test(before)) return undefined;
+  if (/\b(?:away|not|busy|unavailable|except)\b|n't\b/i.test(before)) return undefined;
+  const fromMonth = monthIndex(two ? m[2]! : m[3]!);
+  const toMonth = monthIndex(two ? m[4]! : m[3]!);
+  const fromDay = Number(m[1]);
+  const toDay = Number(two ? m[3] : m[2]);
+  if (fromMonth === undefined || toMonth === undefined) return undefined;
+  const start = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  let year = today.getFullYear();
+  let to = new Date(year, toMonth, toDay);
+  if (to < start) {
+    year += 1;
+    to = new Date(year, toMonth, toDay);
+  }
+  const from = new Date(toMonth < fromMonth ? year - 1 : year, fromMonth, fromDay);
+  if (
+    !validDay(from.getFullYear(), fromMonth, fromDay) ||
+    !validDay(to.getFullYear(), toMonth, toDay) ||
+    from > to
+  ) {
+    return undefined;
+  }
+  const except = exceptDaysIn(text);
+  const sameMonth = fromMonth === toMonth;
+  const label = `${sameMonth ? from.getDate() : format(from, "d MMM", { locale: enAU })}-${format(to, "d MMM", { locale: enAU })}${except.length ? `, ${exceptLabel(except)}` : ""}`;
+  const said = m[0].replace(/\s+/g, " ").trim();
+  return {
+    window: {
+      from: readOf(from, said, true).iso,
+      to: readOf(to, said, true).iso,
+      except,
+      label,
+      span: except.length ? `${said} (${exceptWords(except)})` : said,
+    },
+    at: [index, index + m[0].length],
+  };
+}
+
+/** "this sat or sun", "next tues", "this Saturday or Sunday": the coming days, as dates. */
+const THIS_NEXT = new RegExp(
+  String.raw`\b(?:this|next|coming)\s+${WEEKDAY_WORD}\b(?:\s*(?:or|\/|&)\s*(?:(?:this|next)\s+)?${WEEKDAY_WORD}\b)?(?![,.]?\s+(?:the\s+)?\d)(?!\s+(?:morning|arvo|afternoon|night|evening)s?\b)`,
+  "i",
+);
+
+function readThisNext(
+  text: string,
+  today: Date,
+): { one?: JobDateRead; two?: DateReading["options"]; at: Taken } | undefined {
+  const m = THIS_NEXT.exec(text);
+  if (!m) return undefined;
+  const index = m.index ?? 0;
+  if (DATE_NEGATED.test(sentenceAt(text, index))) return undefined;
+  const first = weekdayIndex(m[1]!);
+  if (first === undefined) return undefined;
+  const start = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  const ahead = (first - start.getDay() + 7) % 7 || 7;
+  const a = new Date(start.getFullYear(), start.getMonth(), start.getDate() + ahead);
+  const span = m[0].replace(/\s+/g, " ").trim();
+  const asked = asksAboutDate(text, index);
+  const at: Taken = [index, index + m[0].length];
+  const second = m[2] ? weekdayIndex(m[2]) : undefined;
+  if (second === undefined) return { one: readOf(a, span, asked), at };
+  const gap = (second - first + 7) % 7 || 7;
+  const b = new Date(a.getFullYear(), a.getMonth(), a.getDate() + gap);
+  const sameMonth = a.getMonth() === b.getMonth();
+  const label = `${format(a, sameMonth ? "EEE d" : "EEE d MMM", { locale: enAU })} or ${format(b, "EEE d MMM", { locale: enAU })}`;
+  return { two: { days: [readOf(a, span, asked), readOf(b, span, asked)], label, span }, at };
+}
+
+/** "tmrw", "tomorrow arvo": tomorrow, as a date, with the day said in the reply. */
+const TOMORROW =
+  /\b(?:tomorrow|tmrw|tmr|tomoz|2moro)\b(?:\s+(morning|arvo|afternoon|evening|night|am|pm))?/i;
+
+function readTomorrow(text: string, today: Date): JobDateRead | undefined {
+  const m = TOMORROW.exec(text);
+  if (!m) return undefined;
+  const index = m.index ?? 0;
+  const { before, after } = clauseAround(text, index, m[0].length);
+  if (contextOf(before, after) || DATE_NEGATED.test(sentenceAt(text, index))) return undefined;
+  const date = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1);
+  const part = m[1] ? ` ${m[1].toLowerCase()}` : "";
+  const span = `tomorrow${part} (${format(date, "EEEE d MMMM", { locale: enAU })})`;
+  return readOf(date, span, true);
+}
+
+/** "keys on the 1st": a day of the month beside a move or the keys, read in the window's month. */
+const CONTEXT_DAY = new RegExp(
+  String.raw`\b(?:on\s+)?the\s+(\d{1,2})(?:st|nd|rd|th)\b(?!\s+(?:of\s+)?${MONTH})`,
+  "gi",
+);
+
+function contextDays(text: string, today: Date, window: DateReading["window"]): ContextDate[] {
+  const out: ContextDate[] = [];
+  for (const m of text.matchAll(CONTEXT_DAY)) {
+    const index = m.index ?? 0;
+    const { before, after } = clauseAround(text, index, m[0].length);
+    const what = contextOf(before, after);
+    if (!what) continue;
+    const day = Number(m[1]);
+    const anchor = window ? new Date(`${window.from}T00:00:00`) : null;
+    let date = anchor
+      ? new Date(anchor.getFullYear(), anchor.getMonth(), day)
+      : new Date(today.getFullYear(), today.getMonth(), day);
+    if (!anchor && date <= today) date = new Date(today.getFullYear(), today.getMonth() + 1, day);
+    if (date.getDate() !== day) continue;
+    out.push({ ...readOf(date, m[0].trim(), false), what });
+  }
+  return out;
+}
+
 export function readDates(text: string, now = new Date(), tz = "Australia/Brisbane"): DateReading {
   const today = wallNow(now, tz);
   const reading: DateReading = { unavailable: [], context: [], asap: asksForAsap(text) };
   const plain: (JobDateRead & { dated: boolean })[] = [];
   const weekdays = weekdayWords(text);
+  const window = readWindow(text, today);
+  const soon = window ? undefined : readThisNext(text, today);
+  const taken: Taken[] = [...(window ? [window.at] : []), ...(soon ? [soon.at] : [])];
+  const inTaken = (i: number) => taken.some(([a, b]) => i >= a && i < b);
+  if (window) {
+    reading.window = window.window;
+    reading.context.push(...contextDays(text, today, window.window));
+  }
+  if (soon?.two) reading.options = soon.two;
+  if (soon?.one) plain.push({ ...soon.one, dated: true });
+  const exceptDays = exceptDaysIn(text);
   // One of two offered days that does not read as a future day leaves each
   // to be read on its own.
-  const hits = collectHits(text, weekdays.skip).flatMap((h) => {
-    if (!h.alt) return [h];
-    const { before } = clauseAround(text, h.index, h.length);
-    const offered = readOffered(text, h, h.alt, before, today);
-    if (offered) {
-      reading.options ??= offered;
-      return [];
-    }
-    return [{ ...h, alt: undefined }, h.alt];
-  });
+  const hits = collectHits(text, weekdays.skip)
+    .filter((h) => !inTaken(h.index))
+    .flatMap((h) => {
+      if (!h.alt) return [h];
+      const { before } = clauseAround(text, h.index, h.length);
+      const offered = readOffered(text, h, h.alt, before, today);
+      if (offered) {
+        reading.options ??= offered;
+        return [];
+      }
+      return [{ ...h, alt: undefined }, h.alt];
+    });
   for (const hit of hits) {
     const { before, after } = clauseAround(text, hit.index, hit.length);
     if (hit.option) {
@@ -662,6 +854,9 @@ export function readDates(text: string, now = new Date(), tz = "Australia/Brisba
     const boundary = BOUNDARY_BEFORE.test(before);
     const excluded = (EXCLUDE_BEFORE.test(before) || EXCLUDE_AFTER.test(after)) && !boundary;
     if (excluded) {
+      // "except Friday" rules out a weekday, not the next Friday: it is kept
+      // with the weekdays ruled out, never shown as a date they never wrote.
+      if (hit.day === 0 && hit.month === -1) continue;
       // A day ruled out is never the job date. Recorded only when it is a real
       // future day that reads plainly; anything muddier is simply dropped.
       if (resolved.kind === "date") {
@@ -729,15 +924,21 @@ export function readDates(text: string, now = new Date(), tz = "Australia/Brisba
     plain.find((d) => d.asked) ??
     plain.find((d) => d.dated) ??
     plain[0];
-  if (!reading.options && pick) {
+  // A window they are free in is the ask: no one day of it is the job date.
+  if (!reading.options && !reading.window && pick) {
     const { dated: _dated, ...jobDate } = pick;
     reading.jobDate = jobDate;
   }
-  if (weekdays.preference) reading.preference = weekdays.preference;
-  if (!reading.jobDate && !reading.options && !reading.issue) {
+  if (weekdays.preference && !soon?.two) reading.preference = weekdays.preference;
+  if (!reading.jobDate && !reading.options && !reading.window && !reading.issue) {
+    const tomorrow = readTomorrow(text, today);
+    if (tomorrow) reading.jobDate = tomorrow;
+  }
+  if (!reading.jobDate && !reading.options && !reading.window && !reading.issue) {
     const approx = approxAsk(text);
     if (approx) reading.approx = approx;
   }
+  if (exceptDays.length) reading.exceptDays = exceptDays;
   // A date problem makes the day doubtful; the owner settles it rather than
   // Enquiry picking one.
   if (reading.issue && reading.issue.kind !== "past") delete reading.jobDate;
@@ -1217,8 +1418,20 @@ function withoutNoise(text: string): string {
   );
 }
 
+/** A pasted form: "Name: Rachel Nguyen", "Full name - Rachel Nguyen". */
+const FORM_NAME = new RegExp(
+  String.raw`^\s*(?:full\s+|your\s+|first\s+)?name\s*[:\-–]\s*${NAME}\s*$`,
+  "im",
+);
+/** Kisses before the name on the closing line: "xx Priya", "x Jo". */
+const KISS_NAME = new RegExp(String.raw`(?:^|\n)\s*x{1,4}\s+${NAME}\s*[.!]?\s*$`, "i");
+
 export function readCustomerName(text: string, ctx: NameContext = {}): string | undefined {
   const trimmed = dropTrailingParen(withoutNoise(text).trim());
+  const field = acceptName(FORM_NAME.exec(trimmed)?.[1], { ...ctx, signOff: true });
+  if (field) return field;
+  const kissed = acceptName(KISS_NAME.exec(trimmed)?.[1], { ...ctx, signOff: true });
+  if (kissed) return kissed;
   const fromLines = nameFromSignOffLines(trimmed, ctx);
   if (fromLines) return fromLines;
   if (fromLines === null) return nameAboveRoleLines(trimmed, ctx);

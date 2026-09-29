@@ -118,6 +118,20 @@ export function spokenDate(iso: string | undefined): string | null {
   return format(date, "EEEE d MMMM", { locale: enAU });
 }
 
+const MONTH_WORDS: Record<string, string> = {
+  jan: "January",
+  feb: "February",
+  mar: "March",
+  apr: "April",
+  jun: "June",
+  jul: "July",
+  aug: "August",
+  sep: "September",
+  oct: "October",
+  nov: "November",
+  dec: "December",
+};
+
 const WEEKDAY_WORDS: Record<string, string> = {
   mon: "Monday",
   tue: "Tuesday",
@@ -135,6 +149,10 @@ const WEEKDAY_WORDS: Record<string, string> = {
 export function spokenSpan(span: string): string {
   return span
     .trim()
+    .replace(/\b(jan|feb|mar|apr|jun|jul|aug|sept?|oct|nov|dec)[a-z]*\b\.?/gi, (w) => {
+      const key = w.replace(/\.$/, "").slice(0, 3).toLowerCase();
+      return MONTH_WORDS[key] ?? w;
+    })
     .replace(/\b(mon|tues?|wed|thu(?:rs?)?|fri|sat|sun)\b\.?/gi, (w) => {
       const key = w.replace(/\.$/, "").toLowerCase();
       return WEEKDAY_WORDS[key] ?? w;
@@ -171,7 +189,7 @@ function dateSentence(opts: ReplyContext): string | null {
   if (opts.asap) return "I'll let you know the soonest day I can do it.";
   if (opts.approxSpan?.trim()) {
     const span = spokenSpan(opts.approxSpan);
-    return /\b(?:week|fortnight|month|days)\b/i.test(span)
+    return /\b(?:week|fortnight|month|days|between|from)\b/i.test(span)
       ? `You mentioned ${span} - I'll confirm which day works.`
       : `You mentioned ${span} - I'll confirm whether that works.`;
   }

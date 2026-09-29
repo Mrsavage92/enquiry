@@ -185,6 +185,7 @@ export async function insertManualEnquiry(
   const dateLabel =
     basics.jobDate?.label ??
     basics.dates.options?.label ??
+    basics.dates.window?.label ??
     (basics.dates.asap ? "ASAP" : null) ??
     (basics.dates.approx ? `"${basics.dates.approx.span}"` : null) ??
     (basics.dates.preference ? `Prefers ${basics.dates.preference}` : null);
@@ -245,6 +246,16 @@ export async function insertManualEnquiry(
 
   return { enquiryId, messageId };
 }
+
+const WEEKDAY_NAMES = [
+  "Sunday",
+  "Monday",
+  "Tuesday",
+  "Wednesday",
+  "Thursday",
+  "Friday",
+  "Saturday",
+] as const;
 
 type ArrivalFact = {
   field: string;
@@ -389,6 +400,20 @@ function dateFacts(dates: DateReading): ArrivalFact[] {
         options: o.days.map((d) => d.iso),
       },
     });
+  } else if (dates.window) {
+    // "sometime between 2 and 9 November": the stretch they are free, never
+    // one day of it. The reply quotes it and the owner picks the day.
+    const w = dates.window;
+    out.push({
+      ...readFact("date", `${w.from}..${w.to}`, `Any day ${w.label}`, w.span, "Job date"),
+      provenance: {
+        kind: "message",
+        label: "Read from the customer's message",
+        span: w.span,
+        asked: true,
+        window: { from: w.from, to: w.to, except: w.except },
+      },
+    });
   } else if (dates.asap) {
     out.push(readFact("date", ASAP_VALUE, "As soon as possible", "asap", "Job date"));
   } else if (dates.approx) {
@@ -424,6 +449,18 @@ function dateFacts(dates: DateReading): ArrivalFact[] {
         dates.context.map((d) => `${d.what} ${d.label}`).join("; "),
         dates.context.map((d) => d.span).join("; "),
         "Also mentioned",
+      ),
+    );
+  }
+  if (dates.exceptDays?.length && !dates.window) {
+    const names = dates.exceptDays.map((d) => `${WEEKDAY_NAMES[d]}s`).join(" or ");
+    out.push(
+      readFact(
+        "not_available",
+        dates.exceptDays.map((d) => `weekday:${d}`).join(","),
+        names,
+        names,
+        "Not available",
       ),
     );
   }

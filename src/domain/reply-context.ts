@@ -27,6 +27,8 @@ export type ReplyFact = {
 };
 
 const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;
+/** A date fact holding a stretch of days: "2026-11-02..2026-11-09". */
+export const WINDOW_VALUE = /^\d{4}-\d{2}-\d{2}\.\.\d{4}-\d{2}-\d{2}$/;
 
 function field(f: ReplyFact): string {
   return f.field.trim().toLowerCase();
@@ -105,7 +107,10 @@ export function replyContextFromFacts(
     ...(!confirmed && value.includes("|") && date?.date_span
       ? { dateOptions: String(date.date_span), dateOptionIsos: options }
       : {}),
-    ...(value === APPROX_VALUE && date?.date_span ? { approxSpan: String(date.date_span) } : {}),
+    // "between 2 and 9 November (not weekends)": the stretch, in their words.
+    ...((value === APPROX_VALUE || WINDOW_VALUE.test(value)) && date?.date_span
+      ? { approxSpan: String(date.date_span) }
+      : {}),
     ...(preference && String(preference.value ?? "").trim()
       ? { dayPreference: String(preference.value).trim() }
       : {}),

@@ -81,7 +81,8 @@ export function askedDayIso(enquiry: Pick<Enquiry, "facts">): string | undefined
   const date = (enquiry.facts ?? []).find(
     (f) => !f.superseded && f.field.trim().toLowerCase() === "date",
   );
-  const first = String(date?.value ?? "").split("|")[0] ?? "";
+  // A stretch ("2026-11-02..2026-11-09") is due from its first day.
+  const first = String(date?.value ?? "").split(/\||\.\./)[0] ?? "";
   return /^\d{4}-\d{2}-\d{2}$/.test(first) ? first : undefined;
 }
 
