@@ -16,7 +16,7 @@ import {
 } from "@/domain/fact-words";
 import { readBusinessDetails, type BusinessDetailsRead } from "@/domain/business-details-read";
 import { describeRule } from "@/domain/business-rule";
-import { describeDetail, noteFor } from "@/domain/business-detail";
+import { describeDetail, noteFor, type AnswerDetail } from "@/domain/business-detail";
 
 type Row = KnowledgeItem & { rulePayload?: unknown };
 
@@ -217,7 +217,9 @@ export function FactRow({
         </DialogContent>
       </Dialog>
 
-      {editOpen ? (
+      {editOpen && payload?.kind === "detail" && payload.value.kind === "answer" ? (
+        <EditAnswer item={item} answer={payload.value} onClose={() => setEditOpen(false)} />
+      ) : editOpen ? (
         <EditFact
           item={item}
           said={said ?? item.body}
@@ -349,6 +351,75 @@ function EditFact({
               Preview
             </Button>
           )}
+          <Button className="min-h-11" variant="secondary" disabled={busy} onClick={onClose}>
+            Cancel
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/**
+ * A saved answer to a customer question is changed as an answer: the owner
+ * rewrites the sentence, and it stays the answer to that question - never
+ * re-read as a price or a note.
+ */
+function EditAnswer({
+  item,
+  answer,
+  onClose,
+}: {
+  item: Row;
+  answer: AnswerDetail;
+  onClose: () => void;
+}) {
+  const actions = useFirstBetaActions();
+  const [text, setText] = useState(answer.text);
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const save = async () => {
+    const words = text.trim();
+    if (words.length < 2) {
+      setError("Write the answer in a sentence, or remove it instead.");
+      return;
+    }
+    setBusy(true);
+    try {
+      await actions.replaceFact(item.businessId, item.id, [], [{ ...answer, text: words }], {
+        details: [words],
+      });
+      onClose();
+      toast.success("Changed. It's offered the next time a customer asks.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not save that change.");
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <Dialog open onOpenChange={(o) => !o && !busy && onClose()}>
+      <DialogContent title="Change your answer">
+        <p className="text-sm text-ink-2">When asked: “{answer.question}”</p>
+        <label className="mt-3 block text-sm" htmlFor={`answer-${item.id}`}>
+          <span className="font-medium text-ink">Your answer</span>
+        </label>
+        <textarea
+          id={`answer-${item.id}`}
+          className="field mt-1.5 leading-relaxed"
+          rows={3}
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+        />
+        {error ? (
+          <p className="mt-2 text-sm text-danger" role="alert">
+            {error}
+          </p>
+        ) : null}
+        <div className="mt-4 flex flex-wrap gap-2">
+          <Button className="min-h-11" disabled={busy} onClick={() => void save()}>
+            {busy ? "Saving…" : "Save the change"}
+          </Button>
           <Button className="min-h-11" variant="secondary" disabled={busy} onClick={onClose}>
             Cancel
           </Button>
