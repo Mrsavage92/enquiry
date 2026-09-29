@@ -1424,7 +1424,7 @@ const FORM_NAME = new RegExp(
   "im",
 );
 /** Kisses before the name on the closing line: "xx Priya", "x Jo". */
-const KISS_NAME = new RegExp(String.raw`(?:^|\n)\s*x{1,4}\s+${NAME}\s*[.!]?\s*$`, "i");
+const KISS_NAME = new RegExp(String.raw`(?:^|\n|[.!?]\s+)\s*x{1,4}\s+${NAME}\s*[.!]?\s*$`, "i");
 
 export function readCustomerName(text: string, ctx: NameContext = {}): string | undefined {
   const trimmed = dropTrailingParen(withoutNoise(text).trim());
