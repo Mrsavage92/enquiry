@@ -21,7 +21,7 @@
  */
 
 import { NUMBER_PHRASE, wordsToNumber } from "./number-words.ts";
-import { distinctiveStems, mentionsAny } from "./service-words.ts";
+import { distinctiveStems, mentionsAny, namesService } from "./service-words.ts";
 
 export type MessageQuantity = {
   /** Digits only, ready to confirm: "120", "2". */
@@ -314,6 +314,25 @@ export function readQuantityFromMessage(
     });
   }
 
+  // "can you clean my windows? Only 3 small ones": the count stands in for
+  // the thing just named, so it is read when the unit word is in the message.
+  if (reads.length === 0 && new RegExp(String.raw`\b${words}(?![a-z])`, "i").test(text)) {
+    const ones = new RegExp(
+      String.raw`(?:\b(${APPROX})\s+)?(?<![\w.$,])${NUM}\s+(?:(?:small|big|large|little|tiny|medium|normal|standard)\s+)?ones\b`,
+      "gi",
+    );
+    for (const m of text.matchAll(ones)) {
+      const n = toNumber(m[2]!);
+      if (n === null) continue;
+      reads.push({
+        value: String(n),
+        span: m[0].trim(),
+        approximate: Boolean(m[1]),
+        index: m.index ?? 0,
+        length: m[0].length,
+      });
+    }
+  }
   if (ranged) return undefined;
   let candidates = reads;
   if (context && context.others.length > 0) {
@@ -350,6 +369,8 @@ export function quantityContextFor(
     ...new Set(
       knownServices.map((s) => s.trim()).filter((s) => s && s.toLowerCase() !== main.toLowerCase()),
     ),
-  ].filter((o) => mentionsAny(text, distinctiveStems(o, [main])));
+    // Named, not just one shared word: "our house" does not ask for the
+    // regular house clean, so it does not compete for a painting count.
+  ].filter((o) => namesService(text, o) && mentionsAny(text, distinctiveStems(o, [main])));
   return others.length ? { service: main, others } : undefined;
 }
