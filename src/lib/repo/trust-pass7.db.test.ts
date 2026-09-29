@@ -28,8 +28,10 @@ const migrationsDir = join(process.cwd(), "migrations");
 /** Tuesday 29 September 2026, 8:15pm in Newcastle: when the review ran. */
 const TUE_29_SEP = new Date("2026-09-29T20:15:00+10:00");
 
-async function freshDb(): Promise<PGlite> {
+/** A new database per test, closed when the test ends: many open PGlite instances exhaust memory. */
+async function freshDb(t: { after: (fn: () => Promise<void>) => void }): Promise<PGlite> {
   const pg = new PGlite();
+  t.after(() => pg.close());
   await pg.waitReady;
   for (const f of readdirSync(migrationsDir)
     .filter((f) => f.endsWith(".sql"))
@@ -177,8 +179,8 @@ async function knowledge(pg: PGlite, businessId: string) {
   ).rows;
 }
 
-test("1+2 Jess: a misread closed day can be removed, and her reply stops saying it; another tenant cannot", async () => {
-  const pg = await freshDb();
+test("1+2 Jess: a misread closed day can be removed, and her reply stops saying it; another tenant cannot", async (t) => {
+  const pg = await freshDb(t);
   const a = await tenant(pg, "user-a", "Fresh Coat");
   await tenant(pg, "user-b", "Bravo");
   await tell(pg, "user-a", a.businessId, "Regular house clean $160\nOven clean $80");
@@ -286,8 +288,8 @@ test("1+2 Jess: a misread closed day can be removed, and her reply stops saying 
   );
 });
 
-test("3 Priya and Chloe: a wedding or a formal on a closed day is never moved to Monday", async () => {
-  const pg = await freshDb();
+test("3 Priya and Chloe: a wedding or a formal on a closed day is never moved to Monday", async (t) => {
+  const pg = await freshDb(t);
   const a = await tenant(pg, "user-a", "Glow", "beauty");
   await tell(
     pg,
@@ -320,8 +322,8 @@ test("3 Priya and Chloe: a wedding or a formal on a closed day is never moved to
   assert.doesNotMatch(c.decision_snapshot.draft.body, /Would Monday|suit instead/);
 });
 
-test("4 Anh and Jess: a fortnightly discount and a weekend rate are one-tap checks that change the total", async () => {
-  const pg = await freshDb();
+test("4 Anh and Jess: a fortnightly discount and a weekend rate are one-tap checks that change the total", async (t) => {
+  const pg = await freshDb(t);
   const a = await tenant(pg, "user-a", "Fresh Coat");
   await tell(
     pg,
@@ -359,8 +361,8 @@ test("4 Anh and Jess: a fortnightly discount and a weekend rate are one-tap chec
   assert.equal((await row(pg, jess.enquiryId)).decision_snapshot.price?.amountMinor, 19200);
 });
 
-test("5 Jess: '$160 for up to 3 bedrooms, extra bedrooms $35 each' quotes her 4 bed house $195", async () => {
-  const pg = await freshDb();
+test("5 Jess: '$160 for up to 3 bedrooms, extra bedrooms $35 each' quotes her 4 bed house $195", async (t) => {
+  const pg = await freshDb(t);
   const a = await tenant(pg, "user-a", "Fresh Coat");
   await tell(
     pg,
@@ -381,8 +383,8 @@ test("5 Jess: '$160 for up to 3 bedrooms, extra bedrooms $35 each' quotes her 4 
   assert.match(r.decision_snapshot.draft.body, /\$195/);
 });
 
-test("6 Rachel: 'maybe 90sqm' is said as about, and one tap makes it exact; another tenant cannot", async () => {
-  const pg = await freshDb();
+test("6 Rachel: 'maybe 90sqm' is said as about, and one tap makes it exact; another tenant cannot", async (t) => {
+  const pg = await freshDb(t);
   const a = await tenant(pg, "user-a", "Fresh Coat", "painting");
   await tenant(pg, "user-b", "Bravo", "painting");
   await tell(pg, "user-a", a.businessId, "Ceiling painting $18 per square metre");
@@ -417,8 +419,8 @@ test("6 Rachel: 'maybe 90sqm' is said as about, and one tap makes it exact; anot
   assert.match(exact.decision_snapshot.draft.body, /that comes to \$1,620 \(90 square metres/);
 });
 
-test("7a Graham: exterior painting he asked for is declined kindly, the interior quote goes ahead", async () => {
-  const pg = await freshDb();
+test("7a Graham: exterior painting he asked for is declined kindly, the interior quote goes ahead", async (t) => {
+  const pg = await freshDb(t);
   const a = await tenant(pg, "user-a", "Fresh Coat", "painting");
   await tell(
     pg,
@@ -444,8 +446,8 @@ test("7a Graham: exterior painting he asked for is declined kindly, the interior
   assert.match(body, /\$960/);
 });
 
-test("7b Lou: 'r u free this sat or sun?' is answered before any reply is ready; another tenant cannot answer it", async () => {
-  const pg = await freshDb();
+test("7b Lou: 'r u free this sat or sun?' is answered before any reply is ready; another tenant cannot answer it", async (t) => {
+  const pg = await freshDb(t);
   const a = await tenant(pg, "user-a", "Fresh Coat");
   await tenant(pg, "user-b", "Bravo");
   await tell(pg, "user-a", a.businessId, "Regular house clean $160");
@@ -478,8 +480,8 @@ test("7b Lou: 'r u free this sat or sun?' is answered before any reply is ready;
   assert.doesNotMatch(body, /I'll confirm which day/);
 });
 
-test("7c Rachel: 'do you have insurance?' is answered once and offered again next time", async () => {
-  const pg = await freshDb();
+test("7c Rachel: 'do you have insurance?' is answered once and offered again next time", async (t) => {
+  const pg = await freshDb(t);
   const a = await tenant(pg, "user-a", "Fresh Coat", "painting");
   await tenant(pg, "user-b", "Bravo", "painting");
   await tell(pg, "user-a", a.businessId, "Interior painting $32 per square metre");
@@ -531,8 +533,8 @@ test("7c Rachel: 'do you have insurance?' is answered once and offered again nex
   );
 });
 
-test("8+9: names, windows, tomorrow and form fields are read as written", async () => {
-  const pg = await freshDb();
+test("8+9: names, windows, tomorrow and form fields are read as written", async (t) => {
+  const pg = await freshDb(t);
   const a = await tenant(pg, "user-a", "Fresh Coat", "painting");
   await tell(
     pg,
@@ -586,15 +588,15 @@ test("8+9: names, windows, tomorrow and form fields are read as written", async 
   );
   await answer(pg, "user-a", tom.enquiryId, extra.rows[0]!.field, "include");
   await confirmReadings(pg, "user-a", tom.enquiryId);
-  const t = await row(pg, tom.enquiryId);
-  const lines = t.decision_snapshot.coverage?.lines.map((l) => [l.label, l.amountMinor]);
+  const tr = await row(pg, tom.enquiryId);
+  const lines = tr.decision_snapshot.coverage?.lines.map((l) => [l.label, l.amountMinor]);
   assert.deepEqual(lines, [
     ["Interior painting", 192000],
     ["Ceiling painting", 45000],
   ]);
   // 10: the walls are part of the interior painting now - never asked again.
   assert.ok(
-    !t.decision_snapshot.coverage?.flagged.some((f) => f.thing === "walls"),
-    JSON.stringify(t.decision_snapshot.coverage?.flagged),
+    !tr.decision_snapshot.coverage?.flagged.some((f) => f.thing === "walls"),
+    JSON.stringify(tr.decision_snapshot.coverage?.flagged),
   );
 });
