@@ -383,8 +383,7 @@ export function Queue({ activeId, phone = false }: { activeId?: string; phone?: 
                       <p className="mt-0.5 truncate text-sm text-ink-2">
                         {e.serviceLabel}
                         <span className="text-stone-on-paper-2">
-                          {" · "}
-                          {channelLabel(e.source)}
+                          {e.source === "manual" ? null : ` · ${channelLabel(e.source)}`}
                           {" · "}
                           {queueTime(e, prefs)}
                         </span>
@@ -439,10 +438,16 @@ export function Queue({ activeId, phone = false }: { activeId?: string; phone?: 
                           {queueSituationLabel(situation.kind)}
                         </p>
                       ) : null}
-                      <p className="mt-1 text-2xs text-stone-on-paper-2">
-                        {businessFilter === "all" && business?.name ? `${business.name} · ` : ""}
-                        {channelLabel(e.source)}
-                      </p>
+                      {(businessFilter === "all" && business?.name) || e.source !== "manual" ? (
+                        <p className="mt-1 text-2xs text-stone-on-paper-2">
+                          {[
+                            businessFilter === "all" ? business?.name : undefined,
+                            e.source === "manual" ? undefined : channelLabel(e.source),
+                          ]
+                            .filter(Boolean)
+                            .join(" · ")}
+                        </p>
+                      ) : null}
                     </>
                   )}
                 </Link>

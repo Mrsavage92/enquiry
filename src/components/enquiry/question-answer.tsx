@@ -92,7 +92,9 @@ function ServiceAnswer(props: Props) {
       key="yes"
       value={QUESTION_ANSWER.yes}
       label={`Yes, I do ${question.thing}`}
-      primary={!readNo}
+      // Equal weight: a yes/no about the business is the owner's call, and
+      // any guess is said in words above, never by a louder button.
+      primary={false}
       props={props}
       done={`The reply says you can help with ${question.thing} and will come back with a price.`}
     />
@@ -102,7 +104,7 @@ function ServiceAnswer(props: Props) {
       key="no"
       value={QUESTION_ANSWER.no}
       label={`No, I don't do ${question.thing}`}
-      primary={readNo}
+      primary={false}
       props={props}
       done={`The reply tells them you don't do ${question.thing}.`}
     />
@@ -115,14 +117,14 @@ function ServiceAnswer(props: Props) {
       </p>
       {readNo ? (
         <p className="mt-1 text-sm text-ink-2">
-          No -{" "}
+          <span className="font-medium text-ink">Looks like: no</span> -{" "}
           {question.said
             ? question.said.charAt(0).toLowerCase() + question.said.slice(1)
             : `you don't offer ${question.thing}`}{" "}
           (from your business details). Check and confirm.
         </p>
       ) : null}
-      <div className="mt-3 flex flex-wrap gap-2">{readNo ? [no, yes] : [yes, no]}</div>
+      <div className="mt-3 flex flex-wrap gap-2">{[yes, no]}</div>
     </>
   );
 }
@@ -133,7 +135,6 @@ function AvailabilityAnswer(props: Props) {
   const days = question.days ?? [];
   const open = days.filter((d) => !d.closed);
   const closed = days.filter((d) => d.closed);
-  const readNo = question.readAs === "no";
   // One answer per day asked: closed days are always No, never a Yes by accident.
   const value = (choice: (iso: string) => "yes" | "no" | "later") =>
     days.length
@@ -162,7 +163,7 @@ function AvailabilityAnswer(props: Props) {
                   ? `Yes, free ${openWords}`
                   : "Yes, I'm free"
             }
-            primary={!readNo}
+            primary={false}
             props={props}
             done="The reply tells them the days you're free."
           />
@@ -182,7 +183,7 @@ function AvailabilityAnswer(props: Props) {
         <Choice
           value={value(() => "no")}
           label="No"
-          primary={readNo}
+          primary={false}
           props={props}
           done="The reply tells them you're not available then."
         />

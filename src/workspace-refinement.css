@@ -58,7 +58,7 @@
   flex: 1;
   align-items: center;
   gap: 6px;
-  font-size: 11px;
+  font-size: 12px;
   color: var(--color-stone);
 }
 .customer-booking-progress li > span {
@@ -99,7 +99,7 @@
   padding: 6px;
 }
 .booking-date-stamp small {
-  font-size: 10px;
+  font-size: 12px;
   line-height: 1.5;
   color: var(--color-stone);
   font-weight: 500;
@@ -174,7 +174,7 @@
   color: #797480;
 }
 .insights-page .insights-stat dt {
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.4;
 }
 .insights-page .insights-stat dd {
@@ -216,7 +216,7 @@
 .insights-channel-value small {
   min-width: 32px;
   color: var(--color-stone);
-  font-size: 12px;
+  font-size: 13px;
   text-align: right;
 }
 .insights-channel-bar {
@@ -379,7 +379,7 @@
   height: 44px;
 }
 .support-result-count {
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 500;
   color: var(--color-stone);
   margin: 28px 0 12px;
@@ -586,7 +586,7 @@
 }
 .trust-activity time {
   display: block;
-  font-size: 12px;
+  font-size: 13px;
   color: var(--color-stone);
   margin-bottom: 8px;
 }
@@ -598,7 +598,7 @@
   display: block;
   margin-top: 6px;
   color: var(--color-stone);
-  font-size: 12px;
+  font-size: 13px;
 }
 @media (max-width: 1100px) {
   .insights-page .insights-summary {
