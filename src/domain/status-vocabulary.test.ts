@@ -272,14 +272,29 @@ test("C13: the chip and the verdict use one word each; a parked chip says when i
   assert.equal(STATUS.needsDetail, "Not yet");
   assert.equal(STATUS.replyReady, "Yes - reply ready");
   const base = ENQUIRIES.find((e) => e.state.lifecycle === "OPEN")!;
+  // Relative to the real clock: the sample enquiries and the snooze check both read it,
+  // so a fixed calendar date here turns into "expired" the day it arrives.
+  const now = new Date();
+  const later = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000);
+  const tz = "Australia/Brisbane";
+  const ymd = new Intl.DateTimeFormat("en-CA", { timeZone: tz }).format(later);
+  const snoozedUntil = `${ymd}T08:00:00+10:00`;
+  const parts = new Intl.DateTimeFormat("en-AU", {
+    timeZone: tz,
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+  }).formatToParts(new Date(snoozedUntil));
+  const part = (t: string) => parts.find((x) => x.type === t)!.value;
+  const wall = { weekday: part("weekday"), day: part("day"), month: part("month") };
   const parked = {
     ...base,
     followUpDue: undefined,
     atRisk: undefined,
-    snoozedUntil: "2026-09-29T08:00:00+10:00",
+    snoozedUntil,
   };
-  const chip = statusChip(parked, new Date("2026-09-26T09:00:00+10:00"), "Australia/Brisbane");
-  assert.equal(chip, "Later until Tue 29 Sep");
+  const chip = statusChip(parked, now, "Australia/Brisbane");
+  assert.equal(chip, `Later until ${wall.weekday} ${wall.day} ${wall.month}`);
   assert.equal(derivedLabel(parked.state, parked), STATUS.parked);
 });
 
