@@ -76,7 +76,8 @@ function daysIn(line: string): number[] {
 }
 
 const PERCENT = /(\d{1,3}(?:\.\d+)?)\s*%/;
-const MORE = /\b(?:more|extra|surcharge|loading|on top|higher|dearer)\b|\+\s*\d/i;
+const MORE = /\b(?:more|extra|surcharge|loading|on top|higher|dearer|adds?|added)\b|\+\s*\d/i;
+const LESS = /\b(?:off|discount(?:ed)?|less|cheaper)\b/i;
 
 const FEE_KINDS: [RegExp, string][] = [
   [/\btravel\b/i, "Travel fee"],
@@ -124,7 +125,40 @@ const NUMERIC_RANGE = new RegExp(
   "i",
 );
 const CLOSED_WORDS =
-  /\b(?:closed|away|off|not working|on leave|on holidays?|holidays?|shut|no jobs?|break)\b/i;
+  /\b(?:closed|away|off|not working|on leave|on holidays?|holidays?|shut|no jobs?|break|not available|unavailable|booked(?:\s+out)?|not taking)\b/i;
+/** Words that make a closed stretch one-off: the owner is away, not closed every year. */
+const ONE_OFF_WORDS =
+  /\b(?:away|not available|unavailable|on leave|booked(?:\s+out)?|not taking|this year|day off)\b/i;
+/** Words that make it repeat: "every year", "always". */
+const YEARLY_WORDS = /\b(?:every|each)\s+year\b|\bannually\b|\balways\b|\byearly\b/i;
+/** Days named for what they are, the same date every year. */
+const HOLIDAYS: [RegExp, string][] = [
+  [/\b(?:christmas|xmas)\s+eve\b/i, "12-24"],
+  [/\b(?:christmas|xmas)\s+day\b/i, "12-25"],
+  [/\bboxing\s+day\b/i, "12-26"],
+  [/\bnew\s+year'?s\s+eve\b/i, "12-31"],
+  [/\bnew\s+year'?s(?:\s+day)?\b/i, "01-01"],
+  [/\baustralia\s+day\b/i, "01-26"],
+  [/\banzac\s+day\b/i, "04-25"],
+];
+const WEEKDAY_NAME = String.raw`(?:(mon|tue|wed|thu|fri|sat|sun)[a-z]*\.?,?\s+(?:the\s+)?)?`;
+/** "Saturday 10 October", "10th of Oct", "the 10th October". */
+const ONE_DAY = new RegExp(
+  String.raw`${WEEKDAY_NAME}(?:the\s+)?(\d{1,2})(?:st|nd|rd|th)?\s+(?:of\s+)?${MONTH}\b`,
+  "i",
+);
+/** "October 10", "Oct 10th". */
+const ONE_DAY_MONTH_FIRST = new RegExp(
+  String.raw`${WEEKDAY_NAME}${MONTH}\s+(\d{1,2})(?:st|nd|rd|th)?\b`,
+  "i",
+);
+/** "20-27 Dec", "20 to 27 December": one month, two days. */
+const SHORT_RANGE = new RegExp(
+  String.raw`\b(\d{1,2})(?:st|nd|rd|th)?\s*(?:-|–|to|until|till|through|thru)\s*(\d{1,2})(?:st|nd|rd|th)?\s+(?:of\s+)?${MONTH}\b`,
+  "i",
+);
+/** "10/10": day first, one date. */
+const ONE_NUMERIC = /\b(\d{1,2})\/(\d{1,2})\b/;
 
 function pad(n: number): string {
   return String(n).padStart(2, "0");
@@ -191,8 +225,30 @@ function readSurcharge(line: string): RuleLineRead | null {
   if (!pct || HAS_AMOUNT.test(line) || !MORE.test(line) || TIME_CONDITION.test(line)) return null;
   const days = daysIn(line);
   if (days.length === 0 || days.length === 7) return null;
-  if (/\b(?:off|discount|less|cheaper)\b/i.test(line)) return null;
+  if (LESS.test(line)) return null;
   return { details: [{ kind: "surcharge", percent: Number(pct[1]), days }] };
+}
+
+const FREQUENCY_WORDS: [RegExp, "weekly" | "fortnightly" | "monthly" | "regular"][] = [
+  [/\b(?:fortnightly|every\s+(?:two|2|other)\s+weeks?|every\s+fortnight)\b/i, "fortnightly"],
+  [/\b(?:weekly|every\s+week)\b/i, "weekly"],
+  [/\b(?:monthly|every\s+month)\b/i, "monthly"],
+  [/\b(?:regular|recurring|repeat|ongoing)\b/i, "regular"],
+];
+
+/**
+ * "Fortnightly cleans get 10% off", "10% discount for weekly cleans": a
+ * percentage off a repeat job. Without a frequency ("10% off for pensioners")
+ * it is a condition Enquiry cannot check, so it stays a note.
+ */
+function readDiscount(line: string): RuleLineRead | null {
+  const pct = PERCENT.exec(line);
+  if (!pct || HAS_AMOUNT.test(line) || !LESS.test(line) || MORE.test(line)) return null;
+  if (TIME_CONDITION.test(line) || daysIn(line).length > 0) return null;
+  const frequency = FREQUENCY_WORDS.find(([re]) => re.test(line))?.[1];
+  const percent = Number(pct[1]);
+  if (!frequency || !(percent > 0 && percent < 100)) return null;
+  return { details: [{ kind: "discount", percent, frequency }] };
 }
 
 function readFee(line: string): RuleLineRead | null {
@@ -228,27 +284,109 @@ function readEligibility(line: string): RuleLineRead | null {
   };
 }
 
-function readClosedDates(line: string): RuleLineRead | null {
+/** The next time a month-day comes round from today, matching the weekday when one is written. */
+function nextYearFor(md: string, now: Date, weekday?: number): number | null {
+  const today = `${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+  const first = md >= today ? now.getFullYear() : now.getFullYear() + 1;
+  if (weekday === undefined) return first;
+  const [m, d] = md.split("-").map(Number) as [number, number];
+  for (const year of [first, first + 1]) {
+    if (new Date(year, m - 1, d).getDay() === weekday) return year;
+  }
+  return null;
+}
+
+const WEEKDAY_INDEX: Record<string, number> = {
+  sun: 0,
+  mon: 1,
+  tue: 2,
+  wed: 3,
+  thu: 4,
+  fri: 5,
+  sat: 6,
+};
+
+/** One closed stretch: every year, or only the next time it comes round. */
+function closedStretch(
+  from: string,
+  to: string,
+  now: Date,
+  opts: { yearly: boolean; weekday?: number },
+): RuleLineRead | null {
+  if (opts.yearly) return { details: [{ kind: "closed_dates", from, to }] };
+  const year = nextYearFor(from, now, opts.weekday);
+  if (year === null) return null;
+  return { details: [{ kind: "closed_dates", from, to, year }] };
+}
+
+/**
+ * A day or a stretch the owner does not work. A range they are "closed" for
+ * ("Closed 24 December to 4 January") and a named holiday ("closed Christmas
+ * Day") repeat every year; a date they are "not available" or "away" is that
+ * one date only - never every Saturday because the date was a Saturday.
+ */
+function readClosedDates(line: string, now: Date): RuleLineRead | null {
   if (!CLOSED_WORDS.test(line) || HAS_AMOUNT.test(line)) return null;
+  const oneOff = ONE_OFF_WORDS.test(line) && !YEARLY_WORDS.test(line);
   const worded = WORDED_RANGE.exec(line);
   if (worded) {
     const from = monthDay(monthOf(worded[2]!), Number(worded[1]));
     const to = monthDay(monthOf(worded[4]!), Number(worded[3]));
-    return from && to ? { details: [{ kind: "closed_dates", from, to }] } : null;
+    return from && to ? closedStretch(from, to, now, { yearly: !oneOff }) : null;
   }
   const numeric = NUMERIC_RANGE.exec(line);
-  if (!numeric) return null;
-  const from = monthDay(Number(numeric[2]), Number(numeric[1]));
-  const to = monthDay(Number(numeric[4]), Number(numeric[3]));
-  return from && to ? { details: [{ kind: "closed_dates", from, to }] } : null;
+  if (numeric) {
+    const from = monthDay(Number(numeric[2]), Number(numeric[1]));
+    const to = monthDay(Number(numeric[4]), Number(numeric[3]));
+    return from && to ? closedStretch(from, to, now, { yearly: !oneOff }) : null;
+  }
+  const short = SHORT_RANGE.exec(line);
+  if (short) {
+    const month = monthOf(short[3]!);
+    const from = monthDay(month, Number(short[1]));
+    const to = monthDay(month, Number(short[2]));
+    if (!from || !to || to < from) return null;
+    return closedStretch(from, to, now, { yearly: !oneOff });
+  }
+  const holiday = HOLIDAYS.find(([re]) => re.test(line));
+  if (holiday) return { details: [{ kind: "closed_dates", from: holiday[1], to: holiday[1] }] };
+  const day = ONE_DAY.exec(line);
+  const dayFirst = ONE_DAY_MONTH_FIRST.exec(line);
+  const numericDay = ONE_NUMERIC.exec(line);
+  const read = day
+    ? { weekday: day[1], day: Number(day[2]), month: monthOf(day[3]!) }
+    : dayFirst
+      ? { weekday: dayFirst[1], day: Number(dayFirst[3]), month: monthOf(dayFirst[2]!) }
+      : numericDay
+        ? { weekday: undefined, day: Number(numericDay[1]), month: Number(numericDay[2]) }
+        : null;
+  if (!read) return null;
+  const md = monthDay(read.month, read.day);
+  if (!md) return null;
+  const weekday = read.weekday ? WEEKDAY_INDEX[read.weekday.slice(0, 3).toLowerCase()] : undefined;
+  return closedStretch(md, md, now, {
+    yearly: YEARLY_WORDS.test(line),
+    ...(weekday !== undefined ? { weekday } : {}),
+  });
 }
 
-function readOne(written: string): RuleLineRead | null {
+/** Whether a line names a date, not only a weekday: "Saturday 10 October", "10/10", "Christmas Day". */
+export function namesADate(line: string): boolean {
+  return (
+    ONE_DAY.test(line) ||
+    ONE_DAY_MONTH_FIRST.test(line) ||
+    HOLIDAYS.some(([re]) => re.test(line)) ||
+    /\b\d{1,2}\/\d{1,2}\b/.test(line)
+  );
+}
+
+function readOne(written: string, now: Date): RuleLineRead | null {
   if (NEGATED.test(written)) return null;
   return (
-    readClosedDates(written) ??
+    readClosedDates(written, now) ??
     readMinimum(written) ??
     readSurcharge(written) ??
+    readDiscount(written) ??
     readEligibility(written) ??
     readFee(written)
   );
@@ -269,12 +407,12 @@ function ruleSignals(line: string): number {
  * split and each part read on its own; a part that is not a rule comes back as
  * `remainder` so it is kept as a note, never silently dropped.
  */
-export function readRuleLine(line: string): RuleLineRead | null {
+export function readRuleLine(line: string, now: Date = new Date()): RuleLineRead | null {
   const written = line
     .replace(/(\d[\d,]*(?:\.\d{1,2})?)\s*(?:dollars?|bucks|aud)\b/gi, "$$$1")
     .replace(/\b(?:aud|a\$)\s?(?=\d)/gi, "$$");
   if (NEGATED.test(written)) return null;
-  if (ruleSignals(written) <= 1) return readOne(written);
+  if (ruleSignals(written) <= 1) return readOne(written, now);
   const parts = written
     .split(/[;.]\s+|,\s+|\s+and\s+(?=\w+days?\b)/i)
     .map((p) => p.trim().replace(/[.;,]+$/, ""))
@@ -282,7 +420,7 @@ export function readRuleLine(line: string): RuleLineRead | null {
   const details: BusinessDetail[] = [];
   const remainder: string[] = [];
   for (const part of parts) {
-    const read = readOne(part);
+    const read = readOne(part, now);
     if (read && !read.priceLine) details.push(...read.details);
     else remainder.push(part);
   }

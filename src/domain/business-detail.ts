@@ -56,11 +56,37 @@ export type EligibilityDetail = {
   condition: string;
   text: string;
 };
-/** "Closed 24 Dec - 2 Jan": month-day, every year; `to` may wrap into January. */
-export type ClosedDatesDetail = { kind: "closed_dates"; from: string; to: string };
+/**
+ * "Closed 24 Dec - 2 Jan": month-day, every year; `to` may wrap into January.
+ * With `year` it is one stretch only ("Not available Saturday 10 October",
+ * "away 20-27 Dec"): `from` falls in `year`, and a `to` before it in the next.
+ */
+export type ClosedDatesDetail = { kind: "closed_dates"; from: string; to: string; year?: number };
+
+/**
+ * "Fortnightly cleans get 10% off": a percentage off a repeat job. Checked with
+ * one tap only once the owner has confirmed the job repeats that often.
+ * `frequency` "regular" means any repeat.
+ */
+export type DiscountDetail = {
+  kind: "discount";
+  percent: number;
+  frequency: "weekly" | "fortnightly" | "monthly" | "regular";
+  service?: string;
+};
+
+/**
+ * The owner's own answer to a question customers ask ("Are you insured?"),
+ * saved the first time they type it and offered again, never sent unasked.
+ */
+export type AnswerDetail = { kind: "answer"; topic: string; question: string; text: string };
+
+export const FREQUENCIES = ["weekly", "fortnightly", "monthly", "regular"] as const;
 
 export type BusinessDetail =
   | NoteDetail
+  | DiscountDetail
+  | AnswerDetail
   | NotOfferedDetail
   | ClosedDaysDetail
   | MinimumChargeDetail
@@ -78,6 +104,8 @@ export const DETAIL_KINDS = [
   "fee",
   "eligibility",
   "closed_dates",
+  "discount",
+  "answer",
 ] as const;
 
 const MONTH_DAY = /^(\d{2})-(\d{2})$/;
@@ -181,7 +209,31 @@ function parseMoneyRule(
     if (!validMonthDay(from) || !validMonthDay(to)) {
       return { ok: false, reason: "Closed dates need a first and last day." };
     }
+    const year = r.year;
+    if (year !== undefined && year !== null) {
+      if (typeof year !== "number" || !Number.isInteger(year) || year < 2000 || year > 2100) {
+        return { ok: false, reason: "Closed dates need a real year." };
+      }
+      return { ok: true, detail: { kind: "closed_dates", from, to, year } };
+    }
     return { ok: true, detail: { kind: "closed_dates", from, to } };
+  }
+  if (r.kind === "discount") {
+    const percent = typeof r.percent === "number" ? r.percent : Number.NaN;
+    const frequency = FREQUENCIES.find((f) => f === r.frequency);
+    if (!(percent > 0 && percent < 100) || !frequency) {
+      return { ok: false, reason: "A discount needs a percentage and how often the job repeats." };
+    }
+    return { ok: true, detail: { kind: "discount", percent, frequency, ...withService } };
+  }
+  if (r.kind === "answer") {
+    const topic = text(r.topic).toLowerCase();
+    const question = text(r.question);
+    const words = text(r.text);
+    if (!/^[a-z0-9-]{2,40}$/.test(topic) || !question || !words) {
+      return { ok: false, reason: "A saved answer needs the question and your answer." };
+    }
+    return { ok: true, detail: { kind: "answer", topic, question, text: words } };
   }
   return { ok: false, reason: `Unknown business detail: ${String(r.kind)}` };
 }
@@ -233,6 +285,50 @@ export function spokenMonthDay(md: string): string {
   return `${Number(m[2])} ${MONTH_NAMES[Number(m[1]) - 1]}`;
 }
 
+/** "10-10" in 2026 -> "Saturday 10 October". */
+export function spokenDayOf(md: string, year: number): string {
+  const m = MONTH_DAY.exec(md);
+  if (!m) return md;
+  const date = new Date(year, Number(m[1]) - 1, Number(m[2]));
+  return `${WEEKDAYS[date.getDay()]} ${spokenMonthDay(md)}`;
+}
+
+export type ClosedRange = { from: string; to: string; year?: number };
+
+/** Whether a day (yyyy-mm-dd) falls in a closed stretch: every year, or the one year saved. */
+export function closedRangeCovers(iso: string, r: ClosedRange): boolean {
+  const md = iso.slice(5);
+  if (r.year === undefined) {
+    return r.from <= r.to ? md >= r.from && md <= r.to : md >= r.from || md <= r.to;
+  }
+  const from = `${r.year}-${r.from}`;
+  const to = `${r.to < r.from ? r.year + 1 : r.year}-${r.to}`;
+  return iso >= from && iso <= to;
+}
+
+/** The reply's reason for a closed stretch: "I'm not available on Saturday 10 October". */
+export function closedRangeReason(r: ClosedRange): string {
+  if (r.from === r.to) {
+    return r.year !== undefined
+      ? `I'm not available on ${spokenDayOf(r.from, r.year)}`
+      : `I'm not working on ${spokenMonthDay(r.from)}`;
+  }
+  return `I'm not working from ${spokenMonthDay(r.from)} to ${spokenMonthDay(r.to)}`;
+}
+
+/** The owner's read-back of a closed stretch, saying plainly whether it repeats. */
+function describeClosedDates(d: ClosedDatesDetail): string {
+  if (d.year !== undefined) {
+    const toYear = d.to < d.from ? d.year + 1 : d.year;
+    return d.from === d.to
+      ? `Closed on ${spokenDayOf(d.from, d.year)} only`
+      : `Closed from ${spokenDayOf(d.from, d.year)} to ${spokenDayOf(d.to, toYear)} only`;
+  }
+  return d.from === d.to
+    ? `Closed on ${spokenMonthDay(d.from)} every year`
+    : `You're closed ${spokenMonthDay(d.from)} to ${spokenMonthDay(d.to)}`;
+}
+
 /** "$450", "$32.50". */
 export function dollars(amount: number): string {
   const whole = Number.isInteger(amount);
@@ -243,7 +339,10 @@ export function dollars(amount: number): string {
 }
 
 function dayList(days: readonly number[]): string {
-  const names = days.map((d) => `${WEEKDAYS[d]!}s`);
+  // The working week's order: "Saturdays or Sundays", never Sunday first.
+  const names = [...days]
+    .sort((a, b) => ((a + 6) % 7) - ((b + 6) % 7))
+    .map((d) => `${WEEKDAYS[d]!}s`);
   return names.length > 1
     ? `${names.slice(0, -1).join(", ")} or ${names.at(-1)}`
     : (names[0] ?? "");
@@ -269,8 +368,16 @@ export function describeDetail(detail: BusinessDetail): string {
     case "eligibility":
       return `${detail.service} only if ${detail.condition}`;
     case "closed_dates":
-      return `You're closed ${spokenMonthDay(detail.from)} to ${spokenMonthDay(detail.to)}`;
+      return describeClosedDates(detail);
+    case "discount":
+      return `${capitalFirst(detail.frequency)} ${detail.service ? detail.service.toLowerCase() : "jobs"}: ${detail.percent}% off`;
+    case "answer":
+      return `When asked "${detail.question}": ${detail.text}`;
   }
+}
+
+function capitalFirst(s: string): string {
+  return s ? s[0]!.toUpperCase() + s.slice(1) : s;
 }
 
 /** Which jobs a minimum covers: one service, or every job (""). */
@@ -317,13 +424,20 @@ export function detailEffect(detail: BusinessDetail): string {
       return "On those quotes, Enquiry asks you to check the job fits before any price goes out.";
     case "note":
       return "Shown to you on the quotes it concerns. Never added to a price.";
+    case "discount":
+      return `Once you confirm a job repeats ${detail.frequency === "regular" ? "regularly" : detail.frequency}, Enquiry asks you with one tap: take ${detail.percent}% off, or not this time.`;
+    case "answer":
+      return "Offered when a customer asks this again. Never sent unless you choose it.";
   }
 }
 
 /** The knowledge section a detail is filed under. */
-export function detailSection(detail: BusinessDetail): "policy" | "service" | "capacity" {
+export function detailSection(
+  detail: BusinessDetail,
+): "policy" | "service" | "capacity" | "operating" {
   if (detail.kind === "not_offered" || detail.kind === "eligibility") return "service";
   if (detail.kind === "closed_days" || detail.kind === "closed_dates") return "capacity";
+  if (detail.kind === "answer") return "operating";
   return "policy";
 }
 
@@ -346,17 +460,23 @@ export function detailTitle(detail: BusinessDetail): string {
       return detail.label;
     case "eligibility":
       return `Only if: ${detail.service}`;
+    case "discount":
+      return "Discount";
+    case "answer":
+      return "Your answer";
   }
 }
 
 /** Days of the week and date ranges (month-day) the business does not work. */
 export function closedTimesOf(details: readonly BusinessDetail[]): {
   days: number[];
-  ranges: { from: string; to: string }[];
+  ranges: ClosedRange[];
 } {
   const days = [...closedDaysOf(details)].sort((a, b) => a - b);
   const ranges = details.flatMap((d) =>
-    d.kind === "closed_dates" ? [{ from: d.from, to: d.to }] : [],
+    d.kind === "closed_dates"
+      ? [{ from: d.from, to: d.to, ...(d.year !== undefined ? { year: d.year } : {}) }]
+      : [],
   );
   return { days, ranges };
 }
@@ -379,6 +499,12 @@ const DAY_WORDS: [RegExp, number][] = [
 ];
 
 const NEGATIVE = /\b(?:don'?t|do not|never|not|no|closed)\b/i;
+/** A day of the month in the line: "10 October", "Oct 10", "10/10", "the 10th". */
+const DATED =
+  /\b\d{1,2}(?:st|nd|rd|th)?\s+(?:of\s+)?(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\b|\b(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?\s+\d{1,2}(?:st|nd|rd|th)?\b|\b\d{1,2}\/\d{1,2}\b|\bthe\s+\d{1,2}(?:st|nd|rd|th)\b/i;
+/** "No Saturdays", "no weekends", "no Sundays or public holidays": nothing but the days. */
+const NO_DAYS =
+  /^\s*no\s+(?:(?:work|jobs?|bookings?)\s+(?:on\s+)?)?(?:(?:mon|tue|wed|thu|fri|sat|sun)[a-z]*|weekends?)(?:\s*(?:,|or|and|\/)\s*(?:(?:mon|tue|wed|thu|fri|sat|sun)[a-z]*|weekends?))*\s*[.!]*\s*$/i;
 const WORK_WORDS = /\b(?:work|working|open|trade|available|jobs?|bookings?)\b|\bclosed\b/i;
 const OFFER =
   /^\s*(?:we|i)\s+(?:don'?t|do not|never|can'?t|cannot|won'?t)\s+(do|offer|provide|handle|take on|clean|paint|cover)\s+(?:any\s+)?(.+?)\s*[.!]*$/i;
@@ -421,7 +547,19 @@ export function readDetailLine(line: string): DetailLineRead {
   if (/\$\s?\d|\d\s*(?:dollars?|bucks)\b/i.test(line)) return null;
   const clause = negativeClause(line);
   const days = daysIn(clause);
+  // "Not available Saturday 10 October" is that one date. Only a line with no
+  // date in it can say every Saturday.
+  if (days.length > 0 && DATED.test(clause)) {
+    return {
+      refuse:
+        "It names a date as well as a day of the week, and Enquiry could not read which date. Write it as, for example: Not available Saturday 10 October.",
+    };
+  }
   if (days.length > 0 && days.length < 7 && NEGATIVE.test(clause) && WORK_WORDS.test(clause)) {
+    return { kind: "closed_days", days };
+  }
+  // "No Saturdays", "no weekends, sorry": a closed day with no work word.
+  if (days.length > 0 && days.length < 7 && NO_DAYS.test(clause.replace(TRAIL, ""))) {
     return { kind: "closed_days", days };
   }
   const offer = OFFER.exec(line.replace(TRAIL, ""));

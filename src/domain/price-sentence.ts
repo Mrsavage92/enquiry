@@ -202,7 +202,95 @@ function unitWord(raw: string): string {
 /** "Oven clean $90 extra": an add-on price, the same as "Oven clean $90". */
 const ADD_ON_TAIL = /\s+(?:extra|additional|add[- ]?on)\s*[.!]*\s*$/i;
 
+/** "up to 3 bedrooms", "the first 3 bedrooms", "3 bedrooms or less". */
+const UP_TO =
+  /\b(?:(?:for\s+|covers\s+)?(?:up\s+to|the\s+first|first)\s+(\d{1,3})\s+([a-z]+)|(\d{1,3})\s+([a-z]+)\s+or\s+(?:less|fewer|under))\b/i;
+/** "extra bedrooms", "each additional bedroom", "per extra bedroom". */
+const EXTRA_UNIT = /\b(?:each\s+|every\s+|per\s+|an?\s+)?(?:extra|additional|more)\s+([a-z]+)/i;
+
+/** "after the first 20 km": the price starts after a threshold, it is not a base price. */
+const AFTER_FIRST = /\b(?:after|over|beyond|past|above)\s+(?:the\s+)?(?:first|up\s+to)\b/i;
+
+function sameUnit(a: string, b: string): boolean {
+  return singular(a) === singular(b) || singular(a).startsWith(singular(b).slice(0, 4));
+}
+
+/** The words for a count: "bed" and "bedrooms" are one unit, "bedroom". */
+function unitNoun(word: string): string {
+  const w = singular(word);
+  return w === "bed" || w === "br" || w === "bdrm" ? "bedroom" : w === "bath" ? "bathroom" : w;
+}
+
+/**
+ * "Regular house clean $160 for up to 3 bedrooms, extra bedrooms $35 each": a
+ * price that covers the first few, and a price for each one after. Read as one
+ * rule, so a 4 bedroom house is $195 - never $160 with the threshold dropped.
+ * Returns null when the line is not this shape.
+ */
+export function readTieredLine(line: string): ReadPrice | UnreadLine | null {
+  const amounts = [...line.matchAll(new RegExp(AMOUNT.source, "g"))];
+  const upTo = UP_TO.exec(line);
+  if (!upTo || amounts.length !== 2 || AFTER_FIRST.test(line)) return null;
+  const extra = EXTRA_UNIT.exec(line);
+  const count = Number(upTo[1] ?? upTo[3]);
+  const unitWord = upTo[2] ?? upTo[4] ?? "";
+  if (!extra || !sameUnit(extra[1]!, unitWord)) {
+    return {
+      line,
+      reason: `It names two amounts but does not say which is for each ${unitNoun(unitWord)} after the first ${count}. Write it as, for example: House clean $160 for up to ${count} ${pluraliseUnit(unitNoun(unitWord), count)}, extra ${pluraliseUnit(unitNoun(unitWord), 2)} $35 each.`,
+    };
+  }
+  // The amount nearest the "extra" words is the price of each one after.
+  const extraAt = extra.index ?? 0;
+  const [a, b] = amounts as [RegExpMatchArray, RegExpMatchArray];
+  const distance = (m: RegExpMatchArray) => Math.abs((m.index ?? 0) - extraAt);
+  const rate = distance(a) <= distance(b) ? a : b;
+  const base = rate === a ? b : a;
+  const service = cleanService(line.slice(0, Math.min(a.index ?? 0, upTo.index ?? 0)));
+  if (!service) return { line, reason: "It does not say which service the price is for." };
+  const unit = unitNoun(unitWord);
+  const parsed = parseBusinessRule({
+    kind: "per_unit",
+    service,
+    amount: Number(rate[1]!.replace(/,/g, "")),
+    currency: "AUD",
+    unit,
+    quantityField: quantityFieldFor(unit),
+    base: { amount: Number(base[1]!.replace(/,/g, "")), upTo: count },
+  });
+  if (!parsed.ok) return { line, reason: parsed.reason };
+  return { line, rule: parsed.rule };
+}
+
+/** "Regular house clean $160 for up to 3 bedrooms" with nothing for the ones after. */
+export function thresholdOnly(line: string): { count: number; unit: string } | null {
+  const written = dollarsWritten(line);
+  const upTo = UP_TO.exec(written);
+  if (
+    !upTo ||
+    AFTER_FIRST.test(written) ||
+    (written.match(ALL_AMOUNTS) ?? []).length !== 1 ||
+    EXTRA_UNIT.test(written)
+  ) {
+    return null;
+  }
+  return { count: Number(upTo[1] ?? upTo[3]), unit: unitNoun(upTo[2] ?? upTo[4] ?? "") };
+}
+
+/** "Extra bedrooms $35 each", "Each additional bedroom $35": the price after a threshold. */
+export function extraOnly(line: string): { amount: number; unit: string } | null {
+  const written = dollarsWritten(line);
+  const m = /^\s*(?:each\s+|every\s+|per\s+|an?\s+)?(?:extra|additional)\s+([a-z]+)\b/i.exec(
+    written,
+  );
+  const amount = AMOUNT.exec(written);
+  if (!m || !amount || (written.match(ALL_AMOUNTS) ?? []).length !== 1) return null;
+  return { amount: Number(amount[1]!.replace(/,/g, "")), unit: unitNoun(m[1]!) };
+}
+
 export function readPriceLine(original: string): ReadPrice | UnreadLine {
+  const tiered = readTieredLine(dollarsWritten(original));
+  if (tiered) return { ...tiered, line: original };
   const line = dollarsWritten(original).replace(ADD_ON_TAIL, "");
   const condition = CONDITIONAL.exec(line);
   if (condition && AMOUNT.test(line)) {

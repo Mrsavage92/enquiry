@@ -1,5 +1,13 @@
 import { readDetailLine, type DetailRead } from "./business-detail.ts";
-import { readPriceLine, splitLines, type PriceSentences } from "./price-sentence.ts";
+import {
+  extraOnly,
+  readPriceLine,
+  splitLines,
+  thresholdOnly,
+  type PriceSentences,
+  type UnreadLine,
+} from "./price-sentence.ts";
+import { pluraliseUnit } from "./business-rule.ts";
 import { readRuleLine } from "./business-rules-read.ts";
 
 /**
@@ -16,12 +24,66 @@ const HAS_AMOUNT = /\$\s?\d|\d\s*(?:dollars?|bucks)\b/i;
 const NOT_A_PRICE =
   "There is no price in it, and Enquiry did not read it as a rule it can check on a quote.";
 
-export function readBusinessDetails(text: string): BusinessDetailsRead {
+/**
+ * "Regular house clean $160 for up to 3 bedrooms" on one line and "Extra
+ * bedrooms $35 each" on the next are one price: joined, so the threshold is
+ * never dropped. A threshold with nothing for the ones after it, or an "extra"
+ * price with no threshold to follow, is refused with the reason - saving
+ * either alone would under-quote the bigger job.
+ */
+function joinTiers(lines: string[]): { lines: string[]; refused: UnreadLine[] } {
+  const out: string[] = [];
+  const refused: UnreadLine[] = [];
+  for (let i = 0; i < lines.length; i += 1) {
+    const line = lines[i]!;
+    const threshold = thresholdOnly(line);
+    const next = lines[i + 1];
+    const extra = next ? extraOnly(next) : null;
+    if (threshold && extra && extra.unit === threshold.unit) {
+      out.push(
+        `${line.replace(/[.;,]+\s*$/, "")}, extra ${pluraliseUnit(extra.unit, 2)} $${extra.amount} each`,
+      );
+      i += 1;
+      continue;
+    }
+    if (threshold) {
+      refused.push({
+        line,
+        reason: `It covers up to ${threshold.count} ${pluraliseUnit(threshold.unit, threshold.count)}, but not what each ${threshold.unit} after that costs, so a bigger job would be under-quoted. Add it to the same line, for example: ${TIER_EXAMPLE}.`,
+      });
+      continue;
+    }
+    const alone = extraOnly(line);
+    if (alone) {
+      const before = out.length ? out[out.length - 1] : undefined;
+      if (before && HAS_AMOUNT.test(before) && !readRuleLine(before)) {
+        out.pop();
+        refused.push({
+          line: before,
+          reason: `The next line adds a price for extra ${pluraliseUnit(alone.unit, 2)}, but this one does not say how many ${pluraliseUnit(alone.unit, 2)} it covers. Write both on one line, for example: ${TIER_EXAMPLE}.`,
+        });
+      }
+      refused.push({
+        line,
+        reason: `It is a price for extra ${pluraliseUnit(alone.unit, 2)}, but no price says how many ${pluraliseUnit(alone.unit, 2)} come before the extra ones. Write both on one line, for example: ${TIER_EXAMPLE}.`,
+      });
+      continue;
+    }
+    out.push(line);
+  }
+  return { lines: out, refused };
+}
+
+const TIER_EXAMPLE = "House clean $160 for up to 3 bedrooms, extra bedrooms $35 each";
+
+export function readBusinessDetails(text: string, now: Date = new Date()): BusinessDetailsRead {
   const out: BusinessDetailsRead = { prices: [], unread: [], details: [] };
-  for (const line of splitLines(text)) {
+  const joined = joinTiers(splitLines(text));
+  out.unread.push(...joined.refused);
+  for (const line of joined.lines) {
     // A minimum, surcharge, fee, "only if" or closed dates: a rule each quote
     // it concerns checks with one tap, not a note the owner has to remember.
-    const rule = readRuleLine(line);
+    const rule = readRuleLine(line, now);
     if (rule) {
       const price = rule.priceLine ? readPriceLine(rule.priceLine) : null;
       if (price && !("rule" in price)) {

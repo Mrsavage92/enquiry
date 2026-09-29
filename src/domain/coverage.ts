@@ -1,5 +1,10 @@
 import type { BusinessDetail } from "./business-detail.ts";
-import { WEEKDAYS, spokenMonthDay } from "./business-detail.ts";
+import {
+  WEEKDAYS,
+  closedRangeCovers,
+  describeDetail,
+  spokenMonthDay,
+} from "./business-detail.ts";
 import { DECLINED, NOT_A_REQUEST, SERVICE_NOUNS } from "./extras.ts";
 import { distinctiveStems, mentionsAny, namesService, stem, stemsOf } from "./service-words.ts";
 import type { RuleCheck } from "./rule-checks.ts";
@@ -338,15 +343,16 @@ function detailFlags(
     });
   }
   const ranges = details.flatMap((d) => (d.kind === "closed_dates" ? [d] : []));
-  const inRange = (iso: string, r: { from: string; to: string }) => {
-    const md = iso.slice(5);
-    return r.from <= r.to ? md >= r.from && md <= r.to : md >= r.from || md <= r.to;
-  };
-  const hit = ranges.find((r) => jobDates.some((iso) => inRange(iso, r)));
+  const hit = ranges.find((r) => jobDates.some((iso) => closedRangeCovers(iso, r)));
   if (hit) {
+    const own = describeDetail(hit);
+    const said =
+      hit.year === undefined && hit.from !== hit.to
+        ? `${spokenMonthDay(hit.from)} to ${spokenMonthDay(hit.to)}`
+        : `${own.charAt(0).toLowerCase()}${own.slice(1)}`;
     out.push({
       kind: "closed_day",
-      text: `A day they mentioned is in your closed dates (${spokenMonthDay(hit.from)} to ${spokenMonthDay(hit.to)}) - the reply says so`,
+      text: `A day they mentioned is in your closed dates (${said}) - the reply says so`,
     });
   }
   return out;

@@ -5,7 +5,7 @@ import { formatMinorAud } from "./money-format.ts";
 import { dateQuestion, type DateIssue } from "./enquiry-basics.ts";
 import { countOf, countParts, howMany, humanField, isOwnerEstimate } from "./count-phrase.ts";
 import { SERVICE_NOUNS } from "./extras.ts";
-import { spokenMonthDay } from "./business-detail.ts";
+import { closedRangeCovers, closedRangeReason, type ClosedRange } from "./business-detail.ts";
 
 export { humanField, howMany };
 
@@ -65,13 +65,8 @@ export type ReplyContext = {
  */
 export type ClosedTimes = {
   days: readonly number[];
-  ranges?: readonly { from: string; to: string }[];
+  ranges?: readonly ClosedRange[];
 };
-
-function inRange(iso: string, r: { from: string; to: string }): boolean {
-  const md = iso.slice(5);
-  return r.from <= r.to ? md >= r.from && md <= r.to : md >= r.from || md <= r.to;
-}
 
 const DAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
@@ -91,9 +86,9 @@ export function closedReason(iso: string, closed: ClosedTimes | undefined): stri
   const date = dateOf(iso);
   if (!date || !closed) return null;
   if (closed.days.includes(date.getDay())) return `I don't work ${DAY_NAMES[date.getDay()]}s`;
-  const range = (closed.ranges ?? []).find((r) => inRange(iso, r));
+  const range = (closed.ranges ?? []).find((r) => closedRangeCovers(iso, r));
   if (!range) return null;
-  return `I'm not working from ${spokenMonthDay(range.from)} to ${spokenMonthDay(range.to)}`;
+  return closedRangeReason(range);
 }
 
 /** The first day after this one the owner works, within about two months. */
