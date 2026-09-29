@@ -411,7 +411,7 @@ export function detailEffect(detail: BusinessDetail): string {
   switch (detail.kind) {
     case "closed_days":
     case "closed_dates":
-      return "When they ask for a day you don't work, the reply says so and offers the next day you do.";
+      return "When they ask for a day you don't work, the reply says so and offers the next day you do. For a wedding or another fixed day it asks if there is any flexibility instead.";
     case "not_offered":
       return "When a customer asks if you do it, Enquiry reads that as No for you to confirm.";
     case "minimum_charge":

@@ -316,8 +316,9 @@ function askOwner(decided: Decision, question: QuestionPending, knownServices: s
     explanation: questionExplanation(question),
     questionPending: question,
     knownServices,
-    // One thing at a time: what the price covers is checked after the answer.
+    // One thing at a time: extras and what the price covers come after the answer.
     coverage: undefined,
+    extraPending: undefined,
   };
 }
 

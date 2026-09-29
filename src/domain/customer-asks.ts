@@ -97,7 +97,7 @@ function sentences(text: string): { text: string; question: boolean }[] {
   for (const m of text.matchAll(re)) {
     const raw = m[0].trim();
     if (!raw) continue;
-    out.push({ text: raw.replace(/[.!]+$/, "").trim(), question: /\?/.test(raw) });
+    out.push({ text: raw.replace(/[.!?]+$/, "").trim(), question: /\?/.test(raw) });
   }
   return out;
 }
