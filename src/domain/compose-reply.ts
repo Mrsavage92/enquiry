@@ -157,17 +157,21 @@ const WEEKDAY_WORDS: Record<string, string> = {
 
 /** "Sat 3rd" -> "Saturday 3rd": their words, with the weekday written out. */
 export function spokenSpan(span: string): string {
-  return span
-    .trim()
-    .replace(/\b(jan|feb|mar|apr|jun|jul|aug|sept?|oct|nov|dec)[a-z]*\b\.?/gi, (w) => {
-      const key = w.replace(/\.$/, "").slice(0, 3).toLowerCase();
-      return MONTH_WORDS[key] ?? w;
-    })
-    .replace(/\b(mon|tues?|wed|thu(?:rs?)?|fri|sat|sun)\b\.?/gi, (w) => {
-      const key = w.replace(/\.$/, "").toLowerCase();
-      return WEEKDAY_WORDS[key] ?? w;
-    })
-    .replace(/[?!.]+$/, "");
+  return (
+    span
+      .trim()
+      // "Next Tuesday" at the start of their sentence reads mid-sentence in the reply.
+      .replace(/^(Next|This|Coming)\b/, (w) => w.toLowerCase())
+      .replace(/\b(jan|feb|mar|apr|jun|jul|aug|sept?|oct|nov|dec)[a-z]*\b\.?/gi, (w) => {
+        const key = w.replace(/\.$/, "").slice(0, 3).toLowerCase();
+        return MONTH_WORDS[key] ?? w;
+      })
+      .replace(/\b(mon|tues?|wed|thu(?:rs?)?|fri|sat|sun)\b\.?/gi, (w) => {
+        const key = w.replace(/\.$/, "").toLowerCase();
+        return WEEKDAY_WORDS[key] ?? w;
+      })
+      .replace(/[?!.]+$/, "")
+  );
 }
 
 /**

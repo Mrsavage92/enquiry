@@ -304,7 +304,7 @@ function applySurcharges(ctx: Ctx, start: RuleLine[], notes: string[]): RuleLine
       ],
     };
     const line: RuleLine = {
-      label: `${name} rate (${s.percent}% of ${formatMinorAud(base)})`,
+      label: `${capitalise(name)} rate (${s.percent}% of ${formatMinorAud(base)})`,
       amountMinor: extra,
       adjustment: true,
     };

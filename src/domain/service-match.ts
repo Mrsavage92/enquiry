@@ -97,10 +97,16 @@ export function formService(message: string, services: readonly string[]): strin
   return fits.length === 1 ? fits[0]!.trim() : undefined;
 }
 
+/** Work words many services share. */
+const WORK_STEMS = new Set(["paint", "clean", "servi", "wash", "repai", "insta", "remov"]);
+
 /** Where a service is first mentioned: the lower, the earlier they asked for it. */
 function firstMention(message: string, service: string): number {
   const said = words(message).map(stem);
-  const need = words(service).map(stem);
+  // By its own words: "painted" names every painting service at once.
+  const all = words(service).map(stem);
+  const own = all.filter((w) => !WORK_STEMS.has(w));
+  const need = own.length ? own : all;
   const at = need.map((w) => said.indexOf(w)).filter((i) => i >= 0);
   return at.length ? Math.min(...at) : Number.MAX_SAFE_INTEGER;
 }
