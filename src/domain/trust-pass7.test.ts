@@ -226,3 +226,98 @@ test("12: a saved fact reads in the owner's words, never 'authoritative · 1' or
   assert.equal(payload?.kind, "detail");
   assert.match(factEffect(payload!), /the reply says so/);
 });
+
+// Review of PR #75 ----------------------------------------------------------------
+
+test("M1 + LOW: questions inside a price sentence, after a lead-in, and 'is the 10th ok?'", async () => {
+  const { readCustomerAsks } = await import("./customer-asks.ts");
+  const fields = (text: string) =>
+    readCustomerAsks(text, ["Regular house clean"]).map((a) => a.field);
+  assert.deepEqual(fields("How much for a 3 bedroom regular clean and are you insured?"), [
+    "ask:insurance",
+  ]);
+  assert.deepEqual(fields("ok thanks, will you be using eco products?"), ["ask:equipment"]);
+  assert.deepEqual(fields("Is the 10th ok?"), ["ask:availability"]);
+});
+
+test("M5: a stretch still running is this one - read on 30 Dec, 28 Dec to 3 Jan is 2026-27", () => {
+  const dec30 = new Date("2026-12-30T10:00:00+10:00");
+  const read = readBusinessDetails("away 28 Dec to 3 Jan", dec30).details.map((d) => d.detail);
+  assert.deepEqual(read, [{ kind: "closed_dates", from: "12-28", to: "01-03", year: 2026 }]);
+  assert.equal(closedRangeCovers("2027-01-02", read[0] as never), true);
+});
+
+test("M6: a line with two days saves both; a part it cannot read refuses the line", () => {
+  assert.deepEqual(detailsOf("we don't work Saturdays and we're away 20-27 Dec"), [
+    { kind: "closed_days", days: [6] },
+    { kind: "closed_dates", from: "12-20", to: "12-27", year: 2026 },
+  ]);
+  assert.deepEqual(detailsOf("Not available Saturday 10 October or Sunday 11 October"), [
+    { kind: "closed_dates", from: "10-10", to: "10-10", year: 2026 },
+    { kind: "closed_dates", from: "10-11", to: "10-11", year: 2026 },
+  ]);
+  const part = readBusinessDetails("closed Sundays, open late Thursdays", TUE_29_SEP);
+  assert.equal(part.details.length, 0, "never half a line");
+  assert.match(part.unread[0]!.reason, /read 1 of 2 parts/);
+});
+
+test("M7: event words only when they are the job's day", async () => {
+  const { fixedEventNear: f } = await import("./fixed-event.ts");
+  assert.equal(f("Can you clean the wedding cake stand on Sat 3 Oct?", "Sat 3 Oct"), undefined);
+  assert.equal(f("The wedding was last week, can you clean on Sat 3 Oct?", "Sat 3 Oct"), undefined);
+  assert.equal(
+    f("I'm going to a wedding so any weekday is fine, maybe Mon 5 Oct", "Mon 5 Oct"),
+    undefined,
+  );
+  assert.equal(f("clean the party supplies in the garage Sat 3 Oct", "Sat 3 Oct"), undefined);
+  assert.equal(f("Makeup for my daughter's 18th on Sat 17 Oct", "Sat 17 Oct"), "birthday");
+  assert.equal(f("Open home is Sat 10 Oct, need the clean done then", "Sat 10 Oct"), "deadline");
+  assert.equal(f("Lease ends Fri 9 Oct, bond clean please", "Fri 9 Oct"), "deadline");
+  assert.equal(f("Settlement on Mon 12 Oct", "Mon 12 Oct"), "deadline");
+});
+
+test("M4: 'every 3 weeks' and 'every 4 weeks' match no discount frequency", async () => {
+  const { frequencyWord } = await import("./rule-checks.ts");
+  assert.equal(frequencyWord("every 3 weeks"), undefined);
+  assert.equal(frequencyWord("every four weeks"), undefined);
+  assert.equal(frequencyWord("every 2 weeks"), "fortnightly");
+  assert.equal(frequencyWord("every other week"), "fortnightly");
+  assert.equal(frequencyWord("weekly"), "weekly");
+  assert.equal(frequencyWord("monthly"), "monthly");
+});
+
+test("LOW: availability lines read right; later has no 'for on'", async () => {
+  const { askReplyLines } = await import("./customer-asks.ts");
+  assert.deepEqual(askReplyLines("ask:availability", "2026-10-03=later|2026-10-04=later"), [
+    "I'll check my calendar for Saturday 3 and Sunday 4 October and come back to you.",
+  ]);
+  assert.deepEqual(askReplyLines("ask:availability", "later"), [
+    "I'll check my calendar and come back to you.",
+  ]);
+});
+
+test("LOW: owner sentences - some weeks refused, weekday mismatch said plainly, 25/12 is this year only", () => {
+  const every = readBusinessDetails("closed every second Saturday", TUE_29_SEP);
+  assert.equal(every.details.length, 0);
+  assert.match(every.unread[0]!.reason, /only some of those days/);
+  const wrong = readBusinessDetails("Not available Saturday 11 October", TUE_29_SEP);
+  assert.equal(wrong.details.length, 0);
+  assert.match(wrong.unread[0]!.reason, /11 October 2026 is a Sunday/);
+  const xmas = detailsOf("closed 25/12");
+  assert.equal(describeDetail(xmas[0]!), "Closed on Friday 25 December 2026 only");
+  assert.equal(
+    describeDetail(detailsOf("closed Christmas Day")[0]!),
+    "Closed on 25 December every year",
+  );
+});
+
+test("LOW: 'Extra oven clean $90' is its own price; 3.5 bedrooms is refused, never rounded", () => {
+  const two = readBusinessDetails("End of lease clean $300\nExtra oven clean $90", TUE_29_SEP);
+  assert.equal(two.prices.length, 2, JSON.stringify(two.unread));
+  const rule = tier("Regular house clean $160 for up to 3 bedrooms, extra bedrooms $35 each");
+  const half = compilePrice([rule], rule.service, [
+    { field: "service", value: rule.service, status: "confirmed" },
+    { field: "bedrooms", value: "3.5", status: "confirmed" },
+  ]);
+  assert.equal(half.kind, "UNRESOLVED_QUANTITY");
+});

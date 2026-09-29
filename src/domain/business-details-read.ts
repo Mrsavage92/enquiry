@@ -100,7 +100,7 @@ function dayParts(line: string): string[] {
   const at = first.search(DAY_OR_DATE);
   const lead = at > 0 ? first.slice(0, at) : "";
   return parts.map((p, i) =>
-    i > 0 && lead && !OFF_WORDS.test(p) && DAY_OR_DATE.test(p) ? `${lead}${p}` : p,
+    i > 0 && lead && !OFF_WORDS.test(p) && onlyDays(p) ? `${lead}${p}` : p,
   );
 }
 
@@ -208,4 +208,17 @@ export function readBusinessDetails(text: string, now: Date = new Date()): Busin
     out.unread.push(...read.unread);
   }
   return out;
+}
+
+/** "Sunday 11 October", "Sundays", "the 12th": a part that is nothing but a day. */
+function onlyDays(part: string): boolean {
+  const rest = part
+    .toLowerCase()
+    .replace(
+      /\b(?:mon|tue|wed|thu|fri|sat|sun)[a-z]*\b|\bweekends?\b|\b\d{1,2}(?:st|nd|rd|th)?\b|\b(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\b|\b(?:the|on|of|every|to|-|–)\b/g,
+      " ",
+    )
+    .replace(/[^a-z]+/g, " ")
+    .trim();
+  return rest === "";
 }

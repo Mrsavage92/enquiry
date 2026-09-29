@@ -464,7 +464,8 @@ test("7b Lou: 'r u free this sat or sun?' is answered before any reply is ready;
   assert.notEqual(open.decision_snapshot.recommendation.action, "SEND_QUOTE");
   assert.equal(open.decision_snapshot.price, undefined, "never reply ready over her question");
 
-  await assert.rejects(answer(pg, "user-b", e.enquiryId, ASK_AVAILABILITY, "yes"), ForbiddenError);
+  const both = "2026-10-03=yes|2026-10-04=yes";
+  await assert.rejects(answer(pg, "user-b", e.enquiryId, ASK_AVAILABILITY, both), ForbiddenError);
   const after = await row(pg, e.enquiryId);
   assert.equal(after.decision_revision, open.decision_revision);
   assert.deepEqual(after.decision_snapshot, open.decision_snapshot);
@@ -473,10 +474,10 @@ test("7b Lou: 'r u free this sat or sun?' is answered before any reply is ready;
     /Answer yes, no/,
   );
 
-  await answer(pg, "user-a", e.enquiryId, ASK_AVAILABILITY, "yes");
+  await answer(pg, "user-a", e.enquiryId, ASK_AVAILABILITY, both);
   assert.equal((await confirmCoverage(pg, "user-a", e.enquiryId)).ok, true);
   const body = (await row(pg, e.enquiryId)).decision_snapshot.draft.body;
-  assert.match(body, /Yes, I'm available on Saturday 3 or Sunday 4 October\./);
+  assert.match(body, /Yes, I'm available on Saturday 3 and Sunday 4 October\./);
   assert.doesNotMatch(body, /I'll confirm which day/);
 });
 

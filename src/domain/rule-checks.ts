@@ -345,8 +345,9 @@ const COUNT_WORDS: Record<string, number> = {
  */
 export function frequencyWord(said: string): Discount["frequency"] | undefined {
   const s = said.toLowerCase();
-  const every =
-    /\bevery\s+(\d+|one|two|three|four|five|six|other|second)\s+(week|month)s?\b/.exec(s);
+  const every = /\bevery\s+(\d+|one|two|three|four|five|six|other|second)\s+(week|month)s?\b/.exec(
+    s,
+  );
   if (every) {
     const n = /^\d+$/.test(every[1]!) ? Number(every[1]) : COUNT_WORDS[every[1]!];
     if (every[2] === "month") return n === 1 ? "monthly" : undefined;

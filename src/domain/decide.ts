@@ -694,7 +694,9 @@ function gateCoverage(decided: Decision, ctx: CoverageContext): Decision {
     details: ctx.details,
     jobDates: jobDatesOf(ctx.facts),
   });
-  flagged.push(...ruled.infos.map((text) => ({ kind: "note" as const, text: `Your note: ${text}` })));
+  flagged.push(
+    ...ruled.infos.map((text) => ({ kind: "note" as const, text: `Your note: ${text}` })),
+  );
   // How often comes before the owner's rules: a repeat-job discount is only
   // asked about once they have said the job repeats.
   if (frequency && !recurringAnswer) {
