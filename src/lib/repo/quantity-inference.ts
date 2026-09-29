@@ -203,7 +203,12 @@ export async function inferQuestions(
           ${true}
         )
       `;
-      written.push({ field: ask.field, value: "open", status: "inferred", display_value: ask.question });
+      written.push({
+        field: ask.field,
+        value: "open",
+        status: "inferred",
+        display_value: ask.question,
+      });
     }
   }
   return written;

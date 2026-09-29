@@ -112,7 +112,10 @@ export function parseBusinessRule(
         !Number.isInteger(upTo) ||
         upTo < 1
       ) {
-        return { ok: false, reason: "A price for the first few needs an amount and how many it covers." };
+        return {
+          ok: false,
+          reason: "A price for the first few needs an amount and how many it covers.",
+        };
       }
       base = { amount: baseAmount, upTo };
     }

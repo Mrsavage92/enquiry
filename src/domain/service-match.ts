@@ -153,13 +153,7 @@ export function rankServices(message: string, services: readonly string[]): stri
         first: firstMention(message, service),
       };
     })
-    .sort(
-      (a, b) =>
-        b.score - a.score ||
-        b.share - a.share ||
-        a.first - b.first ||
-        a.i - b.i,
-    )
+    .sort((a, b) => b.score - a.score || b.share - a.share || a.first - b.first || a.i - b.i)
     .map((s) => s.service);
 }
 

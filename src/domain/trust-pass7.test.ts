@@ -107,7 +107,10 @@ test("3: event words near the day mark it fixed; an ordinary day is not", async 
   const { fixedEventNear } = await import("./fixed-event.ts");
   assert.equal(fixedEventNear("Getting married 19 Dec need bridal makeup", "19 Dec"), "wedding");
   assert.equal(fixedEventNear("makeup for our year 12 formal Sat 7 Nov", "Sat 7 Nov"), "formal");
-  assert.equal(fixedEventNear("need it done by Friday 10 October please", "Friday 10 October"), "deadline");
+  assert.equal(
+    fixedEventNear("need it done by Friday 10 October please", "Friday 10 October"),
+    "deadline",
+  );
   assert.equal(fixedEventNear("can u do sat 3 oct?? also the oven", "sat 3 oct"), undefined);
 });
 
@@ -128,7 +131,12 @@ test("7: availability and other questions are read; 'do you do' and the price ar
 
 test("8: counts they gave are read and tied to the right service", async () => {
   const { findQuantityInMessages } = await import("../lib/repo/quantity-inference.ts");
-  const services = ["Interior painting", "Ceiling painting", "Regular house clean", "Window cleaning"];
+  const services = [
+    "Interior painting",
+    "Ceiling painting",
+    "Regular house clean",
+    "Window cleaning",
+  ];
   const read = (body: string, field: string, unit: string, service: string) =>
     findQuantityInMessages([{ id: "m", body }], field, unit, service, services)?.value;
   const tom =
@@ -139,7 +147,12 @@ test("8: counts they gave are read and tied to the right service", async () => {
     "after a quote to paint the outside of our house, and the lounge room inside, approx 30 m2. Graham";
   assert.equal(read(graham, "square metres", "square metre", "Interior painting"), "30");
   assert.equal(
-    read("can you clean my windows? Only 3 small ones. Bec", "windows", "window", "Window cleaning"),
+    read(
+      "can you clean my windows? Only 3 small ones. Bec",
+      "windows",
+      "window",
+      "Window cleaning",
+    ),
     "3",
   );
   assert.equal(
@@ -172,7 +185,10 @@ test("8: names from 'xx Priya' and 'Name:'; a 'Service:' field picks the service
 
 test("9: a window of days, 'this sat or sun', tomorrow, and 'except Friday' never become the wrong day", async () => {
   const { readDates } = await import("./enquiry-basics.ts");
-  const b = readDates("Any day except Friday works, sometime between 12 and 16 October.", TUE_29_SEP);
+  const b = readDates(
+    "Any day except Friday works, sometime between 12 and 16 October.",
+    TUE_29_SEP,
+  );
   assert.equal(b.jobDate, undefined, "never 'Asked for Fri 16 Oct'");
   assert.deepEqual(b.unavailable, [], "never 'Not available: Fri 2 Oct'");
   assert.equal(b.window?.label, "12-16 Oct, not Fri");
@@ -197,9 +213,8 @@ test("9: a window of days, 'this sat or sun', tomorrow, and 'except Friday' neve
 });
 
 test("12: a saved fact reads in the owner's words, never 'authoritative · 1' or 'Active'", async () => {
-  const { factStateWord, factSourceWords, factSaid, factEffect, factPayload } = await import(
-    "./fact-words.ts"
-  );
+  const { factStateWord, factSourceWords, factSaid, factEffect, factPayload } =
+    await import("./fact-words.ts");
   assert.equal(factStateWord("Active"), "In use");
   assert.equal(factStateWord("Needs review"), "Check this");
   assert.equal(factSourceWords("Confirmed by the owner"), "You added this");

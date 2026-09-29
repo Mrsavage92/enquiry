@@ -689,7 +689,11 @@ export const retireBusinessFact = createServerFn({ method: "POST" })
     const { retireBusinessFactForUser } = await import("@/lib/repo/business-rule-core");
     const sql = await getSql();
     const result = await retireBusinessFactForUser(sql, withTransaction, context.userId, data);
-    return { ok: true as const, body: result.body, updatedEnquiries: result.updatedEnquiryIds.length };
+    return {
+      ok: true as const,
+      body: result.body,
+      updatedEnquiries: result.updatedEnquiryIds.length,
+    };
   });
 
 /** Change one fact to what the owner wrote instead: the old retired, the new saved, together. */
