@@ -57,6 +57,16 @@ export type ReplyContext = {
    * says it will "confirm whether" a day the owner already said is closed.
    */
   closed?: ClosedTimes;
+  /**
+   * They asked if the owner is free and the owner answered: that answer is
+   * the reply's line about the day, never a second "I'll confirm" beside it.
+   */
+  dateAnswered?: boolean;
+  /**
+   * The day is for something that cannot move - a wedding, a formal, a
+   * funeral, a deadline: the reply never offers another day for it.
+   */
+  fixedEvent?: string;
 };
 
 /**
@@ -176,6 +186,7 @@ export function dateLine(iso: string | undefined, span?: string, confirmed = tru
 
 /** The one date sentence a reply carries, if any. */
 function dateSentence(opts: ReplyContext): string | null {
+  if (opts.dateAnswered) return null;
   if (opts.dateIssue) return dateQuestion(opts.dateIssue, opts.asap);
   if (opts.dateOptions?.trim()) return optionsSentence(opts.dateOptions, opts);
   const closedLine = closedDaySentence(opts);
@@ -209,7 +220,17 @@ function closedDaySentence(opts: ReplyContext): string | null {
   if (!reason) return null;
   const span = opts.jobDateIso ? opts.jobDateSpan : opts.mentionedDateSpan;
   const said = span?.trim() ? spokenSpan(span) : spokenDate(iso);
+  // A wedding or a formal cannot move to Monday: say the day is taken and
+  // ask, never offer another day.
+  if (opts.fixedEvent) return fixedDaySentence(said ?? iso, [iso]);
   return `You mentioned ${said} - ${reason}. ${offerInstead(iso, opts.closed)}`;
+}
+
+/** "You mentioned 19 December - I'm sorry, I'm not available on Saturday 19 December. Is there any flexibility on the date?" */
+function fixedDaySentence(said: string, isos: string[]): string {
+  const days = isos.map((iso) => spokenDate(iso)).filter(Boolean);
+  const which = days.length > 1 ? `${days.slice(0, -1).join(", ")} or ${days.at(-1)}` : days[0];
+  return `You mentioned ${said} - I'm sorry, I'm not available on ${which}. Is there any flexibility on the date?`;
 }
 
 /** Two days offered, the first preferred: a closed one is said, the other offered. */
@@ -227,6 +248,7 @@ function optionsSentence(span: string, opts: ReplyContext): string {
   if (!firstClosed) {
     return `You mentioned ${said} - I'll confirm whether ${spokenDate(first)} works.`;
   }
+  if (opts.fixedEvent) return fixedDaySentence(said, [first, second]);
   const reasons = [...new Set([firstClosed, secondClosed])].join(" and ");
   return `You mentioned ${said} - ${reasons}. ${offerInstead(first, opts.closed)}`;
 }
@@ -319,10 +341,13 @@ function priceBlock(decision: Decision): string[] {
   // is itemised below, never named as something they asked for.
   const jobs = lines.filter((l) => !l.adjustment);
   const covered = single ? `the ${lines[0]!.label.toLowerCase()}` : listPhrase(jobs);
+  // Their rough size ("maybe 90sqm"): the total is "about", and the owner
+  // will confirm it - never stated as a firm price.
   const about = decision.approximate ? "about " : "";
+  const hedge = decision.approximate ? ", I'll confirm once I've seen the job" : "";
   const head = recurring
-    ? `For ${covered}, that's ${about}${total} per visit`
-    : `For ${covered}, that comes to ${about}${total}`;
+    ? `For ${covered}, that's ${about}${total} per visit${hedge}`
+    : `For ${covered}, that comes to ${about}${total}${hedge}`;
   const body =
     lines.length > 1
       ? [`${head}:`, ...itemised(lines, currency)]
@@ -333,10 +358,7 @@ function priceBlock(decision: Decision): string[] {
   const left = decision.leftOut?.length
     ? [`I haven't included ${joinLabels(decision.leftOut.map(withArticle))} in this price.`]
     : [];
-  const rough = decision.approximate
-    ? ["That's from the rough size you gave - I'll confirm the final price once I've seen it."]
-    : [];
-  const after = [...firstVisit, ...left, ...rough];
+  const after = [...firstVisit, ...left];
   return after.length ? [...body, "", ...after] : body;
 }
 

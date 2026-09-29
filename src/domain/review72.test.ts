@@ -407,8 +407,10 @@ test("Leftovers: a rough count confirmed stays rough in the reply", () => {
     messageText: "maybe 12sqm",
   });
   const reply = composeReply(d, {});
-  assert.match(reply, /that comes to about \$360 \(about 12 square metres at \$30 each\)/);
-  assert.match(reply, /I'll confirm the final price once I've seen it/);
+  assert.match(
+    reply,
+    /that comes to about \$360, I'll confirm once I've seen the job \(about 12 square metres at \$30 each, please confirm the size\)/,
+  );
 });
 
 test("H3: 'Add a price for this job' returns only when that job's price saved", async () => {

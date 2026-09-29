@@ -1,5 +1,7 @@
 import type { ReplyContext } from "./compose-reply.ts";
 import type { DateIssue } from "./enquiry-basics.ts";
+import { ASK_AVAILABILITY } from "./customer-asks.ts";
+import { fixedEventNear } from "./fixed-event.ts";
 
 /**
  * What the reply may say about the customer, from the live facts - and what it
@@ -74,9 +76,21 @@ export function replyContextFromFacts(
   facts: readonly ReplyFact[],
   base: Pick<ReplyContext, "ownerFirstName" | "serviceLabel" | "closed" | "followUp"> & {
     customerName: string;
+    /** Everything the customer wrote, to tell a wedding day from a movable one. */
+    message?: string;
   },
 ): ReplyContext {
   const date = facts.find((f) => field(f) === "date");
+  // "r u free this sat or sun?" answered by the owner: that answer is the day line.
+  const dateAnswered = facts.some(
+    (f) =>
+      field(f) === ASK_AVAILABILITY &&
+      f.status === "confirmed" &&
+      ["yes", "no", "later"].includes(String(f.value ?? "").trim()),
+  );
+  const fixedEvent = base.message
+    ? fixedEventNear(base.message, date?.date_span ?? undefined)
+    : undefined;
   const value = String(date?.value ?? "").trim();
   const confirmed = date?.status === "confirmed";
   const issue = date && !confirmed ? asIssue(date.date_issue) : undefined;
@@ -116,6 +130,8 @@ export function replyContextFromFacts(
       : {}),
     ...(base.closed ? { closed: base.closed } : {}),
     ...(base.followUp ? { followUp: true } : {}),
+    ...(dateAnswered ? { dateAnswered: true } : {}),
+    ...(fixedEvent ? { fixedEvent } : {}),
     asap: value === ASAP_VALUE,
   };
 }

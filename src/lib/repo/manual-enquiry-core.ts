@@ -15,6 +15,7 @@ import {
   replyContextFromFacts,
 } from "../../domain/reply-context.ts";
 import { activeDetails, closedTimesOf } from "../../domain/business-detail.ts";
+import { readCustomerAsks } from "../../domain/customer-asks.ts";
 import { questionField, readServiceQuestions } from "../../domain/service-questions.ts";
 import { namesService } from "../../domain/service-words.ts";
 
@@ -119,6 +120,9 @@ export async function insertManualEnquiry(
   // "Do you do mould removal?": a question the owner answers before any reply
   // is ready. Read as "No" when they said they don't offer it.
   facts.push(...questionFacts(input.body, [input.serviceLabel, ...services], business));
+  // "r u free this sat or sun?", "do you have insurance?": questions the reply
+  // has to answer, never passed over for a quote.
+  facts.push(...askFacts(input.body, [input.serviceLabel, ...services], business));
   // Every reading goes in before the decision: what the price covers is
   // fingerprinted over all of them, so the first decision already knows them.
   facts.push(...dateFacts(basics.dates));
@@ -178,6 +182,7 @@ export async function insertManualEnquiry(
         serviceLabel: input.serviceLabel,
         closed: closedTimesOf(activeDetails(business)),
         followUp: isFollowUp([input.body]),
+        message: input.body,
       },
     ),
   );
@@ -314,6 +319,17 @@ export function questionFacts(
       q.span,
       `They asked if you do ${q.thing}`,
     ),
+  );
+}
+
+/** Their other questions, each a reading the owner answers before the reply is ready. */
+export function askFacts(
+  body: string,
+  services: readonly string[],
+  business: { knowledge?: ReadonlyArray<{ state?: string | null; rulePayload?: unknown }> },
+): ArrivalFact[] {
+  return readCustomerAsks(body, services, activeDetails(business)).map((q) =>
+    readFact(q.field, "open", q.question, q.question, `They asked: ${q.question}`),
   );
 }
 

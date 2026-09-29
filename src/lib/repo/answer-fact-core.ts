@@ -4,6 +4,19 @@ import { EXTRA_CHOICE, isExtraField } from "../../domain/extras.ts";
 import { QUESTION_ANSWER, isQuestionField } from "../../domain/service-questions.ts";
 import { COVERAGE_FIELD } from "../../domain/coverage.ts";
 import { isRuleChoice, isRuleField } from "../../domain/rule-checks.ts";
+import {
+  ASK_CHOICE,
+  askAnswerProblem,
+  askTopic,
+  isAskField,
+  isReusableTopic,
+} from "../../domain/customer-asks.ts";
+import {
+  describeDetail,
+  detailSection,
+  detailTitle,
+  parseBusinessDetail,
+} from "../../domain/business-detail.ts";
 
 /**
  * Fields only their own server functions may write: the coverage confirmation
@@ -53,11 +66,59 @@ function displayFor(field: string, value: string): string {
   if (isQuestionField(field)) {
     return value === QUESTION_ANSWER.yes ? "Yes - you do this" : "No - you don't do this";
   }
+  if (isAskField(field)) {
+    if (value === ASK_CHOICE.later) return "You'll come back to them on it";
+    if (value === ASK_CHOICE.ignore) return "Left out of the reply";
+    if (value === ASK_CHOICE.yes) return "Yes - you're free";
+    if (value === ASK_CHOICE.no) return "No - you're not free";
+    return value;
+  }
   if (!isExtraField(field)) return value;
   if (value === EXTRA_CHOICE.comeBack) return "Not priced - the reply says you'll come back on it";
   if (value === EXTRA_CHOICE.notAsked) return "They didn't ask for this";
   if (value === EXTRA_CHOICE.covered) return "Part of this price";
   return value === EXTRA_CHOICE.leaveOut ? "Left out - the reply says so" : "Added to the quote";
+}
+
+const EXACTLY = /^\s*(?:it'?s\s+)?exactly\s+/i;
+
+/**
+ * Keep the owner's answer as a business answer for its topic: one per topic,
+ * the newest standing. Only for questions customers ask again (insurance,
+ * licence, how long); a one-off question's answer stays on its enquiry.
+ */
+async function saveAskAnswer(
+  tx: Sql,
+  businessId: string,
+  topic: string,
+  question: string,
+  text: string,
+): Promise<void> {
+  if (!isReusableTopic(topic)) return;
+  const detail = parseBusinessDetail({
+    kind: "answer",
+    topic,
+    question: question.trim() || topic,
+    text,
+  });
+  if (!detail.ok) return;
+  await tx`
+    update knowledge_item
+    set state = ${"Superseded"}, effective_to = now(), updated_at = now()
+    where business_id = ${businessId} and state = ${"Active"}
+      and rule_payload->>'kind' = ${"answer"} and rule_payload->>'topic' = ${topic}
+  `;
+  await tx`
+    insert into knowledge_item
+      (business_id, section, title, body, class, state, source, version, rule_payload,
+       effective_from)
+    values (
+      ${businessId}, ${detailSection(detail.detail)}, ${detailTitle(detail.detail)},
+      ${describeDetail(detail.detail)}, ${"authoritative"}, ${"Active"},
+      ${JSON.stringify({ kind: "user", label: "Confirmed by the owner", detail: text })}::jsonb,
+      ${"1"}, ${JSON.stringify(detail.detail)}::jsonb, now()
+    )
+  `;
 }
 
 export async function answerFactForUser(
@@ -88,8 +149,16 @@ export async function answerFactForUser(
   const brain = {
     knowledge: knowledge.map((k) => ({ state: k.state, rulePayload: k.rule_payload })),
   };
+  // "It's exactly 90": the owner confirms their rough figure is exact, so the
+  // reply stops saying "about".
+  const exact = EXACTLY.test(input.value);
+  const typed = exact ? input.value.replace(EXACTLY, "") : input.value;
   // "three" is 3: a written count is stored as digits, then checked.
-  const value = normaliseFactAnswer(brain, input.field, input.value);
+  const value = normaliseFactAnswer(brain, input.field, typed);
+  if (isAskField(input.field)) {
+    const problem = askAnswerProblem(input.field, value);
+    if (problem) throw new Error(problem);
+  }
   if (isExtraField(input.field) && !EXTRA_CHOICES.has(value)) {
     throw new Error("Choose whether to add it to the quote or leave it out.");
   }
@@ -128,6 +197,7 @@ export async function answerFactForUser(
       limit 1
     `;
     const rough =
+      !exact &&
       reading &&
       String(reading.value).trim() === value &&
       /\b(?:about|roughly|around|approx(?:imately)?|maybe|~|nearly|almost|ish)\b|~/i.test(
@@ -152,6 +222,20 @@ export async function answerFactForUser(
         ${true}
       )
     `;
+    // The owner's own answer to a question customers ask again is kept as a
+    // business answer, offered (never sent) the next time it is asked.
+    if (
+      isAskField(input.field) &&
+      ![ASK_CHOICE.later, ASK_CHOICE.ignore].includes(value as never)
+    ) {
+      await saveAskAnswer(
+        tx,
+        businessId,
+        askTopic(input.field),
+        reading?.display_value ?? "",
+        value,
+      );
+    }
     // Confirming (or correcting) the name read from their message is what
     // lets the reply greet them by it.
     const isName = input.field.trim().toLowerCase() === "name";

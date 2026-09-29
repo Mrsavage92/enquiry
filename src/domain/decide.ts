@@ -18,7 +18,12 @@ import {
 } from "./extras.ts";
 import { formatMinorAud } from "./money-format.ts";
 import { digitsForWrittenNumber } from "./number-words.ts";
-import { activeDetails, describeDetail, type BusinessDetail } from "./business-detail.ts";
+import {
+  activeDetails,
+  closedTimesOf,
+  describeDetail,
+  type BusinessDetail,
+} from "./business-detail.ts";
 import {
   COVERAGE_FIELD,
   coverageConfirmed,
@@ -38,6 +43,15 @@ import {
   questionThing,
 } from "./service-questions.ts";
 import { applyRules } from "./rule-checks.ts";
+import {
+  ASK_CHOICE,
+  askReplyLine,
+  askTopic,
+  askWhen,
+  isAskField,
+  topicWords,
+} from "./customer-asks.ts";
+import { closedReason } from "./compose-reply.ts";
 import { mentionsAny, namesService, stemsOf } from "./service-words.ts";
 
 /** One priced line of a quote with more than one thing on it. */
@@ -62,6 +76,16 @@ export type QuestionPending = {
   readAs?: "no";
   /** That rule in the owner's words: "You don't paint roofs". */
   said?: string;
+  /**
+   * "service" (unset): "do you do X?". "availability": "r u free this sat or
+   * sun?", answered Yes / No / come back. "ask": any other question they
+   * asked ("do you have insurance?"), answered in the owner's own sentence.
+   */
+  kind?: "availability" | "ask";
+  /** The days an availability question is about, for the owner: "Sat 3 or Sun 4 Oct". */
+  when?: string;
+  /** The owner's saved answer to this kind of question, offered with one tap. */
+  saved?: string;
 };
 
 /**
@@ -153,6 +177,11 @@ export type Decision = {
   questionPending?: QuestionPending;
   /** The count is their rough figure ("maybe 12sqm"): the reply says "about". */
   approximate?: boolean;
+  /**
+   * Which lines rest on a rough count, and the fact to confirm as exact with
+   * one tap ("It's exactly 90"), which takes the "about" away.
+   */
+  roughCounts?: { label: string; field: string; value: string }[];
   /** Lines the reply must carry: answered questions, things to come back on. */
   replyNotes?: string[];
 };
@@ -246,12 +275,16 @@ export function decideEnquiry(
   const rule = pending?.readAs
     ? details.find((d) => d.kind === "not_offered" && namesService(pending.thing, d.service))
     : undefined;
-  const question = pending && rule ? { ...pending, said: describeDetail(rule) } : pending;
+  const question = pending
+    ? rule
+      ? { ...pending, said: describeDetail(rule) }
+      : pending
+    : pendingAsk(facts, details);
   if (question) {
     return {
       ...withNotes,
       action: "ESCALATE_HUMAN",
-      explanation: `They asked if you do ${question.thing}. Say yes or no and the reply answers it.`,
+      explanation: questionExplanation(question),
       questionPending: question,
       knownServices,
     };
@@ -381,14 +414,79 @@ function pendingQuestion(facts: ReadonlyArray<DecideFact>): QuestionPending | un
   };
 }
 
+/** Whether the owner has settled a question they asked (answered it, or chosen to leave it). */
+function askSettled(f: DecideFact): boolean {
+  if (f.status !== "confirmed") return false;
+  const v = String(f.value ?? "").trim();
+  if (askTopic(f.field) === "availability") {
+    return v === ASK_CHOICE.yes || v === ASK_CHOICE.no || v === ASK_CHOICE.later;
+  }
+  return Boolean(v) && v !== "open";
+}
+
+/**
+ * The first question they asked beside the job that the owner has not settled:
+ * "r u free this sat or sun?" (read as No when every day asked is one the
+ * owner doesn't work), or "do you have insurance?" (with the owner's saved
+ * answer, when they gave one before).
+ */
+function pendingAsk(
+  facts: ReadonlyArray<DecideFact>,
+  details: readonly BusinessDetail[],
+): QuestionPending | undefined {
+  const open = facts.find((f) => isAskField(f.field) && !askSettled(f));
+  if (!open) return undefined;
+  const topic = askTopic(open.field);
+  const question = String(open.displayValue ?? "").trim();
+  if (topic === "availability") {
+    const when = askWhen(facts);
+    const closed = closedTimesOf(details);
+    const reasons = when.isos.map((iso) => closedReason(iso, closed));
+    const allClosed = reasons.length > 0 && reasons.every(Boolean);
+    return {
+      field: open.field,
+      thing: "availability",
+      kind: "availability",
+      ...(question ? { span: question } : {}),
+      ...(when.short ? { when: when.short } : {}),
+      ...(allClosed ? { readAs: "no" as const, said: reasons[0]! } : {}),
+    };
+  }
+  const saved = details.find((d) => d.kind === "answer" && d.topic === topic);
+  return {
+    field: open.field,
+    thing: topicWords(topic),
+    kind: "ask",
+    ...(question ? { span: question } : {}),
+    ...(saved && saved.kind === "answer" ? { saved: saved.text } : {}),
+  };
+}
+
+/** One sentence for the owner about the question waiting on them. */
+function questionExplanation(q: QuestionPending): string {
+  if (q.kind === "availability") {
+    return `They asked if you're free${q.when ? ` ${q.when}` : ""}. Say yes, no, or that you'll come back to them, and the reply says so.`;
+  }
+  if (q.kind === "ask") {
+    return `They asked: "${q.span ?? q.thing}". Answer it once and the reply carries your answer.`;
+  }
+  return `They asked if you do ${q.thing}. Say yes or no and the reply answers it.`;
+}
+
 /** Answered questions and things the owner will come back on, in the order asked. */
 function replyNotesFrom(
   facts: ReadonlyArray<DecideFact>,
   details: readonly BusinessDetail[] = [],
 ): string[] {
   const out: string[] = [];
+  const when = askWhen(facts);
   for (const f of facts) {
     if (f.status !== "confirmed") continue;
+    if (isAskField(f.field)) {
+      const line = askReplyLine(f.field, String(f.value ?? ""), { phrase: when.phrase });
+      if (line) out.push(line);
+      continue;
+    }
     if (isQuestionField(f.field)) {
       const thing = questionThing(f.field);
       const line =
@@ -502,6 +600,7 @@ function gateCoverage(decided: Decision, ctx: CoverageContext): Decision {
     message: ctx.message,
     jobDates: jobDatesOf(ctx.facts),
     facts: ctx.facts,
+    ...(recurring ? { recurring: frequency ?? "regularly" } : {}),
   });
   if (ruled.lines.length === 0 && ruled.declined.length > 0) {
     return declineDecision(decided, ruled.declined);
@@ -527,6 +626,15 @@ function gateCoverage(decided: Decision, ctx: CoverageContext): Decision {
     details: ctx.details,
     jobDates: jobDatesOf(ctx.facts),
   });
+  // How often comes before the owner's rules: a repeat-job discount is only
+  // asked about once they have said the job repeats.
+  if (frequency && !recurringAnswer) {
+    flagged.push({
+      kind: "recurring",
+      text: `They want this ${frequency} - correct?`,
+      thing: frequency,
+    });
+  }
   flagged.push(
     ...ruled.open.map((check) => ({
       kind: "rule" as const,
@@ -539,19 +647,13 @@ function gateCoverage(decided: Decision, ctx: CoverageContext): Decision {
     i > 0 &&
     (Boolean(l.firstVisit) ||
       askedForFirstVisit(ctx.message, l.label, [ctx.serviceLabel, lines[0]!.label]));
-  if (frequency && !recurringAnswer) {
-    flagged.push({
-      kind: "recurring",
-      text: `They want this ${frequency} - correct?`,
-      thing: frequency,
-    });
-  }
   const coverageLines = lines.map((l, i) => ({
     label: l.label,
     amountMinor: l.amountMinor,
     ...(l.count ? { quantity: l.count } : {}),
     ...(l.detail?.startsWith("minimum charge") ? { note: "minimum charge" } : {}),
     ...(recurring && firstVisit(l, i) ? { firstVisit: true } : {}),
+    ...roughOf(decided, l.label),
   }));
   const keyFacts = ctx.facts.map((f) => ({
     field: f.field,
@@ -587,6 +689,12 @@ function gateCoverage(decided: Decision, ctx: CoverageContext): Decision {
   };
 }
 
+/** The rough count a line rests on, for the owner's one-tap "It's exactly 90". */
+function roughOf(decided: Decision, label: string): { rough?: { field: string; value: string } } {
+  const hit = decided.roughCounts?.find((r) => r.label.toLowerCase() === label.toLowerCase());
+  return hit ? { rough: { field: hit.field, value: hit.value } } : {};
+}
+
 /**
  * A recurring job is priced per visit: anything asked for on the first visit
  * only is said separately ("the first visit adds $95"), never folded into a
@@ -619,26 +727,28 @@ function decidePrimary(
     // "maybe 12sqm", confirmed as their rough figure: the count and the total
     // are said as "about", never as exact.
     const rule = price.rule;
-    const rough =
-      rule.kind === "per_unit" &&
-      allFacts.some(
-        (f) =>
-          f.field.trim().toLowerCase() === rule.quantityField.trim().toLowerCase() &&
-          f.status === "confirmed" &&
-          APPROX_SAID.test(String(f.displayValue ?? "")),
-      );
-    const said = rough
-      ? {
-          ...price,
-          workings: `about ${price.workings}`,
-          ...(price.count ? { count: `about ${price.count}` } : {}),
-        }
-      : price;
+    const roughFact =
+      rule.kind === "per_unit"
+        ? allFacts.find(
+            (f) =>
+              f.field.trim().toLowerCase() === rule.quantityField.trim().toLowerCase() &&
+              f.status === "confirmed" &&
+              APPROX_SAID.test(String(f.displayValue ?? "")),
+          )
+        : undefined;
+    const said = roughFact ? roughWorkings(price) : price;
     return {
       price: said,
       action: "SEND_QUOTE",
       explanation: said.workings,
-      ...(rough ? { approximate: true } : {}),
+      ...(roughFact
+        ? {
+            approximate: true,
+            roughCounts: [
+              { label: rule.service, field: roughFact.field, value: String(roughFact.value) },
+            ],
+          }
+        : {}),
     };
   }
 
@@ -707,6 +817,18 @@ function decidePrimary(
           : `None of your prices covers "${price.service}" yet. Add a price for it and this enquiry updates.`,
     setup:
       rules.length === 0 ? "add_prices" : !price.service.trim() ? "choose_service" : "add_price",
+  };
+}
+
+/**
+ * A count they hedged ("maybe 90sqm"), confirmed as their rough figure: said
+ * as "about 90 square metres (please confirm)", never as a firm number.
+ */
+function roughWorkings<T extends { workings: string; count?: string }>(price: T): T {
+  return {
+    ...price,
+    workings: `about ${price.workings.replace(/\.$/, "")}, please confirm the size.`,
+    ...(price.count ? { count: `about ${price.count} (please confirm)` } : {}),
   };
 }
 
@@ -791,6 +913,7 @@ function decideExtras(
     },
   ];
   const implied: number[] = [];
+  const rough: { label: string; field: string; value: string }[] = [];
   const leftOut: { label: string; service?: string }[] = [];
   const key = (service: string) => service.trim().toLowerCase();
   const lined = () => new Set(lines.map((l) => key(l.label)));
@@ -868,11 +991,26 @@ function decideExtras(
         extraPending: { field: extra.field, label: rule.service, kind: "check", span: extra.span },
       };
     }
+    // Their rough figure for this part ("maybe 90sqm"): about, never firm.
+    const countField =
+      rule.kind === "per_unit" ? extraQuantityField(rule.quantityField, rule.service) : "";
+    const roughFact = countField
+      ? facts.find(
+          (f) =>
+            f.field.trim().toLowerCase() === countField.trim().toLowerCase() &&
+            f.status === "confirmed" &&
+            APPROX_SAID.test(String(f.displayValue ?? "")),
+        )
+      : undefined;
+    const said = roughFact ? roughWorkings(line) : line;
+    if (roughFact) {
+      rough.push({ label: rule.service, field: roughFact.field, value: String(roughFact.value) });
+    }
     lines.push({
       label: rule.service,
       amountMinor: line.amountMinor,
-      detail: lineDetail(rule, line.workings),
-      ...(line.count ? { count: line.count } : {}),
+      detail: lineDetail(rule, said.workings),
+      ...(said.count ? { count: said.count } : {}),
       ...(isFirstVisit(extra.span) ? { firstVisit: true } : {}),
     });
     implied.push(...impliedAmountsMinor(line));
@@ -900,6 +1038,9 @@ function decideExtras(
     explanation: workings,
     lines,
     ...(stillOut.length ? { leftOut: stillOut } : {}),
+    ...(rough.length
+      ? { approximate: true, roughCounts: [...(primary.roughCounts ?? []), ...rough] }
+      : {}),
   };
 }
 
