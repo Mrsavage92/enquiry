@@ -180,7 +180,7 @@ export function EnquiriesListPage() {
                           {/* On the phone the channel sits on the same line:
                               the dot keeps the two from running together. */}
                           <span className="enquiries-date-sep" aria-hidden>
-                            ·{" "}
+                            {" · "}
                           </span>
                           {channelLabel(enquiry.source)}
                         </span>
