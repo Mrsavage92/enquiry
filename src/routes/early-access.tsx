@@ -1,5 +1,5 @@
 import { Link, createFileRoute } from "@tanstack/react-router";
-import { Check, ChevronDown } from "lucide-react";
+import { ChevronDown } from "lucide-react";
 import { socialHead } from "@/lib/site/head";
 import { AuthLayout } from "@/components/auth/auth-layout";
 import { WaitlistForm } from "@/components/site/waitlist-form";
@@ -38,7 +38,6 @@ function EarlyAccess() {
       <section className="auth-offer" aria-labelledby="offer-title">
         <div className="auth-offer-card">
           <div className="auth-offer-head">
-            <span className="auth-offer-pill">Founding member</span>
             <h2 id="offer-title">What happens when you join</h2>
             <p>{OFFER.payWhen}</p>
           </div>
@@ -46,30 +45,20 @@ function EarlyAccess() {
             <p className="auth-offer-value">
               <strong>{FOUNDING_PRICE}</strong>
               <span className="auth-offer-value-label">
-                a month inc GST, for as long as you stay.
+                a month inc GST, for as long as you stay. {OFFER.perDay}
               </span>
             </p>
-            <p className="auth-offer-per-day">{OFFER.perDay}</p>
             <p className="auth-offer-window">{OFFER.window}</p>
-            <p className="auth-offer-next">
-              <strong>What happens next:</strong> {OFFER.next}
-            </p>
+            <p className="auth-offer-next">{OFFER.next}</p>
           </div>
           <div className="auth-offer-list">
-            <p className="auth-offer-list-title">What founding members get</p>
-            <ul>
-              {OFFER_PROMISES.map((item) => (
-                <li key={item.t}>
-                  <span className="auth-offer-check" aria-hidden="true">
-                    <Check size={11} strokeWidth={2.5} />
-                  </span>
-                  <div>
-                    <p>{item.t}</p>
-                    <p>{item.b}</p>
-                  </div>
-                </li>
-              ))}
-            </ul>
+            <h3>What founding members get</h3>
+            {OFFER_PROMISES.map((item) => (
+              <div key={item.t} className="auth-offer-promise">
+                <h4>{item.t}</h4>
+                <p>{item.b}</p>
+              </div>
+            ))}
           </div>
         </div>
       </section>

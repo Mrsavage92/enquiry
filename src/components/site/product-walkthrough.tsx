@@ -45,18 +45,26 @@ const STEPS = [
   },
 ] as const;
 
-function Capture({ id, alt, eager = false }: { id: string; alt: string; eager?: boolean }) {
+/**
+ * Below 860px each step shows its phone capture at 1:1 (390 CSS px, the 2x
+ * file on a 2x screen), cropped in CSS to the part that carries the step, so
+ * the app's own 12px text stays 12px instead of shrinking to about 8px.
+ */
+function InlineCapture({ id, alt }: { id: string; alt: string }) {
   return (
-    <picture>
-      <source media="(max-width: 600px)" srcSet={mobileCaptureSrcSet(id)} />
-      <img
-        src={`/product/ui1/${id}-desktop.jpg`}
-        alt={alt}
-        width="1440"
-        height="960"
-        loading={eager ? "eager" : "lazy"}
-      />
-    </picture>
+    <figure className="public-walk-inline" data-capture={id}>
+      <div className="public-walk-shot">
+        <img
+          src={`/product/ui1/${id}-mobile.jpg`}
+          srcSet={mobileCaptureSrcSet(id)}
+          alt={alt}
+          width="390"
+          height="600"
+          loading="lazy"
+        />
+      </div>
+      <figcaption className="public-sample-label">Actual app · sample workspace</figcaption>
+    </figure>
   );
 }
 
@@ -113,10 +121,8 @@ export function ProductWalkthrough() {
                     </p>
                     <h3>{step.title}</h3>
                     <p>{step.body}</p>
-                    <figure className="public-walk-inline">
-                      <Capture id={step.id} alt={step.alt} />
-                    </figure>
                   </div>
+                  <InlineCapture id={step.id} alt={step.alt} />
                 </li>
               );
             })}

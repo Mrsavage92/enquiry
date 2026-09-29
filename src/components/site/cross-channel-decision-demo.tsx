@@ -444,7 +444,9 @@ function CheckRow({
           <span className="mx-1.5 text-stone">·</span>
           <span>{check.value}</span>
         </p>
-        <Badge tone={tone}>{badge}</Badge>
+        <Badge tone={tone} className="demo-chip">
+          {badge}
+        </Badge>
       </li>
     );
   }
@@ -458,7 +460,9 @@ function CheckRow({
     >
       <div className="flex flex-wrap items-center justify-between gap-2">
         <span className="text-sm text-stone">{check.label}</span>
-        <Badge tone={tone}>{badge}</Badge>
+        <Badge tone={tone} className="demo-chip">
+          {badge}
+        </Badge>
       </div>
       <p className="mt-1 text-sm leading-relaxed">{check.value}</p>
       {check.why ? (

@@ -395,7 +395,7 @@ export function WaitlistForm({
         <div>
           <p
             className={
-              entry ? "auth-step" : "text-xs font-medium uppercase tracking-wide text-ink-2"
+              entry ? "auth-step" : "text-[13px] font-medium text-ink-2"
             }
           >
             Step 2 of 2 · optional
@@ -673,7 +673,7 @@ export function WaitlistForm({
       </Button>
       <p
         className={
-          entry ? "auth-privacy" : compact ? "w-full text-xs text-stone" : "text-xs text-stone"
+          entry ? "auth-privacy" : compact ? "w-full text-[13px] text-stone" : "text-[13px] text-stone"
         }
       >
         We’ll only email about Enquiry access.{" "}

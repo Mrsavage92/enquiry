@@ -432,7 +432,7 @@
   margin-top: 26px;
   padding-top: 22px;
   border-top: 1px solid var(--color-line);
-  font-size: 13px;
+  font-size: 14px;
   line-height: 1.65;
   color: var(--auth-muted);
 }
@@ -522,7 +522,7 @@
 }
 .entry-waitlist .auth-privacy {
   color: var(--auth-muted);
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.6;
   text-align: center;
 }
@@ -651,20 +651,8 @@
 .auth-offer-head {
   padding-top: 0;
 }
-.auth-offer-pill {
-  display: inline-block;
-  font-size: 12px;
-  font-weight: 600;
-  line-height: 1;
-  letter-spacing: normal;
-  color: #69519d;
-  padding: 7px 10px;
-  border: 1px solid #d9cfec;
-  border-radius: 999px;
-  background: #f8f6fc;
-}
 .auth-offer-head h2 {
-  margin-top: 14px;
+  margin-top: 0;
   font-size: 20px;
   line-height: 1.3;
   font-weight: 600;
@@ -682,7 +670,7 @@
 .auth-offer-window,
 .auth-offer-next {
   margin: 14px 0 0;
-  font-size: 13px;
+  font-size: 14px;
   line-height: 1.6;
   color: #4f4b55;
 }
@@ -731,50 +719,30 @@
   font-size: 12px;
   line-height: 1.6;
 }
-.auth-offer-list-title {
-  margin: 0 0 14px;
-  font-size: 12px;
+/* The three promises as plain headed lines: no pill, no all-caps label, no
+   check bullets (visual review 2026-09-29). ink on white 17.1:1, ink-2 8.5:1. */
+.auth-offer-list h3 {
+  margin: 0 0 12px;
+  font-size: 16px;
+  line-height: 1.4;
   font-weight: 600;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--color-ink-2);
+  color: var(--color-ink);
 }
-.auth-offer-list ul {
-  padding-top: 0;
-}
-.auth-offer-list li {
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
-}
-.auth-offer-list li + li {
+.auth-offer-promise + .auth-offer-promise {
   margin-top: 14px;
 }
-.auth-offer-list li > :first-child {
-  color: #fff;
-  margin-bottom: 0;
-}
-.auth-offer-check {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  width: 18px;
-  height: 18px;
-  margin-top: 2px;
-  border-radius: 50%;
-  background: #6848d6;
-  color: #fff;
-}
-.auth-offer-list li > div > p:first-child {
+.auth-offer-promise h4 {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
+  font-weight: 600;
   color: var(--color-ink);
-  font-weight: 500;
-  margin-bottom: 2px;
 }
-.auth-offer-list li > div > p + p {
-  margin-bottom: 0;
-  font-size: 13px;
+.auth-offer-promise p {
+  margin: 2px 0 0;
+  font-size: 14px;
   line-height: 1.6;
+  color: #4f4b55;
 }
 @media (max-width: 700px) {
   .auth-offer-head,
@@ -792,10 +760,8 @@
 
 .auth-step {
   margin: 0 0 8px;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 600;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
   color: var(--color-ink-2);
 }
 

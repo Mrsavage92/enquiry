@@ -10,8 +10,8 @@
 }
 .public-editorial-heading > div:first-child > p {
   margin-top: 14px;
-  color: #68656d;
-  font-size: 17px;
+  color: #4f4b55;
+  font-size: 18px;
   line-height: 1.6;
 }
 .story-principles {
@@ -29,13 +29,13 @@
 }
 .story-principles strong {
   display: block;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 600;
 }
 .story-principles span {
   display: block;
   margin-top: 5px;
-  font-size: 11px;
+  font-size: 13px;
   color: #68656d;
   line-height: 1.5;
 }
@@ -76,14 +76,16 @@
 }
 .story-progress h2,
 .story-progress h3 {
-  font-size: 15px;
+  font-size: 16px;
   line-height: 1.4;
   font-weight: 600;
 }
+/* /how body copy at ink-2 (7.93:1 on the #f8f6fc band), 16px: the grey 13px
+   version read as a wall of small print (visual review 2026-09-29). */
 .story-progress p {
-  font-size: 13px;
+  font-size: 16px;
   line-height: 1.6;
-  color: #68656d;
+  color: #4f4b55;
   margin-top: 7px;
   max-width: 30ch;
 }
@@ -101,7 +103,7 @@
   border-radius: 50%;
   background: #ece6f6;
   color: #674fa8;
-  font-size: 10px;
+  font-size: 13px;
   font-weight: 600;
   flex-shrink: 0;
 }
@@ -112,7 +114,7 @@
 }
 .story-caption small {
   display: block;
-  font-size: 11px;
+  font-size: 13px;
   color: #68656d;
   margin-top: 3px;
 }
@@ -140,7 +142,7 @@
   align-items: center;
   gap: 7px;
   color: #51495f;
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 500;
 }
 .story-message-meta svg {
@@ -150,18 +152,18 @@
 .story-message > time {
   display: block;
   color: #6b6472;
-  font-size: 10px;
+  font-size: 13px;
   margin-top: 8px;
 }
 .story-message blockquote {
-  font-size: 14px;
+  font-size: 16px;
   line-height: 1.75;
   margin-top: 18px;
 }
 .story-byline {
   display: block;
   margin-top: 18px;
-  font-size: 12px;
+  font-size: 13px;
   color: #68656d;
 }
 .story-change dl {
@@ -175,7 +177,7 @@
   gap: 8px;
   border-top: 1px solid #eee9f3;
   padding: 10px 0;
-  font-size: 11px;
+  font-size: 14px;
 }
 .story-change dt,
 .story-change dd {
@@ -209,7 +211,7 @@
   border-bottom: 1px solid #ddd3ee;
 }
 .story-verdict span {
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.04em;
@@ -226,7 +228,7 @@
   align-items: center;
   gap: 9px;
   color: #654ac2;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 550;
 }
 .story-next h3 {
@@ -237,9 +239,9 @@
 }
 .story-next > p,
 .story-next details p {
-  font-size: 13px;
-  line-height: 1.75;
-  color: #5c5665;
+  font-size: 16px;
+  line-height: 1.7;
+  color: #4f4b55;
 }
 .story-next details {
   width: 100%;
@@ -251,13 +253,13 @@
   align-items: center;
   min-height: 44px;
   cursor: pointer;
-  font-size: 12px;
+  font-size: 13px;
   color: #654ac2;
 }
 /* A text link, not a filled button: #543aab on the #f1ecfa panel, 7.05:1. */
 .story-next .story-demo-link {
   margin-top: auto;
-  font-size: 15px;
+  font-size: 16px;
   text-decoration: underline;
   text-underline-offset: 3px;
 }
@@ -266,23 +268,23 @@
   align-items: center;
   gap: 10px;
   padding-top: 24px;
-  color: #68656d;
+  color: #4f4b55;
 }
 .story-ending svg {
   color: #8368ba;
   flex-shrink: 0;
 }
 .story-ending p {
-  font-size: 13px;
+  font-size: 16px;
 }
 .story-disclosure {
   margin-top: 20px;
-  font-size: 12px;
+  font-size: 14px;
   /* 4.5:1 AA floor against the #f8f8fa section ground. #79717f measured
      4.42:1 and failed; this measures 5.36:1. This line carries the
      prepared-is-not-sent truth claim, so it must not be the least
-     readable text on the page. */
-  color: #6b6472;
+     readable text on the page. Raised to ink-2 (7.93:1) on 2026-09-29. */
+  color: #4f4b55;
   line-height: 1.7;
 }
 .enquiry-story-compact {
@@ -311,7 +313,7 @@
   flex-shrink: 0;
   padding-left: 24px;
   border-left: 1px solid #e8e3ee;
-  font-size: 11px;
+  font-size: 13px;
   line-height: 1.7;
   margin-top: 0;
 }
@@ -413,11 +415,11 @@
 }
 .decision-demo .demo-message > p:nth-child(2) {
   font-family: inherit;
-  font-size: 15px;
+  font-size: 16px;
   line-height: 1.75;
 }
 .decision-demo .eyebrow {
-  font-size: 11px;
+  font-size: 13px;
   text-transform: none;
   font-weight: 500;
 }
@@ -433,7 +435,7 @@
   scroll-margin: 16px;
 }
 .demo-verdict-kicker {
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.04em;
@@ -471,7 +473,7 @@
   align-items: center;
   gap: 9px;
   color: #654ac2;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 550;
 }
 .demo-next .proof-next {
@@ -533,11 +535,11 @@
 }
 .journal-heading > div > p {
   color: #68656d;
-  font-size: 17px;
+  font-size: 18px;
   line-height: 1.6;
 }
 .journal-heading > p {
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.6;
   text-align: right;
 }
@@ -557,17 +559,9 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  font-size: 12px;
+  font-size: 13px;
   color: #6b6472;
   padding-top: 5px;
-}
-.journal-date::before {
-  content: "";
-  width: 6px;
-  height: 6px;
-  flex-shrink: 0;
-  border-radius: 50%;
-  background: #8967ce;
 }
 .journal-copy h2 {
   font-size: 20px;
@@ -602,7 +596,7 @@
   border-radius: 4px;
 }
 .journal-visual figcaption {
-  font-size: 10px;
+  font-size: 13px;
   color: #6b6472;
   margin-top: 8px;
   line-height: 1.5;
@@ -637,7 +631,7 @@
   top: 24px;
 }
 .public-legal nav > p {
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 600;
   margin-bottom: 14px;
 }
@@ -658,7 +652,7 @@
 }
 .public-legal-body {
   min-width: 0;
-  font-size: 15px;
+  font-size: 16px;
   color: #514d57;
   line-height: 1.85;
 }
@@ -808,27 +802,27 @@
     font-size: 32px;
   }
   .public-demo-heading > div > p {
-    font-size: 15px;
+    font-size: 16px;
   }
   .public-editorial-heading > div:first-child > p,
   .journal-heading > div > p {
-    font-size: 15px;
+    font-size: 16px;
   }
   .story-principles {
     gap: 14px;
   }
   .story-principles span {
-    font-size: 10px;
+    font-size: 13px;
   }
   .story-progress {
     gap: 20px 16px;
   }
   .story-progress h2,
   .story-progress h3 {
-    font-size: 14px;
+    font-size: 16px;
   }
   .story-progress p {
-    font-size: 12px;
+    font-size: 16px;
   }
   .story-message,
   .story-next {
@@ -848,7 +842,7 @@
     flex: 1;
     gap: 4px;
     padding: 12px 8px;
-    font-size: 12px;
+    font-size: 13px;
   }
   .decision-demo .scene-toggle .toggle-check {
     width: 12px;
@@ -933,7 +927,7 @@
   background: #ffffff;
   color: #1c1b1f;
   border: 1px solid #cbc5d3;
-  font-size: 12px;
+  font-size: 13px;
   font-variant-numeric: tabular-nums;
 }
 @media (max-width: 600px) {
@@ -984,7 +978,7 @@
 .journal-kind {
   display: inline-block;
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: 13px;
   line-height: 1;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -1020,7 +1014,7 @@
   max-width: 760px;
 }
 .journal-visual figcaption {
-  font-size: 12px;
+  font-size: 13px;
 }
 @media (max-width: 1000px) {
   .product-journal > li {
@@ -1184,7 +1178,7 @@
   border: 1px solid #cbc5d3;
   background: #fff;
   color: #68656d;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
 }
@@ -1258,7 +1252,7 @@
   align-items: center;
   gap: 6px;
   min-height: 44px;
-  font-size: 15px;
+  font-size: 16px;
   color: #4f4b55;
 }
 .demo-signin a {
@@ -1271,4 +1265,12 @@
 /* The newly arrived message: a full 1px stronger hairline, not a side stripe. */
 .decision-demo .demo-message.demo-message-incoming {
   border-color: #cbc5d3;
+}
+
+/* Type floor (visual review 2026-09-29): no site text under 13px. The demo's
+   chips and message time come from app utilities (text-2xs 11px, text-xs
+   12px); on the site they sit at 13px. */
+.public-site .demo-chip,
+.public-site .demo-message-time {
+  font-size: 13px;
 }

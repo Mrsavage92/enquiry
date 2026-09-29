@@ -38,6 +38,8 @@ const PAY_WHEN =
   "You only pay when you choose to start, and if the first month isn't worth it, we refund it.";
 const PAYMENT_TIMING = `${NO_CARD} ${PAY_WHEN}`;
 
+const AFTER = `Businesses that join after the founding window pay ${STANDARD_PRICE} a month.`;
+
 /** Both prices in one line, without the payment-timing tail. */
 const PRICES = `${FOUNDING_PRICE} a month while you're a member. ${STANDARD_PRICE} after launch.`;
 
@@ -61,7 +63,7 @@ export const OFFER = {
   short: PRICES,
   /** The single price sentence used everywhere the offer is stated in brief. */
   priceLine: PRICE_LINE,
-  after: `Businesses that join after the founding window pay ${STANDARD_PRICE} a month.`,
+  after: AFTER,
   window: FOUNDING_CLOSES
     ? `Open until ${FOUNDING_CLOSES}.`
     : "Open until we launch publicly. We'll give at least 14 days' notice before it closes.",
@@ -80,7 +82,12 @@ export const OFFER = {
   reassure: PAY_WHEN,
   /** The /early-access page heading, once payments are not open. */
   entryHeadline: `Save your ${FOUNDING_PRICE} founding price.`,
-  entrySub: PRICE_LINE,
+  /**
+   * The line under that heading. The heading already names the founding price
+   * and the card below shows it once, large, so this line carries only the
+   * later price and the payment timing (visual review 2026-09-29).
+   */
+  entrySub: paymentsOpen ? AFTER : `${AFTER} ${NO_CARD}`,
   /** The small line under the big price on /early-access. */
   perDay: `About ${perDayLabel(FOUNDING_PRICE_AMOUNT)} a day.`,
 } as const;
