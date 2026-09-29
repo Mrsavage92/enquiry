@@ -273,7 +273,7 @@ test("3 Whitfield: two storey against 'single storey only' is declined kindly, w
   const quoted = await row(pg, e.enquiryId);
   assert.match(
     quoted.decision_snapshot.draft.body,
-    /You mentioned Sunday 11 Oct - I don't work Sundays\. Would Monday 12 October suit instead\?/,
+    /You mentioned Sunday 11 October - I don't work Sundays\. Would Monday 12 October suit instead\?/,
   );
 });
 

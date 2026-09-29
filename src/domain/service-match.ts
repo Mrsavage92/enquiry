@@ -25,9 +25,20 @@ const SAME_WORDS: [RegExp, string][] = [
   [/\brepaint/g, " paint"],
   [/\b(?:outside|external|outdoors?)\b/g, " exterior "],
   [/\bbond\s+clean/g, " end lease clean"],
-  [/\b(\d+)\s*-?\s*(?:bed(?:room)?s?|brs?|bdrms?)\b/g, " $1bedroom "],
+  // "a clean for a 4 bed" is a house; "fortnightly" is a regular clean.
+  [/\b(\d+)\s*-?\s*(?:bed(?:room)?s?|brs?|bdrms?)\b/g, " $1bedroom house "],
   [/\b(\d+)\s*-?\s*(?:bath(?:room)?s?)\b/g, " $1bathroom "],
+  [/\b(?:fortnightly|weekly|monthly|regularly)\b/g, " regular "],
+  // "the walls" are interior painting, unless they are the outside walls.
+  [
+    /(?<!\b(?:outside|external|exterior|outer|brick|retaining|garden|fence|boundary|front)\s)\bwalls?\b/g,
+    " walls interior ",
+  ],
 ];
+
+/** "Walls" say interior painting as plainly as the word itself. */
+const STRONG_IMPLIED =
+  /(?<!\b(?:outside|external|exterior|outer|brick|retaining|garden|fence|boundary|front)\s)\bwalls?\b/i;
 
 function words(text: string): string[] {
   const said = SAME_WORDS.reduce((t, [re, to]) => t.replace(re, to), text.toLowerCase());
@@ -63,12 +74,40 @@ function saidWeights(message: string): Map<string, number> {
     .filter((c) => !NOT_WANTED.test(c))
     .join(". ");
   const plain = new Set(plainWords(text).map(stem));
+  if (STRONG_IMPLIED.test(text)) plain.add(stem("interior"));
   const out = new Map<string, number>();
   for (const w of words(text).map(stem)) out.set(w, plain.has(w) ? 1 : 0.5);
   return out;
 }
 
+/** A pasted form's "Service: Interior painting" line, when it names one of theirs. */
+const FORM_SERVICE =
+  /^\s*(?:service|job|type of (?:service|job)|service (?:needed|required|wanted))\s*[:\-–]\s*(.+?)\s*$/im;
+
+export function formService(message: string, services: readonly string[]): string | undefined {
+  const named = FORM_SERVICE.exec(message)?.[1]?.trim().toLowerCase();
+  if (!named) return undefined;
+  const exact = services.find((s) => s.trim().toLowerCase() === named);
+  if (exact) return exact.trim();
+  const said = new Set(words(named).map(stem));
+  const fits = services.filter((s) => {
+    const need = words(s).map(stem);
+    return need.length > 0 && need.every((w) => said.has(w));
+  });
+  return fits.length === 1 ? fits[0]!.trim() : undefined;
+}
+
+/** Where a service is first mentioned: the lower, the earlier they asked for it. */
+function firstMention(message: string, service: string): number {
+  const said = words(message).map(stem);
+  const need = words(service).map(stem);
+  const at = need.map((w) => said.indexOf(w)).filter((i) => i >= 0);
+  return at.length ? Math.min(...at) : Number.MAX_SAFE_INTEGER;
+}
+
 export function suggestService(message: string, services: readonly string[]): string | undefined {
+  const fromForm = formService(message, services);
+  if (fromForm) return fromForm;
   const said = saidWeights(message);
   const scored = [...new Set(services.map((s) => s.trim()).filter(Boolean))]
     .map((service) => {
@@ -104,10 +143,23 @@ export function rankServices(message: string, services: readonly string[]): stri
       const need = words(service).map(stem);
       const score = need.reduce((n, w) => n + (said.get(w) ?? 0), 0);
       const hit = need.filter((w) => said.has(w)).length;
-      // More of its words said ranks first; then the one they said all of.
-      return { service, i, score, share: need.length ? hit / need.length : 0 };
+      // More of its words said ranks first; then the one they said all of;
+      // then the one they wrote first ("walls ..., plus the ceilings").
+      return {
+        service,
+        i,
+        score,
+        share: need.length ? hit / need.length : 0,
+        first: firstMention(message, service),
+      };
     })
-    .sort((a, b) => b.score - a.score || b.share - a.share || a.i - b.i)
+    .sort(
+      (a, b) =>
+        b.score - a.score ||
+        b.share - a.share ||
+        a.first - b.first ||
+        a.i - b.i,
+    )
     .map((s) => s.service);
 }
 

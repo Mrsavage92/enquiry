@@ -256,7 +256,9 @@ test("L5: a weekday alone is asked, a ruled-out one excluded, history is not a p
   const fri = new Date("2026-09-25T09:00:00+10:00");
   const r = readDates("Can you come Sunday? Not Monday", fri);
   assert.equal(r.jobDate?.iso, "2026-09-27");
-  assert.equal(r.unavailable[0]?.iso, "2026-09-28");
+  // "Not Monday" rules out Mondays, never one date they did not write.
+  assert.equal(r.unavailable.length, 0);
+  assert.deepEqual(r.exceptDays, [1]);
   const h = readDates("Last clean was on 3 Sept. Could you do 10 October?", fri);
   assert.equal(h.issue, undefined);
   assert.equal(h.jobDate?.iso, "2026-10-10");

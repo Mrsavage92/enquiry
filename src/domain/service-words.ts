@@ -17,12 +17,39 @@ const IGNORED = new Set([
   "per",
 ]);
 
+/** Painting words: "outside" and "inside" name exterior and interior work only beside one. */
+const PAINT_WORK = /\b(?:paint\w*|repaint\w*|colou?rs?|coats?)\b/i;
+const OUTSIDE = /\b(?:outside|external|outdoors?|exteriors?)\b/i;
+const INSIDE = /\b(?:inside|internal|indoors?)\b/i;
+/** "walls" are interior work, unless they are the outside, brick or garden walls. */
+const WALLS = /\bwalls?\b/i;
+const OUTER_WALLS =
+  /\b(?:outside|external|exterior|outer|brick|retaining|garden|fence|boundary|front)\s+walls?\b/i;
+
+/**
+ * The service words a customer says without the service's name: "the walls"
+ * are interior painting; "paint the outside" is exterior painting. Added to
+ * the words they wrote, never replacing them.
+ */
+function impliedWords(text: string): string[] {
+  const out: string[] = [];
+  if (WALLS.test(text) && !OUTER_WALLS.test(text)) out.push("interior");
+  for (const sentence of text.split(/[.!?\n]/)) {
+    if (!PAINT_WORK.test(sentence)) continue;
+    if (OUTSIDE.test(sentence)) out.push("exterior");
+    if (INSIDE.test(sentence)) out.push("interior");
+  }
+  return out;
+}
+
 /** Meaningful words, lower case: "End of lease clean" -> ["end", "lease", "clean"]. */
 export function serviceWords(text: string): string[] {
-  return text
+  const said = text
     .toLowerCase()
     .split(/[^a-z]+/)
     .filter((w) => w.length >= 3 && !IGNORED.has(w));
+  const implied = impliedWords(text).filter((w) => !said.includes(w));
+  return implied.length ? [...said, ...new Set(implied)] : said;
 }
 
 /** A shared stem: "paint" in "painted" and "painting", "clean" in "cleaning", "ceili" in "ceilings". */
