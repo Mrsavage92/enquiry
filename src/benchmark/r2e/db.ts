@@ -5,6 +5,7 @@ import { PGlite } from "@electric-sql/pglite";
 import type { Sql } from "../../lib/db.ts";
 import { applyDecision } from "../../lib/repo/decision-apply.ts";
 import { COVERAGE_FIELD } from "../../domain/coverage.ts";
+import { availabilityValue } from "../../domain/customer-asks.ts";
 import { insertManualEnquiry, interpretAndApply } from "../../lib/repo/manual-enquiry-core.ts";
 import { nullInterpreter } from "../../lib/interpret/null-interpreter.ts";
 import {
@@ -290,16 +291,27 @@ export async function settleCoverage(
  * benchmark takes the step an owner can always take honestly - "I'll come
  * back to you on it" - so the decision after it is what is measured.
  */
-export async function settleAsks(pg: PGlite, businessId: string, enquiryId: string): Promise<void> {
+export async function settleAsks(
+  pg: PGlite,
+  businessId: string,
+  enquiryId: string,
+): Promise<string[]> {
+  const settled: string[] = [];
   for (let i = 0; i < 4; i += 1) {
-    const rows = await pg.query<{ field: string | null; kind: string | null }>(
-      "select decision_snapshot->'questionPending'->>'field' as field, decision_snapshot->'questionPending'->>'kind' as kind from enquiry where id = $1",
-      [enquiryId],
-    );
-    const row = rows.rows[0];
-    if (!row?.field || !row.kind) return;
-    await confirmFact(pg, businessId, enquiryId, row.field, "later");
+    const rows = await pg.query<{
+      q: { field?: string; kind?: string; days?: { iso: string; closed?: string }[] } | null;
+    }>("select decision_snapshot->'questionPending' as q from enquiry where id = $1", [enquiryId]);
+    const q = rows.rows[0]?.q;
+    if (!q?.field || !q.kind) return settled;
+    // "I'll come back to you": for each day asked (a closed day is always no).
+    const value =
+      q.kind === "availability" && q.days?.length
+        ? availabilityValue(q.days.map((d) => [d.iso, d.closed ? "no" : "later"]))
+        : "later";
+    await confirmFact(pg, businessId, enquiryId, q.field, value);
+    settled.push(q.kind);
   }
+  return settled;
 }
 
 export type FollowUpOutcome = { label: string; enquiry: EnquiryRow };
@@ -312,6 +324,8 @@ export type CaseRun =
       enquiryId: string;
       messageId: string;
       interpretOutcome: InterpretOutcome;
+      /** The questions the app held the reply for, settled as "I'll come back to you". */
+      asksSettled: string[];
       enquiryAfterInterpretation: EnquiryRow;
       facts: {
         field: string;
@@ -353,7 +367,9 @@ export async function runCase(kase: BenchmarkCase, mode: RunMode): Promise<CaseR
   if (!interpretOutcome)
     throw new Error(`interpretAndApply never called the interpreter for ${kase.id}`);
 
-  await settleAsks(pg, businessId, enquiryId);
+  // The app must have held the priced reply for their question: measured here,
+  // so a detection regression fails the case rather than passing quietly.
+  const asksSettled = await settleAsks(pg, businessId, enquiryId);
   await settleCoverage(pg, businessId, enquiryId);
   const enquiryAfterInterpretation = await readEnquiry(pg, enquiryId);
   const factRows = await pg.query<{
@@ -394,5 +410,6 @@ export async function runCase(kase: BenchmarkCase, mode: RunMode): Promise<CaseR
     auditSummaries: auditRows.rows.map((r) => r.summary),
     outboundMessageCount: outboundRows.rows.length,
     followUps,
+    asksSettled,
   };
 }

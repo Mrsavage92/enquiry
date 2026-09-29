@@ -748,6 +748,9 @@ function readThisNext(
   if (!m) return undefined;
   const index = m.index ?? 0;
   if (DATE_NEGATED.test(sentenceAt(text, index))) return undefined;
+  // "our lease ends this Thursday": about the lease, not the job's day.
+  const around = clauseAround(text, index, m[0].length);
+  if (contextOf(around.before, around.after)) return undefined;
   const first = weekdayIndex(m[1]!);
   if (first === undefined) return undefined;
   const start = new Date(today.getFullYear(), today.getMonth(), today.getDate());
