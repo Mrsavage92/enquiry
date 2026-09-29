@@ -263,6 +263,22 @@ html[data-palette="b"]:not(:has(.app-root)) {
     outline: 2px solid var(--color-mark);
     outline-offset: 2px;
   }
+  /* Focus moved by code (a heading or region on arrival) is not a control the
+     owner reached with the keyboard: no ring. Real controls keep theirs, including
+     roving-tabindex tabs and menu items that sit at -1 until chosen. */
+  [tabindex="-1"]:not(
+      a,
+      button,
+      input,
+      select,
+      textarea,
+      [role="tab"],
+      [role="menuitem"],
+      [role="option"],
+      [role="radio"]
+    ):focus-visible {
+    outline: none;
+  }
   ::selection {
     background: color-mix(in oklab, var(--color-mark) 22%, var(--color-paper));
     color: var(--color-ink);
@@ -489,6 +505,18 @@ html[data-palette="b"]:not(:has(.app-root)) {
     outline: 2px solid var(--color-mark);
     outline-offset: 2px;
     border-color: var(--color-mark);
+  }
+  /* A read-only region focused by code on open (the message in the send
+     sheet) is not being edited: no ring, no violet border. */
+  .field[tabindex="-1"]:focus {
+    outline: none;
+    border-color: var(--color-line-control);
+  }
+  /* Placeholders are examples, never values: stone (#68656d, 5.7:1 on white),
+     and callers prefix them with "e.g." so they never read as filled in. */
+  ::placeholder {
+    color: var(--color-stone);
+    opacity: 1;
   }
   textarea.field {
     resize: vertical;

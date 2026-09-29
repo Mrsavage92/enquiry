@@ -4,7 +4,7 @@ import { ChevronRight, Plus, Search } from "lucide-react";
 import { AddEnquiry } from "./add-enquiry";
 import { PracticeBadge } from "./practice-note";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Dialog, ResponsiveDialogContent } from "@/components/ui/dialog";
 import { EmptyState } from "@/components/ui/empty-state";
 import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
@@ -199,7 +199,7 @@ export function EnquiriesListPage() {
         </div>
       </div>
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-        <DialogContent title="Add an enquiry" className="max-h-[90dvh] overflow-y-auto">
+        <ResponsiveDialogContent title="Add an enquiry">
           {activeBusiness && !demoMode ? (
             <AddEnquiry
               initiallyOpen
@@ -211,7 +211,7 @@ export function EnquiriesListPage() {
               }}
             />
           ) : null}
-        </DialogContent>
+        </ResponsiveDialogContent>
       </Dialog>
     </div>
   );

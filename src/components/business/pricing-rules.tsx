@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button";
 import { usePrototype } from "@/store/prototype-store";
 import { useFirstBetaActions } from "@/lib/workspace/live-mutations";
 import { activeRules } from "@/domain/decide";
-import { describeRule } from "@/domain/business-rule";
 import { quantityFieldFor } from "@/domain/price-sentence";
 import type { Business } from "@/domain/types";
 
@@ -134,16 +133,6 @@ export function PricingRules({
           Enquiry cannot price anything yet. Add what you charge and it will work out totals from
           real enquiries - and tell you what it still needs when it cannot.
         </p>
-      ) : null}
-
-      {rules.length > 0 ? (
-        <ul className="mt-5">
-          {rules.map((r) => (
-            <li key={describeRule(r)} className="border-t border-line py-3 text-sm last:border-b">
-              {describeRule(r)}
-            </li>
-          ))}
-        </ul>
       ) : null}
 
       {open ? (

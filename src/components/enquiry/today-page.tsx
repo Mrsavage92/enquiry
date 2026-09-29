@@ -17,7 +17,7 @@ import {
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Dialog, ResponsiveDialogContent } from "@/components/ui/dialog";
 import { activeBookings, sortedOnDay, weekDays as calendarWeekDays } from "@/domain/calendar";
 import {
   needsYouSentence,
@@ -134,8 +134,8 @@ function StartHere({ enquiry, prefs }: { enquiry: Enquiry; prefs: WorkspacePrefs
       {pricing ? (
         // No prices yet: the one step that moves this enquiry is on the
         // business screen, so the button goes there, enabled.
-        <>
-          <Button asChild className="mt-4 min-h-12 w-full sm:w-auto">
+        <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2">
+          <Button asChild className="min-h-12 w-full sm:w-auto">
             <Link to="/business" search={pricingLinkSearch(enquiry)}>
               {setup?.label} <ArrowRight size={16} aria-hidden />
             </Link>
@@ -143,11 +143,11 @@ function StartHere({ enquiry, prefs }: { enquiry: Enquiry; prefs: WorkspacePrefs
           <Link
             to="/enquiries/$enquiryId"
             params={{ enquiryId: enquiry.id }}
-            className="ui-text-link mt-3"
+            className="ui-text-link"
           >
             Open this enquiry <ArrowRight size={15} aria-hidden />
           </Link>
-        </>
+        </div>
       ) : (
         <Button asChild className="mt-4 min-h-12 w-full sm:w-auto">
           <Link to="/enquiries/$enquiryId" params={{ enquiryId: enquiry.id }}>
@@ -217,13 +217,25 @@ function FirstRun({ practice }: { practice?: Enquiry }) {
         Paste what a customer sent you. Enquiry works out what you can safely promise and prepares a
         reply for you to check. Nothing is sent.
       </p>
-      <Button
-        className="mt-4 min-h-12 w-full sm:w-auto"
-        onClick={() => setOpen(true)}
-        disabled={!business}
-      >
-        Add your first enquiry
-      </Button>
+      <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2">
+        <Button
+          className="min-h-12 w-full sm:w-auto"
+          onClick={() => setOpen(true)}
+          disabled={!business}
+        >
+          Add your first enquiry
+        </Button>
+        {practice ? null : (
+          <button
+            type="button"
+            className="inline-flex min-h-11 items-center text-sm font-medium text-mark-strong underline-offset-4 hover:underline"
+            disabled={!business || trying}
+            onClick={() => void tryPractice()}
+          >
+            {trying ? "Opening a practice enquiry…" : "Try a practice enquiry"}
+          </button>
+        )}
+      </div>
       {practice ? (
         <p className="today-start-meta mt-3 flex flex-wrap items-center gap-x-3">
           <span>Your practice enquiry is waiting.</span>
@@ -243,16 +255,7 @@ function FirstRun({ practice }: { practice?: Enquiry }) {
             {deleting ? "Deleting…" : "Delete it"}
           </button>
         </p>
-      ) : (
-        <button
-          type="button"
-          className="mt-3 inline-flex min-h-11 items-center text-sm font-medium text-mark-strong underline-offset-4 hover:underline"
-          disabled={!business || trying}
-          onClick={() => void tryPractice()}
-        >
-          {trying ? "Opening a practice enquiry…" : "Try a practice enquiry"}
-        </button>
-      )}
+      ) : null}
       <AddEnquiryDialog open={open} onOpenChange={setOpen} />
     </section>
   );
@@ -272,7 +275,7 @@ function AddEnquiryDialog({
   const business = businesses.find((b) => b.id === filter) ?? businesses[0];
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent title="Add an enquiry" className="max-h-[90dvh] overflow-y-auto">
+      <ResponsiveDialogContent title="Add an enquiry">
         {business ? (
           <AddEnquiry
             initiallyOpen
@@ -284,7 +287,7 @@ function AddEnquiryDialog({
             }}
           />
         ) : null}
-      </DialogContent>
+      </ResponsiveDialogContent>
     </Dialog>
   );
 }

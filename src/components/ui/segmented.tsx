@@ -8,12 +8,15 @@ export function Segmented<T extends string>({
   options,
   ariaLabel,
   fullWidth,
+  wrap,
 }: {
   value: T;
   onChange: (value: T) => void;
   options: { id: T; label: string; count?: number }[];
   ariaLabel: string;
   fullWidth?: boolean;
+  /** Wrap onto a second row instead of scrolling sideways. */
+  wrap?: boolean;
 }) {
   const buttons = useRef<(HTMLButtonElement | null)[]>([]);
   return (
@@ -24,6 +27,7 @@ export function Segmented<T extends string>({
       className={cn(
         "flex w-max min-w-full flex-nowrap gap-0.5 rounded-md bg-paper-2 p-1",
         fullWidth && "w-full",
+        wrap && "w-full flex-wrap",
       )}
     >
       {options.map((option, index) => {
