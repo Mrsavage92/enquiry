@@ -22,7 +22,7 @@ function statusLine(quote: QuoteVersion, estimate: boolean, customer = false) {
 
 function amount(quote: QuoteVersion) {
   if (quote.total) return formatAud(quote.total.amount);
-  if (quote.range) return `${formatAud(quote.range.min)}–${formatAud(quote.range.max)}`;
+  if (quote.range) return `${formatAud(quote.range.min)}-${formatAud(quote.range.max)}`;
   return "-";
 }
 

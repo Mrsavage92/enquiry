@@ -17,7 +17,7 @@ export const FIXTURE_INDEX = [
     enquiryId: "f02",
     title: "Photography with hour range",
     business: "Northlight",
-    expect: "Range $720–$1,080, one missing fact",
+    expect: "Range $720-$1,080, one missing fact",
   },
   {
     id: "F03",

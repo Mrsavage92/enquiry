@@ -51,6 +51,7 @@ export function PricingRules({
   const [fieldTouched, setFieldTouched] = useState(false);
   const [minimumQuantity, setMinimumQuantity] = useState("");
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<{ field: "service" | "amount"; text: string } | null>(null);
 
   const reset = () => {
     setService("");
@@ -61,9 +62,10 @@ export function PricingRules({
 
   const save = async () => {
     const parsedAmount = Number.parseFloat(amount);
-    if (!service.trim()) return toast.error("Name the service this prices.");
+    setError(null);
+    if (!service.trim()) return setError({ field: "service", text: "Name the service this prices." });
     if (!Number.isFinite(parsedAmount) || parsedAmount < 0) {
-      return toast.error("Enter a real amount.");
+      return setError({ field: "amount", text: "Enter a real amount." });
     }
     setSaving(true);
     try {
@@ -163,8 +165,15 @@ export function PricingRules({
                 className="field w-full"
                 value={service}
                 onChange={(e) => setService(e.target.value)}
-                placeholder={examples.price.service}
+                aria-invalid={error?.field === "service" ? true : undefined}
+                aria-describedby={error?.field === "service" ? "price-service-error" : undefined}
+                placeholder={`e.g. ${examples.price.service}`}
               />
+              {error?.field === "service" ? (
+                <span id="price-service-error" className="mt-1.5 block font-medium text-danger">
+                  {error.text}
+                </span>
+              ) : null}
             </label>
             <label className="block text-sm">
               <span className="mb-1.5 block text-stone">
@@ -175,8 +184,15 @@ export function PricingRules({
                 inputMode="decimal"
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
-                placeholder={examples.price.amount}
+                aria-invalid={error?.field === "amount" ? true : undefined}
+                aria-describedby={error?.field === "amount" ? "price-amount-error" : undefined}
+                placeholder={`e.g. ${examples.price.amount}`}
               />
+              {error?.field === "amount" ? (
+                <span id="price-amount-error" className="mt-1.5 block font-medium text-danger">
+                  {error.text}
+                </span>
+              ) : null}
             </label>
 
             {kind === "per_unit" ? (
@@ -192,7 +208,7 @@ export function PricingRules({
                         setQuantityField(quantityFieldFor(e.target.value));
                       }
                     }}
-                    placeholder={examples.price.unit}
+                    placeholder={`e.g. ${examples.price.unit}`}
                   />
                 </label>
                 <label className="block text-sm">
@@ -206,7 +222,7 @@ export function PricingRules({
                       setFieldTouched(true);
                       setQuantityField(e.target.value);
                     }}
-                    placeholder={examples.price.field}
+                    placeholder={`e.g. ${examples.price.field}`}
                   />
                   <span className="mt-1.5 block text-xs text-stone">
                     If an enquiry does not say this, Enquiry asks for it instead of guessing.
@@ -219,7 +235,7 @@ export function PricingRules({
                     inputMode="numeric"
                     value={minimumQuantity}
                     onChange={(e) => setMinimumQuantity(e.target.value)}
-                    placeholder={examples.price.minimum || "Optional"}
+                    placeholder={examples.price.minimum ? `e.g. ${examples.price.minimum}` : "Optional"}
                   />
                 </label>
               </>

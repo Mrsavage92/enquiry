@@ -69,7 +69,7 @@ export function formatTime(iso: string): string {
 }
 
 export function formatTimeRange(startIso: string, endIso: string): string {
-  return `${formatTime(startIso)}–${formatTime(endIso)}`;
+  return `${formatTime(startIso)}-${formatTime(endIso)}`;
 }
 
 export function formatDuration(minutes: number): string {

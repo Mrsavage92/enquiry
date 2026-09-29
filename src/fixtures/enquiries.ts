@@ -262,7 +262,7 @@ export const ENQUIRIES: Enquiry[] = [
         field: "hours",
         label: "Coverage hours",
         value: "4-6",
-        displayValue: "4–6 hours",
+        displayValue: "4-6 hours",
         status: "range",
         confidence: "High",
         assertedBy: "customer",
@@ -322,7 +322,7 @@ export const ENQUIRIES: Enquiry[] = [
           { label: "Event", value: "Lumen Goods launch" },
           { label: "Date", value: "3 October 2026" },
           { label: "Venue", value: "Collingwood warehouse" },
-          { label: "Hours", value: "4–6 (not sure)" },
+          { label: "Hours", value: "4-6 (not sure)" },
           { label: "Indoor / outdoor", value: "Not given" },
         ],
       }),
@@ -332,7 +332,7 @@ export const ENQUIRIES: Enquiry[] = [
         evalr({
           type: "pricing",
           status: "RANGE",
-          summary: "Estimated $720–$1,080",
+          summary: "Estimated $720-$1,080",
           range: { min: 720, max: 1080, currency: "AUD" },
           assumptions: ["$180/hr", "4-hour minimum", "Range preserved - not coerced to 4 or 6"],
           ruleIds: ["nl-event"],
@@ -371,11 +371,11 @@ export const ENQUIRIES: Enquiry[] = [
       conflicts: [],
       recommendation: rec(
         "REQUEST_INFORMATION",
-        "Keep the 4–6 hour range. Ask whether the warehouse is indoor-only so a quote can be exact.",
+        "Keep the 4-6 hour range. Ask whether the warehouse is indoor-only so a quote can be exact.",
         { label: "Ask indoor or outdoor" },
       ),
       explanation:
-        "Event coverage is $180/hour with a 4-hour minimum, so 4–6 hours is $720–$1,080. Enquiry will not pick 4 or 6. Indoor/outdoor is the one fact that still blocks an exact quote.",
+        "Event coverage is $180/hour with a 4-hour minimum, so 4-6 hours is $720-$1,080. Enquiry will not pick 4 or 6. Indoor/outdoor is the one fact that still blocks an exact quote.",
       why: [
         why(
           "w1",
@@ -396,14 +396,14 @@ export const ENQUIRIES: Enquiry[] = [
         id: "f02-draft",
         action: "REQUEST_INFORMATION",
         subject: "Re: Photography for Lumen Goods launch",
-        body: "Hi Jordan,\n\nI can cover the 3 October launch. Event coverage is $180 an hour with a four-hour minimum, so 4–6 hours would be $720–$1,080 depending on how long you need me.\n\nOne thing I need before I lock a number: is the warehouse indoor only, or is there an outdoor element as well?\n\nAlex\nNorthlight",
+        body: "Hi Jordan,\n\nI can cover the 3 October launch. Event coverage is $180 an hour with a four-hour minimum, so 4-6 hours would be $720-$1,080 depending on how long you need me.\n\nOne thing I need before I lock a number: is the warehouse indoor only, or is there an outdoor element as well?\n\nAlex\nNorthlight",
         groundedFacts: ["f02-hours", "f02-date"],
         voiceVersion: "v1",
       },
       quotes: [],
       automationEligible: false,
       failedGates: [],
-      serviceComposition: ["Event coverage · 4–6 hours"],
+      serviceComposition: ["Event coverage · 4-6 hours"],
     },
   },
   {
@@ -648,7 +648,7 @@ export const ENQUIRIES: Enquiry[] = [
         evalr({
           type: "availability",
           status: "VALIDATED",
-          summary: "Calendar has space Tue–Thu.",
+          summary: "Calendar has space Tue-Thu.",
           detail: "Calendar clear is not the same as the job being feasible.",
         }),
         evalr({
@@ -695,7 +695,7 @@ export const ENQUIRIES: Enquiry[] = [
         why(
           "w2",
           "Why Friday fails",
-          "3 bedrooms ≈ 4 crew-days. Remaining weekdays: Tue–Fri with a Monday start already gone.",
+          "3 bedrooms ≈ 4 crew-days. Remaining weekdays: Tue-Fri with a Monday start already gone.",
           src("calendar", "Ridge job calendar"),
         ),
       ],
@@ -1097,7 +1097,7 @@ export const ENQUIRIES: Enquiry[] = [
         at: "2026-08-10T11:00:00+10:00",
         from: "Dana Okonkwo",
         subject: "Gallery opening 20 Sept",
-        body: "Hi Alex, can you cover our Fitzroy gallery opening on 20 September, 4pm–8pm? Four hours.",
+        body: "Hi Alex, can you cover our Fitzroy gallery opening on 20 September, 4pm-8pm? Four hours.",
       }),
       msg({
         id: "f07-m2",
@@ -1176,7 +1176,7 @@ export const ENQUIRIES: Enquiry[] = [
         id: "f07-draft",
         action: "SEND_QUOTE",
         subject: "Re: Gallery opening 20 Sept",
-        body: "Hi Dana,\n\nStaying until 11pm is seven hours rather than four. The previous quote of $720 still stands as written; the revised coverage would be $1,260.\n\nI have a session the next morning, so I'd need to start that one later. If 4pm–11pm is right, I'll send the updated offer.\n\nAlex\nNorthlight",
+        body: "Hi Dana,\n\nStaying until 11pm is seven hours rather than four. The previous quote of $720 still stands as written; the revised coverage would be $1,260.\n\nI have a session the next morning, so I'd need to start that one later. If 4pm-11pm is right, I'll send the updated offer.\n\nAlex\nNorthlight",
         groundedFacts: ["f07-hours", "f07-date"],
         voiceVersion: "v1",
       },
@@ -1188,7 +1188,7 @@ export const ENQUIRIES: Enquiry[] = [
           sentAt: "2026-08-10T15:12:00+10:00",
           total: { amount: 720, currency: "AUD" },
           lineItems: [{ id: "h4", label: "Event coverage × 4 hours", amount: 720 }],
-          assumptions: ["4pm–8pm, Fitzroy gallery"],
+          assumptions: ["4pm-8pm, Fitzroy gallery"],
           ruleSetVersion: "Event v4",
         },
         {
@@ -1197,7 +1197,7 @@ export const ENQUIRIES: Enquiry[] = [
           status: "draft",
           total: { amount: 1260, currency: "AUD" },
           lineItems: [{ id: "h7", label: "Event coverage × 7 hours", amount: 1260 }],
-          assumptions: ["4pm–11pm, includes dinner next door"],
+          assumptions: ["4pm-11pm, includes dinner next door"],
           ruleSetVersion: "Event v4",
         },
       ],
@@ -2258,7 +2258,7 @@ export const ENQUIRIES: Enquiry[] = [
         evalr({
           type: "availability",
           status: "VALIDATED",
-          summary: "Friday–Saturday window is free.",
+          summary: "Friday-Saturday window is free.",
         }),
         evalr({ type: "eligibility", status: "PASS", summary: "In-area interior." }),
         na("package_selection"),

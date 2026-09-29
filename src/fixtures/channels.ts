@@ -248,7 +248,7 @@ export const CHANNEL_ENQUIRIES: Enquiry[] = [
         evalr({
           type: "pricing",
           status: "RANGE",
-          summary: "Estimated $720–$1,080 until hours are known.",
+          summary: "Estimated $720-$1,080 until hours are known.",
           range: { min: 720, max: 1080, currency: "AUD" },
           assumptions: ["$180/hr", "4-hour minimum"],
         }),

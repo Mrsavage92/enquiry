@@ -107,7 +107,7 @@ export function proposeRevision(enquiry: Enquiry): Enquiry {
   const amount = draft.total
     ? formatAud(draft.total.amount)
     : draft.range
-      ? `${formatAud(draft.range.min)}–${formatAud(draft.range.max)}`
+      ? `${formatAud(draft.range.min)}-${formatAud(draft.range.max)}`
       : "the figure already sent";
   next.decision.draft = {
     ...next.decision.draft,

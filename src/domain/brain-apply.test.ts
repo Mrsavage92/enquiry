@@ -60,7 +60,7 @@ test("Northlight event hourly revises Jordan's estimate range", () => {
   const preview = compileBrainChange(northlight, "Event coverage will be $200 an hour.", ENQUIRIES);
   assert.ok(preview);
   const jordan = preview.affected.find((a) => a.enquiryId === "f02");
-  assert.equal(jordan?.to, "$800–$1,200");
+  assert.equal(jordan?.to, "$800-$1,200");
 });
 
 test("sent Harbour quote is not rewritten", () => {

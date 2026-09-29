@@ -1647,7 +1647,7 @@ function labelStatus(result: EvaluatorResult, omitAmount?: boolean): string {
     case "RANGE":
       if (omitAmount) return "Estimate";
       return result.range
-        ? `Estimate ${formatAud(result.range.min)}–${formatAud(result.range.max)}`
+        ? `Estimate ${formatAud(result.range.min)}-${formatAud(result.range.max)}`
         : "Estimate";
     case "NOT_QUOTABLE":
       return "Not quotable";

@@ -501,6 +501,9 @@ html[data-palette="b"]:not(:has(.app-root)) {
   .field:hover {
     border-color: var(--color-line-control-hover);
   }
+  .field[aria-invalid="true"] {
+    border-color: var(--color-danger);
+  }
   .field:focus {
     outline: 2px solid var(--color-mark);
     outline-offset: 2px;

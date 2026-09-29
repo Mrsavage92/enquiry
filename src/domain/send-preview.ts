@@ -52,7 +52,7 @@ function amountLabelFor(enquiry: Enquiry, decision: DecisionSnapshot): string | 
   const exact = enquiry.valueExact?.amount ?? focusQuote?.total?.amount;
   if (typeof exact === "number") return formatAud(exact);
   const range = enquiry.valueRange ?? focusQuote?.range;
-  if (range) return `${formatAud(range.min)}–${formatAud(range.max)}`;
+  if (range) return `${formatAud(range.min)}-${formatAud(range.max)}`;
   // Before a send, no quote_version row exists yet and enquiry.valueExact is
   // still unset - the decision snapshot's own computed price (set the moment
   // the enquiry was decided) is the only place the figure lives. Reading it
@@ -60,7 +60,7 @@ function amountLabelFor(enquiry: Enquiry, decision: DecisionSnapshot): string | 
   // blank for a live enquiry that has simply never been sent yet.
   if (decision.price?.kind === "EXACT") return formatAud(decision.price.amountMinor / 100);
   if (decision.price?.kind === "RANGE") {
-    return `${formatAud(decision.price.minMinor / 100)}–${formatAud(decision.price.maxMinor / 100)}`;
+    return `${formatAud(decision.price.minMinor / 100)}-${formatAud(decision.price.maxMinor / 100)}`;
   }
   return null;
 }

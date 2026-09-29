@@ -1,6 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
-import { Building2, ChevronLeft, MapPin } from "lucide-react";
+import { Building2, Check, ChevronLeft, MapPin } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { AuthLayout } from "@/components/auth/auth-layout";
 import { usePrototype } from "@/store/prototype-store";
@@ -54,7 +54,7 @@ function detectTimezone(): string {
 
 const TEAMS = [
   { id: "solo", label: "Just me" },
-  { id: "small", label: "Small team (2–5)" },
+  { id: "small", label: "Small team (2-5)" },
   { id: "studio", label: "Studio (6+)" },
 ];
 
@@ -334,7 +334,7 @@ function Onboarding() {
                 name="owner-first-name"
                 value={ownerFirstName}
                 onChange={setOwnerFirstName}
-                placeholder="Used when Enquiry signs off"
+                placeholder="e.g. Sam - used when Enquiry signs off"
                 autoComplete="given-name"
               />
               <Field
@@ -342,14 +342,14 @@ function Onboarding() {
                 name="industry"
                 value={industry}
                 onChange={setIndustry}
-                placeholder="e.g. mobile makeup, painting, photography"
+                placeholder="e.g. painting or mobile makeup"
               />
               <Field
                 label="Where you work from"
                 name="base-location"
                 value={baseLocation}
                 onChange={setBaseLocation}
-                placeholder="Suburb, city or region"
+                placeholder="e.g. Newcastle, NSW"
                 autoComplete="address-level2"
               />
               <SelectField
@@ -427,22 +427,34 @@ function Onboarding() {
               four sentences: it prepares, it does not decide unsupervised,
               and it starts knowing nothing about this specific business.
             */}
-            <ul className="mt-8">
+            <ul className="mt-8 space-y-1.5 text-sm text-ink-2">
               {[
-                "Your workspace starts empty. Nothing is pre-loaded from another business.",
-                "Enquiry prepares replies. Nothing sends without your approval.",
+                "Your workspace starts empty.",
+                "Nothing sends without your approval.",
                 "No mailbox or social account is connected yet.",
-                "Enquiry learns your prices and rules from what you confirm, and your voice from replies you approve or edit - not from a quiz.",
-                "Tell us your services and prices and we help you set them up, so your first real enquiry has something to price against.",
               ].map((line) => (
-                <li
-                  key={line}
-                  className="border-t border-line py-3 text-sm text-ink-2 last:border-b"
-                >
+                <li key={line} className="flex items-start gap-2">
+                  <Check size={16} className="mt-0.5 shrink-0 text-mark-strong" aria-hidden />
                   {line}
                 </li>
               ))}
             </ul>
+            <details className="onboarding-why mt-2 text-sm text-ink-2">
+              <summary className="inline-flex min-h-11 cursor-pointer items-center font-medium text-mark-strong">
+                Why?
+              </summary>
+              <div className="space-y-2 pb-2">
+                <p>Nothing is pre-loaded from another business. Enquiry prepares replies; you send them.</p>
+                <p>
+                  Enquiry learns your prices and rules from what you confirm, and your voice from
+                  replies you approve or edit - not from a quiz.
+                </p>
+                <p>
+                  Tell us your services and prices and we help you set them up, so your first real
+                  enquiry has something to price against.
+                </p>
+              </div>
+            </details>
 
             <label className="mt-6 flex min-h-11 cursor-pointer items-start gap-3 text-sm">
               <input
