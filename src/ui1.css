@@ -983,14 +983,6 @@ li:nth-child(3n + 3) .customer-avatar {
   top: 10px;
   font-size: 20px;
 }
-.today-menu {
-  display: grid;
-  place-items: center;
-  height: 44px;
-  width: 44px;
-  margin-left: -10px;
-  color: var(--color-ink);
-}
 .today-phone .ui-page-header > div {
   flex: 1;
 }

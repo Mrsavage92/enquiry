@@ -10,7 +10,6 @@ import {
   ChevronLeft,
   ChevronRight,
   Clock3,
-  Menu,
   Plus,
   Search,
   X,
@@ -212,7 +211,7 @@ function FirstRun({ practice }: { practice?: Enquiry }) {
   return (
     <section className="today-start" aria-labelledby="first-run-title">
       <p className="today-start-kicker">Your first step</p>
-      <h2 id="first-run-title">Add your first enquiry</h2>
+      <h2 id="first-run-title">Start with one real enquiry</h2>
       <p className="today-start-meta">
         Paste what a customer sent you. Enquiry works out what you can safely promise and prepares a
         reply for you to check. Nothing is sent.
@@ -394,16 +393,6 @@ export function TodayPage() {
     <div className="ui-page-scroll">
       <div className={`ui-page today-page ${phone ? "today-phone" : ""}`}>
         <header className="ui-page-header">
-          {phone ? (
-            <Link
-              to="/more"
-              className="today-menu"
-              aria-label="More destinations"
-              title="More destinations"
-            >
-              <Menu size={19} />
-            </Link>
-          ) : null}
           <div>
             <h1>
               {phone

@@ -1219,7 +1219,8 @@ html.embed .site-nav {
   }
   body:has(.app-root) [data-sonner-toaster][data-y-position="bottom"] {
     top: auto !important;
-    bottom: calc(4.5rem + var(--app-safe-bottom)) !important;
+    /* Measured in __root.tsx: the tab bar, or an open sheet, plus a gap. */
+    bottom: var(--toast-floor, calc(4.5rem + var(--app-safe-bottom))) !important;
   }
   body:has(.app-root) [data-sonner-toaster][data-y-position="top"] {
     top: calc(0.5rem + var(--app-safe-top)) !important;
