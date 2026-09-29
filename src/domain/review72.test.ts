@@ -251,7 +251,7 @@ test("H4: a day only mentioned in the closed dates is still said, and the flag i
   ).reply;
   assert.match(
     r2,
-    /Monday 21 Dec or Tuesday 22 Dec - I'm not working from 20 December to 5 January\. Would Wednesday 6 January suit instead\?/,
+    /Monday 21 December or Tuesday 22 December - I'm not working from 20 December to 5 January\. Would Wednesday 6 January suit instead\?/,
   );
 });
 
@@ -332,7 +332,7 @@ test("M3: their own second choice is offered, not a day they did not name", () =
   );
   assert.match(
     reply,
-    /Sunday 11 Oct or Saturday 17 Oct - I don't work Sundays, so would Saturday 17 October suit\?/,
+    /Sunday 11 October or Saturday 17 October - I don't work Sundays, so would Saturday 17 October suit\?/,
   );
   assert.deepEqual(
     readDates("Sunday 11/10 or Monday 12/10?", NOW).options?.days.map((x) => x.iso),
@@ -407,8 +407,10 @@ test("Leftovers: a rough count confirmed stays rough in the reply", () => {
     messageText: "maybe 12sqm",
   });
   const reply = composeReply(d, {});
-  assert.match(reply, /that comes to about \$360 \(about 12 square metres at \$30 each\)/);
-  assert.match(reply, /I'll confirm the final price once I've seen it/);
+  assert.match(
+    reply,
+    /that comes to about \$360, I'll confirm once I've seen the job \(about 12 square metres at \$30 each, please confirm the size\)/,
+  );
 });
 
 test("H3: 'Add a price for this job' returns only when that job's price saved", async () => {

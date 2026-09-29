@@ -1,5 +1,5 @@
 import type { BusinessDetail } from "./business-detail.ts";
-import { WEEKDAYS, spokenMonthDay } from "./business-detail.ts";
+import { WEEKDAYS, closedRangeCovers, describeDetail, spokenMonthDay } from "./business-detail.ts";
 import { DECLINED, NOT_A_REQUEST, SERVICE_NOUNS } from "./extras.ts";
 import { distinctiveStems, mentionsAny, namesService, stem, stemsOf } from "./service-words.ts";
 import type { RuleCheck } from "./rule-checks.ts";
@@ -36,6 +36,8 @@ export type CoverageLine = {
   firstVisit?: boolean;
   /** "minimum charge": why the amount is not the count times the rate. */
   note?: string;
+  /** The count is their rough figure: the owner can confirm it exact with one tap. */
+  rough?: { field: string; value: string };
 };
 
 export type CoverageFlag = {
@@ -262,6 +264,16 @@ function mentionFlags(
     const others = services.filter(
       (o) => !covered.some((c) => c.trim().toLowerCase() === o.trim().toLowerCase()),
     );
+    // "walls" say interior painting: with interior painting on the quote they
+    // are part of it, never asked about again; with it only mentioned, the
+    // "They mention interior painting" line already covers them.
+    const implied = stemsOf(noun).filter((x) => x !== s);
+    const viaCovered = covered.find((c) => stemsOf(c).some((x) => implied.includes(x)));
+    if (viaCovered) {
+      folded.set(viaCovered, [...(folded.get(viaCovered) ?? []), noun]);
+      continue;
+    }
+    if (implied.some((x) => named.has(x))) continue;
     const owner = partOf(noun, covered, others, text);
     if (owner) {
       folded.set(owner, [...(folded.get(owner) ?? []), noun]);
@@ -317,10 +329,13 @@ function detailFlags(
     if (d.kind === "note" && noteConcerns(d, message, onQuote, services)) {
       out.push({ kind: "note", text: `Your note: ${d.text}` });
     }
+    // "paint the outside of our house" names exterior painting as plainly as
+    // "exterior": the owner's own "We don't paint exteriors" is said back,
+    // and the reply says no kindly once they tap.
     if (d.kind === "not_offered" && namesService(message, d.service) && !onQuote(d.service)) {
       out.push({
         kind: "not_offered",
-        text: `They mention ${d.service} - you don't offer it`,
+        text: `${describeDetail(d)} - they asked about it`,
         thing: d.service,
       });
     }
@@ -338,15 +353,16 @@ function detailFlags(
     });
   }
   const ranges = details.flatMap((d) => (d.kind === "closed_dates" ? [d] : []));
-  const inRange = (iso: string, r: { from: string; to: string }) => {
-    const md = iso.slice(5);
-    return r.from <= r.to ? md >= r.from && md <= r.to : md >= r.from || md <= r.to;
-  };
-  const hit = ranges.find((r) => jobDates.some((iso) => inRange(iso, r)));
+  const hit = ranges.find((r) => jobDates.some((iso) => closedRangeCovers(iso, r)));
   if (hit) {
+    const own = describeDetail(hit);
+    const said =
+      hit.year === undefined && hit.from !== hit.to
+        ? `${spokenMonthDay(hit.from)} to ${spokenMonthDay(hit.to)}`
+        : `${own.charAt(0).toLowerCase()}${own.slice(1)}`;
     out.push({
       kind: "closed_day",
-      text: `A day they mentioned is in your closed dates (${spokenMonthDay(hit.from)} to ${spokenMonthDay(hit.to)}) - the reply says so`,
+      text: `A day they mentioned is in your closed dates (${said}) - the reply says so`,
     });
   }
   return out;

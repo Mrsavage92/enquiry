@@ -5,6 +5,7 @@ import { extraField, extraLabel, isExtraField, readExtraRequests } from "../../d
 import { stemsOf } from "../../domain/service-words.ts";
 import { activeDetails } from "../../domain/business-detail.ts";
 import { questionField, readServiceQuestions } from "../../domain/service-questions.ts";
+import { readCustomerAsks } from "../../domain/customer-asks.ts";
 
 /**
  * The count a price needs, read from what the customer already wrote.
@@ -182,6 +183,32 @@ export async function inferQuestions(
         )
       `;
       written.push({ field, value, status: "inferred", display_value: q.span });
+    }
+    for (const ask of readCustomerAsks(m.body ?? "", services, details)) {
+      if (have.has(ask.field.toLowerCase())) continue;
+      have.add(ask.field.toLowerCase());
+      await sql`
+        insert into enquiry_fact
+          (enquiry_id, field, label, value, display_value, status, confidence,
+           asserted_by, provenance, customer_specific)
+        values (
+          ${enquiryId}, ${ask.field}, ${`They asked: ${ask.question}`}, ${"open"}, ${ask.question},
+          ${"inferred"}, ${"Medium"}, ${"system"},
+          ${JSON.stringify({
+            kind: "message",
+            label: "Read from the customer's message",
+            messageId: m.id || undefined,
+            span: ask.question,
+          })}::jsonb,
+          ${true}
+        )
+      `;
+      written.push({
+        field: ask.field,
+        value: "open",
+        status: "inferred",
+        display_value: ask.question,
+      });
     }
   }
   return written;

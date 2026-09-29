@@ -612,7 +612,7 @@ export const saveBusinessRules = createServerFn({ method: "POST" })
       if (!parsed.ok) throw new Error(parsed.reason);
       return parsed.detail;
     });
-    return { businessId, rules, details };
+    return { businessId, rules, details, said: saidFrom(d.said, rules.length, details.length) };
   })
   .handler(async ({ context, data }) => {
     const { getSql, withTransaction } = await import("@/lib/db");
@@ -646,6 +646,99 @@ export const saveBusinessRules = createServerFn({ method: "POST" })
       ok: true as const,
       saved: result.saved.filter((s) => s.outcome !== "duplicate").length,
       details: result.detailIds.length,
+      updatedEnquiries: result.updatedEnquiryIds.length,
+    };
+  });
+
+/** The owner's own lines behind a save, validated: strings only, never longer than a line. */
+function saidFrom(
+  raw: unknown,
+  rules: number,
+  details: number,
+): { rules: (string | undefined)[]; details: (string | undefined)[] } | undefined {
+  if (!raw || typeof raw !== "object") return undefined;
+  const r = raw as Record<string, unknown>;
+  const lines = (v: unknown, max: number) =>
+    (Array.isArray(v) ? v : [])
+      .slice(0, max)
+      .map((x) => (typeof x === "string" && x.trim() ? x.trim().slice(0, 300) : undefined));
+  return { rules: lines(r.rules, rules), details: lines(r.details, details) };
+}
+
+/** A knowledge row id, as the owner's screen holds it. */
+function knowledgeIdFrom(d: Record<string, unknown>): string {
+  const id = typeof d.knowledgeId === "string" ? d.knowledgeId.trim() : "";
+  if (!id) throw new Error("Say which business detail.");
+  return id;
+}
+
+/**
+ * Remove one of the business's facts from use: retired, never deleted, and the
+ * open enquiries that were decided on it are decided again.
+ */
+export const retireBusinessFact = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .validator((raw: unknown) => {
+    const d = (raw ?? {}) as Record<string, unknown>;
+    const businessId = typeof d.businessId === "string" ? d.businessId : "";
+    if (!businessId) throw new Error("A business id is required.");
+    return { businessId, knowledgeId: knowledgeIdFrom(d) };
+  })
+  .handler(async ({ context, data }) => {
+    const { getSql, withTransaction } = await import("@/lib/db");
+    const { retireBusinessFactForUser } = await import("@/lib/repo/business-rule-core");
+    const sql = await getSql();
+    const result = await retireBusinessFactForUser(sql, withTransaction, context.userId, data);
+    return {
+      ok: true as const,
+      body: result.body,
+      updatedEnquiries: result.updatedEnquiryIds.length,
+    };
+  });
+
+/** Change one fact to what the owner wrote instead: the old retired, the new saved, together. */
+export const replaceBusinessFact = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .validator((raw: unknown) => {
+    const d = (raw ?? {}) as Record<string, unknown>;
+    const businessId = typeof d.businessId === "string" ? d.businessId : "";
+    if (!businessId) throw new Error("A business id is required.");
+    const list = Array.isArray(d.rules) ? d.rules : [];
+    const detailList = Array.isArray(d.details) ? d.details : [];
+    if (list.length + detailList.length === 0) {
+      throw new Error("Write what it should say instead, or remove it.");
+    }
+    if (list.length + detailList.length > MAX_RULES_PER_SAVE) {
+      throw new Error(`Save up to ${MAX_RULES_PER_SAVE} details at a time.`);
+    }
+    const rules = list.map((r) => {
+      const parsed = parseBusinessRule(r);
+      if (!parsed.ok) throw new Error(parsed.reason);
+      return parsed.rule;
+    });
+    const details = detailList.map((r) => {
+      const parsed = parseBusinessDetail(r);
+      if (!parsed.ok) throw new Error(parsed.reason);
+      return parsed.detail;
+    });
+    return {
+      businessId,
+      knowledgeId: knowledgeIdFrom(d),
+      rules,
+      details,
+      said: saidFrom(d.said, rules.length, details.length),
+    };
+  })
+  .handler(async ({ context, data }) => {
+    const { getSql, withTransaction } = await import("@/lib/db");
+    const { replaceBusinessFactForUser } = await import("@/lib/repo/business-rule-core");
+    const sql = await getSql();
+    const result = await replaceBusinessFactForUser(sql, withTransaction, context.userId, data);
+    return {
+      ok: true as const,
+      body: result.body,
+      saved: result.saved,
+      details: result.details,
       updatedEnquiries: result.updatedEnquiryIds.length,
     };
   });

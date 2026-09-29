@@ -199,6 +199,7 @@ function decideFrom(
       serviceLabel: enquiry.serviceLabel,
       closed: closedTimesOf(activeDetails({ knowledge: inputs.knowledge })),
       followUp,
+      message: messageText,
     }),
   );
   return { decision, snapshot, state: stateFromDecision(decision) };

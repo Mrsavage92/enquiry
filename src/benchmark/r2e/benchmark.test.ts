@@ -266,3 +266,20 @@ test("the price-compiler invariant this whole benchmark leans on: an inferred/ch
   assert.notEqual(run.enquiryAfterInterpretation.decision_snapshot.price?.kind, "EXACT");
   assert.equal(run.enquiryAfterInterpretation.decision_state, "NEEDS_INFORMATION");
 });
+
+test("case 08: the crew-availability question holds the priced reply until the owner answers it", async () => {
+  const kase = BENCHMARK_CASES.find((k) => k.id === "case-08-availability-unavailable")!;
+  for (const mode of ["null", "fake"] as RunMode[]) {
+    const run = await runCase(kase, mode);
+    assert.equal(run.kind, "ran");
+    if (run.kind !== "ran") return;
+    assert.deepEqual(
+      run.asksSettled,
+      ["availability"],
+      `${mode}: the app must ask the owner first`,
+    );
+    const body = run.enquiryAfterInterpretation.decision_snapshot.draft.body;
+    assert.match(body, /\$320/);
+    assert.match(body, /I'll check my calendar and come back to you\./);
+  }
+});

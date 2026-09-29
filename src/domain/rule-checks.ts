@@ -48,7 +48,7 @@ export type RuleLine = {
 
 export type RuleCheck = {
   field: string;
-  kind: "minimum" | "surcharge" | "fee" | "eligibility";
+  kind: "minimum" | "surcharge" | "fee" | "eligibility" | "discount";
   /** One short sentence for the owner. */
   text: string;
   /** [value, button label] pairs, the rule's own way first. */
@@ -207,6 +207,8 @@ export type RulesApplied = {
   declined: string[];
   /** Sentences the reply carries about a rule it could not price ("Saturdays are 20% more."). */
   notes: string[];
+  /** Things only the owner reads: a rule that did not fit this job, and why. */
+  infos: string[];
   /** Every amount the applied rules put on the quote, all above zero. */
   implied: number[];
 };
@@ -228,6 +230,9 @@ type Ctx = {
   settled: Settled;
   open: RuleCheck[];
   implied: number[];
+  infos: string[];
+  /** How often the owner confirmed the job repeats ("fortnightly"), when it does. */
+  recurring?: string;
 };
 
 /** Ask, or apply what the owner chose. Returns the lines after the choice. */
@@ -272,16 +277,26 @@ function applySurcharges(ctx: Ctx, start: RuleLine[], notes: string[]): RuleLine
   const days = ctx.jobDates.map(weekdayOf).filter((d): d is number => d !== undefined);
   for (const s of ctx.details) {
     if (s.kind !== "surcharge") continue;
+    // A rule for no one service concerns every job on the quote.
     const target = jobLines(lines).filter((l) => concerns(l, s.service));
     if (target.length === 0 || !days.some((d) => s.days.includes(d))) continue;
-    if (days.length !== 1) {
+    // Every day they offered carries the rate ("this sat or sun" and a
+    // weekend rate): it applies whichever day it is. Some do, some don't: the
+    // reply says the rate plainly and the total does not guess.
+    if (!days.every((d) => s.days.includes(d))) {
       notes.push(`Just so you know, ${daysWord(s.days)} are ${s.percent}% more.`);
       continue;
     }
     const base = sum(target);
     const extra = Math.round((base * s.percent) / 100);
     if (extra <= 0) continue;
-    const name = WEEKDAYS[days[0]!]!;
+    const unique = [...new Set(days)];
+    const name =
+      unique.length === 1
+        ? WEEKDAYS[unique[0]!]!
+        : unique.every((d) => d === 0 || d === 6)
+          ? "weekend"
+          : unique.map((d) => WEEKDAYS[d]!).join(" or ");
     const check: RuleCheck = {
       field: `${RULE_PREFIX}surcharge:${s.days.join("")}:${s.percent}`,
       kind: "surcharge",
@@ -292,7 +307,7 @@ function applySurcharges(ctx: Ctx, start: RuleLine[], notes: string[]): RuleLine
       ],
     };
     const line: RuleLine = {
-      label: `${name} rate (${s.percent}% of ${formatMinorAud(base)})`,
+      label: `${capitalise(name)} rate (${s.percent}% of ${formatMinorAud(base)})`,
       amountMinor: extra,
       adjustment: true,
     };
@@ -303,6 +318,97 @@ function applySurcharges(ctx: Ctx, start: RuleLine[], notes: string[]): RuleLine
         ctx.implied.push(extra);
         return [...lines, line];
       },
+      lines,
+    );
+  }
+  return lines;
+}
+
+type Discount = Extract<BusinessDetail, { kind: "discount" }>;
+
+/** "fortnightly" from "every fortnight", "every two weeks". */
+const COUNT_WORDS: Record<string, number> = {
+  one: 1,
+  two: 2,
+  three: 3,
+  four: 4,
+  five: 5,
+  six: 6,
+  other: 2,
+  second: 2,
+};
+
+/**
+ * "fortnightly" from "every fortnight", "every two weeks", "every other week".
+ * Only an exact match: "every 3 weeks" or "every 4 weeks" is none of weekly,
+ * fortnightly or monthly, so no discount is offered for it.
+ */
+export function frequencyWord(said: string): Discount["frequency"] | undefined {
+  const s = said.toLowerCase();
+  const every = /\bevery\s+(\d+|one|two|three|four|five|six|other|second)\s+(week|month)s?\b/.exec(
+    s,
+  );
+  if (every) {
+    const n = /^\d+$/.test(every[1]!) ? Number(every[1]) : COUNT_WORDS[every[1]!];
+    if (every[2] === "month") return n === 1 ? "monthly" : undefined;
+    return n === 1 ? "weekly" : n === 2 ? "fortnightly" : undefined;
+  }
+  if (/\bfortnight/.test(s)) return "fortnightly";
+  if (/\b(?:weekly|every\s+week|each\s+week|once\s+a\s+week)\b/.test(s)) return "weekly";
+  if (/\b(?:monthly|every\s+month|each\s+month|once\s+a\s+month)\b/.test(s)) return "monthly";
+  return undefined;
+}
+
+/**
+ * "Fortnightly cleans get 10% off", once the owner has confirmed the job
+ * repeats that often: one tap takes it off each job line it concerns, and the
+ * line says so ("10% fortnightly discount on $160").
+ */
+function applyDiscounts(ctx: Ctx, start: RuleLine[]): RuleLine[] {
+  let lines = start;
+  if (!ctx.recurring) return lines;
+  const often = frequencyWord(ctx.recurring);
+  for (const d of ctx.details) {
+    if (d.kind !== "discount") continue;
+    if (d.frequency !== "regular" && d.frequency !== often) {
+      // "every 3 weeks" against a fortnightly discount: said to the owner,
+      // never a discount Enquiry stretches to fit.
+      if (!often) {
+        ctx.infos.push(
+          `Your ${d.frequency} discount is not offered: they want it ${ctx.recurring}.`,
+        );
+      }
+      continue;
+    }
+    const target = jobLines(lines).filter((l) => concerns(l, d.service));
+    if (target.length === 0) continue;
+    const base = sum(target);
+    const after = target.reduce(
+      (s, l) => s + Math.round((l.amountMinor * (100 - d.percent)) / 100),
+      0,
+    );
+    if (after <= 0 || after >= base) continue;
+    const how = d.frequency === "regular" ? "regular" : d.frequency;
+    const check: RuleCheck = {
+      field: `${RULE_PREFIX}discount:${d.frequency}:${d.percent}`,
+      kind: "discount",
+      text: `They want it ${ctx.recurring} - your ${how} discount is ${d.percent}% off (${formatMinorAud(base)} becomes ${formatMinorAud(after)})`,
+      choices: [
+        [RULE_CHOICE.apply, `Apply ${d.percent}% ${how} discount (${formatMinorAud(after)})`],
+        [RULE_CHOICE.waive, "Doesn't apply"],
+      ],
+    };
+    lines = settle(
+      ctx,
+      check,
+      () =>
+        lines.map((l) => {
+          if (!target.includes(l)) return l;
+          const amountMinor = Math.round((l.amountMinor * (100 - d.percent)) / 100);
+          ctx.implied.push(l.amountMinor, amountMinor, l.amountMinor - amountMinor);
+          const off = `${d.percent}% ${how} discount on ${formatMinorAud(l.amountMinor)}`;
+          return { ...l, amountMinor, detail: l.detail ? `${l.detail}, ${off}` : off };
+        }),
       lines,
     );
   }
@@ -351,6 +457,8 @@ export function applyRules(input: {
   message: string;
   jobDates: readonly string[];
   facts: ReadonlyArray<{ field: string; value: unknown; status: string }>;
+  /** How often the owner confirmed the job repeats, when it does. */
+  recurring?: string;
 }): RulesApplied {
   const ctx: Ctx = {
     details: input.details,
@@ -359,6 +467,8 @@ export function applyRules(input: {
     settled: settledRules(input.facts),
     open: [],
     implied: [],
+    infos: [],
+    ...(input.recurring ? { recurring: input.recurring } : {}),
   };
   const declined: string[] = [];
   const notes: string[] = [];
@@ -377,6 +487,9 @@ export function applyRules(input: {
     declined.push(declineSentence(d, kept.length === 0));
     lines = kept;
   }
+  // A repeat-job discount comes off before the minimum is checked: a
+  // discounted job never ends up under the owner's minimum unasked.
+  lines = applyDiscounts(ctx, lines);
   lines = applyMinimums(ctx, lines);
   lines = applySurcharges(ctx, lines, notes);
   lines = applyFees(ctx, lines);
@@ -386,6 +499,7 @@ export function applyRules(input: {
     declined,
     notes,
     implied: [...new Set(ctx.implied.filter((n) => n > 0))],
+    infos: ctx.infos,
   };
 }
 

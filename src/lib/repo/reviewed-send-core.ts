@@ -87,17 +87,28 @@ export type PrepareReviewResult =
     };
 
 /** The figures in the text (in minor units) that the decision does not imply. */
+/**
+ * The money a reply names that is about the job: every figure, less the ones
+ * the owner typed themselves in an answer ("insured with $20m public
+ * liability"), which are trusted as written and never read as a price.
+ */
+export function priceFigures(body: string, ownerMinor: readonly number[] = []): number[] {
+  const own = new Set(ownerMinor);
+  return dollarAmounts(body).filter((n) => !own.has(Math.round(n * 100)));
+}
+
 export function mismatchAmounts(
   body: string,
   price: DecisionPrice | null,
   impliedMinor: number[] = [],
+  ownerMinor: number[] = [],
 ): { named: number[]; expectedMinor: number | null } {
   const expectedMinor = price?.kind === "EXACT" ? price.amountMinor : null;
   const allowed = new Set<number>([
     ...impliedMinor,
     ...(expectedMinor !== null ? [expectedMinor] : []),
   ]);
-  const named = [...new Set(dollarAmounts(body).map((n) => Math.round(n * 100)))].filter(
+  const named = [...new Set(priceFigures(body, ownerMinor).map((n) => Math.round(n * 100)))].filter(
     (n) => !allowed.has(n),
   );
   return { named, expectedMinor };
@@ -108,8 +119,9 @@ export function mismatchMessage(
   body: string,
   price: DecisionPrice | null,
   impliedMinor: number[] = [],
+  ownerMinor: number[] = [],
 ): string {
-  const { named, expectedMinor } = mismatchAmounts(body, price, impliedMinor);
+  const { named, expectedMinor } = mismatchAmounts(body, price, impliedMinor, ownerMinor);
   const total = expectedMinor !== null ? formatMinorAud(expectedMinor) : null;
   const says = named.map((n) => formatMinorAud(n)).join(" and ");
   if (!total) {
@@ -199,8 +211,9 @@ export function amountAgrees(
   body: string,
   price: DecisionPrice | null,
   impliedMinor: number[] = [],
+  ownerMinor: number[] = [],
 ): boolean {
-  const named = dollarAmounts(body);
+  const named = priceFigures(body, ownerMinor);
   if (named.length === 0) return true;
   if (!price) {
     // No structured amount at all, but the text names money. Nothing to agree
@@ -252,6 +265,7 @@ type SnapshotRow = {
   reason: string | null;
   price: DecisionPrice | null;
   implied_amounts: number[] | null;
+  owner_amounts: number[] | null;
   evaluators: EvaluatorResult[] | null;
   missing: { factField?: string; inferred?: unknown }[] | null;
   engine_version: string;
@@ -296,6 +310,7 @@ export async function prepareReviewedSendInTransaction(
       decision_snapshot -> 'recommendation' ->> 'reason' as reason,
       decision_snapshot -> 'price' as price,
       decision_snapshot -> 'impliedAmountsMinor' as implied_amounts,
+      decision_snapshot -> 'ownerAmountsMinor' as owner_amounts,
       decision_snapshot -> 'evaluators' as evaluators,
       decision_snapshot -> 'missing' as missing,
       engine_version
@@ -318,7 +333,8 @@ export async function prepareReviewedSendInTransaction(
   // A reply may state a price only once the owner has confirmed what it
   // covers, for this revision. Checked against the stored confirmation itself,
   // not only the snapshot, so a crafted body cannot name a total early.
-  if (dollarAmounts(input.body).length > 0) {
+  const ownerMinor = enq.owner_amounts ?? [];
+  if (priceFigures(input.body, ownerMinor).length > 0) {
     const coverage = await coverageNow(sql, input.enquiryId);
     if (coverage === "unconfirmed") {
       return {
@@ -376,12 +392,12 @@ export async function prepareReviewedSendInTransaction(
   }
 
   const price = enq.price ?? null;
-  if (!amountAgrees(input.body, price, enq.implied_amounts ?? [])) {
+  if (!amountAgrees(input.body, price, enq.implied_amounts ?? [], ownerMinor)) {
     return {
       ok: false,
       reason: "amount_mismatch",
-      message: mismatchMessage(input.body, price, enq.implied_amounts ?? []),
-      amounts: mismatchAmounts(input.body, price, enq.implied_amounts ?? []),
+      message: mismatchMessage(input.body, price, enq.implied_amounts ?? [], ownerMinor),
+      amounts: mismatchAmounts(input.body, price, enq.implied_amounts ?? [], ownerMinor),
     };
   }
 

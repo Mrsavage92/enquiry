@@ -15,6 +15,7 @@ import {
   replyContextFromFacts,
 } from "../../domain/reply-context.ts";
 import { activeDetails, closedTimesOf } from "../../domain/business-detail.ts";
+import { readCustomerAsks } from "../../domain/customer-asks.ts";
 import { questionField, readServiceQuestions } from "../../domain/service-questions.ts";
 import { namesService } from "../../domain/service-words.ts";
 
@@ -119,6 +120,9 @@ export async function insertManualEnquiry(
   // "Do you do mould removal?": a question the owner answers before any reply
   // is ready. Read as "No" when they said they don't offer it.
   facts.push(...questionFacts(input.body, [input.serviceLabel, ...services], business));
+  // "r u free this sat or sun?", "do you have insurance?": questions the reply
+  // has to answer, never passed over for a quote.
+  facts.push(...askFacts(input.body, [input.serviceLabel, ...services], business));
   // Every reading goes in before the decision: what the price covers is
   // fingerprinted over all of them, so the first decision already knows them.
   facts.push(...dateFacts(basics.dates));
@@ -178,6 +182,7 @@ export async function insertManualEnquiry(
         serviceLabel: input.serviceLabel,
         closed: closedTimesOf(activeDetails(business)),
         followUp: isFollowUp([input.body]),
+        message: input.body,
       },
     ),
   );
@@ -185,6 +190,7 @@ export async function insertManualEnquiry(
   const dateLabel =
     basics.jobDate?.label ??
     basics.dates.options?.label ??
+    basics.dates.window?.label ??
     (basics.dates.asap ? "ASAP" : null) ??
     (basics.dates.approx ? `"${basics.dates.approx.span}"` : null) ??
     (basics.dates.preference ? `Prefers ${basics.dates.preference}` : null);
@@ -246,6 +252,16 @@ export async function insertManualEnquiry(
   return { enquiryId, messageId };
 }
 
+const WEEKDAY_NAMES = [
+  "Sunday",
+  "Monday",
+  "Tuesday",
+  "Wednesday",
+  "Thursday",
+  "Friday",
+  "Saturday",
+] as const;
+
 type ArrivalFact = {
   field: string;
   label?: string;
@@ -303,6 +319,17 @@ export function questionFacts(
       q.span,
       `They asked if you do ${q.thing}`,
     ),
+  );
+}
+
+/** Their other questions, each a reading the owner answers before the reply is ready. */
+export function askFacts(
+  body: string,
+  services: readonly string[],
+  business: { knowledge?: ReadonlyArray<{ state?: string | null; rulePayload?: unknown }> },
+): ArrivalFact[] {
+  return readCustomerAsks(body, services, activeDetails(business)).map((q) =>
+    readFact(q.field, "open", q.question, q.question, `They asked: ${q.question}`),
   );
 }
 
@@ -389,6 +416,20 @@ function dateFacts(dates: DateReading): ArrivalFact[] {
         options: o.days.map((d) => d.iso),
       },
     });
+  } else if (dates.window) {
+    // "sometime between 2 and 9 November": the stretch they are free, never
+    // one day of it. The reply quotes it and the owner picks the day.
+    const w = dates.window;
+    out.push({
+      ...readFact("date", `${w.from}..${w.to}`, `Any day ${w.label}`, w.span, "Job date"),
+      provenance: {
+        kind: "message",
+        label: "Read from the customer's message",
+        span: w.span,
+        asked: true,
+        window: { from: w.from, to: w.to, except: w.except },
+      },
+    });
   } else if (dates.asap) {
     out.push(readFact("date", ASAP_VALUE, "As soon as possible", "asap", "Job date"));
   } else if (dates.approx) {
@@ -424,6 +465,18 @@ function dateFacts(dates: DateReading): ArrivalFact[] {
         dates.context.map((d) => `${d.what} ${d.label}`).join("; "),
         dates.context.map((d) => d.span).join("; "),
         "Also mentioned",
+      ),
+    );
+  }
+  if (dates.exceptDays?.length && !dates.window) {
+    const names = dates.exceptDays.map((d) => `${WEEKDAY_NAMES[d]}s`).join(" or ");
+    out.push(
+      readFact(
+        "not_available",
+        dates.exceptDays.map((d) => `weekday:${d}`).join(","),
+        names,
+        names,
+        "Not available",
       ),
     );
   }

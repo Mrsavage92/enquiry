@@ -295,7 +295,7 @@ test("C13: the chip and the verdict use one word each; a parked chip says when i
   };
   const chip = statusChip(parked, now, "Australia/Brisbane");
   assert.equal(chip, `Later until ${wall.weekday} ${wall.day} ${wall.month}`);
-  assert.equal(derivedLabel(parked.state, parked), STATUS.parked);
+  assert.equal(derivedLabel(parked.state, parked, now.getTime()), STATUS.parked);
 });
 
 test("C11: a job date read from the message is 'Asked for'; two days offered are 'Asked about'", () => {

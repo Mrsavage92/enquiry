@@ -227,8 +227,8 @@ export function AnswerBlocker({
             {result}
           </p>
         ) : null}
-        {/* Opened by "Edit" on a reading: the field is what they asked for. */}
-        <details open={editing || undefined}>
+        {/* Open from the start: typing the answer they gave by phone is one step. */}
+        <details open>
           <summary className="inline-flex min-h-11 cursor-pointer items-center text-sm font-medium text-mark-strong">
             {summary ?? `Already know ${decidingPhrase(missing.label)}? Enter it here`}
           </summary>

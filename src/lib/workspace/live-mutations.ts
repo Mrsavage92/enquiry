@@ -250,9 +250,36 @@ export function useFirstBetaActions() {
       return res;
     },
     /** Save several prices at once, all or nothing, then reload. */
-    saveRules: async (businessId: string, rules: unknown[], details: unknown[] = []) => {
+    saveRules: async (
+      businessId: string,
+      rules: unknown[],
+      details: unknown[] = [],
+      said?: { rules?: string[]; details?: string[] },
+    ) => {
       const { saveBusinessRules } = await import("@/lib/server/enquiry-actions");
-      const res = await saveBusinessRules({ data: { businessId, rules, details } });
+      const res = await saveBusinessRules({ data: { businessId, rules, details, said } });
+      await refresh();
+      return res;
+    },
+    /** Take one business fact out of use; open enquiries are decided again without it. */
+    retireFact: async (businessId: string, knowledgeId: string) => {
+      const { retireBusinessFact } = await import("@/lib/server/enquiry-actions");
+      const res = await retireBusinessFact({ data: { businessId, knowledgeId } });
+      await refresh();
+      return res;
+    },
+    /** Change one business fact to what the owner wrote instead. */
+    replaceFact: async (
+      businessId: string,
+      knowledgeId: string,
+      rules: unknown[],
+      details: unknown[],
+      said?: { rules?: string[]; details?: string[] },
+    ) => {
+      const { replaceBusinessFact } = await import("@/lib/server/enquiry-actions");
+      const res = await replaceBusinessFact({
+        data: { businessId, knowledgeId, rules, details, said },
+      });
       await refresh();
       return res;
     },

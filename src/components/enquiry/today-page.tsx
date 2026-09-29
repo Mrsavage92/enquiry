@@ -11,6 +11,7 @@ import {
   ChevronRight,
   Clock3,
   Menu,
+  Plus,
   Search,
   X,
 } from "lucide-react";
@@ -24,6 +25,7 @@ import {
   QUEUE_NAMES,
   queueSection,
   queueSummary,
+  sentQuoteAmount,
   STATUS,
 } from "@/domain/labels";
 import {
@@ -68,7 +70,9 @@ function EnquiryRow({ enquiry, prefs }: { enquiry: Enquiry; prefs: WorkspacePref
           {/* The owner's next step leads, not the customer's message. */}
           <span className="today-row-next">{nextStepLabel(enquiry)}</span>
           <span className="today-row-meta">
-            {[enquiry.serviceLabel, jobDateCue(enquiry)].filter(Boolean).join(" · ")}
+            {[enquiry.serviceLabel, jobDateCue(enquiry), quotedCue(enquiry)]
+              .filter(Boolean)
+              .join(" · ")}
           </span>
           <span className="today-row-cue">{rowTimeCue(enquiry, prefs)}</span>
         </span>
@@ -76,6 +80,13 @@ function EnquiryRow({ enquiry, prefs }: { enquiry: Enquiry; prefs: WorkspacePref
       </Link>
     </li>
   );
+}
+
+/** A waiting row names the quote they are answering: "Quoted $2,370". */
+function quotedCue(enquiry: Enquiry): string | null {
+  if (queueSection(enquiry) !== "waiting") return null;
+  const amount = sentQuoteAmount(enquiry);
+  return amount ? `Quoted ${amount}` : null;
 }
 
 /** The owner changed the prepared reply and has not sent it: that is the thing to finish. */
@@ -108,7 +119,10 @@ function StartHere({ enquiry, prefs }: { enquiry: Enquiry; prefs: WorkspacePrefs
         <PracticeBadge enquiry={enquiry} />
       </h2>
       <p className="today-start-meta">
-        {[enquiry.serviceLabel, rowTimeCue(enquiry, prefs)].filter(Boolean).join(" · ")}
+        {/* The day they asked for is on the card: "Asked for Sat 3 Oct". */}
+        {[enquiry.serviceLabel, jobDateCue(enquiry), rowTimeCue(enquiry, prefs)]
+          .filter(Boolean)
+          .join(" · ")}
       </p>
       <p className="today-start-next">
         {conflict
@@ -239,22 +253,59 @@ function FirstRun({ practice }: { practice?: Enquiry }) {
           {trying ? "Opening a practice enquiry…" : "Try a practice enquiry"}
         </button>
       )}
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent title="Add an enquiry" className="max-h-[90dvh] overflow-y-auto">
-          {business ? (
-            <AddEnquiry
-              initiallyOpen
-              business={business}
-              onCancel={() => setOpen(false)}
-              onCreated={(id) => {
-                setOpen(false);
-                void navigate({ to: "/enquiries/$enquiryId", params: { enquiryId: id } });
-              }}
-            />
-          ) : null}
-        </DialogContent>
-      </Dialog>
+      <AddEnquiryDialog open={open} onOpenChange={setOpen} />
     </section>
+  );
+}
+
+/** The add-an-enquiry form in a dialog: straight to the new enquiry once it is in. */
+function AddEnquiryDialog({
+  open,
+  onOpenChange,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const navigate = useNavigate();
+  const businesses = usePrototype((s) => s.businesses);
+  const filter = usePrototype((s) => s.businessFilter);
+  const business = businesses.find((b) => b.id === filter) ?? businesses[0];
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent title="Add an enquiry" className="max-h-[90dvh] overflow-y-auto">
+        {business ? (
+          <AddEnquiry
+            initiallyOpen
+            business={business}
+            onCancel={() => onOpenChange(false)}
+            onCreated={(id) => {
+              onOpenChange(false);
+              void navigate({ to: "/enquiries/$enquiryId", params: { enquiryId: id } });
+            }}
+          />
+        ) : null}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/**
+ * After the first enquiry, Today still has a way to add the next one: a
+ * second, quieter button under the list, never competing with "Start here".
+ */
+function AddAnotherEnquiry() {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <Button
+        variant="secondary"
+        className="today-add-enquiry mt-4 min-h-11 w-full sm:w-auto"
+        onClick={() => setOpen(true)}
+      >
+        <Plus size={16} aria-hidden /> Add an enquiry
+      </Button>
+      <AddEnquiryDialog open={open} onOpenChange={setOpen} />
+    </>
   );
 }
 
@@ -450,6 +501,7 @@ export function TodayPage() {
                       <ChevronRight size={16} aria-hidden />
                     </Link>
                   ) : null}
+                  {demoMode ? null : <AddAnotherEnquiry />}
                   <Link
                     to="/enquiries"
                     onClick={() => setQueueFilter("all")}

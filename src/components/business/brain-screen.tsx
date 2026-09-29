@@ -27,6 +27,8 @@ import { Segmented } from "@/components/ui/segmented";
 import { ScrollFade } from "@/components/ui/scroll-fade";
 import { BUSINESSES } from "@/fixtures";
 import { usePrototype } from "@/store/prototype-store";
+import { FactRow } from "@/components/business/fact-row";
+import { factStateWord } from "@/domain/fact-words";
 import { WorkspaceSettingUp } from "@/components/shell/workspace-setting-up";
 import { PricingRules } from "@/components/business/pricing-rules";
 import {
@@ -51,7 +53,6 @@ import {
   noteFor,
 } from "@/domain/business-detail";
 import { activeRules } from "@/domain/decide";
-import { concreteWhen } from "@/domain/time-cues";
 import { decidingPhrase } from "@/domain/price-compiler";
 import { useFirstBetaActions } from "@/lib/workspace/live-mutations";
 
@@ -136,7 +137,12 @@ export function BrainScreen() {
   // business exists.
   // Memoised because `?? []` would otherwise mint a new array every render and
   // invalidate the useMemo below it on each pass.
-  const items = useMemo(() => business?.knowledge ?? [], [business?.knowledge]);
+  // A removed fact is retired, not deleted: it stays on file for the replies
+  // already sent on it, and is never listed as something Enquiry uses.
+  const items = useMemo(
+    () => (business?.knowledge ?? []).filter((k) => k.state !== "Disabled"),
+    [business?.knowledge],
+  );
   const needsReview = items.filter((k) => k.state === "Needs review");
   const pendingLearn = (business?.learningSuggestions ?? []).filter((l) => l.status === "pending");
   const phone = useNarrow(860) !== false;
@@ -155,6 +161,13 @@ export function BrainScreen() {
   // "Add your prices" on an enquiry lands here with ?section=pricing: open the
   // pricing section and bring it into view, rather than a menu to find it in.
   const deepLinkPricing = search.section === "pricing";
+  // "?section=availability" opens Availability, not whatever tab was last open.
+  const deepLinkSection = sectionFromSearch(search.section);
+  useEffect(() => {
+    if (!deepLinkSection || deepLinkSection === "pricing") return;
+    setTab(deepLinkSection);
+    setDetailOpen(true);
+  }, [deepLinkSection, setTab]);
   useEffect(() => {
     if (!deepLinkPricing) return;
     setTab("pricing");
@@ -612,7 +625,7 @@ export function BrainScreen() {
                     </p>
                   </div>
                   <Badge tone={service.state === "Needs review" ? "warn" : "neutral"}>
-                    {service.state}
+                    {factStateWord(service.state)}
                   </Badge>
                 </li>
               ))}
@@ -677,10 +690,12 @@ export function BrainScreen() {
                   {group.title ? <p className="eyebrow mb-1">{group.title}</p> : null}
                   <ul className="ledger stagger-in">
                     {group.items.map((k) => (
-                      <KnowledgeRow
+                      <FactRow
                         key={k.id}
                         item={k}
                         all={items}
+                        live={!demoMode}
+                        services={activeRules(business).map((r) => r.service)}
                         onResolve={(keep, drop) => {
                           resolveConflict(business.id, keep, drop);
                           toast(
@@ -801,10 +816,17 @@ export function BrainScreen() {
                         const notes = livePrices.unread
                           .filter((u) => u.note && notesChosen.has(u.line))
                           .map((u) => noteFor(u.line, services));
+                        const noteLines = livePrices.unread
+                          .filter((u) => u.note && notesChosen.has(u.line))
+                          .map((u) => u.line);
                         const res = await firstBeta.saveRules(
                           business.id,
                           livePrices.prices.map((p) => p.rule),
                           [...livePrices.details.map((d) => d.detail), ...notes],
+                          {
+                            rules: livePrices.prices.map((p) => p.line),
+                            details: [...livePrices.details.map((d) => d.line), ...noteLines],
+                          },
                         );
                         const updated = res.updatedEnquiries > 0;
                         // Only what was saved leaves the box. Lines Enquiry
@@ -954,87 +976,6 @@ export function BrainScreen() {
   );
 }
 
-/** "from today 9:16pm", never "from 2026-09-25T11:16:25.413Z". */
-function readableFrom(value: string): string {
-  return /^\d{4}-\d{2}-\d{2}T/.test(value) ? concreteWhen(value) : value;
-}
-
-function KnowledgeRow({
-  item,
-  all,
-  onResolve,
-}: {
-  item: KnowledgeItem;
-  all: KnowledgeItem[];
-  onResolve: (keep: string, drop: string) => void;
-}) {
-  const [srcOpen, setSrcOpen] = useState(false);
-  const tone =
-    item.state === "Needs review"
-      ? "warn"
-      : item.state === "Active"
-        ? "ok"
-        : item.state === "Superseded"
-          ? "neutral"
-          : "info";
-  const other = item.conflictWith ? all.find((k) => k.id === item.conflictWith) : undefined;
-  return (
-    <li className="relative pl-3">
-      <span
-        aria-hidden
-        className={cn(
-          "absolute inset-y-3 left-0 w-0.5 rounded-full",
-          item.state === "Needs review"
-            ? "bg-warn"
-            : item.state === "Active"
-              ? "bg-ok"
-              : "bg-transparent",
-        )}
-      />
-      <div className="flex items-start justify-between gap-3">
-        <h2 className="font-medium leading-snug">{item.title}</h2>
-        <Badge tone={tone}>{item.state}</Badge>
-      </div>
-      <p className="mt-1 text-sm leading-relaxed text-ink-2">{item.body}</p>
-      <p className="mt-1.5 text-xs text-stone">
-        {item.source.label}
-        {item.effectiveFrom ? ` · from ${readableFrom(item.effectiveFrom)}` : ""}
-        {item.stale ? " · last confirmed a while ago" : ""}
-      </p>
-      <button
-        type="button"
-        className="mt-1.5 inline-flex min-h-11 items-center text-xs font-medium text-ink-2 underline-offset-4 hover:text-ink hover:underline"
-        onClick={() => setSrcOpen(true)}
-      >
-        Details
-      </button>
-      {item.state === "Needs review" && other ? (
-        <div className="mt-3">
-          <Button size="sm" onClick={() => onResolve(item.id, other.id)}>
-            Use this version
-          </Button>
-        </div>
-      ) : item.conflictWith && item.state === "Needs review" ? (
-        <p className="mt-2 text-sm text-warn">{item.conflictWith}</p>
-      ) : null}
-      <Dialog open={srcOpen} onOpenChange={setSrcOpen}>
-        <DialogContent title="Source details">
-          <p className="text-sm">
-            {item.source.label}
-            {item.source.at ? ` · ${item.source.at}` : ""}
-          </p>
-          {item.source.detail ? (
-            <p className="mt-2 text-sm text-ink-2">{item.source.detail}</p>
-          ) : null}
-          <p className="mt-3 text-xs text-stone">
-            {item.class} · {item.version}
-          </p>
-        </DialogContent>
-      </Dialog>
-    </li>
-  );
-}
-
 function VoiceCard({ businessId }: { businessId: string }) {
   const business = usePrototype((s) => s.businesses.find((b) => b.id === businessId));
   const setVoice = usePrototype((s) => s.setVoice);
@@ -1125,6 +1066,27 @@ function VoicePlayground({ businessId }: { businessId: string }) {
       </div>
     </section>
   );
+}
+
+const SECTION_ALIASES: Record<string, (typeof SECTIONS)[number]["id"]> = {
+  availability: "capacity",
+  capacity: "capacity",
+  pricing: "pricing",
+  prices: "pricing",
+  services: "service",
+  service: "service",
+  policies: "policy",
+  policy: "policy",
+  details: "required_fact",
+  required_fact: "required_fact",
+  operating: "operating",
+  voice: "voice",
+  learning: "learning",
+};
+
+/** The Business section a link names, whatever it calls it. */
+function sectionFromSearch(section: string | undefined) {
+  return section ? SECTION_ALIASES[section.trim().toLowerCase()] : undefined;
 }
 
 function saveLabel(count: number): string {

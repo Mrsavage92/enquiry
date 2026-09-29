@@ -1,5 +1,7 @@
 import type { ReplyContext } from "./compose-reply.ts";
 import type { DateIssue } from "./enquiry-basics.ts";
+import { ASK_AVAILABILITY, availabilitySettled } from "./customer-asks.ts";
+import { fixedEventNear } from "./fixed-event.ts";
 
 /**
  * What the reply may say about the customer, from the live facts - and what it
@@ -27,6 +29,8 @@ export type ReplyFact = {
 };
 
 const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;
+/** A date fact holding a stretch of days: "2026-11-02..2026-11-09". */
+export const WINDOW_VALUE = /^\d{4}-\d{2}-\d{2}\.\.\d{4}-\d{2}-\d{2}$/;
 
 function field(f: ReplyFact): string {
   return f.field.trim().toLowerCase();
@@ -72,9 +76,26 @@ export function replyContextFromFacts(
   facts: readonly ReplyFact[],
   base: Pick<ReplyContext, "ownerFirstName" | "serviceLabel" | "closed" | "followUp"> & {
     customerName: string;
+    /** Everything the customer wrote, to tell a wedding day from a movable one. */
+    message?: string;
   },
 ): ReplyContext {
   const date = facts.find((f) => field(f) === "date");
+  // "r u free this sat or sun?" answered by the owner: that answer is the day line.
+  const dateAnswered = facts.some(
+    (f) =>
+      field(f) === ASK_AVAILABILITY &&
+      f.status === "confirmed" &&
+      availabilitySettled(
+        String(f.value ?? ""),
+        String(date?.value ?? "")
+          .split("|")
+          .filter((d) => ISO_DAY.test(d.trim())),
+      ),
+  );
+  const fixedEvent = base.message
+    ? fixedEventNear(base.message, date?.date_span ?? undefined)
+    : undefined;
   const value = String(date?.value ?? "").trim();
   const confirmed = date?.status === "confirmed";
   const issue = date && !confirmed ? asIssue(date.date_issue) : undefined;
@@ -105,12 +126,17 @@ export function replyContextFromFacts(
     ...(!confirmed && value.includes("|") && date?.date_span
       ? { dateOptions: String(date.date_span), dateOptionIsos: options }
       : {}),
-    ...(value === APPROX_VALUE && date?.date_span ? { approxSpan: String(date.date_span) } : {}),
+    // "between 2 and 9 November (not weekends)": the stretch, in their words.
+    ...((value === APPROX_VALUE || WINDOW_VALUE.test(value)) && date?.date_span
+      ? { approxSpan: String(date.date_span) }
+      : {}),
     ...(preference && String(preference.value ?? "").trim()
       ? { dayPreference: String(preference.value).trim() }
       : {}),
     ...(base.closed ? { closed: base.closed } : {}),
     ...(base.followUp ? { followUp: true } : {}),
+    ...(dateAnswered ? { dateAnswered: true } : {}),
+    ...(fixedEvent ? { fixedEvent } : {}),
     asap: value === ASAP_VALUE,
   };
 }

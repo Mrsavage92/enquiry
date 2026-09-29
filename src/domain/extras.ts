@@ -72,8 +72,9 @@ export function splitExtraQuantityField(field: string): { field: string; service
  * "The carpets are fine, no carpet clean needed", "don't need the oven",
  * "the window cleaner came last week".
  */
+/** "not sure of the size", "don't know how big": unsure, not a no. */
 export const DECLINED =
-  /\b(?:no|not|don'?t|do not|doesn'?t|without|except|skip|minus|fine|already)\b/i;
+  /\b(?:no(?!\s+idea)|not(?!\s+(?:sure|certain|exactly|too sure|100%?))|don'?t(?!\s+know)|do not(?!\s+know)|doesn'?t|without|except|skip|minus|fine|already)\b/i;
 export const NOT_A_REQUEST =
   /\b(?:came|did|was|were|had|last (?:week|time|month|year)|yesterday|ago|already|previously|used to)\b/i;
 
@@ -318,6 +319,9 @@ const NOT_AN_EXTRA = new Set([
   "six",
 ]);
 
+/** Stems of the work words services share: never what tells one service from another. */
+const WORK_STEMS = new Set(["clean", "paint", "servi", "wash", "repai", "insta", "remov", "polis"]);
+
 /** "clean" -> "cleaning", for naming "oven cleaning" beside an end of lease clean. */
 const ACTIVITIES: Record<string, string> = {
   clean: "cleaning",
@@ -390,7 +394,10 @@ export function readExtraRequests(
     if (need.length === 0 || !need.every((s) => said.has(s))) continue;
     const own = distinctiveStems(service, [main]);
     if (own.length === 0 || !mentionsAny(text, own)) continue;
-    const at = mentionAt(text, own);
+    // Quote the sentence that names it by its own word ("18 windows"), never
+    // one that only shares the work word ("the dog hair cleaned off").
+    const telling = own.filter((s) => !WORK_STEMS.has(s));
+    const at = mentionAt(text, telling.length && mentionsAny(text, telling) ? telling : own);
     const clause = sentenceAround(text, at);
     const sentence = wholeSentence(text, at);
     if (DECLINED.test(sentence) || NOT_A_REQUEST.test(sentence)) continue;

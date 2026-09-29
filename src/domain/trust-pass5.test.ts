@@ -449,7 +449,7 @@ test("a read day is quoted, never 'Happy to lock it in'", () => {
   const options = composeReply(d, { dateOptions: "Sat 26 or Sun 27 Sep" });
   assert.match(
     options,
-    /You mentioned Saturday 26 or Sunday 27 Sep - I'll confirm which day works\./,
+    /You mentioned Saturday 26 or Sunday 27 September - I'll confirm which day works\./,
   );
 });
 

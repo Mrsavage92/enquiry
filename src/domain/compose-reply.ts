@@ -5,7 +5,7 @@ import { formatMinorAud } from "./money-format.ts";
 import { dateQuestion, type DateIssue } from "./enquiry-basics.ts";
 import { countOf, countParts, howMany, humanField, isOwnerEstimate } from "./count-phrase.ts";
 import { SERVICE_NOUNS } from "./extras.ts";
-import { spokenMonthDay } from "./business-detail.ts";
+import { closedRangeCovers, closedRangeReason, type ClosedRange } from "./business-detail.ts";
 
 export { humanField, howMany };
 
@@ -57,6 +57,16 @@ export type ReplyContext = {
    * says it will "confirm whether" a day the owner already said is closed.
    */
   closed?: ClosedTimes;
+  /**
+   * They asked if the owner is free and the owner answered: that answer is
+   * the reply's line about the day, never a second "I'll confirm" beside it.
+   */
+  dateAnswered?: boolean;
+  /**
+   * The day is for something that cannot move - a wedding, a formal, a
+   * funeral, a deadline: the reply never offers another day for it.
+   */
+  fixedEvent?: string;
 };
 
 /**
@@ -65,13 +75,8 @@ export type ReplyContext = {
  */
 export type ClosedTimes = {
   days: readonly number[];
-  ranges?: readonly { from: string; to: string }[];
+  ranges?: readonly ClosedRange[];
 };
-
-function inRange(iso: string, r: { from: string; to: string }): boolean {
-  const md = iso.slice(5);
-  return r.from <= r.to ? md >= r.from && md <= r.to : md >= r.from || md <= r.to;
-}
 
 const DAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
@@ -91,9 +96,9 @@ export function closedReason(iso: string, closed: ClosedTimes | undefined): stri
   const date = dateOf(iso);
   if (!date || !closed) return null;
   if (closed.days.includes(date.getDay())) return `I don't work ${DAY_NAMES[date.getDay()]}s`;
-  const range = (closed.ranges ?? []).find((r) => inRange(iso, r));
+  const range = (closed.ranges ?? []).find((r) => closedRangeCovers(iso, r));
   if (!range) return null;
-  return `I'm not working from ${spokenMonthDay(range.from)} to ${spokenMonthDay(range.to)}`;
+  return closedRangeReason(range);
 }
 
 /** The first day after this one the owner works, within about two months. */
@@ -123,6 +128,20 @@ export function spokenDate(iso: string | undefined): string | null {
   return format(date, "EEEE d MMMM", { locale: enAU });
 }
 
+const MONTH_WORDS: Record<string, string> = {
+  jan: "January",
+  feb: "February",
+  mar: "March",
+  apr: "April",
+  jun: "June",
+  jul: "July",
+  aug: "August",
+  sep: "September",
+  oct: "October",
+  nov: "November",
+  dec: "December",
+};
+
 const WEEKDAY_WORDS: Record<string, string> = {
   mon: "Monday",
   tue: "Tuesday",
@@ -138,13 +157,21 @@ const WEEKDAY_WORDS: Record<string, string> = {
 
 /** "Sat 3rd" -> "Saturday 3rd": their words, with the weekday written out. */
 export function spokenSpan(span: string): string {
-  return span
-    .trim()
-    .replace(/\b(mon|tues?|wed|thu(?:rs?)?|fri|sat|sun)\b\.?/gi, (w) => {
-      const key = w.replace(/\.$/, "").toLowerCase();
-      return WEEKDAY_WORDS[key] ?? w;
-    })
-    .replace(/[?!.]+$/, "");
+  return (
+    span
+      .trim()
+      // "Next Tuesday" at the start of their sentence reads mid-sentence in the reply.
+      .replace(/^(Next|This|Coming)\b/, (w) => w.toLowerCase())
+      .replace(/\b(jan|feb|mar|apr|jun|jul|aug|sept?|oct|nov|dec)[a-z]*\b\.?/gi, (w) => {
+        const key = w.replace(/\.$/, "").slice(0, 3).toLowerCase();
+        return MONTH_WORDS[key] ?? w;
+      })
+      .replace(/\b(mon|tues?|wed|thu(?:rs?)?|fri|sat|sun)\b\.?/gi, (w) => {
+        const key = w.replace(/\.$/, "").toLowerCase();
+        return WEEKDAY_WORDS[key] ?? w;
+      })
+      .replace(/[?!.]+$/, "")
+  );
 }
 
 /**
@@ -163,6 +190,7 @@ export function dateLine(iso: string | undefined, span?: string, confirmed = tru
 
 /** The one date sentence a reply carries, if any. */
 function dateSentence(opts: ReplyContext): string | null {
+  if (opts.dateAnswered) return null;
   if (opts.dateIssue) return dateQuestion(opts.dateIssue, opts.asap);
   if (opts.dateOptions?.trim()) return optionsSentence(opts.dateOptions, opts);
   const closedLine = closedDaySentence(opts);
@@ -176,7 +204,7 @@ function dateSentence(opts: ReplyContext): string | null {
   if (opts.asap) return "I'll let you know the soonest day I can do it.";
   if (opts.approxSpan?.trim()) {
     const span = spokenSpan(opts.approxSpan);
-    return /\b(?:week|fortnight|month|days)\b/i.test(span)
+    return /\b(?:week|fortnight|month|days|between|from)\b/i.test(span)
       ? `You mentioned ${span} - I'll confirm which day works.`
       : `You mentioned ${span} - I'll confirm whether that works.`;
   }
@@ -196,7 +224,17 @@ function closedDaySentence(opts: ReplyContext): string | null {
   if (!reason) return null;
   const span = opts.jobDateIso ? opts.jobDateSpan : opts.mentionedDateSpan;
   const said = span?.trim() ? spokenSpan(span) : spokenDate(iso);
+  // A wedding or a formal cannot move to Monday: say the day is taken and
+  // ask, never offer another day.
+  if (opts.fixedEvent) return fixedDaySentence(said ?? iso, [iso]);
   return `You mentioned ${said} - ${reason}. ${offerInstead(iso, opts.closed)}`;
+}
+
+/** "You mentioned 19 December - I'm sorry, I'm not available on Saturday 19 December. Is there any flexibility on the date?" */
+function fixedDaySentence(said: string, isos: string[]): string {
+  const days = isos.map((iso) => spokenDate(iso)).filter(Boolean);
+  const which = days.length > 1 ? `${days.slice(0, -1).join(", ")} or ${days.at(-1)}` : days[0];
+  return `You mentioned ${said} - I'm sorry, I'm not available on ${which}. Is there any flexibility on the date?`;
 }
 
 /** Two days offered, the first preferred: a closed one is said, the other offered. */
@@ -214,6 +252,7 @@ function optionsSentence(span: string, opts: ReplyContext): string {
   if (!firstClosed) {
     return `You mentioned ${said} - I'll confirm whether ${spokenDate(first)} works.`;
   }
+  if (opts.fixedEvent) return fixedDaySentence(said, [first, second]);
   const reasons = [...new Set([firstClosed, secondClosed])].join(" and ");
   return `You mentioned ${said} - ${reasons}. ${offerInstead(first, opts.closed)}`;
 }
@@ -252,7 +291,9 @@ function joinLabels(labels: string[]): string {
 /** "the end of lease clean (3 bedrooms)": one covered line, as the customer reads it. */
 function coveredPhrase(line: QuoteLine): string {
   const label = line.label.toLowerCase();
-  return line.count ? `the ${label} (${line.count})` : `the ${label}`;
+  // "(please confirm)" is said once, beside the line's own workings.
+  const count = line.count?.replace(/\s*\(please confirm\)$/, "");
+  return count ? `the ${label} (${count})` : `the ${label}`;
 }
 
 function listPhrase(lines: readonly QuoteLine[]): string {
@@ -306,10 +347,13 @@ function priceBlock(decision: Decision): string[] {
   // is itemised below, never named as something they asked for.
   const jobs = lines.filter((l) => !l.adjustment);
   const covered = single ? `the ${lines[0]!.label.toLowerCase()}` : listPhrase(jobs);
+  // Their rough size ("maybe 90sqm"): the total is "about", and the owner
+  // will confirm it - never stated as a firm price.
   const about = decision.approximate ? "about " : "";
+  const hedge = decision.approximate ? ", I'll confirm once I've seen the job" : "";
   const head = recurring
-    ? `For ${covered}, that's ${about}${total} per visit`
-    : `For ${covered}, that comes to ${about}${total}`;
+    ? `For ${covered}, that's ${about}${total} per visit${hedge}`
+    : `For ${covered}, that comes to ${about}${total}${hedge}`;
   const body =
     lines.length > 1
       ? [`${head}:`, ...itemised(lines, currency)]
@@ -320,10 +364,7 @@ function priceBlock(decision: Decision): string[] {
   const left = decision.leftOut?.length
     ? [`I haven't included ${joinLabels(decision.leftOut.map(withArticle))} in this price.`]
     : [];
-  const rough = decision.approximate
-    ? ["That's from the rough size you gave - I'll confirm the final price once I've seen it."]
-    : [];
-  const after = [...firstVisit, ...left, ...rough];
+  const after = [...firstVisit, ...left];
   return after.length ? [...body, "", ...after] : body;
 }
 

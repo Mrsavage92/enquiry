@@ -1,5 +1,6 @@
 import type { Decision } from "./decide.ts";
 import { composeReply } from "./compose-reply.ts";
+import { questionStep } from "./customer-asks.ts";
 import { decidingPhrase, impliedAmountsMinor } from "./price-compiler.ts";
 import { countParts, isOwnerEstimate } from "./count-phrase.ts";
 import type { ReplyContext } from "./compose-reply.ts";
@@ -58,7 +59,7 @@ export const SETUP_REASON = {
 } as const;
 
 function recommendationLabel(decision: Decision): string {
-  if (decision.questionPending) return `Answer: do you do ${decision.questionPending.thing}?`;
+  if (decision.questionPending) return questionStep(decision.questionPending).step;
   if (decision.coverage && !decision.coverage.confirmed)
     return "Check it covers everything they asked for";
   if (decision.extraPending?.kind === "no_price") {
@@ -175,6 +176,9 @@ export function snapshotFromDecision(decision: Decision, who: ReplyContext = {})
     // What the reviewed message is allowed to say about money. Stored with the
     // decision because it is derived from the rule that produced the price, not
     // from the text of any particular draft.
+    ...(decision.ownerAmountsMinor?.length
+      ? { ownerAmountsMinor: decision.ownerAmountsMinor }
+      : {}),
     impliedAmountsMinor:
       decision.extraPending || !replyMayNameTotal(decision)
         ? []

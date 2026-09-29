@@ -337,6 +337,7 @@ export function compilePrice(
   }
 
   const quantity = read.quantity;
+  if (rule.base) return tieredPrice(rule, rule.base, quantity, priced);
   // The minimum is a floor on what is billed, not a rejection of the enquiry.
   const billable = rule.minimumQuantity ? Math.max(quantity, rule.minimumQuantity) : quantity;
   const amountMinor = amountMinorFor(rule.amount, billable);
@@ -357,6 +358,52 @@ export function compilePrice(
     appliedMinimum
       ? `${count(quantity)} ${pluraliseUnit(rule.unit, quantity)}, billed at the ${rule.minimumQuantity} ${rule.unit} minimum, at ${formatMajorAmount(rule.amount)} each.`
       : `${count(billable)} ${pluraliseUnit(rule.unit, billable)} at ${formatMajorAmount(rule.amount)} each.`,
+    `${count(quantity)} ${pluraliseUnit(rule.unit, quantity)}`,
+  );
+}
+
+/**
+ * "$160 for up to 3 bedrooms, then $35 per extra bedroom": the base covers the
+ * first few, each one after is the per-unit amount. 4 bedrooms is $195.
+ */
+function tieredPrice(
+  rule: Extract<BusinessRule, { kind: "per_unit" }>,
+  base: { amount: number; upTo: number },
+  quantity: number,
+  priced: (amountMinor: number, workings: string, count?: string) => PriceOutcome,
+): PriceOutcome {
+  // Bedrooms are counted whole: "3.5 bedrooms" is a question, never rounded.
+  if (!Number.isInteger(quantity)) {
+    return {
+      kind: "UNRESOLVED_QUANTITY",
+      field: rule.quantityField,
+      value: String(quantity),
+      problem: "malformed",
+      reason: `${pluraliseUnit(rule.unit, 2)} are counted in whole numbers, and ${quantity} is not one. Check how many with them.`,
+      rule,
+    };
+  }
+  const extra = Math.max(0, quantity - base.upTo);
+  const baseMinor = amountMinorFor(base.amount, 1);
+  const extraMinor = extra > 0 ? amountMinorFor(rule.amount, extra) : 0;
+  if (baseMinor === null || extraMinor === null) {
+    return {
+      kind: "UNRESOLVED_QUANTITY",
+      field: rule.quantityField,
+      value: String(quantity),
+      problem: "too_large",
+      reason: `${quantity} ${pluraliseUnit(rule.unit, quantity)} is larger than Enquiry will price automatically. Quote this one by hand.`,
+      rule,
+    };
+  }
+  const covers = `${formatMajorAmount(base.amount)} for up to ${base.upTo} ${pluraliseUnit(rule.unit, base.upTo)}`;
+  const workings =
+    extra === 0
+      ? `${count(quantity)} ${pluraliseUnit(rule.unit, quantity)}, within ${covers}.`
+      : `${covers}, plus ${extra} extra ${pluraliseUnit(rule.unit, extra)} at ${formatMajorAmount(rule.amount)} each.`;
+  return priced(
+    baseMinor + extraMinor,
+    workings,
     `${count(quantity)} ${pluraliseUnit(rule.unit, quantity)}`,
   );
 }
@@ -386,6 +433,10 @@ export function impliedAmountsMinor(outcome: PriceOutcome): number[] {
   }
   const rate = amountMinorFor(rule.amount, 1);
   if (rate !== null) out.add(rate);
+  if (rule.kind === "per_unit" && rule.base) {
+    const base = amountMinorFor(rule.base.amount, 1);
+    if (base !== null) out.add(base);
+  }
   if (rule.kind === "per_unit" && rule.minimumQuantity) {
     const floor = amountMinorFor(rule.amount, rule.minimumQuantity);
     if (floor !== null) out.add(floor);

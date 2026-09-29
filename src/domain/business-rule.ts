@@ -40,6 +40,11 @@ export type PerUnitRule = {
   quantityField: string;
   /** Below this the business still charges for this many. */
   minimumQuantity?: number;
+  /**
+   * "$160 for up to 3 bedrooms, extra bedrooms $35 each": `base.amount` covers
+   * the first `base.upTo`, and each one after that is `amount`.
+   */
+  base?: { amount: number; upTo: number };
 };
 
 export type BusinessRule = FixedPriceRule | PerUnitRule;
@@ -94,9 +99,38 @@ export function parseBusinessRule(
       }
       minimumQuantity = Math.floor(min);
     }
+    const rawBase = r.base as { amount?: unknown; upTo?: unknown } | undefined | null;
+    let base: { amount: number; upTo: number } | undefined;
+    if (rawBase !== undefined && rawBase !== null) {
+      const baseAmount = rawBase.amount;
+      const upTo = rawBase.upTo;
+      if (
+        typeof baseAmount !== "number" ||
+        !Number.isFinite(baseAmount) ||
+        baseAmount < 0 ||
+        typeof upTo !== "number" ||
+        !Number.isInteger(upTo) ||
+        upTo < 1
+      ) {
+        return {
+          ok: false,
+          reason: "A price for the first few needs an amount and how many it covers.",
+        };
+      }
+      base = { amount: baseAmount, upTo };
+    }
     return {
       ok: true,
-      rule: { kind, service, amount, currency: "AUD", unit, quantityField, minimumQuantity },
+      rule: {
+        kind,
+        service,
+        amount,
+        currency: "AUD",
+        unit,
+        quantityField,
+        minimumQuantity,
+        ...(base ? { base } : {}),
+      },
     };
   }
 
@@ -138,6 +172,9 @@ export function describeRule(rule: BusinessRule): string {
   if (rule.kind === "fixed_price") {
     return `${rule.service}: ${formatMajorAmount(rule.amount)}`;
   }
+  if (rule.base) {
+    return `${rule.service}: ${formatMajorAmount(rule.base.amount)} for up to ${rule.base.upTo} ${pluraliseUnit(rule.unit, rule.base.upTo)}, then ${formatMajorAmount(rule.amount)} per extra ${rule.unit}`;
+  }
   const min = rule.minimumQuantity
     ? `, minimum ${rule.minimumQuantity} ${pluraliseUnit(rule.unit, rule.minimumQuantity)}`
     : "";
@@ -166,5 +203,6 @@ export function ruleFingerprint(rule: BusinessRule): string {
     norm(rule.unit),
     norm(rule.quantityField),
     rule.minimumQuantity ?? "",
+    rule.base ? `${rule.base.amount}@${rule.base.upTo}` : "",
   ].join("|");
 }

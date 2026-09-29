@@ -142,7 +142,7 @@ test("2: Whitfield - a Sunday they asked for is said plainly, with the next day 
   const { reply } = replyFor([EXTERIOR, SUNDAYS, SINGLE], "Exterior painting", facts, message);
   assert.match(
     reply,
-    /You mentioned Sunday 11 Oct - I don't work Sundays\. Would Monday 12 October suit instead\?/,
+    /You mentioned Sunday 11 October - I don't work Sundays\. Would Monday 12 October suit instead\?/,
   );
   assert.doesNotMatch(reply, /confirm whether/);
 });
@@ -196,11 +196,14 @@ test("2: Priya - 'tuesdays pref' is a preference, never the next Tuesday", () =>
   assert.equal(ctx.dayPreference, "Tuesdays");
 });
 
-test("2: 'week of the 12th' and 'tomorrow arvo' are read as loose asks, quoted in their words", () => {
+test("2: 'week of the 12th' is a loose ask; 'tomorrow arvo' is tomorrow, said as a date", () => {
   assert.deepEqual(readDates("could you do it the week of the 12th?", NOW).approx, {
     span: "the week of the 12th",
   });
-  assert.deepEqual(readDates("can you come tomorrow arvo", NOW).approx, { span: "tomorrow arvo" });
+  const tomorrow = readDates("can you come tomorrow arvo", NOW);
+  assert.equal(tomorrow.approx, undefined);
+  assert.equal(tomorrow.jobDate?.iso, "2026-09-28");
+  assert.equal(tomorrow.jobDate?.span, "tomorrow arvo (Monday 28 September)");
   const message = "Interior walls, maybe 40sqm, can you come tomorrow arvo";
   const { reply } = replyFor(
     [INTERIOR],
@@ -208,7 +211,10 @@ test("2: 'week of the 12th' and 'tomorrow arvo' are read as loose asks, quoted i
     [fact("service", "Interior painting"), fact("square metres", "40"), ...dateFactsOf(message)],
     message,
   );
-  assert.match(reply, /You mentioned tomorrow arvo - I'll confirm whether that works\./);
+  assert.match(
+    reply,
+    /You mentioned tomorrow arvo \(Monday 28 September\) - I'll confirm whether that works\./,
+  );
   const week = replyFor(
     [INTERIOR],
     "Interior painting",

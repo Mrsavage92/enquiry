@@ -41,7 +41,22 @@ export type SaveBusinessRuleInput = {
   businessId: string;
   rule: BusinessRule;
   readable: string;
+  /** The owner's own words for it, shown back to them exactly as written. */
+  said?: string;
 };
+
+/** Longest owner line kept with a saved fact. */
+export const MAX_SAID = 300;
+
+/** Who a fact came from, with the owner's own words when there are some. */
+function ownerSource(said: string | undefined): Record<string, string> {
+  const words = (said ?? "").trim().slice(0, MAX_SAID);
+  return {
+    kind: "user",
+    label: "Confirmed by the owner",
+    ...(words ? { detail: words } : {}),
+  };
+}
 
 export type SaveBusinessRuleResult = {
   id: string;
@@ -128,7 +143,7 @@ export async function saveBusinessRuleInTransaction(
     values (
       ${input.businessId}, ${"pricing"}, ${input.rule.service}, ${input.readable},
       ${"authoritative"}, ${"Active"},
-      ${JSON.stringify({ kind: "user", label: "Confirmed by the owner" })}::jsonb,
+      ${JSON.stringify(ownerSource(input.said))}::jsonb,
       ${String(nextVersion)}, ${JSON.stringify(input.rule)}::jsonb,
       now()
     )
@@ -169,8 +184,10 @@ export async function saveBusinessRulesAndRedecide(
   sql: Sql,
   input: {
     businessId: string;
-    rules: { rule: BusinessRule; readable: string }[];
+    rules: { rule: BusinessRule; readable: string; said?: string }[];
     details?: BusinessDetail[];
+    /** The owner's own line for each detail, in order, kept to show back to them. */
+    detailSaid?: (string | undefined)[];
   },
 ): Promise<{
   saved: SaveBusinessRuleResult[];
@@ -184,12 +201,14 @@ export async function saveBusinessRulesAndRedecide(
         businessId: input.businessId,
         rule: r.rule,
         readable: r.readable,
+        ...(r.said ? { said: r.said } : {}),
       }),
     );
   }
   const detailIds = await saveBusinessDetailsInTransaction(sql, {
     businessId: input.businessId,
     details: input.details ?? [],
+    said: input.detailSaid,
   });
   const changedAny = saved.some((s) => s.outcome !== "duplicate") || detailIds.length > 0;
   const updatedEnquiryIds = changedAny ? await redecideOpenEnquiries(sql, input.businessId) : [];
@@ -210,7 +229,7 @@ function detailKey(detail: BusinessDetail): string {
  */
 export async function saveBusinessDetailsInTransaction(
   sql: Sql,
-  input: { businessId: string; details: BusinessDetail[] },
+  input: { businessId: string; details: BusinessDetail[]; said?: (string | undefined)[] },
 ): Promise<string[]> {
   if (input.details.length === 0) return [];
   const existing = await sql<{ id: string; rule_payload: unknown }>`
@@ -231,7 +250,7 @@ export async function saveBusinessDetailsInTransaction(
     }
   }
   const ids: string[] = [];
-  for (const detail of input.details) {
+  for (const [index, detail] of input.details.entries()) {
     const key = detailKey(detail);
     if (have.has(key)) continue;
     if (detail.kind === "minimum_charge") {
@@ -254,7 +273,7 @@ export async function saveBusinessDetailsInTransaction(
       values (
         ${input.businessId}, ${detailSection(detail)}, ${detailTitle(detail)},
         ${describeDetail(detail)}, ${"authoritative"}, ${"Active"},
-        ${JSON.stringify({ kind: "user", label: "Confirmed by the owner" })}::jsonb,
+        ${JSON.stringify(ownerSource(input.said?.[index]))}::jsonb,
         ${"1"}, ${JSON.stringify(detail)}::jsonb, now()
       )
       returning id
@@ -278,7 +297,7 @@ export async function saveBusinessDetailsForUser(
   sql: Sql,
   runInTransaction: <T>(fn: (tx: Sql) => Promise<T>) => Promise<T>,
   userId: string,
-  input: { businessId: string; rules: BusinessRule[]; details: BusinessDetail[] },
+  input: SaveFactsInput,
 ): Promise<{
   businessId: string;
   rules: { rule: BusinessRule; readable: string }[];
@@ -287,9 +306,141 @@ export async function saveBusinessDetailsForUser(
   updatedEnquiryIds: string[];
 }> {
   const businessId = await requireBusinessAccess(userId, input.businessId, sql);
-  const rules = input.rules.map((rule) => ({ rule, readable: describeRule(rule) }));
+  const rules = rulesToSave(input);
   const result = await runInTransaction((tx) =>
-    saveBusinessRulesAndRedecide(tx, { businessId, rules, details: input.details }),
+    saveBusinessRulesAndRedecide(tx, {
+      businessId,
+      rules,
+      details: input.details,
+      detailSaid: input.said?.details,
+    }),
   );
   return { businessId, rules, ...result };
+}
+
+export type SaveFactsInput = {
+  businessId: string;
+  rules: BusinessRule[];
+  details: BusinessDetail[];
+  /** The owner's own line behind each rule and detail, in the same order. */
+  said?: { rules?: (string | undefined)[]; details?: (string | undefined)[] };
+};
+
+function rulesToSave(
+  input: SaveFactsInput,
+): { rule: BusinessRule; readable: string; said?: string }[] {
+  return input.rules.map((rule, i) => {
+    const said = input.said?.rules?.[i];
+    return { rule, readable: describeRule(rule), ...(said ? { said } : {}) };
+  });
+}
+
+/** What retiring a fact changed, for the owner and the audit line. */
+export type RetireResult = { businessId: string; body: string; updatedEnquiryIds: string[] };
+
+/**
+ * Take one of the business's own facts out of use: a price, a closed day, a
+ * rule, a note. Never deleted - retired (`Disabled`, with the day it stopped),
+ * so a reply already sent on it stays explicable. Tenant-scoped (the row must
+ * belong to the checked business) and audited in the same transaction. Every
+ * open enquiry waiting on the owner is decided again without it, so a reply
+ * that said "I don't work Saturdays" stops saying it.
+ */
+async function retireInTransaction(
+  tx: Sql,
+  businessId: string,
+  knowledgeId: string,
+): Promise<{ body: string }> {
+  const [row] = await tx<{ id: string; body: string }>`
+    update knowledge_item
+    set state = ${"Disabled"}, effective_to = now(), updated_at = now()
+    where id = ${knowledgeId} and business_id = ${businessId}
+      and state in (${"Active"}, ${"Needs review"}, ${"Proposed"}, ${"Confirmed"})
+    returning id, body
+  `;
+  if (!row) throw new Error("That business detail is no longer in use.");
+  return { body: row.body };
+}
+
+async function auditIn(
+  tx: Sql,
+  businessId: string,
+  event: { actor: string; summary: string; detail?: string; objectId?: string },
+): Promise<void> {
+  await tx`
+    insert into audit_event (business_id, actor, summary, detail, object_type, object_id)
+    values (
+      ${businessId}, ${event.actor}, ${event.summary}, ${event.detail ?? null},
+      ${"brain"}, ${event.objectId ?? null}
+    )
+  `;
+}
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+export async function retireBusinessFactForUser(
+  sql: Sql,
+  runInTransaction: <T>(fn: (tx: Sql) => Promise<T>) => Promise<T>,
+  userId: string,
+  input: { businessId: string; knowledgeId: string },
+): Promise<RetireResult> {
+  const businessId = await requireBusinessAccess(userId, input.businessId, sql);
+  if (!UUID.test(input.knowledgeId)) throw new Error("That business detail is no longer in use.");
+  return runInTransaction(async (tx) => {
+    const { body } = await retireInTransaction(tx, businessId, input.knowledgeId);
+    await auditIn(tx, businessId, {
+      actor: userId,
+      summary: `Business detail removed: ${body}`,
+      objectId: input.knowledgeId,
+    });
+    const updatedEnquiryIds = await redecideOpenEnquiries(tx, businessId);
+    return { businessId, body, updatedEnquiryIds };
+  });
+}
+
+/**
+ * Change one fact: the old one is retired and what the owner wrote instead is
+ * saved, in one transaction, so there is never a moment with both or neither.
+ */
+export async function replaceBusinessFactForUser(
+  sql: Sql,
+  runInTransaction: <T>(fn: (tx: Sql) => Promise<T>) => Promise<T>,
+  userId: string,
+  input: SaveFactsInput & { knowledgeId: string },
+): Promise<RetireResult & { saved: number; details: number }> {
+  const businessId = await requireBusinessAccess(userId, input.businessId, sql);
+  if (!UUID.test(input.knowledgeId)) throw new Error("That business detail is no longer in use.");
+  if (input.rules.length + input.details.length === 0) {
+    throw new Error("Write what it should say instead, or remove it.");
+  }
+  return runInTransaction(async (tx) => {
+    const { body } = await retireInTransaction(tx, businessId, input.knowledgeId);
+    const result = await saveBusinessRulesAndRedecide(tx, {
+      businessId,
+      rules: rulesToSave(input),
+      details: input.details,
+      detailSaid: input.said?.details,
+    });
+    const now = [
+      ...input.rules.map((r) => describeRule(r)),
+      ...input.details.map((d) => describeDetail(d)),
+    ].join("; ");
+    await auditIn(tx, businessId, {
+      actor: userId,
+      summary: `Business detail changed: ${body}`,
+      detail: `Now: ${now}`,
+      objectId: input.knowledgeId,
+    });
+    // Retiring alone can change a reply even when the new wording saved nothing new.
+    const updatedEnquiryIds = result.updatedEnquiryIds.length
+      ? result.updatedEnquiryIds
+      : await redecideOpenEnquiries(tx, businessId);
+    return {
+      businessId,
+      body,
+      updatedEnquiryIds,
+      saved: result.saved.filter((s) => s.outcome !== "duplicate").length,
+      details: result.detailIds.length,
+    };
+  });
 }
