@@ -36,6 +36,7 @@ export function CoverageCheck({
   if (!coverage || coverage.confirmed) return null;
 
   const firstVisit = coverage.lines.filter((l) => l.firstVisit);
+  const rough = coverage.lines.filter((l) => l.rough && !l.firstVisit);
   const perJob = coverage.lines.filter((l) => !l.firstVisit);
   const total = perJob.reduce((sum, l) => sum + l.amountMinor, 0);
   const unsettled = unsettledFlags(coverage.flagged).length;
@@ -125,29 +126,6 @@ export function CoverageCheck({
           enquiryId={enquiry.id}
         />
       ))}
-      {perJob
-        .filter((l) => l.rough)
-        .map((l) => (
-          <p key={`rough-${l.label}`} className="mt-2 flex flex-wrap items-center gap-x-2 text-sm">
-            <span className="text-ink-2">
-              {l.label}: their rough size, so the reply says &ldquo;about&rdquo;.
-            </span>
-            <button
-              type="button"
-              className="min-h-11 font-medium text-mark-strong underline underline-offset-4"
-              disabled={saving !== null}
-              onClick={() =>
-                void run(
-                  `exact-${l.label}`,
-                  () => actions.answerFact(enquiry.id, l.rough!.field, `exactly ${l.rough!.value}`),
-                  `Noted: exactly ${l.rough!.value}. The reply no longer says "about".`,
-                )
-              }
-            >
-              {saving === `exact-${l.label}` ? "Saving…" : `It's exactly ${l.rough!.value}`}
-            </button>
-          </p>
-        ))}
       {toSettle.length > 0 ? (
         <div className="callout mt-3 bg-warn-bg text-warn">
           {/* One check at a time: the next appears once this one is answered. */}
@@ -277,6 +255,36 @@ export function CoverageCheck({
       {error ? (
         <p className="mt-2 text-sm text-danger" role="alert">
           {error}
+        </p>
+      ) : null}
+      {rough.length > 0 ? (
+        // Optional, so under the buttons: "That's everything" stays on the first screen.
+        <p className="mt-3 flex flex-wrap items-center gap-x-3 text-sm">
+          <span className="text-ink-2">
+            Their rough {rough.length === 1 ? "size" : "sizes"}, so the reply says
+            &ldquo;about&rdquo;.
+          </span>
+          {rough.map((l) => (
+            <button
+              key={`rough-${l.label}`}
+              type="button"
+              className="min-h-11 font-medium text-mark-strong underline underline-offset-4"
+              disabled={saving !== null}
+              onClick={() =>
+                void run(
+                  `exact-${l.label}`,
+                  () => actions.answerFact(enquiry.id, l.rough!.field, `exactly ${l.rough!.value}`),
+                  `Noted: exactly ${l.rough!.value}. The reply no longer says "about".`,
+                )
+              }
+            >
+              {saving === `exact-${l.label}`
+                ? "Saving…"
+                : rough.length === 1
+                  ? `It's exactly ${l.rough!.value}`
+                  : `${l.label} is exactly ${l.rough!.value}`}
+            </button>
+          ))}
         </p>
       ) : null}
       {heads.map((f) => (
