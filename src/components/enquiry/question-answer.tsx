@@ -148,8 +148,7 @@ function AvailabilityAnswer(props: Props) {
       </p>
       {closed.map((d) => (
         <p key={d.iso} className="mt-1 text-sm text-ink-2">
-          {d.label}: {d.closed!.charAt(0).toLowerCase() + d.closed!.slice(1)} (from your business
-          details), so the reply says no to it.
+          {d.label}: {toOwner(d.closed!)} (from your business details), so the reply says no to it.
         </p>
       ))}
       <div className="mt-3 flex flex-wrap gap-2">
@@ -270,4 +269,12 @@ function AskAnswer(props: Props) {
       </div>
     </>
   );
+}
+
+/** The reply's "I don't work Sundays" said to the owner: "you don't work Sundays". */
+function toOwner(reason: string): string {
+  return reason
+    .replace(/^I don't\b/, "you don't")
+    .replace(/^I'm not\b/, "you're not")
+    .replace(/^I\b/, "you");
 }
