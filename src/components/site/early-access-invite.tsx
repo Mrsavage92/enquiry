@@ -10,7 +10,6 @@ export function EarlyAccessInvite({ reassure = true }: { reassure?: boolean }) {
     <section className="public-invite" aria-labelledby="invite-title">
       <div className="public-container">
         <div>
-          <p className="public-kicker">Founding price</p>
           <h2 id="invite-title">Stop guessing at the reply.</h2>
           <p>{OFFER.band}</p>
         </div>

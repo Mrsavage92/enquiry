@@ -94,16 +94,12 @@ function Home() {
       <ProductShowcase initialView={view} />
       <section className="public-section public-container" aria-labelledby="work-title">
         <div className="public-section-heading">
-          <p className="public-kicker">Before you promise anything</p>
           <h2 id="work-title">
             Yes. No. Not yet.
             <br />
             Know before you reply.
           </h2>
-          <p>
-            Replying quickly is the easy part. Knowing what you can safely say is the hard part, and
-            it is the part Enquiry does first.
-          </p>
+          <p>Knowing what you can safely say is the hard part. Enquiry does that first.</p>
         </div>
         <div className="public-benefits public-answers">
           {ANSWERS.map(({ word, line }) => (
@@ -130,7 +126,7 @@ function Home() {
         <div className="public-section-heading public-faq-intro">
           <h2 id="questions-title">Before you join.</h2>
           <p>
-            The four questions people ask first. More answers are on the{" "}
+            More answers are on the{" "}
             <Link to="/early-access" hash="more-questions" className="public-text-link">
               early-access page
             </Link>

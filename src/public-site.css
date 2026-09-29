@@ -66,7 +66,7 @@
   display: inline-flex;
   align-items: center;
   min-height: 44px;
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 500;
   color: #68656d;
 }
@@ -91,7 +91,7 @@
   background: var(--public-violet);
   color: #fff;
   border-radius: 8px;
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 600;
   text-align: center;
 }
@@ -279,7 +279,7 @@
 }
 .public-sample-label {
   flex-shrink: 0;
-  font-size: 12px;
+  font-size: 13px;
 }
 .public-section {
   padding-block: 88px;
@@ -289,7 +289,7 @@
 }
 .public-kicker {
   color: #69519d;
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 550;
   line-height: 1.5;
   margin-bottom: 14px;
@@ -330,7 +330,7 @@
   list-style: none;
 }
 .public-plain-list li {
-  font-size: 17px;
+  font-size: 16px;
   line-height: 1.7;
   color: #4f4b55;
 }
@@ -405,7 +405,7 @@
   flex-shrink: 0;
 }
 .public-review-note p {
-  font-size: 15px;
+  font-size: 16px;
   line-height: 1.6;
   color: #55575a;
 }
@@ -430,7 +430,7 @@
   gap: 20px;
   padding: 23px 0;
   list-style: none;
-  font-size: 17px;
+  font-size: 16px;
   font-weight: 550;
   line-height: 1.6;
   cursor: pointer;
@@ -483,7 +483,7 @@
 .public-footer-main p {
   margin-top: 16px;
   color: #68656d;
-  font-size: 15px;
+  font-size: 16px;
   line-height: 1.8;
 }
 .public-footer nav {
@@ -492,7 +492,7 @@
   align-items: flex-start;
 }
 .public-footer nav h2 {
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 600;
   margin: 8px 0 10px;
 }
@@ -500,7 +500,7 @@
   display: inline-flex;
   align-items: center;
   min-height: 44px;
-  font-size: 15px;
+  font-size: 16px;
   color: #68656d;
 }
 .public-footer nav a:hover {
@@ -527,7 +527,7 @@
 }
 .public-page-heading > p {
   color: #68656d;
-  font-size: 19px;
+  font-size: 18px;
   line-height: 1.7;
   max-width: 650px;
   margin-top: 20px;
@@ -551,6 +551,10 @@
   text-transform: none;
   font-size: 13px;
   color: #68656d;
+}
+/* Labels on the site are plain text: no decorative violet dot before them. */
+.public-site .eyebrow::before {
+  content: none;
 }
 .public-site .text-halo {
   text-shadow: none;
@@ -647,7 +651,7 @@
   }
   .public-hero-copy > p {
     margin-top: 10px;
-    font-size: 19px;
+    font-size: 18px;
   }
   .public-hero .public-actions {
     margin-top: 16px;
@@ -689,7 +693,7 @@
     display: flex;
     align-items: center;
     min-height: 48px;
-    font-size: 17px;
+    font-size: 16px;
   }
   .public-mobile-menu a[aria-current] {
     color: #654ac2;
@@ -757,10 +761,10 @@
   }
   .public-button {
     padding-inline: 16px;
-    font-size: 15px;
+    font-size: 16px;
   }
   .public-text-link {
-    font-size: 15px;
+    font-size: 16px;
   }
   .public-showcase {
     padding: 24px 20px 16px;
@@ -783,7 +787,7 @@
     width: auto;
     padding: 6px 4px;
     gap: 5px;
-    font-size: 12px;
+    font-size: 13px;
   }
   .public-showcase-controls button svg {
     width: 14px;
@@ -799,7 +803,7 @@
     flex-direction: column;
     gap: 5px;
     min-height: 84px;
-    font-size: 12px;
+    font-size: 13px;
   }
   .public-section {
     padding-block: 56px;
@@ -810,7 +814,7 @@
   }
   .public-section-heading > p:not(.public-kicker),
   .public-invite p:not(.public-kicker) {
-    font-size: 17px;
+    font-size: 18px;
   }
   .public-benefits,
   .public-process,
@@ -831,7 +835,7 @@
   }
   .public-benefit h3 {
     margin-top: 0;
-    font-size: 19px;
+    font-size: 20px;
   }
   .public-benefit p {
     grid-column: 2;
@@ -854,7 +858,7 @@
   }
   .public-process h3 {
     margin-top: 0;
-    font-size: 19px;
+    font-size: 20px;
   }
   .public-process p {
     grid-column: 2;
@@ -888,7 +892,7 @@
     font-size: 38px;
   }
   .public-page-heading > p {
-    font-size: 17px;
+    font-size: 16px;
   }
   .public-updates li {
     grid-template-columns: 1fr;
@@ -990,7 +994,7 @@
 }
 .public-faq-contact strong {
   display: block;
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 600;
   line-height: 1.45;
   color: #1c1b1f;
@@ -1140,7 +1144,7 @@
   margin-top: 12px;
   font-size: 16px;
   line-height: 1.7;
-  color: #68656d;
+  color: #4f4b55;
   max-width: 44ch;
 }
 .public-walk-step.is-active .public-walk-index {
@@ -1215,18 +1219,15 @@
   }
   .public-walk-inline {
     display: block;
-    margin-top: 20px;
-    padding: 10px;
-    background: #f3eff9;
-    border-radius: 8px;
-  }
-  .public-walk-inline img {
-    display: block;
+    grid-column: 1 / -1;
     width: 100%;
-    height: auto;
-    background: #fff;
-    border: 1px solid #e4deed;
-    border-radius: 4px;
+    max-width: 390px;
+    margin: 24px auto 0;
+  }
+  .public-walk-inline figcaption {
+    margin-top: 10px;
+    text-align: center;
+    color: #68656d;
   }
 }
 @media (max-width: 600px) {
@@ -1256,13 +1257,13 @@
   padding: 34px 32px 36px;
 }
 .public-benefit:first-child p {
-  font-size: 17px;
+  font-size: 16px;
 }
 .public-faq-group + .public-faq-group {
   margin-top: 36px;
 }
 .public-faq-group h3 {
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 600;
   letter-spacing: 0.05em;
   text-transform: uppercase;
@@ -1313,7 +1314,7 @@
 .public-answer p,
 .public-answers .public-benefit.public-answer:first-child p {
   margin-top: 12px;
-  font-size: 17px;
+  font-size: 16px;
 }
 @media (max-width: 820px) {
   .public-benefits.public-answers {
@@ -1343,14 +1344,16 @@
    breakpoint was the other half of the P0 layout fix (critique pass 2). */
 @media (min-width: 861px) {
   .public-walkthrough-inner {
-    grid-template-columns: minmax(0, 1fr) 400px;
+    grid-template-columns: minmax(0, 1fr) calc(390px + 1.4rem);
     gap: 72px;
   }
 }
+/* 390px of screen plus the PhoneFrame's 0.7rem bezel each side, so the
+   capture shows at 1:1 (it measured 377.6px, 12px text at 11.6px). */
 .public-walkthrough-stage {
   justify-self: center;
   width: 100%;
-  max-width: 400px;
+  max-width: calc(390px + 1.4rem);
 }
 .public-walkthrough-phone {
   width: 100%;
@@ -1407,7 +1410,7 @@
 /* ADHD section: the claim and its lines beside one real enquiry capture. */
 .public-adhd {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 300px;
+  grid-template-columns: minmax(0, 1fr) 390px;
   gap: 64px;
   align-items: center;
 }
@@ -1418,17 +1421,30 @@
   margin: 0;
   justify-self: center;
   width: 100%;
-  max-width: 300px;
+  max-width: 390px;
 }
-/* The capture's content ends about three quarters down; the frame stops
-   there (object-position top) instead of showing a band of empty white. */
-.public-adhd-shot {
-  aspect-ratio: 390 / 460;
-  border: 1px solid #ded9e8;
+/* Phone captures at 1:1 (critique 2026-09-29: at 258-300px wide the app's
+   12px text rendered at about 8px). The frame is 390px, the capture's own
+   width, and stops where its content ends (object-position top) instead of
+   shrinking the whole screen to fit. The hairline is an inset outline so it
+   takes no width from the image. Crop heights are in 1x capture pixels. */
+.public-adhd-shot,
+.public-walk-shot {
+  aspect-ratio: 390 / 448;
+  outline: 1px solid #ded9e8;
+  outline-offset: -1px;
   border-radius: 8px;
   overflow: hidden;
   box-shadow: 0 12px 36px #3524510c;
+  background: #fff;
 }
+.public-walk-inline[data-capture="today"] .public-walk-shot {
+  aspect-ratio: 390 / 430;
+}
+.public-walk-inline[data-capture="business"] .public-walk-shot {
+  aspect-ratio: 390 / 460;
+}
+.public-walk-shot img,
 .public-adhd-figure img {
   display: block;
   width: 100%;
@@ -1460,8 +1476,22 @@
   .public-decision-panel {
     padding: 18px 16px;
   }
-  .public-adhd-figure {
-    max-width: 260px;
+  /* The column plus its 20px gutters (.public-container is 100% - 40px here):
+     exactly 390px on a 390px phone, so the capture is never scaled below its
+     own size. Measured from the column, not 100vw, so a desktop scrollbar
+     cannot push it past the page edge. */
+  .public-adhd-figure,
+  .public-walk-inline {
+    width: min(390px, 100% + 40px);
+    max-width: none;
+    margin-inline: calc((100% - min(390px, 100% + 40px)) / 2);
+  }
+  .public-adhd-shot,
+  .public-walk-shot {
+    border-radius: 0;
+    outline: 0;
+    border-block: 1px solid #ded9e8;
+    box-shadow: none;
   }
 }
 
