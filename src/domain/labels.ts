@@ -201,13 +201,17 @@ export const QUEUE_NAMES = {
   all: "All",
 } as const;
 
-export function derivedLabel(state: CompositeState, enquiry?: Enquiry): StatusWord {
+export function derivedLabel(
+  state: CompositeState,
+  enquiry?: Enquiry,
+  now: number = Date.now(),
+): StatusWord {
   if (state.lifecycle === "BOOKED") return STATUS.booked;
   if (state.lifecycle === "LOST") return STATUS.lost;
   if (state.lifecycle === "DECLINED") return STATUS.declined;
   if (state.lifecycle === "CANCELLED") return STATUS.cancelled;
   if (enquiry?.source === "comment" && state.lifecycle === "OPEN") return STATUS.publicComment;
-  if (enquiry?.snoozedUntil && Date.parse(enquiry.snoozedUntil) > Date.now()) return STATUS.parked;
+  if (enquiry?.snoozedUntil && Date.parse(enquiry.snoozedUntil) > now) return STATUS.parked;
   if (enquiry?.followUpDue) return STATUS.followUp;
   if (enquiry?.atRisk) return STATUS.goneQuiet;
   if (state.decision === "EVALUATING") return STATUS.reading;

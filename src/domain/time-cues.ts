@@ -51,7 +51,7 @@ export function concreteWhen(iso: string, now = new Date(), tz = DEFAULT_ZONE): 
  * when it comes back ("Later until Tue 29 Sep") rather than a second word.
  */
 export function statusChip(enquiry: Enquiry, now = new Date(), tz = DEFAULT_ZONE): string {
-  const label = derivedLabel(enquiry.state, enquiry);
+  const label = derivedLabel(enquiry.state, enquiry, now.getTime());
   if (label === STATUS.parked && enquiry.snoozedUntil) {
     return parkedUntil(enquiry.snoozedUntil, now, tz);
   }
