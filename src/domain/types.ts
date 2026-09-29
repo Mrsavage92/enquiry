@@ -431,6 +431,8 @@ export type DecisionSnapshot = {
    * only the structured total is allowed.
    */
   impliedAmountsMinor?: number[];
+  /** Money the owner typed in their own answers ("$20m public liability"): never a price. */
+  ownerAmountsMinor?: number[];
   /**
    * Something else the customer asked for that the owner has not settled:
    * add it (or a price for it), or leave it out and tell them. While this is

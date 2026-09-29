@@ -20,7 +20,7 @@ export type DollarMatch = { raw: string; amount: number; index: number };
 const AMOUNT = String.raw`(\d{1,3}(?:,\d{3})+|\d+)(?:\.(\d{1,2}))?`;
 /** "$880", "A$880", "AUD 880", "USD 880", "$3.6k". */
 const PREFIXED = new RegExp(
-  String.raw`(?:\bAUD\s?\$|\bAU\$|\bA\$|\bUS\$|\bAUD\b|\bUSD\b|\$)\s?${AMOUNT}(\s?k\b)?`,
+  String.raw`(?:\bAUD\s?\$|\bAU\$|\bA\$|\bUS\$|\bAUD\b|\bUSD\b|\$)\s?${AMOUNT}(\s?(?:k|m|mil|million|bn|b|billion)\b)?`,
   "gi",
 );
 /** "880 dollars", "880 AUD", "880AUD", "880$", "3k". */
@@ -40,7 +40,18 @@ type Hit = DollarMatch & { end: number };
 
 function numberFrom(whole: string, cents: string | undefined, suffix: string): number {
   const base = Number(cents ? `${whole.replace(/,/g, "")}.${cents}` : whole.replace(/,/g, ""));
-  return suffix.trim().toLowerCase() === "k" ? Math.round(base * 1000 * 100) / 100 : base;
+  // "$2k", "$1.5m", "$20m": read with their multiplier, never as $2, $1.50 or $20.
+  const scale: Record<string, number> = {
+    k: 1e3,
+    m: 1e6,
+    mil: 1e6,
+    million: 1e6,
+    b: 1e9,
+    bn: 1e9,
+    billion: 1e9,
+  };
+  const by = scale[suffix.trim().toLowerCase()] ?? 1;
+  return by === 1 ? base : Math.round(base * by * 100) / 100;
 }
 
 function hitsOf(text: string): Hit[] {

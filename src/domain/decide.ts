@@ -43,6 +43,7 @@ import {
   questionThing,
 } from "./service-questions.ts";
 import { applyRules } from "./rule-checks.ts";
+import { dollarAmounts } from "./voice-detect.ts";
 import {
   askReplyLines,
   askTopic,
@@ -189,6 +190,12 @@ export type Decision = {
    * one tap ("It's exactly 90"), which takes the "about" away.
    */
   roughCounts?: { label: string; field: string; value: string }[];
+  /**
+   * Money the owner typed in their own answers to the customer's questions or
+   * a referral note ("insured with $20m public liability", "a $50 deposit"):
+   * sent as written, and never mistaken for a price the send check compares.
+   */
+  ownerAmountsMinor?: number[];
   /** Lines the reply must carry: answered questions, things to come back on. */
   replyNotes?: string[];
 };
@@ -260,7 +267,47 @@ function inferredFor(
  *  - unpriceable -> a human judges it, and Enquiry says why rather than
  *                   inventing a number.
  */
+/** The amounts in the owner's own words that a reply will carry. */
+function ownerAmounts(lines: readonly string[]): number[] {
+  return [...new Set(lines.flatMap((l) => dollarAmounts(l).map((n) => Math.round(n * 100))))];
+}
+
+/** A decision with the owner's own amounts from the lines it carries. */
+function withOwnerAmounts(
+  decided: Decision,
+  facts: ReadonlyArray<DecideFact>,
+  details: readonly BusinessDetail[],
+): Decision {
+  const owned = facts
+    .filter((f) => isAskField(f.field) && f.status === "confirmed")
+    .map((f) => String(f.value ?? ""));
+  const notes = details.flatMap((d) => (d.kind === "note" ? [d.text] : []));
+  const amounts = ownerAmounts([
+    ...owned,
+    ...(decided.declined ?? []),
+    ...notes.filter((n) =>
+      (decided.declined ?? []).some((x) => x.includes(n.replace(/[.!]*$/, ""))),
+    ),
+  ]);
+  return amounts.length ? { ...decided, ownerAmountsMinor: amounts } : decided;
+}
+
 export function decideEnquiry(
+  business: { knowledge?: ReadonlyArray<RuleBearingKnowledge | KnowledgeItem> | null },
+  enquiry: Pick<Enquiry, "serviceLabel" | "facts"> & {
+    messageText?: string;
+    services?: readonly string[];
+  },
+): Decision {
+  const details = activeDetails(business as { knowledge?: ReadonlyArray<RuleBearingKnowledge> });
+  return withOwnerAmounts(
+    decideCore(business, enquiry),
+    (enquiry.facts ?? []) as DecideFact[],
+    details,
+  );
+}
+
+function decideCore(
   business: { knowledge?: ReadonlyArray<RuleBearingKnowledge | KnowledgeItem> | null },
   enquiry: Pick<Enquiry, "serviceLabel" | "facts"> & {
     /** Everything the customer wrote, for what the price does not cover. */
