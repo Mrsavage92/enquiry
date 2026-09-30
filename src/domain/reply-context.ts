@@ -219,7 +219,10 @@ function sweptReply(
       // A week the owner says so of: the closed days in it are named.
       if (c.week && c.to && answer === CLOSED_DAY_CHOICE.notAvailable) {
         for (const iso of weekIsos(c.iso, c.to)) {
-          if (closedReason(iso, closedTimes)) closed.push({ iso, span: c.span, say: true });
+          // A week always holds a day off: only its closed dates are named.
+          if ((closedTimes?.ranges ?? []).some((r) => closedRangeCovers(iso, r))) {
+            closed.push({ iso, span: c.span, say: true });
+          }
         }
         continue;
       }

@@ -340,8 +340,13 @@ function sweptTalk(opts: ReplyContext): DateTalk {
   const spans = [...new Set(say.map((d) => d.span))];
   for (const span of spans) {
     const isos = say.filter((d) => d.span === span).map((d) => d.iso);
+    // Their week is already said above ("You mentioned the week of ..."): not twice.
+    const saidAbove =
+      spokenSpan(opts.approxSpan ?? "").toLowerCase() === spokenSpan(span).toLowerCase();
     lines.push(
-      `You mentioned ${spokenSpan(span)} - I'm sorry, I'm not available on ${daysSaid(isos)}.`,
+      saidAbove
+        ? `I'm sorry, I'm not available on ${daysSaid(isos)}.`
+        : `You mentioned ${spokenSpan(span)} - I'm sorry, I'm not available on ${daysSaid(isos)}.`,
     );
     close = "closed";
   }

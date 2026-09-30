@@ -360,7 +360,7 @@ test("3: a week that runs into closed dates is the owner's to settle", async (t)
   await settleDays(pg, e.enquiryId);
   assert.match(
     (await row(pg, e.enquiryId)).decision_snapshot.draft.body,
-    /You mentioned the week of 21 December - I'm sorry, I'm not available on Thursday 24, Friday 25, Saturday 26 or Sunday 27 December\./,
+    /You mentioned the week of 21 December - I'll confirm which day works\.\nI'm sorry, I'm not available on Thursday 24, Friday 25, Saturday 26 or Sunday 27 December\./,
   );
 });
 
