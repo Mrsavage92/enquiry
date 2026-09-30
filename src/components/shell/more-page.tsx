@@ -97,7 +97,7 @@ export function MorePage() {
             ))}
           </ul>
         </details>
-        <section className="mb-4" aria-labelledby="more-notices">
+        <section className="mt-5 mb-4" aria-labelledby="more-notices">
           <h2 id="more-notices" className="flex items-center gap-2 text-sm font-semibold text-ink">
             Notices
             {notices > 0 ? (
