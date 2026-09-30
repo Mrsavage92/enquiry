@@ -63,6 +63,11 @@ export type WorkspaceData = {
   /** enquiryId -> an edit made before the decision moved, for the owner to keep or drop. */
   staleDrafts: Record<string, string>;
   /**
+   * enquiryId -> the figures an edit names that the quote now says
+   * differently ("Makeup trial $90 -> $95"), so the owner sees what changed.
+   */
+  draftChanges: Record<string, string[]>;
+  /**
    * Where an owner books a setup call, when one is configured
    * (launch_settings.setup_call_url). Null means no card, anywhere.
    */
@@ -78,6 +83,7 @@ const EMPTY: WorkspaceData = {
   audit: [],
   drafts: {},
   staleDrafts: {},
+  draftChanges: {},
   setupCallUrl: null,
   prefs: {},
 };
@@ -208,6 +214,7 @@ export async function loadWorkspace(
     audit: auditRows.map(toAuditEvent),
     drafts: owner.drafts,
     staleDrafts: owner.staleDrafts,
+    draftChanges: owner.draftChanges,
     setupCallUrl: await readSetupCallUrl(sql),
     prefs: owner.prefs,
   };

@@ -2,6 +2,7 @@ import { activeRules } from "./decide.ts";
 import { setupStep } from "./next-action.ts";
 import { serviceAuthority } from "./service-authority.ts";
 import type { Business, Enquiry } from "./types";
+import { fitsTrade } from "./trades.ts";
 
 /**
  * Which of the business's own services a message clearly names, if any.
@@ -21,6 +22,11 @@ const IGNORED = new Set(["and", "the", "for", "with", "our", "your", "service", 
  * clean. Applied to the message and the service names alike.
  */
 const SAME_WORDS: [RegExp, string][] = [
+  // Short forms are the word itself: "gel mani" is a gel manicure.
+  [/\bmanis?\b/g, " manicure "],
+  [/\bpedis?\b/g, " pedicure "],
+  [/\bgel\s+nails?\b/g, " gel manicure "],
+  [/\b(?:vacate|vacating|exit|move[- ]?out|moving[- ]?out)\s+clean/g, " end lease clean"],
   [/\b(?:inside|internal|indoors?)\b/g, " interior "],
   [/\brepaint/g, " paint"],
   [/\b(?:outside|external|outdoors?)\b/g, " exterior "],
@@ -56,9 +62,14 @@ function stem(word: string): string {
 const NOT_WANTED =
   /\b(?:is|are)\s+(?:fine|ok|okay|good|done|sorted)\b|\bno need\b|\bdon'?t need\b|\bnot needed\b|\bdoesn'?t need\b/i;
 
+/** Short forms written out, so "mani" counts as their own word for a manicure. */
+const SHORT_FORMS: [RegExp, string][] = [
+  [/\bmanis?\b/g, "manicure"],
+  [/\bpedis?\b/g, "pedicure"],
+];
+
 function plainWords(text: string): string[] {
-  return text
-    .toLowerCase()
+  return SHORT_FORMS.reduce((t, [re, to]) => t.replace(re, to), text.toLowerCase())
     .split(/[^a-z0-9]+/)
     .filter((w) => w.length >= 3 && !IGNORED.has(w));
 }
@@ -116,16 +127,26 @@ export function suggestService(message: string, services: readonly string[]): st
   if (fromForm) return fromForm;
   const said = saidWeights(message);
   const scored = [...new Set(services.map((s) => s.trim()).filter(Boolean))]
+    // "Ceilings" for a mouldy bathroom they want cleaned, "Bridal makeup" for
+    // a painting job: never offered from another trade than the message's.
+    .filter((service) => fitsTrade(service, message))
     .map((service) => {
       const need = words(service).map(stem);
       const all = need.length > 0 && need.every((w) => said.has(w));
-      return { service, score: all ? need.reduce((n, w) => n + (said.get(w) ?? 0), 0) : 0 };
+      return {
+        service,
+        score: all ? need.reduce((n, w) => n + (said.get(w) ?? 0), 0) : 0,
+        first: firstMention(message, service),
+      };
     })
     .filter((s) => s.score > 0)
-    .sort((a, b) => b.score - a.score);
+    .sort((a, b) => b.score - a.score || a.first - b.first);
   if (scored.length === 0) return undefined;
-  if (scored.length > 1 && scored[1]!.score === scored[0]!.score) return undefined;
-  return scored[0]!.service;
+  // Two named as fully: the one they asked for first ("could i book gel mani
+  // ... also how much is lash lift?"), never a guess between two at once.
+  const [top, next] = scored;
+  if (next && next.score === top!.score && next.first === top!.first) return undefined;
+  return top!.service;
 }
 
 /**
@@ -154,12 +175,21 @@ export function rankServices(message: string, services: readonly string[]): stri
       return {
         service,
         i,
+        // Another trade's service is never in the top choices for this message.
+        fits: fitsTrade(service, message) ? 1 : 0,
         score,
         share: need.length ? hit / need.length : 0,
         first: firstMention(message, service),
       };
     })
-    .sort((a, b) => b.score - a.score || b.share - a.share || a.first - b.first || a.i - b.i)
+    .sort(
+      (a, b) =>
+        b.fits - a.fits ||
+        b.score - a.score ||
+        b.share - a.share ||
+        a.first - b.first ||
+        a.i - b.i,
+    )
     .map((s) => s.service);
 }
 

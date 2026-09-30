@@ -70,7 +70,7 @@ function isStreet(matched: string, after: string): boolean {
 }
 
 /** Hedges: the customer means about this many. Kept and shown, never dropped. */
-const APPROX = String.raw`(?:roughly|about|around|approximately|approx\.?|~|circa|nearly|almost|close to|maybe|give or take)`;
+const APPROX = String.raw`(?:roughly|about|around|approximately|approx\.?|~|circa|nearly|almost|close to|maybe|probably|prob|give or take)`;
 
 /**
  * Bounds: "up to 5", "at least 3", "over 100". A bound is not a count, so it
@@ -86,7 +86,11 @@ const NEGATED_BEFORE = /\bnot\s+$/i;
 
 /** "2 rooms each 3 metres squared": a per-item size, not the job size. */
 const EACH_BEFORE = /\b(?:each|per|every)\s+$/i;
-const EACH_AFTER = /^\s*(?:each|apiece|per\b|a piece)/i;
+const EACH_AFTER =
+  /^\s*(?:each(?!\s+(?:time|visit|clean|week|fortnight|month|session|booking))|apiece|per\b|a piece)/i;
+/** "4 hrs prob", "3 hours or so": a hedge after the count. */
+const APPROX_AFTER =
+  /^\s*(?:prob(?:ably)?\b|or so\b|give or take\b|roughly\b|approx(?:imately)?\b)/i;
 
 /** "3-4", "3 or 4", "between 3 and 4", "4 and 5" before the counted number. */
 const RANGE_BEFORE = new RegExp(
@@ -135,7 +139,8 @@ const FAMILIES: { match: RegExp; words: string }[] = [
   { match: /^(hours?|hrs?)$/, words: String.raw`(?:hours?|hrs?)` },
   {
     match: /^(guests?|people|persons?|person|pax|attendees?|heads?)$/,
-    words: String.raw`(?:guests?|people|persons?|pax|attendees?|adults?)`,
+    // "4 of us", "2 ppl": how people say how many of them there are.
+    words: String.raw`(?:guests?|people|persons?|pax|attendees?|adults?|ppl|of\s+us)`,
   },
 ];
 
@@ -233,6 +238,60 @@ function tieOf(text: string, index: number, spanLength: number, context: Quantit
   return "none";
 }
 
+/**
+ * Whether two prices read the same kind of count from a message: "3 bedrooms"
+ * could be an end of lease clean's bedrooms or a carpet clean's rooms, while
+ * an hourly price never competes with a price per square metre.
+ */
+export function sameCountWords(
+  a: { field: string; unit?: string },
+  b: { field: string; unit?: string },
+): boolean {
+  const wa = unitWordsFor(a.field.replace(/\s+for\s+.*$/i, ""), a.unit ?? "");
+  const wb = unitWordsFor(b.field.replace(/\s+for\s+.*$/i, ""), b.unit ?? "");
+  if (!wa || !wb) return false;
+  const rooms = (w: string) => /bed|room/.test(w);
+  return wa === wb || (rooms(wa) && rooms(wb));
+}
+
+/** One person named: "bride", "mum", "me", "my sister", "the flower girl". */
+const ONE_PERSON =
+  /^(?:(?:my|the|our|her|his)\s+)?(?:me|myself|bride|groom|mum|mom|mother|dad|father|sister|brother|daughter|son|aunt|auntie|grandma|nan|nanna|friend|partner|husband|wife|flower\s+girl|maid\s+of\s+honou?r|mother\s+of\s+the\s+(?:bride|groom)|mil|mob|mog)$/i;
+/** Several named by a number: "2 bridesmaids", "three friends". */
+const SEVERAL =
+  /^(\d{1,2}|two|three|four|five|six|seven|eight|nine|ten)\s+(?:bridesmaids?|sisters?|friends?|girls?|kids?|children|daughters?|flower\s+girls?|guests?|people|others?|more)$/i;
+/** "for bride + mum + 2 bridesmaids", "for me, mum and 3 bridesmaids". */
+const PEOPLE_LIST =
+  /\bfor\s+((?:[a-z0-9]+(?:\s+[a-z]+){0,3})(?:\s*(?:\+|,|&|\band\b|\bplus\b|\bn\b)\s*(?:[a-z0-9]+(?:\s+[a-z]+){0,3}))+)/i;
+
+/**
+ * The people a message lists by who they are, added up: "bride + mum + 2
+ * bridesmaids" is 4. Only when every part of the list is a person, so "for me
+ * and the kitchen" is never read as a count.
+ */
+function peopleListed(text: string): MessageQuantity | undefined {
+  const m = PEOPLE_LIST.exec(text);
+  if (!m) return undefined;
+  const parts = m[1]!
+    .split(/\s*(?:\+|,|&|\band\b|\bplus\b|\bn\b)\s*/i)
+    .map((p) => p.trim())
+    .filter(Boolean);
+  let total = 0;
+  for (const part of parts) {
+    if (ONE_PERSON.test(part)) {
+      total += 1;
+      continue;
+    }
+    const several = SEVERAL.exec(part);
+    const n = several ? toNumber(several[1]!) : null;
+    if (n === null) return undefined;
+    total += n;
+  }
+  return parts.length >= 2 && total >= 2
+    ? { value: String(total), span: m[1]!.trim(), approximate: false }
+    : undefined;
+}
+
 /** Units that measure an amount rather than count things. */
 const MEASURE_UNIT = /metre|meter|sq|m2|m²|hour|hr|day|minute|kg|litre|people|person|guest/i;
 
@@ -282,11 +341,13 @@ export function readQuantityFromMessage(
     }
     const n = toNumber(m[2]!);
     if (n === null) continue;
+    const hedge = APPROX_AFTER.exec(after)?.[0].trim();
     reads.push({
       value: String(n),
-      // Exactly what the customer wrote, so the owner confirms their words.
-      span: m[0].trim(),
-      approximate: Boolean(m[1] || m[3]),
+      // Exactly what the customer wrote, so the owner confirms their words:
+      // "4 hrs prob" keeps its "prob".
+      span: hedge ? `${m[0].trim()} ${hedge}` : m[0].trim(),
+      approximate: Boolean(m[1] || m[3] || hedge),
       index,
       length: m[0].length,
     });
@@ -333,6 +394,11 @@ export function readQuantityFromMessage(
       });
     }
   }
+  // "for bride + mum + 2 bridesmaids": the people listed, added up.
+  if (reads.length === 0 && /people|guest|person/.test(words)) {
+    const listed = peopleListed(text);
+    if (listed) reads.push({ ...listed, index: 0, length: 0 });
+  }
   if (ranged) return undefined;
   let candidates = reads;
   if (context && context.others.length > 0) {
@@ -345,6 +411,11 @@ export function readQuantityFromMessage(
     const shared = !MEASURE_UNIT.test(`${unit} ${field}`);
     if (ties.some((t) => t === "both") && !shared) return undefined;
     candidates = reads.filter((_, i) => ties[i] === "this" || ties[i] === "both");
+    // "House is 5 bedrooms ... carpets in the 4 bedrooms upstairs": the other
+    // service has its own count, so the one tied to neither is this job's.
+    if (candidates.length === 0 && ties.includes("other")) {
+      candidates = reads.filter((_, i) => ties[i] === "none");
+    }
   }
   const values = new Set(candidates.map((r) => r.value));
   // Two different counts for the same thing: the customer has not said which.

@@ -61,7 +61,7 @@ const TOPICS: [string, RegExp][] = [
   ["payment", /\b(?:pay(?:ment)?|card|cash|invoice|afterpay|eftpos|bank transfer)\b/i],
   [
     "equipment",
-    /\b(?:bring|supply|provide|use|using)\s+(?:your\s+own\s+|any\s+)?(?:\w+\s+)?(?:equipment|products|supplies|gear|vacuum|materials|chemicals)\b/i,
+    /\b(?:bring|supply|provide|use|using)\s+(?:(?:your|our|my|their)\s+own\s+|any\s+|all\s+(?:our|my|the)\s+(?:own\s+)?)?(?:\w+\s+)?(?:equipment|products|supplies|gear|vacuum|materials|chemicals)\b/i,
   ],
   ["pets", /\b(?:pets?|dogs?|cats?)\b/i],
   ["parking", /\bpark(?:ing)?\b/i],
@@ -73,6 +73,44 @@ const TOPICS: [string, RegExp][] = [
     /\b(?:discounts?|concessions?|pensioners?|seniors?\s+(?:rate|discount)|mates?\s+rates?)\b/i,
   ],
 ];
+
+/** Topics an owner's saved answer can be for: never a counter-offer or what one quote includes. */
+const ANSWER_TOPICS = new Set([
+  "insurance",
+  "licence",
+  "duration",
+  "deposit",
+  "payment",
+  "equipment",
+  "pets",
+  "parking",
+  "warranty",
+  "discount",
+]);
+
+/** How a customer usually asks it, for a saved answer written as a statement. */
+const TOPIC_QUESTIONS: Record<string, string> = {
+  insurance: "Are you insured?",
+  licence: "Are you licensed?",
+  duration: "How long will it take?",
+  deposit: "Do you need a deposit?",
+  payment: "How can I pay?",
+  equipment: "Do you bring your own equipment?",
+  pets: "Is it OK if we have pets?",
+  parking: "Is there parking?",
+  warranty: "Do you guarantee your work?",
+  discount: "Is there a discount?",
+};
+
+/**
+ * The topic an owner's sentence answers ("We have $20 million public
+ * liability insurance" is insurance), with the question customers ask, or
+ * undefined when it answers none of the questions customers ask again.
+ */
+export function answerTopicOf(text: string): { topic: string; question: string } | undefined {
+  const topic = TOPICS.find(([t, re]) => ANSWER_TOPICS.has(t) && re.test(text))?.[0];
+  return topic ? { topic, question: TOPIC_QUESTIONS[topic]! } : undefined;
+}
 
 /** "r u free", "are you available", "any availability", "can you fit us in", "is the 10th ok?". */
 const AVAILABILITY =

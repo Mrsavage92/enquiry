@@ -1,4 +1,10 @@
-import { readDetailLine, type DetailRead } from "./business-detail.ts";
+import {
+  readDetailLine,
+  readWorkingHours,
+  type AnswerDetail,
+  type DetailRead,
+} from "./business-detail.ts";
+import { answerTopicOf } from "./customer-asks.ts";
 import {
   extraOnly,
   readPriceLine,
@@ -109,11 +115,21 @@ type LineRead = Pick<BusinessDetailsRead, "prices" | "unread" | "details">;
 /** One part of a line, read the way a whole line is. */
 function readPart(line: string, now: Date): LineRead {
   const out: LineRead = { prices: [], unread: [], details: [] };
+  // "Mon-Sat 7am-5pm": the hours Settings keeps, read back before saving.
+  const hours = readWorkingHours(line);
+  if (hours) {
+    out.details.push({ line, detail: hours });
+    return out;
+  }
   // A minimum, surcharge, fee, "only if" or closed dates: a rule each quote
   // it concerns checks with one tap, not a note the owner has to remember.
   const rule = readRuleLine(line, now);
   if (rule?.refuse) {
     out.unread.push({ line, reason: rule.refuse });
+    return out;
+  }
+  if (rule?.note) {
+    out.unread.push({ line, reason: rule.note, note: true });
     return out;
   }
   if (rule) {
@@ -156,9 +172,42 @@ function readPart(line: string, now: Date): LineRead {
         detail: { kind: "note", text: `${service} includes ${read.note}`, service },
       });
     }
+  } else if (answerFor(line)) {
+    // "We have $20 million public liability insurance": the owner's answer to
+    // a question customers ask, offered when one does - never a price.
+    out.details.push({ line, detail: answerFor(line)! });
   } else if (HAS_AMOUNT.test(line)) out.unread.push(read);
   else out.unread.push({ line, reason: NOT_A_PRICE, note: true });
   return out;
+}
+
+/**
+ * The owner's sentence as a saved answer, when it answers a question customers
+ * ask: "Do you have insurance? Yes, $20 million public liability." keeps their
+ * question; "We bring our own equipment" gets the usual one.
+ */
+function answerFor(line: string): AnswerDetail | null {
+  const read = answerTopicOf(line);
+  if (!read) return null;
+  const qa = /^\s*(.+?\?)\s*(.+?)\s*$/.exec(line);
+  // Said as the owner's own answer: a question and its answer, "we ..." /
+  // "yes ...", or insurance and licensing, which are only ever about them.
+  // "Cash only for jobs" and "No pets inside" stay notes.
+  const own =
+    Boolean(qa) ||
+    /^\s*(?:we|we're|we've|our|i|i'm|i've|my|yes|yep|all\s+(?:our|my))\b/i.test(line) ||
+    read.topic === "insurance" ||
+    read.topic === "licence";
+  if (!own) return null;
+  const question = qa ? qa[1]!.trim() : read.question;
+  const text = (qa ? qa[2]! : line).trim().replace(/[;]+$/, "");
+  if (!text || text.length > 300) return null;
+  return {
+    kind: "answer",
+    topic: read.topic,
+    question,
+    text: /[.!?]$/.test(text) ? text : `${text}.`,
+  };
 }
 
 /**

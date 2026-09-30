@@ -3,6 +3,8 @@ import { COVERAGE_FIELD, unsettledFlags, type CoverageFlag } from "../../domain/
 import { applyDecision, isClosed, lockEnquiry } from "./decision-apply.ts";
 import { requireEnquiryAccess } from "./tenancy.server.ts";
 import { openAsked, type AskedItem } from "../../domain/asked.ts";
+import { describeChange, updateEditFigures } from "../../domain/edit-figures.ts";
+import type { Decision } from "../../domain/decide.ts";
 
 /**
  * "That's everything": the owner confirming what a price covers, as pure SQL
@@ -19,7 +21,19 @@ import { openAsked, type AskedItem } from "../../domain/asked.ts";
 export type ConfirmCoverageInput = { enquiryId: string; key: string; revision: number };
 
 export type ConfirmCoverageResult =
-  | { ok: true; businessId: string; enquiryId: string; revision: number; confirmed: boolean }
+  | {
+      ok: true;
+      businessId: string;
+      enquiryId: string;
+      revision: number;
+      confirmed: boolean;
+      /**
+       * The owner's own edit of the reply, kept through the confirmation: its
+       * words stay, and only the figures that moved are brought up to date.
+       * `changes` says which ("Makeup trial $90 -> $95").
+       */
+      editKept?: { changes: string[] };
+    }
   | { ok: false; businessId: string; reason: "changed" | "closed" | "unsettled"; message: string };
 
 const CHANGED =
@@ -90,19 +104,62 @@ export async function confirmCoverageInTransaction(
       ${true}
     )
   `;
+  // The reply the owner is part-way through editing, for this decision.
+  const [draft] = await tx<{ body: string }>`
+    select body from reply_draft
+    where enquiry_id = ${enquiryId} and decision_revision = ${locked.decisionRevision}
+  `;
   const applied = await applyDecision(tx, {
     enquiryId,
     businessId,
     serviceLabel: locked.serviceLabel,
     customerName: locked.customerName,
   });
+  const editKept = draft ? await keepEdit(tx, enquiryId, draft.body, applied) : undefined;
   return {
     ok: true,
     businessId,
     enquiryId,
     revision: applied.revision,
     confirmed: Boolean(applied.decision.coverage?.confirmed),
+    ...(editKept ? { editKept } : {}),
   };
+}
+
+/**
+ * "That's everything" is about the very reply the owner is editing: their
+ * edit stays theirs. It moves to the new decision with only the figures the
+ * decision owns brought up to date, never swapped for the prepared text.
+ */
+async function keepEdit(
+  tx: Sql,
+  enquiryId: string,
+  body: string,
+  applied: { decision: Decision; revision: number },
+): Promise<{ changes: string[] }> {
+  const d = applied.decision;
+  const lines =
+    d.price.kind !== "EXACT"
+      ? []
+      : d.lines?.length
+        ? d.lines
+        : [
+            {
+              label: d.price.rule.service,
+              amountMinor: d.price.amountMinor,
+              ...(d.price.rule.kind === "per_unit"
+                ? { detail: d.price.workings.replace(/\.$/, "") }
+                : {}),
+            },
+          ];
+  const total = d.price.kind === "EXACT" ? d.price.amountMinor : null;
+  const updated = updateEditFigures(body, lines, total);
+  await tx`
+    update reply_draft
+    set body = ${updated.body}, decision_revision = ${applied.revision}, updated_at = now()
+    where enquiry_id = ${enquiryId}
+  `;
+  return { changes: updated.changes.map(describeChange) };
 }
 
 export async function confirmCoverageForUser(

@@ -48,7 +48,8 @@ export function blockedQuantity(
     field: decision.price.missingField,
     unit: rule.unit,
     service: rule.service,
-    knownServices: decision.knownServices ?? [],
+    // Only services priced by the same kind of count compete for it.
+    knownServices: decision.countPeers ?? decision.knownServices ?? [],
   };
 }
 

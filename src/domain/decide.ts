@@ -35,6 +35,7 @@ import {
   RECURRING_FIELD,
   unsettledFlags,
   type Coverage,
+  type CoverageFlag,
 } from "./coverage.ts";
 import {
   QUESTION_ANSWER,
@@ -56,7 +57,9 @@ import {
   topicWords,
 } from "./customer-asks.ts";
 import { closedReason } from "./compose-reply.ts";
-import { mentionsAny, namesService, stemsOf } from "./service-words.ts";
+import { distinctiveStems, mentionsAny, namesService, stemsOf } from "./service-words.ts";
+import { sameCountWords } from "./quantity-reader.ts";
+import { applyHeadcount } from "./headcount.ts";
 import { contextMentions } from "./date-roles.ts";
 import { askedLedger, checkCount, openAsked, type AskedItem } from "./asked.ts";
 
@@ -204,6 +207,12 @@ export type Decision = {
   asked?: AskedItem[];
   /** The owner's checks on this enquiry, settled and in all. */
   checks?: { done: number; total: number };
+  /**
+   * The other services priced by the same kind of count as the one this
+   * decision is waiting on: only these compete for "5 bedrooms" in the
+   * message. A price per hour never takes a count of square metres.
+   */
+  countPeers?: string[];
 };
 
 /**
@@ -297,7 +306,11 @@ export function decideEnquiry(
   },
 ): Decision {
   const facts = (enquiry.facts ?? []) as DecideFact[];
-  return withLedger(withOwnerAmounts(decideCore(business, enquiry), facts), facts, enquiry);
+  const decided = withOwnerAmounts(decideCore(business, enquiry), facts);
+  // Whatever step the decision stopped on, only services priced by the same
+  // kind of count compete for a count in their message.
+  const peers = countPeersOf(activeRules(business), decided);
+  return withLedger(peers ? { ...decided, countPeers: peers } : decided, facts, enquiry);
 }
 
 /**
@@ -362,6 +375,7 @@ function decideCore(
   const gated =
     withNotes.action === "SEND_QUOTE"
       ? gateCoverage(withNotes, {
+          rules,
           serviceLabel,
           facts,
           details,
@@ -377,9 +391,29 @@ function decideCore(
   // never passes over one.
   const later = laterLines(facts, gated);
   if (later.length) {
-    return { ...gated, replyNotes: [...(gated.replyNotes ?? []), ...later], knownServices };
+    return {
+      ...gated,
+      replyNotes: [...(gated.replyNotes ?? []), ...later],
+      knownServices,
+    };
   }
   return { ...gated, knownServices };
+}
+
+/** The services priced by the same kind of count as the one a blocked decision needs. */
+function countPeersOf(rules: readonly BusinessRule[], decided: Decision): string[] | undefined {
+  if (decided.price.kind !== "BLOCKED" || decided.price.rule.kind !== "per_unit") return undefined;
+  const want = { field: decided.price.missingField, unit: decided.price.rule.unit };
+  return [
+    ...new Set(
+      rules
+        .filter(
+          (r) =>
+            r.kind === "per_unit" && sameCountWords({ field: r.quantityField, unit: r.unit }, want),
+        )
+        .map((r) => r.service),
+    ),
+  ];
 }
 
 /**
@@ -596,12 +630,24 @@ function pendingAsk(
     };
   }
   const saved = details.find((d) => d.kind === "answer" && d.topic === topic);
+  // "is there a discount?" beside the owner's own "10% off for pensioners":
+  // that sentence is offered as the answer, one tap, never sent by itself.
+  const discount =
+    topic === "discount"
+      ? details.find((d) => d.kind === "discount" && Boolean(d.condition))
+      : undefined;
+  const offered =
+    saved && saved.kind === "answer"
+      ? saved.text
+      : discount && discount.kind === "discount"
+        ? `Yes - ${(discount.text ?? `${discount.percent}% off for ${discount.condition}`).replace(/[.!]+$/, "")}.`
+        : undefined;
   return {
     field: open.field,
     thing: topicWords(topic),
     kind: "ask",
     ...(question ? { span: question } : {}),
-    ...(saved && saved.kind === "answer" ? { saved: saved.text } : {}),
+    ...(offered ? { saved: offered } : {}),
     ...(isReusableTopic(topic) ? { reusable: true } : {}),
   };
 }
@@ -665,6 +711,7 @@ function allDatesOf(facts: ReadonlyArray<DecideFact>): string[] {
 }
 
 type CoverageContext = {
+  rules: readonly BusinessRule[];
   serviceLabel: string;
   facts: ReadonlyArray<DecideFact>;
   details: BusinessDetail[];
@@ -746,11 +793,19 @@ function gateCoverage(decided: Decision, ctx: CoverageContext): Decision {
   );
   const recurring = String(recurringAnswer?.value ?? "") === "yes";
   const unruled = linesOf(decided);
+  // "for me n my sister (2 ppl)" beside a flat price: priced the way the
+  // owner says, never one price read as covering both.
+  const counted = applyHeadcount({
+    lines: unruled,
+    rules: ctx.rules,
+    message: ctx.message,
+    facts: ctx.facts,
+  });
   // The owner's own rules (minimum charge, Saturday rate, travel fee, "only
   // if single storey"): each is applied, waived or still to ask, never passive.
   const ruled = applyRules({
     details: ctx.details,
-    lines: unruled,
+    lines: counted.lines,
     message: ctx.message,
     jobDates: jobDatesOf(ctx.facts),
     facts: ctx.facts,
@@ -760,10 +815,13 @@ function gateCoverage(decided: Decision, ctx: CoverageContext): Decision {
     return declineDecision(decided, ruled.declined);
   }
   const lines = ruled.lines as QuoteLine[];
-  decided = withRuledLines(decided, unruled, lines, ruled.implied, [
-    ...ruled.declined,
-    ...ruled.notes,
-  ]);
+  decided = withRuledLines(
+    decided,
+    unruled,
+    lines,
+    [...ruled.implied, ...counted.implied],
+    [...ruled.declined, ...ruled.notes, ...counted.notes],
+  );
   const handled = ctx.facts
     .filter((f) => isExtraField(f.field) && f.status === "confirmed")
     .map((f) => extraLabel(f.field))
@@ -779,9 +837,15 @@ function gateCoverage(decided: Decision, ctx: CoverageContext): Decision {
     services: ctx.services,
     details: ctx.details,
     jobDates: allDatesOf(ctx.facts),
-  });
+  }).map((f) => withOffer(f, ctx.rules, lines));
   flagged.push(
     ...ruled.infos.map((text) => ({ kind: "note" as const, text: `Your note: ${text}` })),
+    ...counted.open.map((c) => ({
+      kind: "headcount" as const,
+      text: c.text,
+      thing: c.field,
+      choices: c.choices,
+    })),
   );
   // How often comes before the owner's rules: a repeat-job discount is only
   // asked about once they have said the job repeats.
@@ -843,6 +907,38 @@ function gateCoverage(decided: Decision, ctx: CoverageContext): Decision {
     action: "ESCALATE_HUMAN",
     explanation: "Check what this price covers before the reply names it.",
     coverage,
+  };
+}
+
+/**
+ * "They mention the oven" when "Oven clean $60" is saved: the flag carries
+ * that price, so the owner can add it with one tap rather than hunting for it.
+ */
+function withOffer(
+  flag: CoverageFlag,
+  rules: readonly BusinessRule[],
+  lines: readonly QuoteLine[],
+): CoverageFlag {
+  if (flag.kind !== "mention" || !flag.thing) return flag;
+  const onQuote = new Set(lines.map((l) => l.label.trim().toLowerCase()));
+  const said = stemsOf(flag.thing);
+  const hits = rules.filter(
+    (r) =>
+      !onQuote.has(r.service.trim().toLowerCase()) &&
+      distinctiveStems(
+        r.service,
+        rules.filter((o) => o !== r).map((o) => o.service),
+      ).some((s) => said.includes(s)),
+  );
+  const rule = hits.length === 1 ? hits[0]! : undefined;
+  if (!rule) return flag;
+  return {
+    ...flag,
+    offer: {
+      service: rule.service,
+      ...(rule.kind === "fixed_price" ? { amountMinor: Math.round(rule.amount * 100) } : {}),
+      ...(rule.kind === "per_unit" ? { unit: rule.unit } : {}),
+    },
   };
 }
 
@@ -991,7 +1087,7 @@ function roughWorkings<T extends { workings: string; count?: string }>(price: T)
 
 /** A count the customer hedged, kept in how it was confirmed: "about 12". */
 export const APPROX_SAID =
-  /^\s*(?:about|roughly|around|approx(?:imately)?|maybe|~|nearly|almost|close to)\b/i;
+  /^\s*(?:about|roughly|around|approx(?:imately)?|maybe|probably|prob|~|nearly|almost|close to)\b|\b(?:prob(?:ably)?|or so|ish)\s*$/i;
 
 /** Whether a field is the count of one of the business's services as an extra. */
 function isExtraQuantityFor(rules: BusinessRule[], field: string): boolean {

@@ -365,11 +365,11 @@ export function frequencyWord(said: string): Discount["frequency"] | undefined {
  * line says so ("10% fortnightly discount on $160").
  */
 function applyDiscounts(ctx: Ctx, start: RuleLine[]): RuleLine[] {
-  let lines = start;
+  let lines = applyConditionDiscounts(ctx, start);
   if (!ctx.recurring) return lines;
   const often = frequencyWord(ctx.recurring);
   for (const d of ctx.details) {
-    if (d.kind !== "discount") continue;
+    if (d.kind !== "discount" || !d.frequency) continue;
     if (d.frequency !== "regular" && d.frequency !== often) {
       // "every 3 weeks" against a fortnightly discount: said to the owner,
       // never a discount Enquiry stretches to fit.
@@ -415,27 +415,110 @@ function applyDiscounts(ctx: Ctx, start: RuleLine[]): RuleLine[] {
   return lines;
 }
 
-function applyFees(ctx: Ctx, start: RuleLine[]): RuleLine[] {
+/**
+ * "10% off for pensioners": taken off only when the owner says so, and only
+ * asked about on a quote whose message mentions them or asks for a discount.
+ */
+function applyConditionDiscounts(ctx: Ctx, start: RuleLine[]): RuleLine[] {
   let lines = start;
-  for (const f of ctx.details) {
-    if (f.kind !== "fee" || !jobLines(lines).some((l) => concerns(l, (f as Fee).service))) continue;
-    const amount = Math.round(f.amount * 100);
-    if (amount <= 0) continue;
+  for (const d of ctx.details) {
+    if (d.kind !== "discount" || d.frequency || !d.condition) continue;
+    const who = d.condition;
+    const said = new RegExp(String.raw`\b${who.slice(0, 5).replace(/[^a-z ]/gi, "")}`, "i");
+    if (!said.test(ctx.message) && !/\bdiscount|\bconcession|\bcheaper\b/i.test(ctx.message)) {
+      continue;
+    }
+    const target = jobLines(lines).filter((l) => concerns(l, d.service));
+    if (target.length === 0) continue;
+    const base = sum(target);
+    const after = target.reduce(
+      (s, l) => s + Math.round((l.amountMinor * (100 - d.percent)) / 100),
+      0,
+    );
+    if (after <= 0 || after >= base) continue;
+    const what = who.replace(/s$/, "");
     const check: RuleCheck = {
-      field: `${RULE_PREFIX}fee:${idOf(norm(f.text))}`,
-      kind: "fee",
-      text: `Your ${f.label.toLowerCase()}: "${f.text}"`,
+      field: `${RULE_PREFIX}discount:for:${idOf(norm(who))}:${d.percent}`,
+      kind: "discount",
+      text: `Apply your ${who} discount? ${d.percent}% off (${formatMinorAud(base)} becomes ${formatMinorAud(after)}) - only if they are one`,
       choices: [
-        [RULE_CHOICE.apply, `Add ${formatMinorAud(amount)} ${f.label.toLowerCase()}`],
+        [RULE_CHOICE.apply, `Apply ${d.percent}% ${what} discount (${formatMinorAud(after)})`],
         [RULE_CHOICE.waive, "Doesn't apply"],
       ],
     };
     lines = settle(
       ctx,
       check,
+      () =>
+        lines.map((l) => {
+          if (!target.includes(l)) return l;
+          const amountMinor = Math.round((l.amountMinor * (100 - d.percent)) / 100);
+          ctx.implied.push(l.amountMinor, amountMinor, l.amountMinor - amountMinor);
+          const off = `${d.percent}% ${what} discount on ${formatMinorAud(l.amountMinor)}`;
+          return { ...l, amountMinor, detail: l.detail ? `${l.detail}, ${off}` : off };
+        }),
+      lines,
+    );
+  }
+  return lines;
+}
+
+/**
+ * The name a fee goes on a quote under: its own ("Travel fee", "Weekend
+ * surcharge"), or, for a fee saved only as "Extra charge", what the owner
+ * said it is for. Null when nothing says what it is for: a customer is never
+ * charged something with no reason.
+ */
+export function feeLineLabel(f: Fee): string | null {
+  if (f.label.trim().toLowerCase() !== "extra charge") return f.label;
+  const reason = f.text
+    .replace(/\$\s?\d[\d,]*(?:\.\d{1,2})?/g, " ")
+    .replace(/\b(?:extra|charges?|fees?|of|an?|is|are)\b/gi, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  return /[a-z]{3}/i.test(reason) ? `Extra charge (${reason.replace(/[.;]+$/, "").toLowerCase()})` : null;
+}
+
+function applyFees(ctx: Ctx, start: RuleLine[], notes: string[]): RuleLine[] {
+  let lines = start;
+  const days = ctx.jobDates.map(weekdayOf).filter((d): d is number => d !== undefined);
+  for (const f of ctx.details) {
+    if (f.kind !== "fee" || !jobLines(lines).some((l) => concerns(l, (f as Fee).service))) continue;
+    const amount = Math.round(f.amount * 100);
+    if (amount <= 0) continue;
+    // "Weekend jobs have a $50 surcharge": only asked about when the day is
+    // one of those; some days offered, some not: said, never guessed.
+    if (f.days?.length) {
+      if (!days.some((d) => f.days!.includes(d))) continue;
+      if (!days.every((d) => f.days!.includes(d))) {
+        notes.push(`Just so you know, ${f.text.replace(/[.;]+$/, "")}.`);
+        continue;
+      }
+    }
+    const label = feeLineLabel(f);
+    const check: RuleCheck = label
+      ? {
+          field: `${RULE_PREFIX}fee:${idOf(norm(f.text))}`,
+          kind: "fee",
+          text: `Your ${f.label.toLowerCase()}: "${f.text}"`,
+          choices: [
+            [RULE_CHOICE.apply, `Add ${formatMinorAud(amount)} ${f.label.toLowerCase()}`],
+            [RULE_CHOICE.waive, "Doesn't apply"],
+          ],
+        }
+      : {
+          field: `${RULE_PREFIX}fee:${idOf(norm(f.text))}`,
+          kind: "fee",
+          text: `Your extra charge: "${f.text}" - it doesn't say what it is for, so a reply can't name it. Change it on your business screen to say why.`,
+          choices: [[RULE_CHOICE.waive, "Leave it off this quote"]],
+        };
+    lines = settle(
+      ctx,
+      check,
       () => {
+        if (!label) return lines;
         ctx.implied.push(amount);
-        return [...lines, { label: f.label, amountMinor: amount, adjustment: true }];
+        return [...lines, { label, amountMinor: amount, adjustment: true }];
       },
       lines,
     );
@@ -492,7 +575,7 @@ export function applyRules(input: {
   lines = applyDiscounts(ctx, lines);
   lines = applyMinimums(ctx, lines);
   lines = applySurcharges(ctx, lines, notes);
-  lines = applyFees(ctx, lines);
+  lines = applyFees(ctx, lines, notes);
   return {
     lines,
     open: ctx.open,
