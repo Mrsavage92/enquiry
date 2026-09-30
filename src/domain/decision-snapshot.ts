@@ -184,9 +184,9 @@ export function snapshotFromDecision(decision: Decision, who: ReplyContext = {})
     // What the reviewed message is allowed to say about money. Stored with the
     // decision because it is derived from the rule that produced the price, not
     // from the text of any particular draft.
-    ...(decision.ownerAmountsMinor?.length
-      ? { ownerAmountsMinor: decision.ownerAmountsMinor }
-      : {}),
+    ...(decision.ownerAnswerTexts?.length ? { ownerAnswerTexts: decision.ownerAnswerTexts } : {}),
+    // Two things the owner said disagree: the desk shows it so they can settle it.
+    ...(decision.conflict ? { conflict: decision.conflict } : {}),
     impliedAmountsMinor:
       decision.extraPending || !replyMayNameTotal(decision)
         ? []

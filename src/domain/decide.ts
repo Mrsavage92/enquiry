@@ -44,7 +44,7 @@ import {
   questionReplyLine,
   questionThing,
 } from "./service-questions.ts";
-import { applyRules } from "./rule-checks.ts";
+import { RULE_CHOICE, RULE_PREFIX, applyRules } from "./rule-checks.ts";
 import { dollarAmounts } from "./voice-detect.ts";
 import {
   askReplyLines,
@@ -198,11 +198,11 @@ export type Decision = {
    */
   roughCounts?: { label: string; field: string; value: string }[];
   /**
-   * Money the owner typed in their own answers to the customer's questions or
-   * a referral note ("insured with $20m public liability", "a $50 deposit"):
-   * sent as written, and never mistaken for a price the send check compares.
+   * The owner's own sentences that name money, as the reply carries them: an
+   * answer they typed or saved ("We have $20m public liability.") or a
+   * referral note. A figure is trusted only inside its own sentence, as written.
    */
-  ownerAmountsMinor?: number[];
+  ownerAnswerTexts?: string[];
   /** Lines the reply must carry: answered questions, things to come back on. */
   replyNotes?: string[];
   /** Everything they asked for or about, and where each stands. */
@@ -305,20 +305,24 @@ function inferredFor(
  *  - unpriceable -> a human judges it, and Enquiry says why rather than
  *                   inventing a number.
  */
-/** The amounts in the owner's own words that a reply will carry. */
-function ownerAmounts(lines: readonly string[]): number[] {
-  return [...new Set(lines.flatMap((l) => dollarAmounts(l).map((n) => Math.round(n * 100))))];
-}
-
-/** A decision with the owner's own amounts from the lines it carries. */
-function withOwnerAmounts(decided: Decision, facts: ReadonlyArray<DecideFact>): Decision {
-  // The owner's typed answers, and the kind no in their own words (a referral
-  // note they saved): both go into the reply exactly as they wrote them.
+/**
+ * A decision with the owner's own sentences the reply carries: their typed or
+ * saved answers, and the kind no in their own words (a referral note). Each is
+ * sent exactly as they wrote it, and the send check trusts a figure only
+ * inside its own sentence, standing as written - never the same number
+ * anywhere else in the reply.
+ */
+function withOwnerTexts(decided: Decision, facts: ReadonlyArray<DecideFact>): Decision {
   const owned = facts
-    .filter((f) => isAskField(f.field) && f.status === "confirmed")
-    .map((f) => String(f.value ?? ""));
-  const amounts = ownerAmounts([...owned, ...(decided.declined ?? [])]);
-  return amounts.length ? { ...decided, ownerAmountsMinor: amounts } : decided;
+    .filter(
+      (f) =>
+        isAskField(f.field) && f.status === "confirmed" && askTopic(f.field) !== "availability",
+    )
+    .flatMap((f) => askReplyLines(f.field, String(f.value ?? "")));
+  const texts = [...new Set([...owned, ...(decided.declined ?? [])])].filter(
+    (t) => dollarAmounts(t).length > 0,
+  );
+  return texts.length ? { ...decided, ownerAnswerTexts: texts } : decided;
 }
 
 export function decideEnquiry(
@@ -334,7 +338,7 @@ export function decideEnquiry(
   },
 ): Decision {
   const facts = (enquiry.facts ?? []) as DecideFact[];
-  const decided = withOwnerAmounts(decideCore(business, enquiry), facts);
+  const decided = withOwnerTexts(decideCore(business, enquiry), facts);
   // Whatever step the decision stopped on, only services priced by the same
   // kind of count compete for a count in their message.
   const peers = countPeersOf(activeRules(business), decided);
@@ -735,6 +739,75 @@ function onTheQuote(thing: string, priced: readonly string[], main: string): boo
 }
 
 /**
+ * The priced line that shares a word with what they asked about, when it is
+ * not plainly the same thing: "manicures" beside "Gel manicure", "carpets"
+ * beside "Carpet steam clean", "a trial run" beside "Makeup trial", "the oven"
+ * beside "Oven racks". A bare work word ("painting") counts on its own.
+ * Sending both a price and "I'll come back" (or "Sorry, I don't") about these
+ * could say two things about one, so the owner is asked - over-asking is
+ * safer than sending both.
+ */
+function sharesWords(thing: string, priced: readonly string[]): string | undefined {
+  const own = ownWords(thing);
+  const want = own.size > 0 ? own : new Set(stemsOf(thing));
+  if (want.size === 0) return undefined;
+  return priced.find((label) => stemsOf(label).some((s) => want.has(s)));
+}
+
+/** The owner's "same thing?" check for a question beside a priced line. */
+export function sameThingField(questionField: string): string {
+  return `${RULE_PREFIX}same:${questionThing(questionField).toLowerCase()}`;
+}
+
+/** "Yes - the quote covers it" (apply) or "No - it's something else" (waive), once answered. */
+function sameThingAnswer(
+  facts: ReadonlyArray<DecideFact>,
+  questionField: string,
+): string | undefined {
+  const field = sameThingField(questionField).toLowerCase();
+  const f = facts.find((x) => x.field.trim().toLowerCase() === field && x.status === "confirmed");
+  return f ? String(f.value) : undefined;
+}
+
+/**
+ * A Yes or a come-back on "do you do X?" beside a priced line that shares a
+ * word with X, still to be settled: one check each, the owner's one tap.
+ */
+function sameThingChecks(
+  facts: ReadonlyArray<DecideFact>,
+  priced: readonly string[],
+  main: string,
+): CoverageFlag[] {
+  const out: CoverageFlag[] = [];
+  for (const f of facts) {
+    if (f.status !== "confirmed" || !isQuestionField(f.field)) continue;
+    const answer = String(f.value);
+    if (answer !== QUESTION_ANSWER.yes && answer !== QUESTION_ANSWER.later) continue;
+    const thing = questionThing(f.field);
+    if (onTheQuote(thing, priced, main)) continue;
+    const label = sharesWords(thing, priced);
+    if (!label || sameThingAnswer(facts, f.field)) continue;
+    const field = sameThingField(f.field);
+    const text = `They asked about ${thing} - is that the ${label.toLowerCase()} on this quote?`;
+    out.push({
+      kind: "rule",
+      text,
+      thing: field,
+      check: {
+        field,
+        kind: "same",
+        text,
+        choices: [
+          [RULE_CHOICE.apply, `Yes - the ${label.toLowerCase()} covers it`],
+          [RULE_CHOICE.waive, `No - say I'll come back on ${thing}`],
+        ],
+      },
+    });
+  }
+  return out;
+}
+
+/**
  * Answered questions and things the owner will come back on, in the order
  * asked. A thing the quote prices is never also one the reply "will come back
  * to you" on: a Yes or a come-back about a priced line says nothing more (the
@@ -760,6 +833,15 @@ function replyNotesFrom(
       const thing = questionThing(f.field);
       const answer = String(f.value);
       if (answer !== QUESTION_ANSWER.no && onTheQuote(thing, priced, main)) continue;
+      // Beside a priced line that shares a word: said only once the owner
+      // says it is something else; "the quote covers it" says nothing more.
+      if (
+        answer !== QUESTION_ANSWER.no &&
+        sharesWords(thing, priced) &&
+        sameThingAnswer(facts, f.field) === RULE_CHOICE.apply
+      ) {
+        continue;
+      }
       const line =
         answer === QUESTION_ANSWER.no ? noLine(thing, details) : questionReplyLine(thing, answer);
       if (line) out.push(line);
@@ -788,9 +870,10 @@ function noButPriced(
     if (f.status !== "confirmed" || !isQuestionField(f.field)) continue;
     if (String(f.value) !== QUESTION_ANSWER.no) continue;
     const thing = questionThing(f.field);
-    const line = lines.find((l) => onTheQuote(thing, [l.label], main));
+    const labels = lines.map((l) => l.label);
+    const line = labels.find((l) => onTheQuote(thing, [l], main)) ?? sharesWords(thing, labels);
     if (line) {
-      return `You said you don't do ${thing}, but ${line.label.toLowerCase()} is on this quote. Change your answer, or take it off the quote.`;
+      return `You said you don't do ${thing}, but ${line.toLowerCase()} is on this quote. Change your answer, or take it off the quote.`;
     }
   }
   return undefined;
@@ -1058,6 +1141,13 @@ function gateCoverage(start: Decision, ctx: CoverageContext): Decision {
       thing: check.field,
       check,
     })),
+    // "Do you do the oven?" answered Yes beside priced oven racks: the same
+    // thing, or something to come back on? The owner says, one tap.
+    ...sameThingChecks(
+      ctx.facts,
+      [ctx.serviceLabel, ...lines.map((l) => l.label)],
+      ctx.serviceLabel,
+    ),
   );
   const firstVisit = (l: QuoteLine, i: number) =>
     i > 0 &&
@@ -1151,7 +1241,14 @@ function withoutHeld(
     ...decided,
     price: {
       ...price,
-      rule: ruleFor(rest[0]!.label) ?? decided.price.rule,
+      // The rule the price is read from is always one of the lines left, never
+      // the held line's: its rate must not become an amount a reply may name.
+      rule: rest.map((l) => ruleFor(l.label)).find(Boolean) ?? {
+        kind: "fixed_price",
+        service: rest[0]!.label,
+        amount: total / 100,
+        currency: "AUD",
+      },
       amountMinor: total,
       workings,
       lines: rest,

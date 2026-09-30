@@ -24,39 +24,65 @@ export type DollarMatch = {
 
 /**
  * Every way a message can name money: "$3,000", "$ 3000", "A$3000", "AU$3000",
- * "AUD 3000", "3,000 dollars", "3k", "$3.6k". A kept edit that says the old
- * price in any of these forms must be caught, not only the "$3,000" shape.
- * "A$" and "AU$" are written with no space: "A $50 deposit" is the word "A".
+ * "AUD 3000", "AUD250", "3,000 dollars", "3k", "$3.6k", "5 grand". A kept edit
+ * that says the old price in any of these forms must be caught, not only the
+ * "$3,000" shape. "A$" and "AU$" are written with no space: "A $50 deposit" is
+ * the word "A".
  */
 const AMOUNT = String.raw`(\d{1,3}(?:,\d{3})+|\d+)(?:\.(\d{1,2}))?`;
-/** "$880", "A$880", "AUD 880", "USD 880", "$3.6k". */
+const SCALE = String.raw`(\s?(?:k|thousand|grand|m|mil|million|bn|b|billion)\b)?`;
+/** "$880", "A$880", "AUD 880", "AUD250", "$3.6k". */
 const PREFIXED = new RegExp(
-  String.raw`(?:\bAUD\s?\$|\bAU\$|\bA\$|\bUS\$|\bAUD\b|\bUSD\b|\$)\s?${AMOUNT}(\s?(?:k|thousand|m|mil|million|bn|b|billion)\b)?`,
+  String.raw`(?:\bAUD\s?\$|\bAU\$|\bA\$|\bAUD\s?|(?<![A-Za-z])\$)\s?${AMOUNT}${SCALE}`,
   "gi",
 );
-/** "£500", "€500", "GBP 500", "EUR 500": money, never in the quote's currency. */
+/**
+ * Money in another currency: "£500", "€500", "US$340", "NZ$340", "USD 340",
+ * "NZD 340", "GBP 500", "EUR 500", "500 euros", "340 NZD". Never the quote's own
+ * figure, whatever the number.
+ */
 const FOREIGN = new RegExp(
-  String.raw`(?:£|€|\bGBP\s?|\bEUR\s?)\s?${AMOUNT}(\s?(?:k|thousand|m|mil|million|bn|b|billion)\b)?`,
+  String.raw`(?:£|€|\bUS\$|\bNZ\$|\bUSD\s?|\bNZD\s?|\bGBP\s?|\bEUR\s?)\s?${AMOUNT}${SCALE}`,
   "gi",
 );
-/** "880 dollars", "880 AUD", "880AUD", "880$", "3k", "2 thousand dollars". */
+const FOREIGN_SUFFIXED = new RegExp(
+  String.raw`\b${AMOUNT}${SCALE}\s?(?:euros?|pounds?(?:\s+sterling)?|usd|nzd|gbp|eur|us\s+dollars?|nz\s+dollars?)\b`,
+  "gi",
+);
+/** "880 dollars", "880 AUD", "880AUD", "880$", "3k", "2 thousand dollars", "5 grand". */
 const SUFFIXED = new RegExp(
-  String.raw`\b${AMOUNT}\s?(k\b|thousand\s+(?:dollars?|bucks|aud)\b|dollars?\b|bucks\b|aud\b|usd\b|\$)`,
+  String.raw`\b${AMOUNT}\s?(k\b|grand\b|(?:thousand|million)\s+(?:dollars?|bucks|aud)\b|dollars?\b|bucks\b|aud\b|\$)`,
   "gi",
 );
-/** "That comes to 880.": a bare number where a total is said is money. */
-const TOTAL_WORDS = new RegExp(
-  String.raw`\b(?:comes?\s+to|came\s+to|total(?:\s+(?:of|is))?|all\s+up|price\s+(?:is|of)|costs?(?:\s+is)?|quote\s+(?:is|of))\s*:?\s*${AMOUNT}\b(\s?(?:thousand|million|mil|m|bn|billion)\b)?(?!\s*(?:%|per\b|x\b|hours?|hrs?|rooms?|bed|bath|sq|m2|metres?|meters?|people|guests|doors?|windows?|days?|weeks?|visits?|items?|k\b|thousand|million|mil\b|m\b|bn\b|billion|dollars?|bucks|aud|usd|\$))`,
+/**
+ * A number said the way a price is said: after "Price:", "Quote:", "Total:",
+ * "comes to", "all up", "that'll be", "is", "costs" ("Bridal makeup is 250"),
+ * or before "all up" / "in total" ("5,000 all up"). Never a count, a date, a
+ * time, a phone number or an ABN: those are followed by their own words or by
+ * more digits.
+ */
+const CUE = String.raw`\b(?:comes?\s+to|came\s+to|total(?:\s+(?:of|is))?|all\s+up|price(?:\s+(?:is|of))?|quote(?:d)?(?:\s+(?:is|of|at))?|costs?(?:\s+is)?|charge(?:\s+is)?|fee(?:\s+is)?|that'?ll\s+be|that\s+will\s+be|that'?s|it'?s|is|are|will\s+be|would\s+be|you'?ll\s+pay|pay)\s*[:=-]?\s*(?:about|around|approx(?:imately)?|roughly|just|only)?\s*`;
+const NOT_MONEY_AFTER = String.raw`(?!\s*(?:%|per\b|x\b|hours?\b|hrs?\b|h\b|mins?\b|minutes?\b|rooms?\b|bed|bath|sq|m2|metres?|meters?|people|persons?|guests|ppl|doors?|windows?|days?\b|weeks?\b|months?\b|years?\b|yrs?\b|visits?|items?|of\s+(?:us|them)|kids|adults|bridesmaids|am\b|pm\b|o'?clock|st\b|nd\b|rd\b|th\b|jan|feb|mar|apr|may\b|jun|jul|aug|sep|oct|nov|dec|[/:.]\d|,?\s?\d|-\d|k\b|thousand|grand|million|mil\b|m\b|bn\b|billion|dollars?|bucks|aud|usd|nzd|euros?|pounds?|\$))`;
+const CUED = new RegExp(
+  String.raw`${CUE}(?!0\d)${AMOUNT}\b(\s?(?:thousand|million|mil|m|bn|billion)\b)?${NOT_MONEY_AFTER}`,
   "gi",
 );
-/** "eight hundred and eighty dollars". */
-const WRITTEN = new RegExp(String.raw`(${NUMBER_PHRASE})\s+(?:dollars?|bucks|aud)\b`, "gi");
+const ALL_UP_AFTER = new RegExp(
+  String.raw`\b(?!0\d)${AMOUNT}${SCALE}(?=\s+(?:all\s+up|in\s+total|total|inc(?:l(?:uding|\.)?)?\s+gst)\b)`,
+  "gi",
+);
+/** "eight hundred and eighty dollars", "five grand". */
+const WRITTEN = new RegExp(
+  String.raw`(${NUMBER_PHRASE})\s+(dollars?|bucks|aud|grand|euros?|pounds?)\b`,
+  "gi",
+);
 
 type Hit = DollarMatch & { end: number };
 
 const SCALES: Record<string, number> = {
   k: 1e3,
   thousand: 1e3,
+  grand: 1e3,
   m: 1e6,
   mil: 1e6,
   million: 1e6,
@@ -72,62 +98,67 @@ function scaleOf(suffix: string): number {
 
 function numberFrom(whole: string, cents: string | undefined, suffix: string): number {
   const base = Number(cents ? `${whole.replace(/,/g, "")}.${cents}` : whole.replace(/,/g, ""));
-  // "$2k", "$1.5m", "$20m", "$90 million": read with their multiplier, never
-  // as $2, $1.50, $20 or $90.
+  // "$2k", "$1.5m", "$20m", "$90 million", "5 grand": read with their
+  // multiplier, never as $2, $1.50, $20, $90 or $5.
   const by = scaleOf(suffix);
   return by === 1 ? base : Math.round(base * by * 100) / 100;
 }
 
 function hitsOf(text: string): Hit[] {
   const hits: Hit[] = [];
-  const push = (m: RegExpMatchArray, amount: number, suffix = "", foreign = false) => {
+  const push = (raw: string, index: number, amount: number, suffix = "", foreign = false) => {
     const scale = scaleOf(suffix);
     hits.push({
-      raw: m[0],
+      raw,
       amount,
-      index: m.index ?? 0,
-      end: (m.index ?? 0) + m[0].length,
+      index,
+      end: index + raw.length,
       ...(scale > 1 ? { scale } : {}),
       ...(foreign ? { foreign: true as const } : {}),
     });
   };
-  for (const m of text.matchAll(PREFIXED)) {
-    push(m, numberFrom(m[1]!, m[2], m[3] ?? ""), m[3] ?? "");
-  }
-  for (const m of text.matchAll(FOREIGN)) {
-    push(m, numberFrom(m[1]!, m[2], m[3] ?? ""), m[3] ?? "", true);
-  }
-  for (const m of text.matchAll(SUFFIXED)) {
-    push(m, numberFrom(m[1]!, m[2], m[3] ?? ""), m[3] ?? "");
-  }
-  for (const m of text.matchAll(TOTAL_WORDS)) {
-    const at = m[0].search(/\d/);
-    const scale = scaleOf(m[3] ?? "");
-    hits.push({
-      raw: m[0].slice(at),
-      amount: numberFrom(m[1]!, m[2], m[3] ?? ""),
-      index: (m.index ?? 0) + at,
-      end: (m.index ?? 0) + m[0].length,
-      ...(scale > 1 ? { scale } : {}),
-    });
-  }
+  const each = (re: RegExp, foreign = false) => {
+    for (const m of text.matchAll(re)) {
+      // A cue word is not part of the figure: the hit starts at its digits.
+      const at = re === CUED ? m[0].search(/\d/) : 0;
+      push(
+        m[0].slice(at),
+        (m.index ?? 0) + at,
+        numberFrom(m[1]!, m[2], m[3] ?? ""),
+        m[3] ?? "",
+        foreign,
+      );
+    }
+  };
+  each(FOREIGN, true);
+  each(FOREIGN_SUFFIXED, true);
+  each(PREFIXED);
+  each(SUFFIXED);
+  each(CUED);
+  each(ALL_UP_AFTER);
   for (const m of text.matchAll(WRITTEN)) {
     const n = wordsToNumber(m[1]!);
-    if (n !== null && n > 0) push(m, n);
+    const word = m[2]!.toLowerCase();
+    const foreign = /^(?:euros?|pounds?)$/.test(word);
+    if (n !== null && n > 0) push(m[0], m.index ?? 0, word === "grand" ? n * 1000 : n, "", foreign);
   }
   return hits;
 }
 
 /**
  * Every way a message can name money: "$3,000", "$ 3000", "A$3000", "AU$3000",
- * "AUD 3000", "USD 880", "3,000 dollars", "880 AUD", "880$", "3k", "$3.6k",
- * "eight hundred and eighty dollars", and a bare number where a total is said
- * ("That comes to 880."). A kept edit that says the old price in any of these
- * forms must be caught. "A$" and "AU$" are written with no space: "A $50
- * deposit" is the word "A".
+ * "AUD 3000", "3,000 dollars", "880 AUD", "880$", "3k", "$3.6k", "5 grand",
+ * "eight hundred and eighty dollars", a bare number said as a price ("That
+ * comes to 880.", "Price: 5000", "Bridal makeup is 250"), and money in another
+ * currency ("US$340", "500 euros"), marked `foreign`. A kept edit that says the
+ * old price in any of these forms must be caught. Where two readings overlap,
+ * the first and longest wins, and a foreign reading wins over a local one.
  */
 export function dollarMatches(text: string): DollarMatch[] {
-  const sorted = hitsOf(text).sort((a, b) => a.index - b.index || b.end - a.end);
+  const sorted = hitsOf(text).sort(
+    (a, b) =>
+      a.index - b.index || b.end - a.end || Number(Boolean(b.foreign)) - Number(Boolean(a.foreign)),
+  );
   const out: Hit[] = [];
   for (const h of sorted) {
     const prev = out[out.length - 1];
@@ -143,53 +174,26 @@ export function dollarMatches(text: string): DollarMatch[] {
   }));
 }
 
-/**
- * Said as a price: "comes to $2m", "Price: $5,000", "Quote: $2m", "that'll be
- * $5m", "you'll pay $5m", "Wedding package - $5.5m", "Deposit: $1m", or any
- * line item ("Pool cover: $1,200"). A figure here is always compared.
- */
-const PRICE_BEFORE =
-  /(?:\b(?:comes?\s+to|came\s+to|total(?:\s+(?:of|is))?|price(?:\s+(?:is|of))?|costs?(?:\s+is)?|quote(?:\s+(?:is|of))?|that'?s|it'?s|will\s+be|would\s+be|you'?ll\s+pay|pay|that'?ll\s+be|package|deposit(?:\s+(?:is|of))?)\s*[:-]?\s*|[:-]\s*)$/i;
-const PRICE_AFTER = /^\s*(?:all\s+up|in\s+total|total|for\s+(?:the|this|that)\s+(?:job|lot))\b/i;
-/** Named insurance right after it: "$20m public liability", "$10m indemnity", "$20m insurance". */
-const INSURANCE_AFTER =
-  /^\s*(?:of\s+)?(?:(?:public|product)\s+liability|(?:professional\s+)?indemnity|insurance(?!\s+includ))\b/i;
-/** Named insurance right before it: "public liability insurance of $20,000,000". */
-const INSURANCE_BEFORE =
-  /\b(?:(?:public|product)\s+liability|(?:professional\s+)?indemnity|insurance)(?:\s+(?:cover(?:age)?\s+)?(?:of|up\s+to|to))?\s*$/i;
-/** "a $2k excess" / "an excess of $2,000", only in a sentence about a claim or a policy. */
-const EXCESS_AFTER = /^\s*excess\b/i;
-const EXCESS_BEFORE = /\bexcess\s+(?:of\s+)?$/i;
-const CLAIM_WORDS = /\b(?:claims?|insurance|insurer|policy|policies|liability)\b/i;
+/** Insurance words: a figure beside one is never trusted as written unless it is a saved answer. */
+export const INSURANCE_WORDS =
+  /\b(?:insur\w*|liability|indemnity|cover(?:ed|age)?|excess|policy|underwrit\w*)\b/i;
 
 /** The sentence around a position, to the nearest . ! ? or new line. */
-function sentenceAt(text: string, from: number, to: number): string {
+export function sentenceAt(text: string, from: number, to: number): string {
   const before = text.slice(0, from);
-  const start = Math.max(...[".", "!", "?", "\n"].map((b) => before.lastIndexOf(b))) + 1;
+  const start =
+    Math.max(...["!", "?", "\n"].map((b) => before.lastIndexOf(b)), lastStop(before)) + 1;
   const rest = text.slice(to);
-  const stop = rest.search(/[.!?\n]/);
+  const stop = rest.search(/[!?\n]|\.(?!\d)/);
   return text.slice(start, stop === -1 ? text.length : to + stop);
 }
 
-/**
- * A figure the owner wrote about their insurance, not a price for the job:
- * "$20m public liability", "public liability insurance of $20,000,000", or
- * "a $2k excess" in a sentence about a claim or a policy. Nothing else: not a
- * figure for being large, not bare "cover" ("Pool cover: $1,200", "$90 million
- * cover"), and never one said as a price or a line item. Such a figure is left
- * out only of the comparison with the quote - it still counts as money named,
- * so a reply naming it still needs a confirmed quote whose total it states.
- */
-export function isNonPriceFigure(text: string, m: DollarMatch): boolean {
-  if (m.foreign) return false;
-  const before = text.slice(Math.max(0, m.index - 40), m.index);
-  const after = text.slice(m.index + m.raw.length, m.index + m.raw.length + 40);
-  if (PRICE_BEFORE.test(before) || PRICE_AFTER.test(after)) return false;
-  if (INSURANCE_AFTER.test(after) || INSURANCE_BEFORE.test(before)) return true;
-  if (EXCESS_AFTER.test(after) || EXCESS_BEFORE.test(before)) {
-    return CLAIM_WORDS.test(sentenceAt(text, m.index, m.index + m.raw.length));
+/** The last full stop that ends a sentence, never a decimal point. */
+function lastStop(text: string): number {
+  for (let i = text.length - 1; i >= 0; i -= 1) {
+    if (text[i] === "." && !/\d/.test(text[i + 1] ?? "")) return i;
   }
-  return false;
+  return -1;
 }
 
 /**

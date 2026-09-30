@@ -67,7 +67,14 @@ function fixedDay(who: ReplyContext): boolean {
 /**
  * Which asked days are closed, and which of the quote's service lines are for
  * a fixed day that is. Undefined when every asked day is one the owner works.
- * `lines` are the quote's service lines before the owner's rules add anything.
+ * `lines` are the quote's service lines before the owner's rules add anything,
+ * the main job first.
+ *
+ * A second thing the owner names differently from their words ("Makeup
+ * preview" for the trial on Saturday 24 October) is for that other day when
+ * it is the only other day they asked for work on: never held with the
+ * wedding just because the words differ. With more than one other day it is
+ * held, and named on the owner's check as not included.
  */
 export function planClosedDays(
   lines: readonly QuoteLine[],
@@ -81,17 +88,19 @@ export function planClosedDays(
   const days = [...new Set([...(main ? [main] : []), ...otherClosed])];
   if (days.length === 0) return undefined;
   const services = lines.filter((l) => !l.adjustment);
+  const works = workDaysOf(who);
+  const dayOf = (l: QuoteLine, i: number) =>
+    ownDayOf(l, who) ?? (i > 0 && works.length === 1 ? works[0]!.iso : undefined);
   const held =
     main && fixedDay(who)
       ? services
-          .filter((l) => !ownDayOf(l, who))
+          .filter((l, i) => !dayOf(l, i))
           .map((l) => ({ label: l.label, iso: main, ...(l.count ? { count: l.count } : {}) }))
       : [];
   const workDays = [
     ...new Set(
       services
-        .filter((l) => !held.some((h) => h.label === l.label))
-        .map((l) => ownDayOf(l, who))
+        .map((l, i) => (held.some((h) => h.label === l.label) ? undefined : dayOf(l, i)))
         .filter((iso): iso is string => Boolean(iso)),
     ),
   ];

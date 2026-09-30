@@ -42,7 +42,13 @@ export type ConfirmCoverageResult =
        */
       reason?: "recheck";
     }
-  | { ok: false; businessId: string; reason: "changed" | "closed" | "unsettled"; message: string };
+  | {
+      ok: false;
+      businessId: string;
+      /** `conflict`: two things the owner said disagree; they settle that first. */
+      reason: "changed" | "closed" | "unsettled" | "conflict";
+      message: string;
+    };
 
 /**
  * An item's name for the owner, never the answer its display may carry: a
@@ -71,15 +77,22 @@ export async function confirmCoverageInTransaction(
     key: string | null;
     flagged: CoverageFlag[] | null;
     asked: AskedItem[] | null;
+    conflict: string | null;
   }>`
     select decision_snapshot -> 'coverage' ->> 'key' as key,
       decision_snapshot -> 'coverage' -> 'flagged' as flagged,
-      decision_snapshot -> 'asked' as asked
+      decision_snapshot -> 'asked' as asked,
+      decision_snapshot ->> 'conflict' as conflict
     from enquiry where id = ${enquiryId}
   `;
   const stored = row?.key ?? "";
   if (!stored || stored !== input.key || locked.decisionRevision !== input.revision) {
     return { ok: false, businessId, reason: "changed", message: CHANGED };
+  }
+  // "You said you don't do trials, but a makeup trial is on this quote": the
+  // reply would say both, so "That's everything" waits until they settle it.
+  if (row?.conflict) {
+    return { ok: false, businessId, reason: "conflict", message: row.conflict };
   }
   // Everything they asked for or about has an answer, a "leave it out" or a
   // "come back": "That's everything" is never said over one still open.
