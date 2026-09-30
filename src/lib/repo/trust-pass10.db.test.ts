@@ -608,18 +608,25 @@ const FUZZ: [string, boolean, boolean][] = [
   ["Total $340.", true, false],
   ["That comes to 340 dollars.", true, false],
   ["Three hundred and forty dollars all up.", true, false],
-  ["So $90 all up.", true, true],
+  ["So $90 all up.", false, true],
   ["The trial is $90 of that.", true, true],
   ["The bridal makeup is $250.", true, false],
   ["Bridal makeup is 250 if you can move it.", true, false],
   ["Bridal makeup is AUD250.", true, false],
   ["Bridal makeup is 250 on another day.", true, false],
-  // H1: a total behind an insurance word is just a figure.
-  ["If you can move the wedding, the total including insurance $340.", true, false],
-  ["Total with insurance $340.", true, false],
-  ["All up with public liability $340.", true, false],
-  ["Wedding day total inc. public liability $340.", true, false],
-  ["Plus a $250 insurance fee for the wedding day.", true, false],
+  // Ruling: a line's amount only beside its own name, the total never
+  // governed by a fee, cover, levy, insurance or deposit word.
+  ["A $250 levy applies.", false, false],
+  ["Bridal makeup is $90.", false, true],
+  ["Trial is $250.", false, false],
+  ["Bridal makeup: $250.", true, false],
+  ["Makeup trial $90.", true, true],
+  // H1: a total behind an insurance word.
+  ["If you can move the wedding, the total including insurance $340.", false, false],
+  ["Total with insurance $340.", false, false],
+  ["All up with public liability $340.", false, false],
+  ["Wedding day total inc. public liability $340.", false, false],
+  ["Plus a $250 insurance fee for the wedding day.", false, false],
   ["Clean $340. Total including $20m public liability insurance $5,000", false, false],
   ["Clean $340. Total inc. insurance $5,000.", false, false],
   // H2: charges named after insurance.

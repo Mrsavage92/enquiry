@@ -8,6 +8,7 @@ import {
   unreadableMoney,
   type DollarMatch,
 } from "../../domain/voice-detect.ts";
+import { standsAsQuoted, type QuoteLineAmount } from "../../domain/money-labels.ts";
 import { formatMinorAud } from "../../domain/money-format.ts";
 import { COVERAGE_FIELD } from "../../domain/coverage.ts";
 import { isClosed, lockEnquiry } from "./decision-apply.ts";
@@ -146,11 +147,19 @@ type MoneyCheck = {
  * word beside a figure ("insurance", "cover", "excess") makes it anything but
  * money: a cover figure goes in a saved answer, where it is the owner's.
  */
+/**
+ * What the reply is checked against beyond the amounts: the app's own prepared
+ * reply and the quote's lines, so a line's amount is allowed only where it is
+ * said as that line (see `money-labels.ts`).
+ */
+export type QuoteContext = { draft: string; lines: readonly QuoteLineAmount[] };
+
 function checkMoney(
   body: string,
   price: DecisionPrice | null,
   impliedMinor: readonly number[] = [],
   ownerTexts: readonly string[] = [],
+  quote?: QuoteContext,
 ): MoneyCheck {
   const expectedMinor = price?.kind === "EXACT" ? price.amountMinor : null;
   const free = moneyOutsideAnswers(body, ownerTexts);
@@ -166,7 +175,13 @@ function checkMoney(
   const allowed = new Set<number>([...required, ...impliedMinor]);
   const minor = (m: DollarMatch) => Math.round(m.amount * 100);
   // No quote: any money at all is refused. A foreign amount never matches.
-  const refused = free.filter((m) => !price || m.foreign || !allowed.has(minor(m)));
+  const refused = free.filter(
+    (m) =>
+      !price ||
+      m.foreign ||
+      !allowed.has(minor(m)) ||
+      (quote !== undefined && !standsAsQuoted(body, m, minor(m), { totals: required, ...quote })),
+  );
   const stated = new Set(free.filter((m) => !m.foreign).map(minor));
   const missingTotal = Boolean(price) && !required.every((r) => stated.has(r));
   const insurance = refused.some((m) =>
@@ -186,8 +201,9 @@ export function mismatchAmounts(
   price: DecisionPrice | null,
   impliedMinor: number[] = [],
   ownerTexts: readonly string[] = [],
+  quote?: QuoteContext,
 ): { named: number[]; expectedMinor: number | null } {
-  const { named, expectedMinor } = checkMoney(body, price, impliedMinor, ownerTexts);
+  const { named, expectedMinor } = checkMoney(body, price, impliedMinor, ownerTexts, quote);
   return { named, expectedMinor };
 }
 
@@ -201,8 +217,9 @@ export function mismatchMessage(
   price: DecisionPrice | null,
   impliedMinor: number[] = [],
   ownerTexts: readonly string[] = [],
+  quote?: QuoteContext,
 ): string {
-  const check = checkMoney(body, price, impliedMinor, ownerTexts);
+  const check = checkMoney(body, price, impliedMinor, ownerTexts, quote);
   if (check.insurance) return INSURANCE_AS_ANSWER;
   if (check.foreign) return "Write amounts in Australian dollars so Enquiry can check them.";
   const total = check.expectedMinor !== null ? formatMinorAud(check.expectedMinor) : null;
@@ -295,8 +312,9 @@ export function amountAgrees(
   price: DecisionPrice | null,
   impliedMinor: number[] = [],
   ownerTexts: readonly string[] = [],
+  quote?: QuoteContext,
 ): boolean {
-  return checkMoney(body, price, impliedMinor, ownerTexts).ok;
+  return checkMoney(body, price, impliedMinor, ownerTexts, quote).ok;
 }
 
 /**
@@ -336,6 +354,7 @@ type SnapshotRow = {
   price: DecisionPrice | null;
   implied_amounts: number[] | null;
   owner_texts: string[] | null;
+  draft_body: string | null;
   evaluators: EvaluatorResult[] | null;
   missing: { factField?: string; inferred?: unknown }[] | null;
   engine_version: string;
@@ -381,6 +400,7 @@ export async function prepareReviewedSendInTransaction(
       decision_snapshot -> 'price' as price,
       decision_snapshot -> 'impliedAmountsMinor' as implied_amounts,
       decision_snapshot -> 'ownerAnswerTexts' as owner_texts,
+      decision_snapshot -> 'draft' ->> 'body' as draft_body,
       decision_snapshot -> 'evaluators' as evaluators,
       decision_snapshot -> 'missing' as missing,
       engine_version
@@ -464,12 +484,24 @@ export async function prepareReviewedSendInTransaction(
   }
 
   const price = enq.price ?? null;
-  if (!amountAgrees(input.body, price, enq.implied_amounts ?? [], ownerTexts)) {
+  // A line's amount only where it is said as that line: in the prepared
+  // reply's own sentence, or beside a word of that line's own name.
+  const quote: QuoteContext = {
+    draft: enq.draft_body ?? "",
+    lines:
+      price?.kind === "EXACT" && price.lines?.length
+        ? price.lines
+        : price?.kind === "EXACT"
+          ? [{ label: enq.service_label ?? "", amountMinor: price.amountMinor }]
+          : [],
+  };
+  const implied = enq.implied_amounts ?? [];
+  if (!amountAgrees(input.body, price, implied, ownerTexts, quote)) {
     return {
       ok: false,
       reason: "amount_mismatch",
-      message: mismatchMessage(input.body, price, enq.implied_amounts ?? [], ownerTexts),
-      amounts: mismatchAmounts(input.body, price, enq.implied_amounts ?? [], ownerTexts),
+      message: mismatchMessage(input.body, price, implied, ownerTexts, quote),
+      amounts: mismatchAmounts(input.body, price, implied, ownerTexts, quote),
     };
   }
 

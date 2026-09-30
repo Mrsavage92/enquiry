@@ -675,3 +675,27 @@ test("LOW: the rule the reduced quote reads from is never the held line's; a rep
     assert.ok(!(snap.impliedAmountsMinor ?? []).includes(heldAmount), String(heldAmount));
   }
 });
+
+// Ruling: a line's amount only where it is said as that line.
+
+test("ruling: a line's amount stands beside its own name or in the prepared reply's own sentence", () => {
+  const draft =
+    "Hi there,\n\nFor the makeup trial, that comes to $130:\n- Makeup trial: $90\n- Travel fee: $40\n\nThanks,\nSam";
+  const quote = {
+    draft,
+    lines: [
+      { label: "Makeup trial", amountMinor: 9000 },
+      { label: "Travel fee", amountMinor: 4000 },
+    ],
+  };
+  const agrees = (extra: string) =>
+    amountAgrees(`${draft}\n\n${extra}`, PRICE(13000), [13000, 9000, 4000], [], quote);
+  assert.equal(amountAgrees(draft, PRICE(13000), [13000, 9000, 4000], [], quote), true);
+  assert.equal(agrees("The travel fee is $40 because you're past 15km."), true);
+  assert.equal(agrees("The trial itself is $90."), true);
+  assert.equal(agrees("So $130 all up."), true);
+  assert.equal(agrees("A $40 cancellation fee applies."), false);
+  assert.equal(agrees("The travel is $90."), false);
+  assert.equal(agrees("Total with insurance $130."), false);
+  assert.equal(agrees("A $130 deposit holds the day."), false);
+});
