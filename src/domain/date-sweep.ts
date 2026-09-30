@@ -121,6 +121,8 @@ const WEEKDAY_ORDINAL = new RegExp(
   "gi",
 );
 const ORDINAL = /\b(\d{1,2})(st|nd|rd|th)\b/gi;
+/** A weekday written just before a day and month: "Sunday 18 October", "Fri the 16th Oct". */
+const WEEKDAY_LEAD = new RegExp(String.raw`\b${WEEKDAY}\.?,?\s+(?:the\s+)?$`, "i");
 const THIS_NEXT = new RegExp(
   String.raw`\b(this|coming|next)\s+${WEEKDAY}\b(?![,.]?\s+(?:the\s+)?\d)`,
   "gi",
@@ -251,7 +253,10 @@ function collect(text: string, today: Date): Token[] {
     const month = monthIndex(m[2]!);
     if (month === undefined) continue;
     const r = resolveDayMonth(Number(m[1]), month, m[3] ? Number(m[3]) : undefined, today);
-    add({ index: m.index ?? 0, length: m[0].length, kind: "full", ...r });
+    // "Sunday 18 October": their weekday is part of their words for the day.
+    const at = m.index ?? 0;
+    const lead = WEEKDAY_LEAD.exec(text.slice(Math.max(0, at - 16), at))?.[0].length ?? 0;
+    add({ index: at - lead, length: m[0].length + lead, kind: "full", ...r });
   }
   for (const m of text.matchAll(MONTH_DAY)) {
     const month = monthIndex(m[1]!);

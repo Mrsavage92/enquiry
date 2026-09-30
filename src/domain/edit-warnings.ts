@@ -78,3 +78,16 @@ export function ownerEditWarnings(
   }
   return out;
 }
+
+/** App-authored promises of availability: never in a composed reply. */
+export const FORBIDDEN_PROMISES: readonly RegExp[] = [
+  /work around/i,
+  /you(?:'re| are) (?:all )?booked/i,
+  /fit (?:you|it|us) in/i,
+  /no problem/i,
+  /\bI can (?:come|do (?:it|that|the job))\b/i,
+  /see you (?:on|then)/i,
+  /lock(?:ed)? (?:it|you) in/i,
+  /hold the date/i,
+  /I'll be there/i,
+];
