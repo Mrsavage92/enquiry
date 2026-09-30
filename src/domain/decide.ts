@@ -31,7 +31,7 @@ import {
   coverageKey,
   askedForFirstVisit,
   isFirstVisit,
-  frequencyIn,
+  frequencyFor,
   RECURRING_FIELD,
   unsettledFlags,
   type Coverage,
@@ -57,7 +57,7 @@ import {
   shortDay,
   topicWords,
 } from "./customer-asks.ts";
-import { closedReason, spokenDate, type ReplyContext } from "./compose-reply.ts";
+import { closedReason, insteadOf, spokenDate, type ReplyContext } from "./compose-reply.ts";
 import { planClosedDays, type ClosedDayPlan } from "./closed-day.ts";
 import { distinctiveStems, mentionsAny, namesService, stemsOf } from "./service-words.ts";
 import { sameCountWords } from "./quantity-reader.ts";
@@ -910,8 +910,16 @@ function weekdaysSaid(words: string): number[] {
  * weekend"), a day they prefer, and the trial's or the event's own day. Empty
  * when no day is said at all - which a day-based charge treats as unsure.
  */
-function jobWeekdaysOf(facts: ReadonlyArray<DecideFact>): number[] {
+function jobWeekdaysOf(
+  facts: ReadonlyArray<DecideFact>,
+  open: (iso: string) => string | null = (iso) => iso,
+  closedDays: readonly number[] = [],
+): number[] {
   const out = new Set<number>();
+  const addIso = (iso: string) => {
+    const day = open(iso);
+    if (day) out.add(new Date(`${day}T00:00:00`).getDay());
+  };
   const find = (field: string) => facts.find((f) => f.field.trim().toLowerCase() === field);
   const date = find("date");
   const value = String(date?.value ?? "").trim();
@@ -922,15 +930,22 @@ function jobWeekdaysOf(facts: ReadonlyArray<DecideFact>): number[] {
       const day = new Date(y, m - 1, d + i);
       const iso = `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, "0")}-${String(day.getDate()).padStart(2, "0")}`;
       if (iso > window[2]!) break;
-      out.add(day.getDay());
+      // A day of the stretch the owner doesn't work is never the job's.
+      if (open(iso) === iso) out.add(day.getDay());
     }
   } else if (/^\d{4}-\d{2}-\d{2}/.test(value)) {
-    for (const iso of jobDatesOf(facts)) out.add(new Date(`${iso}T00:00:00`).getDay());
+    for (const iso of jobDatesOf(facts)) addIso(iso);
   } else if (date) {
-    weekdaysSaid(String(date.displayValue ?? "")).forEach((d) => out.add(d));
+    weekdaysSaid(String(date.displayValue ?? ""))
+      .filter((d) => !closedDays.includes(d))
+      .forEach((d) => out.add(d));
   }
   const preference = find("day_preference");
-  if (preference) weekdaysSaid(String(preference.value ?? "")).forEach((d) => out.add(d));
+  if (preference) {
+    weekdaysSaid(String(preference.value ?? ""))
+      .filter((d) => !closedDays.includes(d))
+      .forEach((d) => out.add(d));
+  }
   const context = find("date_context");
   // An event beside a day of its own ("wedding Saturday, trial done by
   // Friday") is when it happens, not when the work is; with no day of its own,
@@ -943,10 +958,28 @@ function jobWeekdaysOf(facts: ReadonlyArray<DecideFact>): number[] {
     )) {
       if (m.to || m.role === "context") continue;
       if (m.role === "event" && hasOwnDay) continue;
-      out.add(new Date(`${m.iso}T00:00:00`).getDay());
+      addIso(m.iso);
     }
   }
   return [...out].sort((a, b) => a - b);
+}
+
+/**
+ * A day they asked for as the quote prices it: the day itself when the owner
+ * works it, the day the reply offers instead when not (null when none), and
+ * the day itself when the owner confirmed it.
+ */
+function openDay(reply: ReplyContext | undefined): (iso: string) => string | null {
+  return (iso) => {
+    if (!reply?.closed || !closedReason(iso, reply.closed)) return iso;
+    if (reply.jobDateConfirmed && reply.jobDateIso === iso) return iso;
+    return insteadOf(iso, reply.closed, reply.surchargeDays);
+  };
+}
+
+function openDays(isos: readonly string[], reply: ReplyContext | undefined): string[] {
+  const open = openDay(reply);
+  return [...new Set(isos.map(open).filter((d): d is string => Boolean(d)))];
 }
 
 /** The job's days and every other single day they wrote (the trial's): each checked against closed days. */
@@ -1063,7 +1096,13 @@ function gateCoverage(start: Decision, ctx: CoverageContext): Decision {
   let decided = plan && plan.held.length > 0 ? withoutHeld(start, plan, ctx.rules) : start;
   const held = plan?.held ?? [];
   // How often is a reading: shown as its own line to confirm, never assumed.
-  const frequency = frequencyIn(ctx.message);
+  // The frequency of the work on this quote only: "a regular clean, probably
+  // weekly" beside a painting quote never makes the painting per visit.
+  const frequency = frequencyFor(
+    ctx.message,
+    [ctx.serviceLabel, ...linesOf(decided).map((l) => l.label)],
+    ctx.services,
+  );
   const recurringAnswer = ctx.facts.find(
     (f) => f.field.trim().toLowerCase() === RECURRING_FIELD && f.status === "confirmed",
   );
@@ -1085,8 +1124,12 @@ function gateCoverage(start: Decision, ctx: CoverageContext): Decision {
     message: ctx.message,
     // Only the days of the work left on the quote: the trial's Saturday, never
     // the closed Sunday of the wedding it no longer prices.
-    jobDates: held.length ? plan!.workDays : jobDatesOf(ctx.facts),
-    jobWeekdays: held.length ? weekdaysOf(plan!.workDays) : jobWeekdaysOf(ctx.facts),
+    // A day the owner doesn't work is priced as the day the reply offers
+    // instead: never "your Sunday rate" on a Sunday the reply turns down.
+    jobDates: held.length ? plan!.workDays : openDays(jobDatesOf(ctx.facts), ctx.reply),
+    jobWeekdays: held.length
+      ? weekdaysOf(plan!.workDays)
+      : jobWeekdaysOf(ctx.facts, openDay(ctx.reply), ctx.reply?.closed?.days ?? []),
     facts: ctx.facts,
     ...(recurring ? { recurring: frequency ?? "regularly" } : {}),
   });

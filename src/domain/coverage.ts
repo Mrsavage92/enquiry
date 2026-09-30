@@ -137,6 +137,68 @@ export function frequencyIn(message: string): string | undefined {
   return FREQUENCY.exec(message)?.[0]?.toLowerCase();
 }
 
+/** Where the words about one thing start: "..., and a regular clean once we are in, probably weekly". */
+const THING_START = /\b(?:and|also|plus|as well as|then)\b|[;:]/gi;
+
+/**
+ * How often they want the QUOTED work, never another thing's: "the interior
+ * painted ... and a regular clean once we are in, probably weekly" is a
+ * weekly clean, and the painting stays one job. The words from the last
+ * "and" / "also" / "plus" before the frequency say what it is about: another
+ * of the owner's services, or a thing a business does, that is not on the
+ * quote means the frequency is not the quote's.
+ */
+export function frequencyFor(
+  message: string,
+  quoted: readonly string[],
+  services: readonly string[],
+): string | undefined {
+  const m = FREQUENCY.exec(message);
+  if (!m) return undefined;
+  const at = m.index ?? 0;
+  const start =
+    Math.max(
+      message.lastIndexOf(".", at - 1),
+      message.lastIndexOf("!", at - 1),
+      message.lastIndexOf("?", at - 1),
+      message.lastIndexOf("\n", at - 1),
+    ) + 1;
+  const rest = message.slice(at + m[0].length);
+  const stop = rest.search(/[.!?\n]/);
+  const sentence = message.slice(start, stop === -1 ? message.length : at + m[0].length + stop);
+  const local = at - start;
+  // The words about the one thing the frequency sits in: from the last
+  // "and" / "also" before it to the next one after it.
+  const cuts = [...sentence.matchAll(THING_START)].map((c) => c.index ?? 0);
+  const from = Math.max(0, ...cuts.filter((c) => c < local));
+  const to = Math.min(sentence.length, ...cuts.filter((c) => c > local));
+  const about = sentence.slice(from, to);
+  const isQuoted = (s: string) =>
+    quoted.some((q) => q.trim().toLowerCase() === s.trim().toLowerCase());
+  const quotedOwn = quoted.flatMap((q) =>
+    distinctiveStems(
+      q,
+      services.filter((s) => !isQuoted(s)),
+    ),
+  );
+  if (quotedOwn.length && mentionsAny(about, quotedOwn)) return m[0].toLowerCase();
+  const others = services.filter((s) => !isQuoted(s));
+  const aboutOther = others.some((o) => {
+    const own = distinctiveStems(o, quoted).filter((s) => !GENERIC_WORK.has(s));
+    return own.length > 0 && mentionsAny(about, own);
+  });
+  const words = new Set(about.toLowerCase().match(/[a-z]+/g) ?? []);
+  const aThing = [...SERVICE_NOUNS].some((n) => !n.includes(" ") && words.has(n));
+  // "a clean, weekly" beside a painting quote is not the painting.
+  const workWord = /\b(clean|cleans|cleaning|paint|painting|mow|mowing|wash|washing)\b/i.exec(
+    about,
+  );
+  const otherWork =
+    workWord !== null && !quoted.some((q) => stemsOf(q).includes(stem(workWord[1]!.toLowerCase())));
+  if (aboutOther || aThing || otherWork) return undefined;
+  return m[0].toLowerCase();
+}
+
 /** The owner's answer to "They want this every fortnight - correct?". */
 export const RECURRING_FIELD = "recurring";
 

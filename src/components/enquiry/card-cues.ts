@@ -81,11 +81,28 @@ export function otherDateCues(e: Dated): string[] {
  * "Check 2 of 4" from the server's stable count: settled plus open, so the
  * number never restarts at 1 as checks are answered. Null for a single check.
  */
-export function checkStep(checks: { done: number; total: number } | undefined): string | null {
+export function checkStep(
+  checks: { done: number; total: number } | undefined,
+  enquiryId?: string,
+): string | null {
   if (!checks || checks.total < 2) return null;
   const at = Math.min(checks.done + 1, checks.total);
+  // The total known when the enquiry was opened is the one shown: "Check 3
+  // of 5" after "Check 2 of 3" read as the work growing under the owner. A
+  // check that turns up later is said as that, never folded into a new total.
+  if (enquiryId) {
+    const first = FIRST_TOTAL.get(enquiryId);
+    if (first === undefined) FIRST_TOTAL.set(enquiryId, checks.total);
+    else if (checks.total > first) {
+      const more = checks.total - first;
+      return `Check ${at} - ${more === 1 ? "one more" : `${more} more`} came up`;
+    }
+  }
   return `Check ${at} of ${checks.total}`;
 }
+
+/** enquiryId -> the check total when it was first shown this session. */
+const FIRST_TOTAL = new Map<string, number>();
 
 export const ASKED_CHIP: Record<AskedStatus, { word: string; tone: "ok" | "neutral" | "warn" }> = {
   answered: { word: "Answered", tone: "ok" },

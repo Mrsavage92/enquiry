@@ -146,19 +146,34 @@ export function nextWorkingDay(iso: string, closed: ClosedTimes | undefined): st
  * surcharge) is skipped for one that does not, within a week; when every day
  * near it costs more, the reply says so rather than offering it quietly.
  */
-function offerInstead(
+/**
+ * The day the reply offers instead of a closed one: the next day the owner
+ * works, skipping a day that costs more within a week. The quote is priced
+ * for this day, never for the closed one (decide.ts `gateCoverage`).
+ */
+export function insteadOf(
   iso: string,
   closed: ClosedTimes | undefined,
   surchargeDays: readonly number[] = [],
-): string {
+): string | null {
   const first = nextWorkingDay(iso, closed);
-  if (!first) return "What other day would suit you?";
+  if (!first) return null;
   let pick = first;
   for (let i = 0; i < 7 && surchargeDays.includes(dateOf(pick)!.getDay()); i += 1) {
     const next = nextWorkingDay(pick, closed);
     if (!next) break;
     pick = next;
   }
+  return pick;
+}
+
+function offerInstead(
+  iso: string,
+  closed: ClosedTimes | undefined,
+  surchargeDays: readonly number[] = [],
+): string {
+  const pick = insteadOf(iso, closed, surchargeDays);
+  if (!pick) return "What other day would suit you?";
   const day = spokenDate(pick)!;
   const costsMore = surchargeDays.includes(dateOf(pick)!.getDay());
   const note = costsMore ? ` (${DAY_NAMES[dateOf(pick)!.getDay()]} jobs cost more)` : "";

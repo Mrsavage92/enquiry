@@ -184,7 +184,7 @@ export function Intelligence({
     !demoMode &&
     !coveragePending &&
     (questionPending || Boolean(enquiry.decision.extraPending) || readingToCheck || ownerEstimate)
-      ? checkStep(enquiry.decision.checks)
+      ? checkStep(enquiry.decision.checks, enquiry.id)
       : null;
   // Worked out from prices the owner confirmed: "Confidence Low" beside that
   // would tell them to doubt their own price list.

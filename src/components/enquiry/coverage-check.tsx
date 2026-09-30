@@ -55,7 +55,7 @@ export function CoverageCheck({
   // "That's everything" over either, so the button waits for both.
   const openAsked = openAskedItems(enquiry.decision.asked).length;
   const unsettled = unsettledFlags(coverage.flagged).length + openAsked;
-  const step = checkStep(enquiry.decision.checks);
+  const step = checkStep(enquiry.decision.checks, enquiry.id);
   // What needs a tap comes first; what is only for reading goes under the
   // buttons, so "That's everything" stays on the first screen.
   const toSettle = coverage.flagged.filter((f) => f.thing);
