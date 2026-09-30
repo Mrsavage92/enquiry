@@ -437,7 +437,9 @@ export function readExtraRequests(
   services: readonly string[],
 ): ExtraRequest[] {
   // "Nothing bridal": what they turned down is never an extra they asked for.
-  const text = withoutNegated(written);
+  const text = written;
+  // "Nothing bridal": what they turned down never names a service they asked for.
+  const plain = withoutNegated(written);
   const main = primary.trim();
   if (!main || !text.trim()) return [];
   const mainKey = main.toLowerCase();
@@ -446,7 +448,7 @@ export function readExtraRequests(
   ];
   const out: ExtraRequest[] = [];
   const seen = new Set<string>();
-  const said = new Set(stemsOf(text));
+  const said = new Set(stemsOf(plain));
 
   // 0. A form's own list: "Extras: Oven, Carpets (2 rooms)". Each item is a
   // thing they asked for, matched to a saved service by a word of its own.
@@ -485,7 +487,7 @@ export function readExtraRequests(
     }
     if (need.length === 0 || !need.every((s) => said.has(s))) continue;
     const own = distinctiveStems(service, [main]);
-    if (own.length === 0 || !mentionsAny(text, own)) continue;
+    if (own.length === 0 || !mentionsAny(plain, own)) continue;
     // Quote the sentence that names it by its own word ("18 windows"), never
     // one that only shares the work word ("the dog hair cleaned off").
     const telling = own.filter((s) => !WORK_STEMS.has(s));
@@ -580,7 +582,9 @@ function looselyNamed(service: string, main: string, text: string): string | und
   const work = stemsOf(service).filter((s) => WORK_STEMS.has(s));
   if (telling.length < 2 || work.length === 0) return undefined;
   for (const clause of text.split(/[.!?\n,;]/)) {
-    const said = new Set(stemsOf(clause));
+    // "no carpet steam clean needed" turns it down: never read loosely as asked.
+    if (DECLINED.test(clause) || NOT_A_REQUEST.test(clause)) continue;
+    const said = new Set(stemsOf(withoutNegated(clause)));
     const hits = telling.filter((s) => said.has(s));
     if (hits.length === 0 || hits.length < telling.length - 1) continue;
     // Said as one thing: "a regular clean", never "we clean regularly".
