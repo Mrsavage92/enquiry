@@ -77,6 +77,14 @@ const WRITTEN = new RegExp(
   "gi",
 );
 
+/**
+ * "half a grand" ($500), "half a mil", "a grand" ($1,000), "20 mil" and
+ * "1.5 mill" ($20,000,000, $1,500,000). "A grand total" and "a grand
+ * opening" are words, not money.
+ */
+const SLANG =
+  /\bhalf\s+a\s+(grand|mil(?:l(?:ion)?)?)\b|\b(?:a|one)\s+grand\b(?!\s+(?:total|opening|final|piano|tour|view|old|scale|house|entrance|prize|job))|\b(\d+(?:\.\d+)?)\s?(mil|mill)\b(?!\w)/gi;
+
 type Hit = DollarMatch & { end: number };
 
 const SCALES: Record<string, number> = {
@@ -141,6 +149,13 @@ function hitsOf(text: string): Hit[] {
     const word = m[2]!.toLowerCase();
     const foreign = /^(?:euros?|pounds?)$/.test(word);
     if (n !== null && n > 0) push(m[0], m.index ?? 0, word === "grand" ? n * 1000 : n, "", foreign);
+  }
+  // "half a grand", "a grand", "20 mil": money said the way people say it.
+  for (const m of text.matchAll(SLANG)) {
+    const unit = (m[1] ?? m[3] ?? "grand").toLowerCase();
+    const scale = unit.startsWith("grand") ? 1e3 : 1e6;
+    const amount = m[1] ? scale / 2 : m[2] ? Number(m[2]) * scale : scale;
+    push(m[0], m.index ?? 0, amount, scale === 1e3 ? "grand" : "mil");
   }
   return hits;
 }

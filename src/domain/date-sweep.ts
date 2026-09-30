@@ -20,8 +20,10 @@ import { wallNow } from "./format.ts";
  *    Thursday 1 October and Thursday 8 October).
  *  - A bare weekday ("Sunday") is the next one after today.
  *  - "27th" with no month takes the month of the nearest date written with
- *    one ("settlement 28/12 ... 27th or 28th" is 27 December). With no month
- *    anywhere it is not read, and the owner is told so.
+ *    one ("settlement 28/12 ... 27th or 28th" is 27 December); with no month
+ *    anywhere, the next time that day comes round. A fragment that still
+ *    cannot be a day ("31/9", "Sat 4th" with no Saturday the 4th near) is not
+ *    guessed: the owner is told Enquiry could not read it.
  *  - "the week of 9 Nov" is a week, never the 9th alone.
  *  - A day with no year is this year, or next year once it has passed (a day
  *    in the last 60 days is the one that just went, and is not checked).
@@ -110,7 +112,15 @@ const WEEKDAY_ORDINAL = new RegExp(
   "gi",
 );
 const ORDINAL = /\b(\d{1,2})(st|nd|rd|th)\b/gi;
-const THIS_NEXT = new RegExp(String.raw`\b(this|coming|next)\s+${WEEKDAY}\b`, "gi");
+const THIS_NEXT = new RegExp(
+  String.raw`\b(this|coming|next)\s+${WEEKDAY}\b(?![,.]?\s+(?:the\s+)?\d)`,
+  "gi",
+);
+/** "between 12 and 16 October", "12-16 October": a stretch, never its last day alone. */
+const WINDOW = new RegExp(
+  String.raw`\b(?:(?:between|from)\s+(?:the\s+)?(\d{1,2})(?:st|nd|rd|th)?\s*(?:and|to|-|–|until|till)\s*|(\d{1,2})(?:st|nd|rd|th)?\s*(?:-|–)\s*)(?:the\s+)?(\d{1,2})(?:st|nd|rd|th)?\s+(?:of\s+)?${MONTH}\b`,
+  "gi",
+);
 const BARE_WEEKDAY = new RegExp(
   String.raw`\b${FULL_WEEKDAY}\b(?!s\b)(?![,.]?\s+(?:the\s+)?\d)(?!\s*(?:to|-|–|through|thru|till|until|or|\/)\s*${WEEKDAY})`,
   "gi",
@@ -152,7 +162,9 @@ const JOB_REQUEST =
 type Token = {
   index: number;
   length: number;
-  kind: "full" | "numeric" | "ordinal" | "weekday" | "week";
+  kind: "full" | "numeric" | "ordinal" | "weekday" | "week" | "window";
+  /** For a stretch: its last day. */
+  until?: Date;
   /** Resolved day, or undefined when it could not be read. */
   date?: Date;
   /** For an ordinal: the day of the month waiting on a month. */
@@ -216,6 +228,16 @@ function collect(text: string, today: Date): Token[] {
     if (!covered(tokens, t.index, t.length)) tokens.push(t);
   };
   // Longest, most certain shapes first; a later match inside one is the same day.
+  for (const m of text.matchAll(WINDOW)) {
+    const month = monthIndex(m[4]!);
+    if (month === undefined) continue;
+    const to = resolveDayMonth(Number(m[3]), month, undefined, today);
+    const fromDay = Number(m[1] ?? m[2]);
+    if (!to.date || to.past || !valid(to.date.getFullYear(), month, fromDay)) continue;
+    const from = new Date(to.date.getFullYear(), month, fromDay);
+    if (from > to.date) continue;
+    add({ index: m.index ?? 0, length: m[0].length, kind: "window", date: from, until: to.date });
+  }
   for (const m of text.matchAll(DAY_MONTH)) {
     const month = monthIndex(m[2]!);
     if (month === undefined) continue;
@@ -288,18 +310,26 @@ function collect(text: string, today: Date): Token[] {
 }
 
 /** "27th" takes the month of the nearest day written with one. */
-function withMonths(tokens: Token[]): Token[] {
+function withMonths(tokens: Token[], today: Date): Token[] {
   const anchors = tokens.filter((t) => t.kind !== "ordinal" && t.kind !== "weekday" && t.date);
-  return tokens.map((t) => {
+  return tokens.map((t): Token => {
     if (t.kind !== "ordinal" || t.day === undefined) return t;
     const near = [...anchors].sort(
       (a, b) => Math.abs(a.index - t.index) - Math.abs(b.index - t.index),
     )[0];
-    if (!near?.date) return t;
-    const y = near.date.getFullYear();
-    const mo = near.date.getMonth();
-    if (!valid(y, mo, t.day)) return t;
-    return { ...t, date: new Date(y, mo, t.day) };
+    if (near?.date) {
+      const y = near.date.getFullYear();
+      const mo = near.date.getMonth();
+      return valid(y, mo, t.day) ? { ...t, date: new Date(y, mo, t.day) } : t;
+    }
+    // No month written anywhere: the next time that day comes round.
+    for (let i = 0; i < 3; i += 1) {
+      const y = today.getFullYear();
+      const mo = today.getMonth() + i;
+      const d: Date = new Date(y, mo, t.day);
+      if (d.getDate() === t.day && d >= today) return { ...t, date: d };
+    }
+    return t;
   });
 }
 
@@ -363,7 +393,7 @@ export function sweepDates(
   const text = written.replace(/\bb4\b/gi, "before");
   const wall = wallNow(now, tz);
   const today = new Date(wall.getFullYear(), wall.getMonth(), wall.getDate());
-  const tokens = withMonths(collect(text, today));
+  const tokens = withMonths(collect(text, today), today);
   const days: SweptDay[] = [];
   const unread: string[] = [];
   const seen = new Map<string, number>();
@@ -379,6 +409,10 @@ export function sweepDates(
       const before = text.slice(Math.max(0, t.index - 40), t.index);
       const week = WEEK_OF.exec(before);
       const iso = isoOf(t.date!);
+      if (t.until) {
+        days.push({ iso, span, to: isoOf(t.until) });
+        continue;
+      }
       const day: SweptDay = week
         ? {
             iso,

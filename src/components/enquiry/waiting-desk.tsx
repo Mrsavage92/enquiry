@@ -41,6 +41,7 @@ export function WaitingDesk({ enquiry, onDone }: { enquiry: Enquiry; onDone?: ()
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [reviewedSendId, setReviewedSendId] = useState<string | null>(null);
   const [reviewBlocked, setReviewBlocked] = useState<string | null>(null);
+  const [reviewWarnings, setReviewWarnings] = useState<string[]>([]);
   const [reviewStale, setReviewStale] = useState<string | null>(null);
   const followUpBody = enquiry.decision.draft.body;
   const followUpPreview = previewFor({
@@ -84,9 +85,11 @@ export function WaitingDesk({ enquiry, onDone }: { enquiry: Enquiry; onDone?: ()
       if (!res.ok) {
         setReviewBlocked(res.message);
         setReviewedSendId(null);
+        setReviewWarnings([]);
       } else {
         setReviewBlocked(null);
         setReviewedSendId(res.reviewedSendId);
+        setReviewWarnings(res.warnings ?? []);
       }
       setReviewStale(null);
       setConfirmOpen(true);
@@ -97,7 +100,7 @@ export function WaitingDesk({ enquiry, onDone }: { enquiry: Enquiry; onDone?: ()
     }
   };
 
-  const confirmExternalSend = async (staleAttestation = false) => {
+  const confirmExternalSend = async (staleAttestation = false, acknowledgedWarnings = false) => {
     if (demoMode) {
       approve(enquiry.id);
       toastUndo("Recorded as sent (demo). Nothing left this browser.");
@@ -111,9 +114,13 @@ export function WaitingDesk({ enquiry, onDone }: { enquiry: Enquiry; onDone?: ()
     }
     setSending(true);
     try {
-      const res = await firstBeta.recordSent(enquiry.id, reviewedSendId, { staleAttestation });
+      const res = await firstBeta.recordSent(enquiry.id, reviewedSendId, {
+        staleAttestation,
+        acknowledgedWarnings,
+      });
       if (!res.ok) {
         if (res.reason === "stale") setReviewStale(res.message);
+        else if (res.reason === "warnings") setReviewWarnings(res.warnings ?? []);
         else setReviewBlocked(res.message);
         return;
       }
@@ -358,9 +365,10 @@ export function WaitingDesk({ enquiry, onDone }: { enquiry: Enquiry; onDone?: ()
         compact={Boolean(phone)}
         demoMode={demoMode}
         blockedReason={reviewBlocked}
+        warnings={reviewWarnings}
         staleMessage={reviewStale}
         onCopy={copyFollowUp}
-        onConfirm={() => void confirmExternalSend(false)}
+        onConfirm={(opts) => void confirmExternalSend(false, Boolean(opts?.acknowledgedWarnings))}
         onConfirmStale={() => void confirmExternalSend(true)}
       />
     </div>

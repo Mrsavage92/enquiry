@@ -83,9 +83,6 @@ export const NOT_A_REQUEST =
 const CONNECTOR =
   /(?:\+|\b(?:plus|as well as|along with|and also|also\s+(?:clean|need|want|get|include|add|like|love|quote(?:\s+for)?)|(?:would|we'?d|i'?d)\s+also\s+like|also(?=,?\s+(?:the|a|an|my|our|some)\b),?|(?:can|could)\s+(?:you|u)\s+(?:also\s+)?(?:add|include|throw\s+in)))\s*(?:(?:the|a|an|my|our|your|some)\s+)?([a-z][a-z'-]*(?:\s+[a-z][a-z'-]*){0,2})/gi;
 
-/** "the windows too", "oven too": the thing just before "too". */
-const TOO = /\b((?:[a-z][a-z'-]*\s+){0,2}[a-z][a-z'-]*)\s+too\b/gi;
-
 /** Words that describe, never the thing itself: "also a big thank you". */
 const NOT_A_THING = new Set([
   "big",
@@ -106,6 +103,21 @@ const NOT_A_THING = new Set([
   "question",
   "thank",
   "thanks",
+  "morning",
+  "mornings",
+  "afternoon",
+  "arvo",
+  "evening",
+  "night",
+  "weekend",
+  "possible",
+  "monday",
+  "tuesday",
+  "wednesday",
+  "thursday",
+  "friday",
+  "saturday",
+  "sunday",
 ]);
 
 /** "the deck, which needs staining": the work named for the thing itself. */
@@ -516,10 +528,17 @@ export function readExtraRequests(
     // word that only describes ("also a big thank you").
     const head = words[words.length - 1]!;
     if (NOT_A_THING.has(head) || /ly$/.test(head) || head.length < 3) continue;
+    // A thing no business noun names needs more than one word, or a plain
+    // "also a ..." before it: "as well as possible" is not something to price.
+    const known = SERVICE_NOUNS.has(head) || SERVICE_NOUNS.has(thing);
+    if (!known && words.length < 2 && !/^also\b/i.test(m[0].trim())) continue;
+    // "plus a carpet steam clean. Do you do carpets?": their own question
+    // already asks about it, so it is settled there, never twice.
+    if (!known && askedAbout(text).some((w) => words.some((x) => stem(x) === stem(w)))) continue;
     const near = NEAR_ACTIVITY.exec(afterPhrase)?.[1]?.toLowerCase();
     const label = near
       ? `${thing} ${ACTIVITY_NOUN[near]}`
-      : activity && !/ing$|s$/.test(head)
+      : activity && !/ing$|s$/.test(head) && !WORK_STEMS.has(stem(head))
         ? `${thing} ${activity}`
         : thing;
     if (seen.has(label)) continue;
@@ -527,30 +546,16 @@ export function readExtraRequests(
     out.push({ label, span: m[0].trim() });
   }
 
-  // 3. "the windows too": the thing just before "too", when it is something a
-  // business does and no saved service already named it.
-  for (const m of text.matchAll(TOO)) {
-    const words = (m[1] ?? "").toLowerCase().split(/\s+/).filter(Boolean);
-    while (
-      words.length &&
-      (STOP_WORDS.has(words[0]!) || ["the", "a", "an", "some"].includes(words[0]!))
-    ) {
-      words.shift();
-    }
-    if (words.length === 0 || words.some((w) => STOP_WORDS.has(w) || NOT_AN_EXTRA.has(w))) continue;
-    const head = words[words.length - 1]!;
-    if (!SERVICE_NOUNS.has(head)) continue;
-    const thing = words.join(" ");
-    if (serviceWords(thing).every((w) => mainStems.has(stem(w)))) continue;
-    const sentence = wholeSentence(text, m.index ?? 0);
-    if (DECLINED.test(sentence) || NOT_A_REQUEST.test(sentence)) continue;
-    const named = others.find((s) =>
-      distinctiveStems(s, [main]).some((st) => serviceWords(thing).map(stem).includes(st)),
-    );
-    const label = named ?? (activity && !/ing$|s$/.test(head) ? `${thing} ${activity}` : thing);
-    if (seen.has(label.toLowerCase()) || seen.has(label)) continue;
-    seen.add(label.toLowerCase());
-    out.push({ label, ...(named ? { service: named } : {}), span: m[0].trim() });
+  return out;
+}
+
+/** The words of their "do you do X?" questions. */
+function askedAbout(text: string): string[] {
+  const out: string[] = [];
+  for (const m of text.matchAll(
+    /\b(?:do|would|could|can|will)\s+(?:you|u|ya)\s+(?:guys\s+)?(?:also\s+)?(?:do|offer|provide)\s+([^?.!\n]+)\?/gi,
+  )) {
+    out.push(...(m[1]!.toLowerCase().match(/[a-z]{3,}/g) ?? []));
   }
   return out;
 }

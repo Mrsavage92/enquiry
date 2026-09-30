@@ -107,6 +107,7 @@ export function Intelligence({
   // The server-frozen artefact this preview is about, and why the server would
   // not let it proceed. Both cleared every time the preview is opened afresh.
   const [reviewedSendId, setReviewedSendId] = useState<string | null>(null);
+  const [reviewWarnings, setReviewWarnings] = useState<string[]>([]);
   const [reviewBlocked, setReviewBlocked] = useState<string | null>(null);
   const [reviewStale, setReviewStale] = useState<string | null>(null);
   // Which figure the server refused, so the preview can offer a way forward.
@@ -325,10 +326,12 @@ export function Intelligence({
         setReviewBlocked(res.message);
         setReviewMismatch(res.reason === "amount_mismatch" ? (res.amounts ?? null) : null);
         setReviewedSendId(null);
+        setReviewWarnings([]);
       } else {
         setReviewBlocked(null);
         setReviewMismatch(null);
         setReviewedSendId(res.reviewedSendId);
+        setReviewWarnings(res.warnings ?? []);
       }
       setReviewStale(null);
       setSendConfirm(true);
@@ -346,7 +349,7 @@ export function Intelligence({
    * copying, not opening this dialog, not closing it. Enquiry did not deliver
    * the message and does not claim to have.
    */
-  const confirmExternalSend = async (staleAttestation = false) => {
+  const confirmExternalSend = async (staleAttestation = false, acknowledgedWarnings = false) => {
     if (demoMode) {
       approve(enquiry.id);
       toastUndo("Recorded as sent (demo). Nothing left this browser.");
@@ -363,9 +366,13 @@ export function Intelligence({
     recordingSend.current = true;
     setSending(true);
     try {
-      const res = await firstBeta.recordSent(enquiry.id, reviewedSendId, { staleAttestation });
+      const res = await firstBeta.recordSent(enquiry.id, reviewedSendId, {
+        staleAttestation,
+        acknowledgedWarnings,
+      });
       if (!res.ok) {
         if (res.reason === "stale") setReviewStale(res.message);
+        else if (res.reason === "warnings") setReviewWarnings(res.warnings ?? []);
         else setReviewBlocked(res.message);
         return;
       }
@@ -1472,6 +1479,7 @@ export function Intelligence({
         compact={compact}
         demoMode={demoMode}
         blockedReason={reviewBlocked}
+        warnings={reviewWarnings}
         staleMessage={reviewStale}
         mismatch={
           reviewMismatch && !demoMode
@@ -1512,8 +1520,8 @@ export function Intelligence({
             : null
         }
         onCopy={copyDraft}
-        onConfirm={() => {
-          void confirmExternalSend(false).then(() => {
+        onConfirm={(opts) => {
+          void confirmExternalSend(false, Boolean(opts?.acknowledgedWarnings)).then(() => {
             if (!compact) onDone?.();
           });
         }}

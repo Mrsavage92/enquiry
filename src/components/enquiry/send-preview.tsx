@@ -48,14 +48,18 @@ export function SendPreview({
   staleMessage,
   onConfirmStale,
   mismatch,
+  warnings = [],
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   preview: SendPreviewData;
   /** Puts the text on the clipboard. Resolves with what actually happened. */
   onCopy: () => Promise<SendPreviewCopyState>;
-  /** The owner attesting they sent it themselves. The ONLY thing that records. */
-  onConfirm: () => void;
+  /**
+   * The owner attesting they sent it themselves. The ONLY thing that records.
+   * `acknowledgedWarnings` is the owner's "Send anyway" over what to check.
+   */
+  onConfirm: (opts?: { acknowledgedWarnings?: boolean }) => void;
   pending: boolean;
   compact?: boolean;
   /** Demo attestations are simulated, and are labelled as such. */
@@ -74,7 +78,15 @@ export function SendPreview({
     onUsePrepared: () => void;
     lines: { label: string; onAdd: () => void }[];
   } | null;
+  /**
+   * What the owner wrote that the app cannot vouch for: a discount, a
+   * booking promise, a day they don't work. Never a refusal - one tap sends
+   * anyway, and that is recorded.
+   */
+  warnings?: string[];
 }) {
+  const [checked, setChecked] = useState(false);
+  const toCheck = !blockedReason && warnings.length > 0 && !checked;
   const [addingLine, setAddingLine] = useState(false);
   const [copyState, setCopyState] = useState<SendPreviewCopyState>("idle");
   const [showAll, setShowAll] = useState(false);
@@ -92,6 +104,7 @@ export function SendPreview({
     if (open) {
       setCopyState("idle");
       setShowAll(false);
+      setChecked(false);
     }
   }, [open]);
 
@@ -114,13 +127,33 @@ export function SendPreview({
 
   const actionBar = (
     <div className="flex flex-col gap-2" data-testid="send-actions">
+      {toCheck ? (
+        <div className="callout bg-warn-bg text-warn" role="status" data-testid="send-warnings">
+          <p className="text-sm font-medium">Check this before you send</p>
+          <ul className="mt-1 list-disc space-y-0.5 pl-5 text-sm text-ink">
+            {warnings.map((w) => (
+              <li key={w}>{w}</li>
+            ))}
+          </ul>
+          <Button
+            variant="secondary"
+            size="sm"
+            className="mt-2 min-h-11"
+            disabled={pending}
+            onClick={() => setChecked(true)}
+          >
+            Send anyway
+          </Button>
+        </div>
+      ) : null}
       {/* Step one. Copying is copying: it writes nothing, records nothing,
-          and reports truthfully whether the clipboard actually took it. */}
+          and reports truthfully whether the clipboard actually took it. A
+          reply the send check refused is never the loud button. */}
       <Button
-        variant={copied ? "secondary" : "primary"}
+        variant={copied || blockedReason || toCheck ? "secondary" : "primary"}
         className="reply-copy-button h-auto min-h-12 w-full whitespace-normal py-2"
         data-copy-state={copyState}
-        disabled={pending || !preview.body}
+        disabled={pending || !preview.body || Boolean(blockedReason) || toCheck}
         onClick={() => {
           void onCopy().then((state) => {
             setCopyState(state);
@@ -152,8 +185,8 @@ export function SendPreview({
         <Button
           variant={copied ? "primary" : "secondary"}
           className="h-auto min-h-12 w-full whitespace-normal py-2"
-          disabled={pending || Boolean(blockedReason)}
-          onClick={onConfirm}
+          disabled={pending || Boolean(blockedReason) || toCheck}
+          onClick={() => onConfirm(checked ? { acknowledgedWarnings: true } : undefined)}
         >
           <ClipboardCheck size={18} aria-hidden />
           {pending
@@ -177,6 +210,55 @@ export function SendPreview({
         }}
       >
         <div className="space-y-4">
+          {/* Why it can't go, first: never under a message that looks ready. */}
+          {blockedReason ? (
+            <div className="callout bg-danger-bg text-danger" role="alert" data-testid="send-refused">
+              <p className="text-sm font-medium">This reply can't be sent as it is</p>
+              <p className="mt-1 text-sm text-ink">{blockedReason}</p>
+            </div>
+          ) : null}
+          {blockedReason && mismatch ? (
+            <div className="flex flex-col gap-2">
+              <Button
+                className="min-h-11 w-full"
+                disabled={pending}
+                onClick={mismatch.onUsePrepared}
+              >
+                Use the prepared total
+              </Button>
+              <Button
+                variant="secondary"
+                className="min-h-11 w-full"
+                disabled={pending}
+                aria-expanded={addingLine}
+                onClick={() => setAddingLine((v) => !v)}
+              >
+                Add a line
+              </Button>
+              {addingLine ? (
+                <div className="space-y-2">
+                  {mismatch.lines.map((l) => (
+                    <Button
+                      key={l.label}
+                      variant="ghost"
+                      className="min-h-11 w-full justify-start"
+                      disabled={pending}
+                      onClick={l.onAdd}
+                    >
+                      {l.label}
+                    </Button>
+                  ))}
+                  <p className="text-sm text-ink-2">
+                    Not in your prices?{" "}
+                    <Link className="ui-text-link" to="/business" search={{ section: "pricing" }}>
+                      Add a price
+                    </Link>{" "}
+                    and this enquiry updates.
+                  </p>
+                </div>
+              ) : null}
+            </div>
+          ) : null}
           <div>
             <p className="eyebrow">Channel</p>
             <p className="mt-1 text-sm">{preview.channelLabel}</p>
@@ -234,11 +316,13 @@ export function SendPreview({
             role="status"
             aria-live="polite"
           >
-            {copyState === "copied"
-              ? "Copied to your clipboard. Nothing has been sent or recorded yet."
-              : copyState === "failed"
-                ? "Enquiry could not reach your clipboard. The message above is selected - copy it by hand. Nothing has been sent or recorded."
-                : "Copy the message, then send it from your own inbox or phone."}
+            {blockedReason
+              ? "Fix the reply first. Nothing has been sent or recorded."
+              : copyState === "copied"
+                ? "Copied to your clipboard. Nothing has been sent or recorded yet."
+                : copyState === "failed"
+                  ? "Enquiry could not reach your clipboard. The message above is selected - copy it by hand. Nothing has been sent or recorded."
+                  : "Copy the message, then send it from your own inbox or phone."}
           </p>
           {preview.amountLabel ? (
             <div>
@@ -254,53 +338,6 @@ export function SendPreview({
             <p className="text-xs text-warn">
               Edited from the reply Enquiry prepared. The edited text is what gets recorded.
             </p>
-          ) : null}
-          {blockedReason ? (
-            <p className="text-sm text-danger" role="alert">
-              {blockedReason}
-            </p>
-          ) : null}
-          {blockedReason && mismatch ? (
-            <div className="flex flex-col gap-2">
-              <Button
-                className="min-h-11 w-full"
-                disabled={pending}
-                onClick={mismatch.onUsePrepared}
-              >
-                Use the prepared total
-              </Button>
-              <Button
-                variant="secondary"
-                className="min-h-11 w-full"
-                disabled={pending}
-                aria-expanded={addingLine}
-                onClick={() => setAddingLine((v) => !v)}
-              >
-                Add a line
-              </Button>
-              {addingLine ? (
-                <div className="space-y-2">
-                  {mismatch.lines.map((l) => (
-                    <Button
-                      key={l.label}
-                      variant="ghost"
-                      className="min-h-11 w-full justify-start"
-                      disabled={pending}
-                      onClick={l.onAdd}
-                    >
-                      {l.label}
-                    </Button>
-                  ))}
-                  <p className="text-sm text-ink-2">
-                    Not in your prices?{" "}
-                    <Link className="ui-text-link" to="/business" search={{ section: "pricing" }}>
-                      Add a price
-                    </Link>{" "}
-                    and this enquiry updates.
-                  </p>
-                </div>
-              ) : null}
-            </div>
           ) : null}
           {staleMessage ? (
             <p className="text-sm text-warn" role="alert">

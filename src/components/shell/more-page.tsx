@@ -16,6 +16,7 @@ import { cn } from "@/lib/utils";
 import { BUSINESSES } from "@/fixtures";
 import { visibleBusinesses } from "@/lib/workspace/resolve-business";
 import { InstallAppRow } from "./install-app";
+import { NoticesList, useNotices } from "./notices";
 import { useEmbed } from "@/lib/embed";
 
 export function MorePage() {
@@ -28,6 +29,7 @@ export function MorePage() {
   const navigate = useNavigate();
   const showToday = () => void navigate({ to: "/today" });
   const embed = useEmbed();
+  const notices = useNotices().items.length;
   // Live mode shows the tenant's own businesses. Filtering to the fixture
   // "glow" id meant a real workspace vanished from its own selector the
   // moment it had a real uuid.
@@ -94,6 +96,15 @@ export function MorePage() {
             ))}
           </ul>
         </details>
+        <section className="mb-4" aria-labelledby="more-notices">
+          <h2 id="more-notices" className="flex items-center gap-2 text-sm font-semibold text-ink">
+            Notices
+            {notices > 0 ? (
+              <span className="nav-dot relative" role="img" aria-label={`${notices} unread`} />
+            ) : null}
+          </h2>
+          <NoticesList />
+        </section>
         <ul className="more-destinations">
           <MoreLink to="/usage" icon={Gauge} label="Plan & usage" />
           <MoreLink to="/support" icon={CircleHelp} label="Help & support" />

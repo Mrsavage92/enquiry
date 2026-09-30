@@ -472,7 +472,14 @@ test("round 2 (M1/M2): a cover figure goes out as the owner's own answer, as wri
   ] as const) {
     const res = await sendAs(pg, a.businessId, e.enquiryId, edited);
     assert.equal(!res.ok && res.reason, "amount_mismatch", edited);
-    if (message) assert.equal(!res.ok && res.message, message, edited);
+    // Pass 11: with a saved cover answer, the refusal names its figure.
+    if (message) {
+      assert.equal(
+        !res.ok && res.message,
+        "Your saved insurance answer says $20,000,000. Use that figure, or change your saved answer first.",
+        edited,
+      );
+    }
   }
   // The owner answers again in other words: those words carry the figure now.
   await answer(pg, "user-a", e.enquiryId, "ask:insurance", "We're insured for $20m.");

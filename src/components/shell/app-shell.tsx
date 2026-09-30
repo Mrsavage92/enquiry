@@ -23,7 +23,7 @@ import { SampleWorkspaceBanner } from "./sample-workspace-banner";
 import { SystemBanners } from "./system-banners";
 import { Jump, JumpTrigger } from "./jump";
 import { KeysHelp } from "./keys";
-import { Notices } from "./notices";
+import { Notices, useNotices } from "./notices";
 import { useMarkSeen } from "@/lib/workspace/owner-sync";
 import { toast } from "sonner";
 
@@ -258,6 +258,9 @@ export function AppShell() {
     pathname.startsWith("/account") ||
     pathname.startsWith("/lab");
   const enquiryOpen = pathname.startsWith("/enquiries/") && pathname !== "/enquiries";
+  // The bell lives in the desktop sidebar; on a phone the same notices sit
+  // under More, with the same unread dot on it.
+  const noticeCount = useNotices().items.length;
 
   return (
     <div className="app-root flex h-dvh flex-col overflow-hidden bg-paper text-ink">
@@ -331,10 +334,17 @@ export function AppShell() {
                 )}
               >
                 <span
-                  className={cn("phone-nav-icon", moreActive && "phone-nav-icon-active")}
+                  className={cn("phone-nav-icon relative", moreActive && "phone-nav-icon-active")}
                   data-motion-selected={moreActive}
                 >
                   <MoreHorizontal className="size-5" aria-hidden />
+                  {noticeCount > 0 ? (
+                    <span
+                      className="nav-dot absolute -right-1 -top-0.5"
+                      role="img"
+                      aria-label={`${noticeCount} ${noticeCount === 1 ? "notice" : "notices"}`}
+                    />
+                  ) : null}
                 </span>
                 More
               </Link>

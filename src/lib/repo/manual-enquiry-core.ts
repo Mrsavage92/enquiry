@@ -6,7 +6,7 @@ import { snapshotFromDecision, stateFromDecision } from "../../domain/decision-s
 import { applyDecision, isClosed, lockEnquiry } from "./decision-apply.ts";
 import type { EnquiryInterpreter, InterpretFailureReason } from "../interpret/types.ts";
 import { readEnquiryBasics, type DateReading } from "../../domain/enquiry-basics.ts";
-import { DATE_SWEEP_FIELD, sweepDates, sweepValue, sweptLabel } from "../../domain/date-sweep.ts";
+import { DATE_SWEEP_FIELD, sweepDates, sweepValue } from "../../domain/date-sweep.ts";
 import { blockedQuantity, findQuantityInMessages, newExtraRequests } from "./quantity-inference.ts";
 import {
   APPROX_VALUE,
@@ -117,6 +117,7 @@ export async function insertManualEnquiry(
     : [];
   // Everything else they asked for beside the main job, read now so no total
   // is ever prepared that silently leaves it off.
+  const questions = questionFacts(input.body, [input.serviceLabel, ...services], business);
   for (const extra of newExtraRequests(
     [{ id: "", body: input.body }],
     input.serviceLabel,
@@ -127,7 +128,7 @@ export async function insertManualEnquiry(
   }
   // "Do you do mould removal?": a question the owner answers before any reply
   // is ready. Read as "No" when they said they don't offer it.
-  facts.push(...questionFacts(input.body, [input.serviceLabel, ...services], business));
+  facts.push(...questions);
   // "r u free this sat or sun?", "do you have insurance?": questions the reply
   // has to answer, never passed over for a quote.
   facts.push(...askFacts(input.body, [input.serviceLabel, ...services], business));
@@ -138,13 +139,9 @@ export async function insertManualEnquiry(
   // closed day the reader tagged "not the job date" is still caught.
   const sweep = sweepDates(input.body, input.now ?? new Date());
   if (sweep.days.length || sweep.unread.length) {
-    const said = [
-      ...sweep.days.map((d) => sweptLabel(d.iso)),
-      ...sweep.unread.map((u) => `"${u}" (not read)`),
-    ].join(", ");
-    facts.push(
-      readFact(DATE_SWEEP_FIELD, sweepValue(sweep), `Days they mention: ${said}`, said, "Days they mention"),
-    );
+    const count = sweep.days.length + sweep.unread.length;
+    const said = `${count} ${count === 1 ? "day" : "days"} checked against your closed days`;
+    facts.push(readFact(DATE_SWEEP_FIELD, sweepValue(sweep), said, said, "Days they mention"));
   }
   if (!typedName && basics.customerName) {
     facts.push(readFact("name", basics.customerName, basics.customerName, basics.customerName));

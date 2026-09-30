@@ -328,7 +328,10 @@ function applySurcharges(ctx: Ctx, start: RuleLine[], notes: string[]): RuleLine
       ],
     };
     if (fit === "unsure" && ctx.settled.get(norm(field)) === RULE_CHOICE.waive) {
-      notes.push(`Just so you know, ${daysWord(s.days)} are ${s.percent}% more.`);
+      // Mid-sentence after the comma: "Just so you know, weekends are 20% more."
+      notes.push(
+        `Just so you know, ${daysWord(s.days).replace(/^Weekends$/, "weekends")} are ${s.percent}% more.`,
+      );
     }
     const line: RuleLine = {
       label: `${capitalise(name)} rate (${s.percent}% of ${formatMinorAud(base)})`,

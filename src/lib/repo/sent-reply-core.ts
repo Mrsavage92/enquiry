@@ -2,6 +2,8 @@ import type { Sql } from "../db.ts";
 import type { Channel, EvaluatorResult, LineItem } from "../../domain/types.ts";
 import { channelLabel } from "../../domain/channel.ts";
 import { isClosed } from "./decision-apply.ts";
+import { ownerEditWarnings } from "../../domain/edit-warnings.ts";
+import { businessFacts } from "./reviewed-send-core.ts";
 
 /**
  * Recording a real send, as pure SQL logic - deliberately separate from
@@ -44,14 +46,23 @@ export type ConfirmReviewedSendInput = {
    * without advancing the newer decision. Absent, a stale artefact is refused.
    */
   staleAttestation?: boolean;
+  /**
+   * The owner tapped "Send anyway" over the "Check this before you send"
+   * list. Without it, a reply with something to check is not recorded.
+   */
+  acknowledgedWarnings?: boolean;
+  /** The clock the owner's days are read against; injected in tests. */
+  now?: Date;
 };
 
 export type ConfirmReviewedSendResult =
   | { ok: true; duplicate: boolean; stale: boolean; messageId: string | null }
   | {
       ok: false;
-      reason: "missing" | "stale" | "closed";
+      reason: "missing" | "stale" | "closed" | "warnings";
       message: string;
+      /** For `warnings`: what to check before sending. */
+      warnings?: string[];
       /** The revision the artefact was prepared against, and the current one. */
       reviewedRevision?: number;
       currentRevision?: number;
@@ -261,6 +272,25 @@ export async function confirmReviewedSendInTransaction(
     };
   }
 
+  // What the owner wrote that the app cannot vouch for is theirs to send -
+  // once they have seen it. Worked out again here, never taken from the client.
+  const [snap] = await sql<{ draft: string | null }>`
+    select decision_snapshot -> 'draft' ->> 'body' as draft from enquiry where id = ${input.enquiryId}
+  `;
+  const facts = await businessFacts(sql, input.businessId);
+  const warnings = ownerEditWarnings(reviewed.body, snap?.draft ?? "", {
+    closed: facts.closed,
+    ...(input.now ? { now: input.now } : {}),
+  });
+  if (warnings.length > 0 && !input.acknowledgedWarnings) {
+    return {
+      ok: false,
+      reason: "warnings",
+      message: "Check what you wrote before you send it.",
+      warnings,
+    };
+  }
+
   // Claim it. `consumed_at is null` in the same statement as the write is what
   // makes two concurrent confirmations resolve to one - the second updates zero
   // rows and reports the duplicate rather than writing a second message.
@@ -427,7 +457,9 @@ export async function confirmReviewedSendInTransaction(
       },
       ${`Reason: ${reviewed.reason || "no reason recorded"}. Reviewed revision: ${reviewedRevision}.${
         stale ? ` Current revision: ${currentRevision}. The newer decision was left unchanged.` : ""
-      }${closed ? " The enquiry is closed and was not reopened." : ""}`},
+      }${closed ? " The enquiry is closed and was not reopened." : ""}${
+        warnings.length ? ` Sent anyway after checking: ${warnings.join(" ")}` : ""
+      }`},
       ${"enquiry"}, ${input.enquiryId}
     )
   `;

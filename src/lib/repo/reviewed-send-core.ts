@@ -12,6 +12,9 @@ import { standsAsQuoted, type QuoteLineAmount } from "../../domain/money-labels.
 import { formatMinorAud } from "../../domain/money-format.ts";
 import { COVERAGE_FIELD } from "../../domain/coverage.ts";
 import { isClosed, lockEnquiry } from "./decision-apply.ts";
+import { ownerEditWarnings, sentencesOf } from "../../domain/edit-warnings.ts";
+import { activeDetails, closedTimesOf } from "../../domain/business-detail.ts";
+import type { ClosedTimes } from "../../domain/compose-reply.ts";
 
 /**
  * Preparing a send for review, as pure SQL logic.
@@ -49,6 +52,8 @@ export type PrepareReviewInput = {
   /** The text on screen, which the owner may have edited. */
   body: string;
   channel: Channel;
+  /** The clock the owner's days are read against; injected in tests. */
+  now?: Date;
 };
 
 export type PrepareReviewResult =
@@ -63,6 +68,11 @@ export type PrepareReviewResult =
       amountMinor: number | null;
       currency: string | null;
       alreadyConfirmed: boolean;
+      /**
+       * "Check this before you send": promises and claims the owner wrote
+       * that the app cannot vouch for. Sending anyway is one tap, recorded.
+       */
+      warnings: string[];
     }
   | {
       ok: false;
@@ -211,6 +221,63 @@ export function mismatchAmounts(
 export const INSURANCE_AS_ANSWER =
   "Write insurance cover as a saved answer so Enquiry can check it.";
 
+/** Words that make a sentence about the price, whatever else it mentions. */
+const PRICE_WORDS =
+  /\b(?:total|price|prices|quote|quoted|comes?\s+to|all\s+up|costs?|charge[ds]?|fees?|pay|deposit|per|each|hour|hourly|rate|discount|off)\b/i;
+
+/** A saved answer of the owner's: "We have $10 million public liability insurance." */
+export type SavedAnswer = { topic: string; text: string };
+
+function plain(s: string): string {
+  return s
+    .toLowerCase()
+    .replace(/[^a-z0-9$.%]+/g, " ")
+    .replace(/\.(?!\d)/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/**
+ * The owner's own saved answers as they appear in a reply, typed by hand or
+ * inserted: a sentence that reads the same as a saved answer (case, spacing
+ * and full stops aside) is that answer. So is a sentence about insurance
+ * whose every figure is the saved insurance answer's own figure ("We carry
+ * $10m cover" beside "$10 million public liability") - never a different one.
+ */
+export function savedAnswerSentences(body: string, saved: readonly SavedAnswer[]): string[] {
+  if (saved.length === 0) return [];
+  const texts = new Set(saved.map((a) => plain(a.text)));
+  const cover = new Set(
+    saved
+      .filter((a) => a.topic === "insurance")
+      .flatMap((a) => dollarMatches(a.text).map((m) => Math.round(m.amount * 100))),
+  );
+  return sentencesOf(body).filter((s) => {
+    if (texts.has(plain(s))) return true;
+    const figures = dollarMatches(s);
+    // Only a sentence about the cover alone: "insured for $20m, and the total
+    // is $20m" states a price too, and that figure is money like any other.
+    return (
+      cover.size > 0 &&
+      figures.length > 0 &&
+      INSURANCE_WORDS.test(s) &&
+      !PRICE_WORDS.test(s) &&
+      figures.every((m) => !m.foreign && cover.has(Math.round(m.amount * 100)))
+    );
+  });
+}
+
+/** "Your saved insurance answer says $10,000,000." when a cover figure differs from it. */
+function insuranceMessage(saved: readonly SavedAnswer[]): string {
+  const figure = saved
+    .filter((a) => a.topic === "insurance")
+    .flatMap((a) => dollarMatches(a.text))
+    .find((m) => !m.foreign);
+  return figure
+    ? `Your saved insurance answer says ${formatMinorAud(Math.round(figure.amount * 100))}. Use that figure, or change your saved answer first.`
+    : INSURANCE_AS_ANSWER;
+}
+
 /** "Your reply says $880, but the quote Enquiry worked out is $760." */
 export function mismatchMessage(
   body: string,
@@ -218,9 +285,10 @@ export function mismatchMessage(
   impliedMinor: number[] = [],
   ownerTexts: readonly string[] = [],
   quote?: QuoteContext,
+  saved: readonly SavedAnswer[] = [],
 ): string {
   const check = checkMoney(body, price, impliedMinor, ownerTexts, quote);
-  if (check.insurance) return INSURANCE_AS_ANSWER;
+  if (check.insurance) return insuranceMessage(saved);
   if (check.foreign) return "Write amounts in Australian dollars so Enquiry can check them.";
   const total = check.expectedMinor !== null ? formatMinorAud(check.expectedMinor) : null;
   const says = check.named.map((n) => formatMinorAud(n)).join(" and ");
@@ -424,8 +492,13 @@ export async function prepareReviewedSendInTransaction(
   // covers, for this revision. Checked against the stored confirmation itself,
   // not only the snapshot, so a crafted body cannot name a total early.
   // Only the owner's own answer sentences, as written, carry figures of their
-  // own; a snapshot from before these were recorded trusts none.
-  const ownerTexts = Array.isArray(enq.owner_texts) ? enq.owner_texts : [];
+  // own; a snapshot from before these were recorded trusts none. The owner's
+  // saved answers count too, typed by hand or inserted.
+  const business = await businessFacts(sql, input.businessId);
+  const ownerTexts = [
+    ...(Array.isArray(enq.owner_texts) ? enq.owner_texts : []),
+    ...savedAnswerSentences(input.body, business.saved),
+  ];
   if (moneyFigures(input.body, ownerTexts).length > 0) {
     const coverage = await coverageNow(sql, input.enquiryId);
     if (coverage === "unconfirmed") {
@@ -500,7 +573,7 @@ export async function prepareReviewedSendInTransaction(
     return {
       ok: false,
       reason: "amount_mismatch",
-      message: mismatchMessage(input.body, price, implied, ownerTexts, quote),
+      message: mismatchMessage(input.body, price, implied, ownerTexts, quote, business.saved),
       amounts: mismatchAmounts(input.body, price, implied, ownerTexts, quote),
     };
   }
@@ -579,5 +652,27 @@ export async function prepareReviewedSendInTransaction(
     amountMinor: row.amount_minor === null ? null : Number(row.amount_minor),
     currency: row.currency,
     alreadyConfirmed: Boolean(row.consumed_at),
+    warnings: ownerEditWarnings(body, enq.draft_body ?? "", {
+      closed: business.closed,
+      ...(input.now ? { now: input.now } : {}),
+    }),
   };
+}
+
+/** The owner's saved answers and closed days, read once for the send check. */
+export async function businessFacts(
+  sql: Sql,
+  businessId: string,
+): Promise<{ saved: SavedAnswer[]; closed: ClosedTimes }> {
+  const rows = await sql<{ state: string; rule_payload: unknown }>`
+    select state, rule_payload from knowledge_item
+    where business_id = ${businessId} and rule_payload is not null
+  `;
+  const details = activeDetails({
+    knowledge: rows.map((r) => ({ state: r.state, rulePayload: r.rule_payload })),
+  });
+  const saved = details.flatMap((d) =>
+    d.kind === "answer" && d.text ? [{ topic: d.topic, text: d.text }] : [],
+  );
+  return { saved, closed: closedTimesOf(details) };
 }

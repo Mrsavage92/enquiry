@@ -333,6 +333,9 @@ export const recordSentReply = createServerFn({ method: "POST" })
       // The owner attesting they already sent an older approved message, after
       // the enquiry has since changed. A deliberate second act, never a default.
       staleAttestation: d.staleAttestation === true,
+      // "Send anyway" over what to check: the list itself is worked out again
+      // on the server, never taken from here.
+      acknowledgedWarnings: d.acknowledgedWarnings === true,
     };
   })
   .handler(async ({ context, data }) => {
@@ -347,6 +350,7 @@ export const recordSentReply = createServerFn({ method: "POST" })
         businessId,
         userId: context.userId,
         staleAttestation: data.staleAttestation,
+        acknowledgedWarnings: data.acknowledgedWarnings,
       }),
     );
   });
