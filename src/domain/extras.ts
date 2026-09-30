@@ -491,7 +491,13 @@ export function readExtraRequests(
     // Quote the sentence that names it by its own word ("18 windows"), never
     // one that only shares the work word ("the dog hair cleaned off").
     const telling = own.filter((s) => !WORK_STEMS.has(s));
-    const at = mentionAt(text, telling.length && mentionsAny(text, telling) ? telling : own);
+    // The sentence naming it by all its own words ("Also a feature wall in
+    // the bedroom"), before one that only shares a word ("the walls").
+    const named = telling.length > 1 ? namedAt(text, telling) : -1;
+    const at =
+      named >= 0
+        ? named
+        : mentionAt(text, telling.length && mentionsAny(text, telling) ? telling : own);
     const clause = sentenceAround(text, at);
     const sentence = wholeSentence(text, at);
     if (DECLINED.test(sentence) || NOT_A_REQUEST.test(sentence)) continue;
@@ -558,6 +564,17 @@ export function readExtraRequests(
   }
 
   return out;
+}
+
+/** Where the first sentence holding every one of these stems starts, or -1. */
+function namedAt(text: string, stems: readonly string[]): number {
+  let start = 0;
+  for (const part of text.split(/(?<=[.!?\n])/)) {
+    const said = new Set(stemsOf(part));
+    if (stems.every((s) => said.has(s))) return start + (part.length - part.trimStart().length);
+    start += part.length;
+  }
+  return -1;
 }
 
 /** The words of their "do you do X?" questions. */

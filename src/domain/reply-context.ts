@@ -108,7 +108,16 @@ export function greetingName(customerName: string, facts: readonly ReplyFact[]):
 
 /** A swept day the owner has to settle: closed, and no other line of the reply says so. */
 export type SweptCheck =
-  | { kind: "closed"; field: string; iso: string; span: string; context: boolean; week: boolean }
+  | {
+      kind: "closed";
+      field: string;
+      iso: string;
+      span: string;
+      context: boolean;
+      week: boolean;
+      /** For a week: its last day. */
+      to?: string;
+    }
   | { kind: "unread"; field: string; words: string };
 
 /**
@@ -149,6 +158,7 @@ export function sweptChecks(
           span: d.span,
           context: false,
           week: true,
+          to: d.to,
         });
       }
       continue;
@@ -192,6 +202,7 @@ export function sweptAnswer(facts: readonly ReplyFact[], check: SweptCheck): str
 function sweptReply(
   facts: readonly ReplyFact[],
   checks: readonly SweptCheck[],
+  closedTimes?: ReplyContext["closed"],
 ): Pick<ReplyContext, "sweptClosed" | "sweptUnread" | "sweptOpen"> {
   const closed: NonNullable<ReplyContext["sweptClosed"]> = [];
   const unread: string[] = [];
@@ -203,6 +214,13 @@ function sweptReply(
       // The owner can do it after all: the reply says only that they'll confirm.
       if (answer === CLOSED_DAY_CHOICE.available) {
         if (!c.context && !unread.includes(c.span)) unread.push(c.span);
+        continue;
+      }
+      // A week the owner says so of: the closed days in it are named.
+      if (c.week && c.to && answer === CLOSED_DAY_CHOICE.notAvailable) {
+        for (const iso of weekIsos(c.iso, c.to)) {
+          if (closedReason(iso, closedTimes)) closed.push({ iso, span: c.span, say: true });
+        }
         continue;
       }
       const say = !c.week && (answer === CLOSED_DAY_CHOICE.notAvailable || (!answer && !c.context));
@@ -331,7 +349,7 @@ export function replyContextFromFacts(
     asap: value === ASAP_VALUE,
   };
   const checks = sweptChecks(facts, reply);
-  const swept = checks.length ? sweptReply(facts, checks) : {};
+  const swept = checks.length ? sweptReply(facts, checks, reply.closed) : {};
   const added = addedDays(facts, reply.closed);
   if (!checks.length && !added.closed.length && !added.confirm.length) return reply;
   const closedDays = [...(swept.sweptClosed ?? []), ...added.closed];

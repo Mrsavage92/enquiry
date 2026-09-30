@@ -317,3 +317,15 @@ test("9: 'Chloe xoxo' and a titled email signature are read as names", () => {
     "Elizabeth Carter-Wong",
   );
 });
+
+test("5: a saved 'Feature wall' is quoted from the sentence that names it, not from 'the walls'", () => {
+  const read = readExtraRequests(
+    "Hi, we'd like the walls of lounge and hallway painted. Also a feature wall in the bedroom.",
+    "Interior painting",
+    [...SERVICES, "Feature wall"],
+  );
+  assert.deepEqual(
+    read.map((e) => [e.label, e.span]),
+    [["Feature wall", "Also a feature wall in the bedroom"]],
+  );
+});

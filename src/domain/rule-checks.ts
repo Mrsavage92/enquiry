@@ -485,7 +485,14 @@ function applyOverDiscounts(ctx: Ctx, start: RuleLine[]): RuleLine[] {
               : l.amountMinor
             : Math.round((l.amountMinor * (100 - d.percent)) / 100);
           if (amountMinor === l.amountMinor) return l;
-          ctx.implied.push(l.amountMinor, amountMinor, l.amountMinor - amountMinor);
+          // The threshold is said beside the line ("$100 off jobs over $2,000"):
+          // an amount of the owner's rule, never a price the send check refuses.
+          ctx.implied.push(
+            l.amountMinor,
+            amountMinor,
+            l.amountMinor - amountMinor,
+            Math.round(d.over! * 100),
+          );
           const note = `${off} off jobs over ${over}${d.amountOff ? "" : ` on ${formatMinorAud(l.amountMinor)}`}`;
           return { ...l, amountMinor, detail: l.detail ? `${l.detail}, ${note}` : note };
         });

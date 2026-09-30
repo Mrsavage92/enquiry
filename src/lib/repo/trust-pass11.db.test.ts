@@ -356,6 +356,12 @@ test("3: a week that runs into closed dates is the owner's to settle", async (t)
   );
   const open = (await ledger(pg, e.enquiryId)).filter((i) => i.status === "open");
   assert.ok(open.some((i) => i.text === "Part of the week of 21 December is in your closed dates"));
+  // Said as not available, the closed days in that week are named.
+  await settleDays(pg, e.enquiryId);
+  assert.match(
+    (await row(pg, e.enquiryId)).decision_snapshot.draft.body,
+    /You mentioned the week of 21 December - I'm sorry, I'm not available on Thursday 24, Friday 25, Saturday 26 or Sunday 27 December\./,
+  );
 });
 
 // ---------------------------------------------------------------------------
@@ -668,4 +674,29 @@ test("9: a day the owner adds is read on the server and said in the reply; anoth
   );
   const items = await ledger(pg, e.enquiryId);
   assert.ok(items.some((i) => i.text === "Sunday 27 December" && i.closed));
+});
+
+test("9: a 'jobs over $2000' discount taken off goes out through the send path, threshold and all", async (t) => {
+  const { pg, a } = await setup(
+    t,
+    ["Interior painting $32 per sqm", "Jobs over $2000 get $100 off"].join("\n"),
+  );
+  const e = await enquiry(
+    pg,
+    a.businessId,
+    "Hi, please quote painting the whole interior, 90 square metres of walls. Thanks, Sam",
+    "Interior painting",
+  );
+  await settle(pg, e.enquiryId, { checks: [[/over \$2,000/, "apply"]] });
+  const { body, sent } = await settleAndSend(pg, a.businessId, e.enquiryId);
+  assert.equal(sent.ok, true, JSON.stringify(sent));
+  assert.equal(sent.ok && sent.amountMinor, 278_000);
+  assert.match(body, /\$100 off jobs over \$2,000/);
+  // Another tenant cannot take the discount, and nothing moves.
+  const before = await row(pg, e.enquiryId);
+  await assert.rejects(
+    answer(pg, "user-b", e.enquiryId, "rule:discount:over:2000:100", "waive"),
+    ForbiddenError,
+  );
+  assert.deepEqual(await row(pg, e.enquiryId), before);
 });

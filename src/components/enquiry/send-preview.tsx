@@ -92,6 +92,7 @@ export function SendPreview({
   const [showAll, setShowAll] = useState(false);
   const bodyRef = useRef<HTMLDivElement>(null);
   const refusedRef = useRef<HTMLDivElement>(null);
+  const warnRef = useRef<HTMLDivElement>(null);
   // The message grows to fit so the sign-off is never hidden in an inner
   // scroll; only a really long one is cut short, with "Show all" under it.
   const long =
@@ -129,17 +130,18 @@ export function SendPreview({
   const actionBar = (
     <div className="flex flex-col gap-2" data-testid="send-actions">
       {toCheck ? (
-        <div className="callout bg-warn-bg text-warn" role="status" data-testid="send-warnings">
-          <p className="text-sm font-medium">Check this before you send</p>
-          <ul className="mt-1 list-disc space-y-0.5 pl-5 text-sm text-ink">
-            {warnings.map((w) => (
-              <li key={w}>{w}</li>
-            ))}
-          </ul>
+        // The list is at the top of the sheet; here, the one tap that says the
+        // owner has read it. A tall footer would push the buttons off a phone.
+        <div className="flex items-center justify-between gap-3 text-sm text-warn">
+          <span className="font-medium">
+            {warnings.length === 1
+              ? "1 thing to check above"
+              : `${warnings.length} things to check above`}
+          </span>
           <Button
             variant="secondary"
             size="sm"
-            className="mt-2 min-h-11"
+            className="min-h-11 shrink-0"
             disabled={pending}
             onClick={() => setChecked(true)}
           >
@@ -208,10 +210,32 @@ export function SendPreview({
         onOpenAutoFocus={(event) => {
           event.preventDefault();
           // A refused reply opens on why, never scrolled past it to the text.
-          (blockedReason ? refusedRef.current : bodyRef.current)?.focus();
+          (blockedReason
+            ? refusedRef.current
+            : warnings.length
+              ? warnRef.current
+              : bodyRef.current
+          )?.focus();
         }}
       >
         <div className="space-y-4">
+          {/* What the owner wrote that the app cannot vouch for: theirs to send. */}
+          {toCheck ? (
+            <div
+              ref={warnRef}
+              tabIndex={-1}
+              className="callout bg-warn-bg text-warn"
+              role="status"
+              data-testid="send-warnings"
+            >
+              <p className="text-sm font-medium">Check this before you send</p>
+              <ul className="mt-1 list-disc space-y-0.5 pl-5 text-sm text-ink">
+                {warnings.map((w) => (
+                  <li key={w}>{w}</li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
           {/* Why it can't go, first: never under a message that looks ready. */}
           {blockedReason ? (
             <div
