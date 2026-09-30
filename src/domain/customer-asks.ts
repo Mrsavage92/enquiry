@@ -49,23 +49,89 @@ export type CustomerAsk = {
 
 /** Topics a business is asked again and again: the saved answer is offered next time. */
 const TOPICS: [string, RegExp][] = [
+  // "Could you do it for $500?": a counter-offer, answered by the owner, never by the quote.
+  [
+    "offer",
+    /\b(?:do|doing)\s+(?:it|that|this|the job|the lot)\s+for\s+\$\s?\d|\b(?:take|accept)\s+\$\s?\d|\$\s?\d[\d,]*\s+(?:ok|okay|work|suit|do)\b|\bbest\s+price\b|\bany\s+(?:wiggle|room|movement)\b|\bflexib\w*\s+(?:on|with|in)\s+(?:the\s+|your\s+)?(?:price|pricing|quote|rate)\b|\bnegotiable\b/i,
+  ],
   ["insurance", /\b(?:insured|insurance|public liability)\b/i],
-  ["licence", /\b(?:licen[cs]ed?|licen[cs]es?|registered|qualified|certified|accredited)\b/i],
+  // A police check or a Working With Children card is about who does the
+  // work: licensing, never insurance and never payment.
+  [
+    "licence",
+    /\b(?:licen[cs]ed?|licen[cs]es?|registered|qualified|certified|accredited|police\s+check(?:ed)?|working\s+with\s+children|blue\s+card)\b/i,
+  ],
+  ["cancellation", /\bcancel(?:l?ation|l?ing|l?ed)?\b|\breschedul\w*\b/i],
   ["duration", /\bhow\s+long\b|\bhow\s+many\s+hours\b/i],
   ["deposit", /\bdeposit\b/i],
-  ["payment", /\b(?:pay(?:ment)?|card|cash|invoice|afterpay|eftpos|bank transfer)\b/i],
+  // Payment only by what it is: "how can I pay", "do you take card". Never a
+  // bare "card" (a Working With Children card) or "pay for parking".
+  [
+    "payment",
+    /\bhow\s+(?:do|can|would|should)\s+(?:i|we)\s+pay\b|\bpayment\s+(?:options?|methods?|terms|plans?)\b|\bpay(?:ing)?\s+(?:by|with|in)\s+(?:card|cash|credit|eftpos|bank\s+transfer|instalments?)\b|\b(?:take|accept)\s+(?:card|credit\s+card|eftpos|afterpay|zip)\b|\bafterpay\b|\beftpos\b|\bbank\s+transfer\b|\binvoice\b/i,
+  ],
   [
     "equipment",
-    /\b(?:bring|supply|provide|use|using)\s+(?:your\s+own\s+|any\s+)?(?:\w+\s+)?(?:equipment|products|supplies|gear|vacuum|materials|chemicals)\b/i,
+    /\b(?:bring|supply|provide|use|using)\s+(?:(?:your|our|my|their)\s+own\s+|any\s+|all\s+(?:our|my|the)\s+(?:own\s+)?)?(?:\w+\s+)?(?:equipment|products|supplies|gear|vacuum|materials|chemicals)\b/i,
   ],
-  ["pets", /\b(?:pets?|dogs?|cats?)\b/i],
+  // Pets only as pets being there: "is it extra for dog hair?" is about the price.
+  [
+    "pets",
+    /\b(?:(?:have|got|with|own)\s+(?:a\s+|an?\s+|two\s+|2\s+|some\s+)?(?:\w+\s+)?(?:dogs?|cats?|pets?)\b|\bpets?\s+(?:ok|okay|allowed|friendly)\b|\bpet[- ]friendly\b|\b(?:ok|okay|fine)\s+with\s+(?:dogs?|cats?|pets?)\b|\b(?:dogs?|cats?|pets?)\s+(?:be\s+)?(?:ok|okay|a\s+problem|an\s+issue)\b)/i,
+  ],
   ["parking", /\bpark(?:ing)?\b/i],
   ["warranty", /\b(?:warrant(?:y|ies)|guarantee[ds]?)\b/i],
+  // "is the price including paint?": what the price covers, not the price itself.
+  ["inclusions", /\binclud(?:e|es|ed|ing)\b|\binclusive\b/i],
+  [
+    "discount",
+    /\b(?:discounts?|concessions?|pensioners?|seniors?\s+(?:rate|discount)|mates?\s+rates?)\b/i,
+  ],
 ];
+
+/** Topics an owner's saved answer can be for: never a counter-offer or what one quote includes. */
+const ANSWER_TOPICS = new Set([
+  "insurance",
+  "licence",
+  "duration",
+  "deposit",
+  "payment",
+  "equipment",
+  "pets",
+  "parking",
+  "warranty",
+  "discount",
+  "cancellation",
+]);
+
+/** How a customer usually asks it, for a saved answer written as a statement. */
+const TOPIC_QUESTIONS: Record<string, string> = {
+  insurance: "Are you insured?",
+  licence: "Are you licensed?",
+  duration: "How long will it take?",
+  deposit: "Do you need a deposit?",
+  payment: "How can I pay?",
+  equipment: "Do you bring your own equipment?",
+  pets: "Is it OK if we have pets?",
+  parking: "Is there parking?",
+  warranty: "Do you guarantee your work?",
+  discount: "Is there a discount?",
+  cancellation: "What's your cancellation policy?",
+};
+
+/**
+ * The topic an owner's sentence answers ("We have $20 million public
+ * liability insurance" is insurance), with the question customers ask, or
+ * undefined when it answers none of the questions customers ask again.
+ */
+export function answerTopicOf(text: string): { topic: string; question: string } | undefined {
+  const topic = TOPICS.find(([t, re]) => ANSWER_TOPICS.has(t) && re.test(text))?.[0];
+  return topic ? { topic, question: TOPIC_QUESTIONS[topic]! } : undefined;
+}
 
 /** "r u free", "are you available", "any availability", "can you fit us in", "is the 10th ok?". */
 const AVAILABILITY =
-  /\b(?:are|r)\s+(?:you|u|ya)\s+(?:free|available|around)\b|\b(?:do|would)\s+(?:you|u)\s+have\s+(?:any\s+)?(?:availability|time|room|space|a spot|spots|openings?)\b|\bany\s+availability\b|\bhave\s+(?:a\s+|any\s+)?(?:crew|team|someone|anyone|spot|slot)s?\s+(?:free|available)\b|\bcan\s+(?:you|u)\s+fit\s+(?:me|us|it)\s+in\b|\bwhen\s+(?:are|r)\s+(?:you|u)\s+(?:free|available)\b|\b(?:is|would|does)\s+(?:the\s+)?(?:\d{1,2}(?:st|nd|rd|th)?|(?:this|next)\s+[a-z]+|(?:mon|tue|wed|thu|fri|sat|sun)[a-z]*)\b[^?.!]{0,20}\b(?:ok|okay|free|available|possible|suit|work)\b/i;
+  /\b(?:are|r)\s+(?:you|u|ya)\s+(?:free|available|around)\b|\b(?:do|would)\s+(?:you|u)\s+have\s+(?:any\s+)?(?:availability|time|room|space|a spot|spots|openings?)\b|\bany\s+availability\b|\bhave\s+(?:a\s+|any\s+)?(?:crew|team|someone|anyone|spot|slot)s?\s+(?:free|available)\b|\bcan\s+(?:you|u)\s+fit\s+(?:me|us|it)\s+in\b|\bwhen\s+(?:are|r)\s+(?:you|u)\s+(?:free|available)\b|\bwhen(?:'s|\s+is|\s+are)\s+(?:your|you|ur)\s+(?:earliest|next|soonest)\b(?!\s+convenience)|\bhow\s+soon\s+(?:can|could)\s+(?:you|u)\b|\bwhen\s+(?:can|could)\s+(?:you|u)\s+(?:start|come|fit)\b|\b(?:is|would|does)\s+(?:the\s+)?(?:\d{1,2}(?:st|nd|rd|th)?|(?:this|next)\s+[a-z]+|(?:mon|tue|wed|thu|fri|sat|sun)[a-z]*)\b[^?.!]{0,20}\b(?:ok|okay|free|available|possible|suit|work)\b/i;
 
 /** Questions the quote itself answers: the price, and asking for the job. */
 const ANSWERED_BY_QUOTE =
@@ -76,7 +142,21 @@ const ABOUT_A_DAY =
 
 /** How a real question starts, after any lead-in ("ok thanks, will you ..."). */
 const QUESTION_START =
-  /^(?:and\s+|also\s+|oh\s+|btw\s+|just\s+wondering\s+|i\s+was\s+wondering\s+(?:if|whether)\s+|wondering\s+(?:if|whether)\s+)?(?:do|does|did|are|r|is|was|can|could|will|would|have|has|how|what|when|who|which|where|should)\b/i;
+  /^(?:and\s+|also\s+|oh\s+|btw\s+|just\s+wondering\s+|(?:i\s+was\s+|i'?m\s+|just\s+)?wondering\s+(?:if|whether)\s+)?(?:do|does|did|are|r|is|was|can|could|will|would|have|has|how|what|what'?s|whats|when|who|which|where|should|you|u)\b/i;
+
+/** Small talk, never a question for the owner to answer. */
+const SMALL_TALK =
+  /^(?:hi|hey|hello)?[\s,]*(?:how\s+(?:are|r)\s+(?:you|u|ya)(?:\s+(?:going|doing|today|keeping))?|how'?s\s+(?:it\s+going|things|your\s+(?:day|week|weekend))|hope\s+you(?:'re|\s+are)\s+well|how\s+have\s+you\s+been)\b/i;
+
+/**
+ * "please confirm you are insured", "let me know if you bring your own
+ * gear": asked as an instruction, with no "?". Counted only with a known topic.
+ */
+const ASK_BY_INSTRUCTION =
+  /^(?:and\s+|also\s+)?(?:please\s+|pls\s+|plz\s+|kindly\s+|can\s+(?:you|u)\s+(?:please\s+)?|could\s+(?:you|u)\s+(?:please\s+)?)?(?:confirm|let\s+(?:me|us)\s+know|advise|tell\s+(?:me|us))\b/i;
+
+/** Topics a quote never answers by itself, whatever words they use. */
+const OWN_ANSWER_TOPICS = new Set(["offer", "inclusions", "discount", "cancellation"]);
 
 /** "do you do", "do you offer": a question about a service, read elsewhere. */
 const SERVICE_ASK =
@@ -132,13 +212,18 @@ function idOf(text: string): string {
 
 /** A clause that is a question for the owner, not the job, the price or a service. */
 function ownerQuestion(clause: string, isQuestion: boolean, services: readonly string[]): boolean {
-  if (!QUESTION_START.test(clause)) return false;
+  if (SMALL_TALK.test(clause.trim())) return false;
+  const topic = TOPICS.find(([, re]) => re.test(clause))?.[0];
+  const instruction = ASK_BY_INSTRUCTION.test(clause) && Boolean(topic);
+  if (!QUESTION_START.test(clause) && !instruction) return false;
   // Without a "?" only a known topic counts: "will you be using eco products".
-  if (!isQuestion && !TOPICS.some(([, re]) => re.test(clause))) return false;
-  if (!/\b(?:you|u|ya|your)\b/i.test(clause) && !TOPICS.some(([, re]) => re.test(clause))) {
-    return false;
-  }
-  if (ANSWERED_BY_QUOTE.test(clause) || clause.split(/\s+/).length < 3) return false;
+  if (!isQuestion && !topic) return false;
+  if (!/\b(?:you|u|ya|your)\b/i.test(clause) && !topic) return false;
+  if (clause.split(/\s+/).length < 3) return false;
+  // A counter-offer or "is the price including paint?" names the price, but
+  // the quote does not answer it: the owner does.
+  if (topic && OWN_ANSWER_TOPICS.has(topic)) return true;
+  if (ANSWERED_BY_QUOTE.test(clause)) return false;
   if (ABOUT_A_DAY.test(clause) || SERVICE_ASK.test(clause)) return false;
   return !services.some((svc) => mentionsAny(clause, ownStems(svc)));
 }
@@ -155,9 +240,9 @@ export function readCustomerAsks(
   details: readonly BusinessDetail[] = [],
 ): CustomerAsk[] {
   const out: CustomerAsk[] = [];
-  const serviceQuestions = readServiceQuestions(text, services, details).map((q) =>
-    q.span.toLowerCase().replace(/[?!.]+$/, ""),
-  );
+  const serviceQuestions = readServiceQuestions(text, services, details)
+    .filter((q) => !q.requested)
+    .map((q) => q.span.toLowerCase().replace(/[?!.]+$/, ""));
   const seen = new Set<string>();
   const add = (ask: CustomerAsk) => {
     if (seen.has(ask.topic)) return;
@@ -187,6 +272,9 @@ export function readCustomerAsks(
 }
 
 const TOPIC_WORDS: Record<string, string> = {
+  offer: "the price you suggested",
+  inclusions: "what the price includes",
+  discount: "your question about a discount",
   insurance: "your question about insurance",
   licence: "your question about licensing",
   duration: "how long it will take",
@@ -196,6 +284,7 @@ const TOPIC_WORDS: Record<string, string> = {
   pets: "your question about pets",
   parking: "parking",
   warranty: "the guarantee",
+  cancellation: "the cancellation policy",
 };
 
 /** "your question about insurance", "your other question". */
@@ -206,17 +295,27 @@ export function topicWords(topic: string): string {
 
 /** Whether a topic is one to save the owner's answer for, to offer next time. */
 export function isReusableTopic(topic: string): boolean {
-  return topic in TOPIC_WORDS;
+  return topic in TOPIC_WORDS && !ONE_JOB_TOPICS.has(topic);
 }
+
+/** Answers that belong to this job only: a price they suggested, what this quote includes. */
+const ONE_JOB_TOPICS = new Set(["offer", "inclusions"]);
 
 /**
  * The line a reply that is still asking for a count carries about a question
  * they asked: said now, answered with the price.
  */
-export function laterLine(topic: string): string {
+export function laterLine(topic: string, others = 1): string {
   const words = TOPIC_WORDS[topic];
   if (topic === "availability") return "I'll let you know about the day with the price.";
-  if (!words) return "I'll answer your question with the price.";
+  if (topic === "offer") return "I'll come back to you on the price you suggested with the quote.";
+  // Two questions with no topic of their own are never "your question", as
+  // if there were only one.
+  if (!words) {
+    return others > 1
+      ? `I'll answer your ${others === 2 ? "two" : "other"} questions with the price.`
+      : "I'll answer your question with the price.";
+  }
   return words.startsWith("your question")
     ? `I'll answer ${words} with the price.`
     : `I'll answer your question about ${words} with the price.`;

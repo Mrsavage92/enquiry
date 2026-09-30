@@ -35,10 +35,12 @@ import {
   RECURRING_FIELD,
   unsettledFlags,
   type Coverage,
+  type CoverageFlag,
 } from "./coverage.ts";
 import {
   QUESTION_ANSWER,
   isQuestionField,
+  questionSettled,
   questionReplyLine,
   questionThing,
 } from "./service-questions.ts";
@@ -56,7 +58,11 @@ import {
   topicWords,
 } from "./customer-asks.ts";
 import { closedReason } from "./compose-reply.ts";
-import { mentionsAny, namesService, stemsOf } from "./service-words.ts";
+import { distinctiveStems, mentionsAny, namesService, stemsOf } from "./service-words.ts";
+import { sameCountWords } from "./quantity-reader.ts";
+import { applyHeadcount } from "./headcount.ts";
+import { contextMentions } from "./date-roles.ts";
+import { askedLedger, checkCount, openAsked, type AskedItem } from "./asked.ts";
 
 /** One priced line of a quote with more than one thing on it. */
 export type QuoteLine = {
@@ -198,6 +204,16 @@ export type Decision = {
   ownerAmountsMinor?: number[];
   /** Lines the reply must carry: answered questions, things to come back on. */
   replyNotes?: string[];
+  /** Everything they asked for or about, and where each stands. */
+  asked?: AskedItem[];
+  /** The owner's checks on this enquiry, settled and in all. */
+  checks?: { done: number; total: number };
+  /**
+   * The other services priced by the same kind of count as the one this
+   * decision is waiting on: only these compete for "5 bedrooms" in the
+   * message. A price per hour never takes a count of square metres.
+   */
+  countPeers?: string[];
 };
 
 /**
@@ -290,7 +306,32 @@ export function decideEnquiry(
     services?: readonly string[];
   },
 ): Decision {
-  return withOwnerAmounts(decideCore(business, enquiry), (enquiry.facts ?? []) as DecideFact[]);
+  const facts = (enquiry.facts ?? []) as DecideFact[];
+  const decided = withOwnerAmounts(decideCore(business, enquiry), facts);
+  // Whatever step the decision stopped on, only services priced by the same
+  // kind of count compete for a count in their message.
+  const peers = countPeersOf(activeRules(business), decided);
+  return withLedger(peers ? { ...decided, countPeers: peers } : decided, facts, enquiry);
+}
+
+/**
+ * The decision with its ledger of what they asked and the owner's checks. A
+ * price is never confirmed as covering everything while an item is open.
+ */
+function withLedger(
+  decided: Decision,
+  facts: ReadonlyArray<DecideFact>,
+  enquiry: { serviceLabel?: string | null },
+): Decision {
+  const asked = askedLedger(decided, facts, enquiry.serviceLabel ?? "");
+  const open = openAsked(asked).filter((i) => i.kind !== "service" && i.kind !== "date");
+  const flags = decided.coverage ? unsettledFlags(decided.coverage.flagged).length : 0;
+  const checks = checkCount(facts, open.length + flags + (decided.blocker?.inferred ? 1 : 0));
+  const coverage =
+    decided.coverage?.confirmed && open.length > 0
+      ? { ...decided.coverage, confirmed: false }
+      : decided.coverage;
+  return { ...decided, ...(coverage ? { coverage } : {}), asked, checks };
 }
 
 function decideCore(
@@ -335,6 +376,7 @@ function decideCore(
   const gated =
     withNotes.action === "SEND_QUOTE"
       ? gateCoverage(withNotes, {
+          rules,
           serviceLabel,
           facts,
           details,
@@ -345,13 +387,69 @@ function decideCore(
   if (ask && (gated.price.kind === "EXACT" || gated.action === "DECLINE")) {
     return askOwner(gated, ask, knownServices);
   }
-  // Still asking them for a count: their question is answered with the price,
-  // and the reply says so rather than passing over it.
-  if (ask) {
-    const line = laterLine(askTopic(ask.field));
-    return { ...gated, replyNotes: [...(gated.replyNotes ?? []), line], knownServices };
+  // Still asking them for a count: every question they asked is answered with
+  // the price, and everything else they asked for is named, so the reply
+  // never passes over one.
+  const later = laterLines(facts, gated);
+  if (later.length) {
+    return {
+      ...gated,
+      replyNotes: [...(gated.replyNotes ?? []), ...later],
+      knownServices,
+    };
   }
   return { ...gated, knownServices };
+}
+
+/** The services priced by the same kind of count as the one a blocked decision needs. */
+function countPeersOf(rules: readonly BusinessRule[], decided: Decision): string[] | undefined {
+  if (decided.price.kind !== "BLOCKED" || decided.price.rule.kind !== "per_unit") return undefined;
+  const want = { field: decided.price.missingField, unit: decided.price.rule.unit };
+  return [
+    ...new Set(
+      rules
+        .filter(
+          (r) =>
+            r.kind === "per_unit" && sameCountWords({ field: r.quantityField, unit: r.unit }, want),
+        )
+        .map((r) => r.service),
+    ),
+  ];
+}
+
+/**
+ * While the reply is still asking them for the one detail the price needs:
+ * a line for each question they asked and each other thing they asked for,
+ * each said to come with the price.
+ */
+function laterLines(facts: ReadonlyArray<DecideFact>, decided: Decision): string[] {
+  if (decided.action !== "REQUEST_INFORMATION") return [];
+  const when = askWhen(facts);
+  const out: string[] = [];
+  const open = facts.filter((f) => isAskField(f.field) && !askSettled(f, when.isos));
+  const untopical = open.filter(
+    (f) =>
+      !isReusableTopic(askTopic(f.field)) &&
+      topicWords(askTopic(f.field)) === "your other question",
+  ).length;
+  for (const f of facts) {
+    if (open.includes(f)) {
+      out.push(laterLine(askTopic(f.field), untopical));
+      continue;
+    }
+    if (!isExtraField(f.field)) continue;
+    const choice = String(f.value ?? "")
+      .trim()
+      .toLowerCase();
+    if (choice !== EXTRA_CHOICE.include) continue;
+    const label = extraLabel(f.field).toLowerCase();
+    out.push(
+      f.status === "confirmed"
+        ? `The price will include the ${label}.`
+        : `I'll come back to you on the ${label} with the price.`,
+    );
+  }
+  return [...new Set(out)];
 }
 
 /** The decision while a question they asked waits on the owner: nothing is ready. */
@@ -413,7 +511,9 @@ const PLEASANTRY =
   /^(?:hi|hello|hey|g'?day|morning|thanks|thank you|thx|cheers|regards|kind regards|ta)\b/i;
 /** Words that ask for more than the question: "also", "if so", "as well", "quote". */
 const ASKS_MORE =
-  /\b(?:also|as well|if so|too|and|quote|price|cost|can you|could you|would you|do you|please|pls|need|needs|want|keen|after|looking|book)\b/i;
+  /\b(?:also|as well|if so|too|quote|price|cost|can you|could you|would you|do you|please|pls|need|needs|want|keen|after|looking|book)\b/i;
+/** Filler that says nothing more: "Just the front fence and the eaves." is three things about it. */
+const FILLER = new Set(["just", "the", "a", "an", "and", "only", "my", "our", "of", "its", "it's"]);
 
 function escapeRe(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -443,13 +543,23 @@ function onlyTheQuestions(
     .map((x) => x.trim())
     .filter(Boolean);
   for (const sentence of sentences) {
-    const rest = questions.reduce((r, q) => r.replace(q, " "), sentence).trim();
+    // Their words about the thing itself ("get the outside of the house
+    // painted", when that is what they don't do) are part of the question.
+    const unasked = questions.reduce((r, q) => r.replace(q, " "), sentence).trim();
+    const rest = unasked
+      .split(/,|;/)
+      .filter((clause) => !things.some((t) => namesService(clause, t)))
+      .join(",");
     const words = rest.replace(/[^\p{L}\p{N}' ]/gu, " ").trim();
     if (!words) continue;
+    // "Do you do pressure washing and painting?": "and" beside the question
+    // asks for more; in a sentence of its own it only describes the thing.
+    if (unasked !== sentence.trim() && /\band\b/i.test(words)) return false;
     if (PLEASANTRY.test(words) && words.split(/\s+/).length <= 4) continue;
     if (/^[A-Z][a-z]+(?:\s+[A-Z][a-z]+)?$/.test(words)) continue;
     if (ASKS_MORE.test(words) || mentionsAny(words, serviceStems)) return false;
-    if (words.split(/\s+/).length > 6) return false;
+    const meaningful = words.split(/\s+/).filter((w) => !FILLER.has(w.toLowerCase()));
+    if (meaningful.length > 6) return false;
   }
   return true;
 }
@@ -457,12 +567,7 @@ function onlyTheQuestions(
 /** The first question they asked that the owner has not answered. */
 function pendingQuestion(facts: ReadonlyArray<DecideFact>): QuestionPending | undefined {
   const open = facts.find(
-    (f) =>
-      isQuestionField(f.field) &&
-      !(
-        f.status === "confirmed" &&
-        (f.value === QUESTION_ANSWER.yes || f.value === QUESTION_ANSWER.no)
-      ),
+    (f) => isQuestionField(f.field) && !(f.status === "confirmed" && questionSettled(f.value)),
   );
   if (!open) return undefined;
   return {
@@ -521,12 +626,24 @@ function pendingAsk(
     };
   }
   const saved = details.find((d) => d.kind === "answer" && d.topic === topic);
+  // "is there a discount?" beside the owner's own "10% off for pensioners":
+  // that sentence is offered as the answer, one tap, never sent by itself.
+  const discount =
+    topic === "discount"
+      ? details.find((d) => d.kind === "discount" && Boolean(d.condition))
+      : undefined;
+  const offered =
+    saved && saved.kind === "answer"
+      ? saved.text
+      : discount && discount.kind === "discount"
+        ? `Yes - ${(discount.text ?? `${discount.percent}% off for ${discount.condition}`).replace(/[.!]+$/, "")}.`
+        : undefined;
   return {
     field: open.field,
     thing: topicWords(topic),
     kind: "ask",
     ...(question ? { span: question } : {}),
-    ...(saved && saved.kind === "answer" ? { saved: saved.text } : {}),
+    ...(offered ? { saved: offered } : {}),
     ...(isReusableTopic(topic) ? { reusable: true } : {}),
   };
 }
@@ -578,7 +695,81 @@ function jobDatesOf(facts: ReadonlyArray<DecideFact>): string[] {
     .filter((d) => /^\d{4}-\d{2}-\d{2}$/.test(d));
 }
 
+const DAY_WORDS: [RegExp, number[]][] = [
+  [/\bweekends?\b/i, [0, 6]],
+  [/\bweekdays?\b/i, [1, 2, 3, 4, 5]],
+  [/\bsat(?:urday)?s?\b/i, [6]],
+  [/\bsun(?:day)?s?\b/i, [0]],
+  [/\bmon(?:day)?s?\b/i, [1]],
+  [/\btue(?:s(?:day)?)?s?\b/i, [2]],
+  [/\bwed(?:nesday)?s?\b/i, [3]],
+  [/\bthu(?:r(?:s(?:day)?)?)?s?\b/i, [4]],
+  [/\bfri(?:day)?s?\b/i, [5]],
+];
+
+/** "this weekend", "tuesdays pref": the weekdays some words name. */
+function weekdaysSaid(words: string): number[] {
+  return [...new Set(DAY_WORDS.flatMap(([re, days]) => (re.test(words) ? days : [])))];
+}
+
+/**
+ * Every weekday the job could fall on: the day or days asked, each day of a
+ * stretch ("between 16 and 19 October"), what loose words name ("this
+ * weekend"), a day they prefer, and the trial's or the event's own day. Empty
+ * when no day is said at all - which a day-based charge treats as unsure.
+ */
+function jobWeekdaysOf(facts: ReadonlyArray<DecideFact>): number[] {
+  const out = new Set<number>();
+  const find = (field: string) => facts.find((f) => f.field.trim().toLowerCase() === field);
+  const date = find("date");
+  const value = String(date?.value ?? "").trim();
+  const window = /^(\d{4}-\d{2}-\d{2})\.\.(\d{4}-\d{2}-\d{2})$/.exec(value);
+  if (window) {
+    const [y, m, d] = window[1]!.split("-").map(Number) as [number, number, number];
+    for (let i = 0; i < 62; i += 1) {
+      const day = new Date(y, m - 1, d + i);
+      const iso = `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, "0")}-${String(day.getDate()).padStart(2, "0")}`;
+      if (iso > window[2]!) break;
+      out.add(day.getDay());
+    }
+  } else if (/^\d{4}-\d{2}-\d{2}/.test(value)) {
+    for (const iso of jobDatesOf(facts)) out.add(new Date(`${iso}T00:00:00`).getDay());
+  } else if (date) {
+    weekdaysSaid(String(date.displayValue ?? "")).forEach((d) => out.add(d));
+  }
+  const preference = find("day_preference");
+  if (preference) weekdaysSaid(String(preference.value ?? "")).forEach((d) => out.add(d));
+  const context = find("date_context");
+  // An event beside a day of its own ("wedding Saturday, trial done by
+  // Friday") is when it happens, not when the work is; with no day of its own,
+  // the event's day may well be the work's.
+  const hasOwnDay = /^\d{4}-\d{2}-\d{2}/.test(value);
+  if (context) {
+    for (const m of contextMentions(
+      String(context.value ?? ""),
+      String(context.displayValue ?? ""),
+    )) {
+      if (m.to || m.role === "context") continue;
+      if (m.role === "event" && hasOwnDay) continue;
+      out.add(new Date(`${m.iso}T00:00:00`).getDay());
+    }
+  }
+  return [...out].sort((a, b) => a - b);
+}
+
+/** The job's days and every other single day they wrote (the trial's): each checked against closed days. */
+function allDatesOf(facts: ReadonlyArray<DecideFact>): string[] {
+  const context = facts.find((f) => f.field.trim().toLowerCase() === "date_context");
+  const others = context
+    ? contextMentions(String(context.value ?? ""), String(context.displayValue ?? ""))
+        .filter((d) => !d.to && d.role !== "context")
+        .map((d) => d.iso)
+    : [];
+  return [...new Set([...jobDatesOf(facts), ...others])];
+}
+
 type CoverageContext = {
+  rules: readonly BusinessRule[];
   serviceLabel: string;
   facts: ReadonlyArray<DecideFact>;
   details: BusinessDetail[];
@@ -631,7 +822,21 @@ function withRuledLines(
     before.length === after.length &&
     before.every((l, i) => l.amountMinor === after[i]?.amountMinor && l.label === after[i]?.label);
   const notes = declined.length ? { replyNotes: [...(decided.replyNotes ?? []), ...declined] } : {};
-  if (same || decided.price.kind !== "EXACT") return { ...decided, ...notes };
+  if (decided.price.kind !== "EXACT") return { ...decided, ...notes };
+  if (same) {
+    // Nothing moved on the total, but a line the reply carries may name an
+    // amount of the owner's ("weekend jobs have a $50 surcharge").
+    return implied.length
+      ? {
+          ...decided,
+          ...notes,
+          price: {
+            ...decided.price,
+            alsoImplied: [...impliedAmountsMinor(decided.price), ...implied].filter((n) => n > 0),
+          },
+        }
+      : { ...decided, ...notes };
+  }
   const total = after.reduce((sum, l) => sum + l.amountMinor, 0);
   const workings = after
     .map((l) => `${l.label}: ${formatMinorAud(l.amountMinor)}${l.detail ? ` (${l.detail})` : ""}.`)
@@ -660,13 +865,22 @@ function gateCoverage(decided: Decision, ctx: CoverageContext): Decision {
   );
   const recurring = String(recurringAnswer?.value ?? "") === "yes";
   const unruled = linesOf(decided);
+  // "for me n my sister (2 ppl)" beside a flat price: priced the way the
+  // owner says, never one price read as covering both.
+  const counted = applyHeadcount({
+    lines: unruled,
+    rules: ctx.rules,
+    message: ctx.message,
+    facts: ctx.facts,
+  });
   // The owner's own rules (minimum charge, Saturday rate, travel fee, "only
   // if single storey"): each is applied, waived or still to ask, never passive.
   const ruled = applyRules({
     details: ctx.details,
-    lines: unruled,
+    lines: counted.lines,
     message: ctx.message,
     jobDates: jobDatesOf(ctx.facts),
+    jobWeekdays: jobWeekdaysOf(ctx.facts),
     facts: ctx.facts,
     ...(recurring ? { recurring: frequency ?? "regularly" } : {}),
   });
@@ -674,10 +888,13 @@ function gateCoverage(decided: Decision, ctx: CoverageContext): Decision {
     return declineDecision(decided, ruled.declined);
   }
   const lines = ruled.lines as QuoteLine[];
-  decided = withRuledLines(decided, unruled, lines, ruled.implied, [
-    ...ruled.declined,
-    ...ruled.notes,
-  ]);
+  decided = withRuledLines(
+    decided,
+    unruled,
+    lines,
+    [...ruled.implied, ...counted.implied],
+    [...ruled.declined, ...ruled.notes, ...counted.notes],
+  );
   const handled = ctx.facts
     .filter((f) => isExtraField(f.field) && f.status === "confirmed")
     .map((f) => extraLabel(f.field))
@@ -692,10 +909,17 @@ function gateCoverage(decided: Decision, ctx: CoverageContext): Decision {
     covered: [ctx.serviceLabel, ...lines.map((l) => l.label), ...handled],
     services: ctx.services,
     details: ctx.details,
-    jobDates: jobDatesOf(ctx.facts),
-  });
+    jobDates: allDatesOf(ctx.facts),
+  }).map((f) => withOffer(f, ctx.rules, lines));
   flagged.push(
     ...ruled.infos.map((text) => ({ kind: "note" as const, text: `Your note: ${text}` })),
+    // Shown as one of the owner's checks, one tap each way.
+    ...counted.open.map((c) => ({
+      kind: "rule" as const,
+      text: c.text,
+      thing: c.field,
+      check: { field: c.field, kind: "headcount" as const, text: c.text, choices: c.choices },
+    })),
   );
   // How often comes before the owner's rules: a repeat-job discount is only
   // asked about once they have said the job repeats.
@@ -757,6 +981,38 @@ function gateCoverage(decided: Decision, ctx: CoverageContext): Decision {
     action: "ESCALATE_HUMAN",
     explanation: "Check what this price covers before the reply names it.",
     coverage,
+  };
+}
+
+/**
+ * "They mention the oven" when "Oven clean $60" is saved: the flag carries
+ * that price, so the owner can add it with one tap rather than hunting for it.
+ */
+function withOffer(
+  flag: CoverageFlag,
+  rules: readonly BusinessRule[],
+  lines: readonly QuoteLine[],
+): CoverageFlag {
+  if (flag.kind !== "mention" || !flag.thing) return flag;
+  const onQuote = new Set(lines.map((l) => l.label.trim().toLowerCase()));
+  const said = stemsOf(flag.thing);
+  const hits = rules.filter(
+    (r) =>
+      !onQuote.has(r.service.trim().toLowerCase()) &&
+      distinctiveStems(
+        r.service,
+        rules.filter((o) => o !== r).map((o) => o.service),
+      ).some((s) => said.includes(s)),
+  );
+  const rule = hits.length === 1 ? hits[0]! : undefined;
+  if (!rule) return flag;
+  return {
+    ...flag,
+    offer: {
+      service: rule.service,
+      ...(rule.kind === "fixed_price" ? { amountMinor: Math.round(rule.amount * 100) } : {}),
+      ...(rule.kind === "per_unit" ? { unit: rule.unit } : {}),
+    },
   };
 }
 
@@ -905,7 +1161,7 @@ function roughWorkings<T extends { workings: string; count?: string }>(price: T)
 
 /** A count the customer hedged, kept in how it was confirmed: "about 12". */
 export const APPROX_SAID =
-  /^\s*(?:about|roughly|around|approx(?:imately)?|maybe|~|nearly|almost|close to)\b/i;
+  /^\s*(?:about|roughly|around|approx(?:imately)?|maybe|probably|prob|~|nearly|almost|close to)\b|\b(?:prob(?:ably)?|or so|ish)\s*$/i;
 
 /** Whether a field is the count of one of the business's services as an extra. */
 function isExtraQuantityFor(rules: BusinessRule[], field: string): boolean {

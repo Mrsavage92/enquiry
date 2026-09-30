@@ -157,7 +157,7 @@ const FEE_REASON =
   "A fee or a minimum is added to a job only in some cases, so Enquiry will not put it on a quote by itself.";
 // Whole words only: "flat" is not "fl" + "at".
 const TRAIL_FILLER =
-  /(?:(?:^|\s+)(?:will be|would be|is|are|costs?|charged at|priced at|at|for|flat rate|flat fee|flat|fixed price|fixed)|\s*(?:=|:|-|–))\s*$/i;
+  /(?:(?:^|\s+)(?:will be|would be|is|are|costs?|charged at|priced at|at|for|flat rate|flat fee|flat|fixed price|fixed|an|extra|additional|add-on|addon)|\s*(?:=|:|-|–))\s*$/i;
 
 /** What Enquiry must learn from an enquiry to count the unit. */
 export function quantityFieldFor(unit: string): string {
@@ -178,8 +178,10 @@ function cleanService(raw: string): string {
 }
 
 export function splitLines(text: string): string[] {
+  // "Weekend jobs have a $50 surcharge. 10% off for pensioners" is two lines:
+  // a sentence starting with a number is its own, never swallowed by the last.
   return text
-    .split(/\n+|(?<=[.;!])\s+(?=[A-Z$])/)
+    .split(/\n+|(?<=[.;!])\s+(?=[A-Z$\d])/)
     .map((l) => l.trim())
     .filter(Boolean);
 }

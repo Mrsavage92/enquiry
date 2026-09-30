@@ -21,6 +21,11 @@ export type RuleLineRead = {
   remainder?: string[];
   /** Why the line cannot be saved as it is written (a date and a weekday that disagree). */
   refuse?: string;
+  /**
+   * Why it is kept as a note rather than a rule ("Minimum job $600": for
+   * every service, or one?). Offered to the owner as a note, never dropped.
+   */
+  note?: string;
 };
 
 /**
@@ -44,6 +49,11 @@ const ALL_AMOUNTS = /\$\s?\d/g;
 const HAS_AMOUNT = /\$\s?\d/;
 const MIN_WORD = String.raw`min(?:imum)?(?:\s+(?:charge|job|fee|call[- ]?out|callout|price))?`;
 
+/** "Minimum charge $200 only for painting": the amount, then the service it is for. */
+const MIN_THEN_FOR = new RegExp(
+  String.raw`^\s*(?:(?:our|a|the|my)\s+)?${MIN_WORD}\s*(?:is|of|:|-|=)?\s*${AMOUNT}\s+(?:only\s+)?(?:for|on)\s+(.+?)\s*[.!]?\s*$`,
+  "i",
+);
 /** "..., minimum charge $450" after a price. */
 const TRAILING_MIN = new RegExp(
   String.raw`^(.*\$\s?\d[^$]*?)[,;]?\s*(?:with\s+(?:a\s+)?|and\s+(?:a\s+)?|but\s+(?:a\s+)?)?${MIN_WORD}\s*(?:of|is|:|-)?\s*${AMOUNT}\s*[.!]?\s*$`,
@@ -59,6 +69,10 @@ const MIN_AFTER_SERVICE = new RegExp(
   String.raw`^\s*(.+?)\s*[:-]?\s*(?:${MIN_WORD}\s*(?:is|of)?\s*${AMOUNT}|${AMOUNT}\s*${MIN_WORD})\s*[.!]?\s*$`,
   "i",
 );
+
+/** "on every job", "all jobs", "per job": the scope a minimum has anyway, taken off before reading. */
+const EVERY_JOB_TAIL =
+  /[,;]?\s*(?:(?:on|for|per|across)?\s*(?:every|all|any|each)\s+(?:jobs?|bookings?|quotes?|services?|visits?)|per\s+(?:job|booking|visit)|on\s+everything)\s*[.!]?\s*$/i;
 
 const DAY_WORDS: [RegExp, number][] = [
   [/\bsun(?:day)?s?\b/i, 0],
@@ -204,7 +218,12 @@ function readMinimum(line: string): RuleLineRead | null {
     };
   }
   if (amounts !== 1) return null;
-  const first = MIN_FIRST.exec(line);
+  // "Minimum $600 on every job", "Min charge $150 per job": every job, the
+  // same as saying nothing. "Minimum $150 only for carpet cleaning": that
+  // service. Unscoped, it is every job - one tap on each quote under it, apply
+  // or not this time, never a note that lets a quote go out under it.
+  const scoped = line.replace(EVERY_JOB_TAIL, "").replace(/\bonly\s+(?=(?:for|on)\b)/i, "");
+  const first = MIN_FIRST.exec(scoped);
   if (first) {
     const service = serviceName(first[1]);
     if (first[1] && !service) return null;
@@ -213,6 +232,13 @@ function readMinimum(line: string): RuleLineRead | null {
         { kind: "minimum_charge", amount: amountOf(first[2]!), ...(service ? { service } : {}) },
       ],
     };
+  }
+  const then = MIN_THEN_FOR.exec(scoped);
+  if (then) {
+    const service = serviceName(then[2]);
+    return service
+      ? { details: [{ kind: "minimum_charge", amount: amountOf(then[1]!), service }] }
+      : null;
   }
   const after = MIN_AFTER_SERVICE.exec(line);
   const service = serviceName(after?.[1]);
@@ -249,9 +275,25 @@ function readDiscount(line: string): RuleLineRead | null {
   if (TIME_CONDITION.test(line) || daysIn(line).length > 0) return null;
   const frequency = FREQUENCY_WORDS.find(([re]) => re.test(line))?.[1];
   const percent = Number(pct[1]);
-  if (!frequency || !(percent > 0 && percent < 100)) return null;
-  return { details: [{ kind: "discount", percent, frequency }] };
+  if (!(percent > 0 && percent < 100)) return null;
+  if (frequency) return { details: [{ kind: "discount", percent, frequency }] };
+  // "10% off for pensioners", "Pensioners get 10% off": a discount for some
+  // customers, checked with one tap when a message mentions them.
+  const who = (DISCOUNT_FOR.exec(line) ?? DISCOUNT_WHO_FIRST.exec(line))?.[1];
+  if (!who) return null;
+  const text = line.trim().replace(/[.;]+$/, "");
+  return {
+    details: [
+      { kind: "discount", percent, condition: who.toLowerCase().replace(/\s+/g, " "), text },
+    ],
+  };
 }
+
+const WHO = String.raw`(pensioners?|seniors?|students?|veterans?|concession(?:\s+card)?\s+holders?|health\s*care\s+card\s+holders?|nurses|teachers|first\s+responders|locals?|returning\s+customers|repeat\s+customers|new\s+customers)`;
+/** "10% off for pensioners", "10% discount to seniors". */
+const DISCOUNT_FOR = new RegExp(String.raw`\b(?:for|to)\s+(?:all\s+)?${WHO}\b`, "i");
+/** "Pensioners get 10% off". */
+const DISCOUNT_WHO_FIRST = new RegExp(String.raw`^\s*${WHO}\s+(?:get|receive|save|pay)\b`, "i");
 
 function readFee(line: string): RuleLineRead | null {
   if ((line.match(ALL_AMOUNTS) ?? []).length !== 1) return null;
@@ -266,11 +308,49 @@ function readFee(line: string): RuleLineRead | null {
   const kind = FEE_KINDS.find(([re]) => re.test(line));
   if (/\bper\b|\/\s*[a-z]|\ban?\s+(?:hour|room|window|metre)/i.test(line)) return null;
   const text = line.trim().replace(/[.;]+$/, "");
+  // "Weekend jobs have a $50 surcharge": only on those days, and named for them.
+  const days = daysIn(line);
+  const onDays = days.length > 0 && days.length < 7 ? days : [];
+  const label = kind?.[1] ?? (onDays.length ? `${dayWord(onDays)} surcharge` : "Extra charge");
+  // "Extra charge $50" says nothing about what it is for, and a customer can
+  // never be told a charge with no reason.
+  if (label === "Extra charge" && !feeReason(text)) {
+    return {
+      details: [],
+      refuse: `It doesn't say what the $${amountOf(amount[1]!)} is for, and a customer is never charged something with no reason. Write what it's for, for example: Weekend surcharge $${amountOf(amount[1]!)}.`,
+    };
+  }
   return {
     details: [
-      { kind: "fee", amount: amountOf(amount[1]!), label: kind?.[1] ?? "Extra charge", text },
+      {
+        kind: "fee",
+        amount: amountOf(amount[1]!),
+        label,
+        text,
+        ...(onDays.length ? { days: onDays } : {}),
+      },
     ],
   };
+}
+
+/** "Weekend", "Saturday", "Sunday and public holiday". */
+function dayWord(days: readonly number[]): string {
+  if (days.length === 2 && days.includes(0) && days.includes(6)) return "Weekend";
+  if (days.length === 1) return WEEKDAY_NAMES[days[0]!]!;
+  return "Day";
+}
+
+/** What a fee is for, in the owner's words, with the amount and the fee words taken out. */
+export function feeReason(text: string): string {
+  return text
+    .replace(/\$\s?\d[\d,]*(?:\.\d{1,2})?/g, " ")
+    .replace(
+      /\b(?:extra|an?|the|of|is|are|fees?|charges?|surcharges?|additional|cost|costs|flat|we|our|add|added|apply|applies|plus)\b/gi,
+      " ",
+    )
+    .replace(/[^\p{L}\p{N}' ]/gu, " ")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 function readEligibility(line: string): RuleLineRead | null {
@@ -470,7 +550,9 @@ export function readRuleLine(line: string, now: Date = new Date()): RuleLineRead
   const remainder: string[] = [];
   for (const part of parts) {
     const read = readOne(part, now);
-    if (read && !read.priceLine) details.push(...read.details);
+    // A part kept as a note, or one that cannot be saved as written, is kept
+    // as a note too: never dropped because it shared a line with a rule.
+    if (read && !read.priceLine && !read.note && !read.refuse) details.push(...read.details);
     else remainder.push(part);
   }
   if (details.length === 0) return null;

@@ -28,6 +28,10 @@ export type JobDateRead = {
    * volunteer a date nobody asked about.
    */
   asked: boolean;
+  /** What the day is for, when it is not a plain job day. */
+  role?: DateRole;
+  /** The event or deadline it is about: "wedding", "settlement". */
+  what?: string;
 };
 
 /**
@@ -53,8 +57,20 @@ export type DateIssue = {
   actualDay?: string;
 };
 
-/** A day written beside a move-out, an inspection, the keys: context, not the job. */
-export type ContextDate = JobDateRead & { what: string };
+/**
+ * What a day is for. `job` is the day they want the work; `deadline` the day
+ * it must be done by ("the day before settlement (29/10)", "fri 16th b4
+ * inspection"); `event` a day that cannot move (the wedding the makeup is
+ * for); `trial` a separate appointment before it; `context` a day about
+ * something else (the inspection, settlement, the keys).
+ */
+export type DateRole = "job" | "deadline" | "event" | "trial" | "context";
+
+/**
+ * A day written beside a move-out, an inspection, the keys, a trial: never the
+ * job date. `to` is set for a stretch ("a trial in December").
+ */
+export type ContextDate = JobDateRead & { what: string; role?: DateRole; to?: string };
 
 export type DateReading = {
   jobDate?: JobDateRead;
@@ -197,6 +213,12 @@ const SLASH_FRACTION_AFTER =
 const SLASH_DATE_CUE =
   /\b(?:on|by|until|till|from|before|after|free|available|avail|date|move|moving|keys|book|booked|come|due|this|next|is|do|suit|suits|works?|mon(?:day)?|tue(?:s(?:day)?)?|wed(?:nesday)?|thu(?:r(?:s(?:day)?)?)?|fri(?:day)?|sat(?:urday)?|sun(?:day)?)\b/i;
 
+/** "Unit 5/12", "apt 3/4": the slash is an address, never a date. */
+const UNIT_BEFORE = /\b(?:unit|u|apt|apartment|flat|lot|shop|suite|villa|townhouse|no\.?)\s*$/i;
+/** "5/12 Park Rd": a street after the number. */
+const STREET_AFTER =
+  /^\s+(?:[A-Z][a-z]+\s+){1,3}(?:st|street|rd|road|ave|avenue|dr|drive|cres|crescent|ct|court|pl|place|pde|parade|tce|terrace|hwy|highway|way|lane|ln|cl|close|blvd|boulevard|gr|grove)\b/;
+
 /** "3 may need a bath": "may" as a verb, not the month. */
 const MAY_AS_VERB =
   /^\s+(?:i|we|you|he|she|they|it|need|be|have|want|not|also|take|get|require|come|go|like|do|just|still|or|want|well|as|help|able)\b/i;
@@ -311,6 +333,19 @@ const OWN_SCHEDULE =
 
 /** Weekdays that are a preference or their own week: never read as a date. */
 type WeekdayWords = { skip: Set<number>; preference?: string };
+
+/** Where the sentence holding a position starts. */
+function sentenceStartAt(text: string, index: number): number {
+  const before = text.slice(0, index);
+  return (
+    Math.max(
+      before.lastIndexOf("."),
+      before.lastIndexOf("!"),
+      before.lastIndexOf("?"),
+      before.lastIndexOf("\n"),
+    ) + 1
+  );
+}
 
 /** The sentence holding a position. */
 function sentenceAt(text: string, index: number): string {
@@ -440,6 +475,8 @@ function collectHits(text: string, skip: Set<number> = new Set()): DateHit[] {
   for (const m of text.matchAll(NUMERIC)) {
     const index = m.index ?? 0;
     const after = text.slice(index + m[0].length);
+    // "Unit 5/12 Park Rd": an address, never 5 December.
+    if (!m[3] && (UNIT_BEFORE.test(text.slice(0, index)) || STREET_AFTER.test(after))) continue;
     if (!m[3] && SLASH_FRACTION_AFTER.test(after)) continue;
     const near = `${text.slice(Math.max(0, index - 30), index)} ${after.slice(0, 20)}`;
     if (!m[3] && !SLASH_DATE_CUE.test(near)) continue;
@@ -627,15 +664,155 @@ function readOffered(
 const WEEK_OF_BEFORE =
   /\b(?:week|weekend|fortnight)\s+(?:of|starting|beginning|commencing)\s+(?:the\s+)?$/i;
 
+/** "vacate clean", "move out clean": the job itself, never a day about something else. */
+const CONTEXT_IS_THE_JOB = /^\s*(?:clean|cleaning|cleans)\b/i;
+/** A request after the context word makes the day the job's own: "settlement is 30/10 so we need ...". */
+const JOB_REQUEST = /\b(?:need|needs|want|wants|book|booking|have it|get it|like it)\b/i;
+/** "... fri 16th before the inspection": the day is before the context, so it is the job's. */
+const BEFORE_CONTEXT = /\b(?:before|prior to|ahead of)\s+(?:the\s+|my\s+|our\s+|their\s+)?$/i;
+
 function contextOf(before: string, after: string): string | undefined {
-  const all = [...before.matchAll(new RegExp(CONTEXT_WORDS.source, "gi"))];
-  const nearest = all[all.length - 1] ?? CONTEXT_WORDS.exec(after.slice(0, 25));
-  return nearest?.[1]?.toLowerCase();
+  const all = [...before.matchAll(new RegExp(CONTEXT_WORDS.source, "gi"))].filter(
+    (m) => !CONTEXT_IS_THE_JOB.test(before.slice((m.index ?? 0) + m[0].length)),
+  );
+  const last = all[all.length - 1];
+  if (last) {
+    const rest = before.slice((last.index ?? 0) + last[0].length);
+    if (!JOB_REQUEST.test(rest)) return last[1]!.toLowerCase();
+    return undefined;
+  }
+  const head = after.slice(0, 25);
+  const ahead = CONTEXT_WORDS.exec(head);
+  if (!ahead) return undefined;
+  if (CONTEXT_IS_THE_JOB.test(head.slice(ahead.index + ahead[0].length))) return undefined;
+  if (BEFORE_CONTEXT.test(head.slice(0, ahead.index))) return undefined;
+  return ahead[1]!.toLowerCase();
 }
+
+/** "before inspection sat", "before the settlement on Friday": the context day after a job day. */
+const FOLLOWING_CONTEXT = new RegExp(
+  String.raw`^\s*[,(]?\s*(?:before|prior to|ahead of)\s+(?:the\s+|my\s+|our\s+|their\s+)?(${CONTEXT_WORDS.source.slice(3, -3)})(?:\s+(?:is\s+|on\s+)?(?:(?:this|next)\s+)?${WEEKDAY_WORD}\b)?`,
+  "i",
+);
+
+/** "trial" in the words that govern the day: a separate appointment, never the job day. */
+const TRIAL_WORD = /\btrials?\b/i;
+/** "... 24 October for the trial": the trial named just after the day. */
+const TRIAL_AFTER = /^\s*,?\s*(?:for|as)\s+(?:a|the|my|our)\s+(?:\w+\s+)?trials?\b/i;
+/** "by", "before", "no later than": the job must be done by this day. */
+const DEADLINE_CUE = /\b(?:by|before|no later than|prior to|ahead of)\s+(?:the\s+)?\(?\s*$/i;
+/** "the day before (29/10)": the day in brackets is the day they want. */
+const DAY_BEFORE_BRACKET = /\bthe\s+day\s+before\s*\(\s*$/i;
+/** "the day before 30/10": the day they want is the one before the day written. */
+const DAY_BEFORE = /\bthe\s+day\s+before\s*$/i;
+
+/**
+ * Event words, each about the day written just after it in the same clause:
+ * "wedding on 8 Nov and engagement party on 22 Nov" gives each its own. Never
+ * "bridal" or "bride": those name the service, not a fixed day.
+ */
+const EVENT_WORD =
+  /\b((?:engagement|birthday|hens|bucks|christmas|farewell|retirement|work|surprise)\s+party|wedding|married|marrying|formal|birthday|party|funeral|memorial|christening|baptism|engagement|graduation|anniversary|hens|bucks|baby\s+shower|gala|ball|recital|photo\s*shoot|ceremony|reception)\b/gi;
+/** "my daughter's 18th", "our 21st": a birthday by its number. */
+const ORDINAL_BIRTHDAY = /\b(?:my|our|his|her|their|[a-z]+'s)\s+\d{1,2}(?:st|nd|rd|th)\b/i;
+/** The event already happened: never the job's fixed day. */
+const PAST_EVENT = /\b(?:was|were|went|had|last\s+(?:week|month|year|weekend)|ago)\b/i;
+
+type Classified = { role: DateRole; what?: string; dayBefore?: "bracket" | "shift" };
+
+/**
+ * What a plain day is for, read only from the words that govern it - from
+ * the start of its sentence or the day before it, whichever is nearer - and a
+ * few words after it. A trial, the day before something, the day it must be
+ * done by, a fixed event, or the job. When the enquiry's service is itself a
+ * trial, a trial's day is the job's.
+ */
+function classify(
+  text: string,
+  hit: { index: number; length: number },
+  governing: string,
+  opts: { trialIsTheJob: boolean },
+): Classified {
+  const tail = text.slice(hit.index + hit.length, hit.index + hit.length + 60);
+  // "done by Friday 23 October": the weekday is part of the day, not the words before it.
+  const lead = governing.replace(WEEKDAY_BEFORE, "");
+  if (DAY_BEFORE_BRACKET.test(lead))
+    return { role: "job", what: "day before", dayBefore: "bracket" };
+  if (DAY_BEFORE.test(lead)) return { role: "job", what: "day before", dayBefore: "shift" };
+  if (!opts.trialIsTheJob && (TRIAL_WORD.test(lead) || TRIAL_AFTER.test(tail))) {
+    return { role: "trial", what: "trial" };
+  }
+  if (DEADLINE_CUE.test(lead)) return { role: "deadline" };
+  // "need it done fri 16th before inspection sat": the day before the context.
+  const following = FOLLOWING_CONTEXT.exec(tail);
+  if (following) return { role: "deadline", what: following[1]!.toLowerCase() };
+  if (!PAST_EVENT.test(lead)) {
+    const events = [...lead.matchAll(new RegExp(EVENT_WORD.source, "gi"))];
+    const last = events[events.length - 1];
+    if (last) {
+      const word = last[1]!.toLowerCase().replace(/\s+/g, " ");
+      return { role: "event", what: /^marr/.test(word) ? "wedding" : word };
+    }
+    if (ORDINAL_BIRTHDAY.test(lead)) return { role: "event", what: "birthday" };
+  }
+  return { role: "job" };
+}
+
+/** Words a day can be echoed back from: a month, a weekday, or a full numeric date. */
+const SAYS_A_DAY =
+  /\b(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\b|\b(?:mon|tue|wed|thu|fri|sat|sun)[a-z]*\b|\b\d{1,2}\/\d{1,2}\/\d{2,4}\b/i;
+
+/**
+ * Whether a day read from their message may be said back to them: their own
+ * words for it are in the message, and name a month, a weekday or a full date.
+ * "5/12" beside an address is never echoed as "Saturday 5 December".
+ */
+export function echoable(span: string | null | undefined, message: string): boolean {
+  const said = (span ?? "").trim();
+  if (!said || !SAYS_A_DAY.test(said)) return false;
+  const norm = (s: string) =>
+    s
+      .replace(/\bb4\b/gi, "before")
+      .replace(/\s+/g, " ")
+      .toLowerCase();
+  return norm(message).includes(norm(said));
+}
+
+/** "a trial in December": a month governed by "trial", the next time it comes round. */
+const TRIAL_MONTH = new RegExp(
+  String.raw`\btrials?\b[^,.;!?\n]{0,25}?\b(?:in|during|early|mid|late|sometime in|around)\s+${MONTH}\b(?!\s*\d)`,
+  "gi",
+);
+
+function trialMonths(text: string, today: Date, trialIsTheJob: boolean): ContextDate[] {
+  const out: ContextDate[] = [];
+  for (const m of text.matchAll(TRIAL_MONTH)) {
+    const month = monthIndex(m[1]!);
+    if (month === undefined) continue;
+    const said = /\b(?:in|during|early|mid|late|sometime in|around)\s+\S+$/i.exec(m[0]);
+    const index = (m.index ?? 0) + (said?.index ?? 0);
+    const year = month >= today.getMonth() ? today.getFullYear() : today.getFullYear() + 1;
+    const from = new Date(year, month, 1);
+    const to = new Date(year, month + 1, 0);
+    const read = readOf(from, (said?.[0] ?? m[0]).trim(), asksAboutDate(text, index));
+    out.push({
+      ...read,
+      label: format(from, "MMMM", { locale: enAU }),
+      to: readOf(to, "", false).iso,
+      // A makeup trial booked for itself: that month is when the job is wanted.
+      role: trialIsTheJob ? "job" : "trial",
+      what: trialIsTheJob ? "" : "trial",
+    });
+  }
+  return out;
+}
+
+/** A weekday written before a day in a stretch: "between Friday 16 and Sunday 18 October". */
+const WD = String.raw`(?:(?:mon|tue|wed|thu|fri|sat|sun)[a-z]*\.?,?\s+(?:the\s+)?)?`;
 
 /** "between 12 and 16 October", "from the 2nd to the 9th of November". */
 const WINDOW_SAME_MONTH = new RegExp(
-  String.raw`\b(?:between|from)\s+(?:the\s+)?(\d{1,2})(?:st|nd|rd|th)?\s*(?:and|to|-|–|until|till)\s*(?:the\s+)?(\d{1,2})(?:st|nd|rd|th)?\s+(?:of\s+)?${MONTH}\b`,
+  String.raw`\b(?:between|from)\s+(?:the\s+)?${WD}(\d{1,2})(?:st|nd|rd|th)?\s*(?:and|to|-|–|until|till)\s*(?:the\s+)?${WD}(\d{1,2})(?:st|nd|rd|th)?\s+(?:of\s+)?${MONTH}\b`,
   "i",
 );
 /** "12-16 October": one month, two days, a dash between. */
@@ -645,7 +822,7 @@ const WINDOW_DASH = new RegExp(
 );
 /** "between 28 October and 3 November". */
 const WINDOW_TWO_MONTHS = new RegExp(
-  String.raw`\b(?:between|from)\s+(?:the\s+)?(\d{1,2})(?:st|nd|rd|th)?\s+(?:of\s+)?${MONTH}\s*(?:and|to|-|–|until|till)\s*(?:the\s+)?(\d{1,2})(?:st|nd|rd|th)?\s+(?:of\s+)?${MONTH}\b`,
+  String.raw`\b(?:between|from)\s+(?:the\s+)?${WD}(\d{1,2})(?:st|nd|rd|th)?\s+(?:of\s+)?${MONTH}\s*(?:and|to|-|–|until|till)\s*(?:the\s+)?${WD}(\d{1,2})(?:st|nd|rd|th)?\s+(?:of\s+)?${MONTH}\b`,
   "i",
 );
 /** "except Friday", "not weekends", "no Sundays": a weekday ruled out with no date. */
@@ -779,10 +956,22 @@ function readTomorrow(text: string, today: Date): JobDateRead | undefined {
   const { before, after } = clauseAround(text, index, m[0].length);
   if (contextOf(before, after) || DATE_NEGATED.test(sentenceAt(text, index))) return undefined;
   const date = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1);
-  const part = m[1] ? ` ${m[1].toLowerCase()}` : "";
-  const span = `tomorrow${part} (${format(date, "EEEE d MMMM", { locale: enAU })})`;
+  // Stored as the day itself, never "tomorrow": a reply sent after midnight
+  // would otherwise name the wrong day.
+  const part = m[1] ? DAY_PART[m[1].toLowerCase()] : undefined;
+  const span = `${format(date, "EEEE d MMMM", { locale: enAU })}${part ? ` (${part})` : ""}`;
   return readOf(date, span, true);
 }
+
+const DAY_PART: Record<string, string> = {
+  morning: "morning",
+  am: "morning",
+  arvo: "afternoon",
+  afternoon: "afternoon",
+  pm: "afternoon",
+  evening: "evening",
+  night: "evening",
+};
 
 /** "keys on the 1st": a day of the month beside a move or the keys, read in the window's month. */
 const CONTEXT_DAY = new RegExp(
@@ -809,10 +998,19 @@ function contextDays(text: string, today: Date, window: DateReading["window"]): 
   return out;
 }
 
-export function readDates(text: string, now = new Date(), tz = "Australia/Brisbane"): DateReading {
+export function readDates(
+  written: string,
+  now = new Date(),
+  tz = "Australia/Brisbane",
+  opts: { service?: string } = {},
+): DateReading {
+  // "b4 inspection" is "before inspection": same words, read the same way.
+  const text = written.replace(/\bb4\b/gi, "before");
   const today = wallNow(now, tz);
+  // "could I book a makeup trial on Saturday 17 October": the trial is the job.
+  const trialIsTheJob = TRIAL_WORD.test(opts.service ?? "");
   const reading: DateReading = { unavailable: [], context: [], asap: asksForAsap(text) };
-  const plain: (JobDateRead & { dated: boolean })[] = [];
+  const plain: (JobDateRead & { dated: boolean; echo?: boolean })[] = [];
   const weekdays = weekdayWords(text);
   const window = readWindow(text, today);
   const soon = window ? undefined : readThisNext(text, today);
@@ -823,7 +1021,7 @@ export function readDates(text: string, now = new Date(), tz = "Australia/Brisba
     reading.context.push(...contextDays(text, today, window.window));
   }
   if (soon?.two) reading.options = soon.two;
-  if (soon?.one) plain.push({ ...soon.one, dated: true });
+  if (soon?.one) plain.push({ ...soon.one, dated: true, echo: true });
   const exceptDays = exceptDaysIn(text);
   // One of two offered days that does not read as a future day leaves each
   // to be read on its own.
@@ -839,8 +1037,13 @@ export function readDates(text: string, now = new Date(), tz = "Australia/Brisba
       }
       return [{ ...h, alt: undefined }, h.alt];
     });
+  let prevEnd = 0;
   for (const hit of hits) {
     const { before, after } = clauseAround(text, hit.index, hit.length);
+    // The words that govern this day: from the start of its sentence or the
+    // end of the day before it, whichever is nearer.
+    const lead = text.slice(Math.max(sentenceStartAt(text, hit.index), prevEnd), hit.index);
+    prevEnd = hit.index + hit.length;
     if (hit.option) {
       const options = readOptions(text, hit, before, today);
       if (options) {
@@ -876,7 +1079,11 @@ export function readDates(text: string, now = new Date(), tz = "Australia/Brisba
     // "we move out Mon 5 Oct", "inspection on the 7th": about something else.
     const context = contextOf(before, after);
     if (context && resolved.kind === "date") {
-      reading.context.push({ ...readOf(resolved.date, span, false), what: context });
+      reading.context.push({
+        ...readOf(resolved.date, span, false),
+        what: context,
+        role: "context",
+      });
       continue;
     }
     // "Last clean was on 3 Sept": history, not a request. It is never the job
@@ -913,25 +1120,86 @@ export function readDates(text: string, now = new Date(), tz = "Australia/Brisba
       };
       continue;
     }
+    const asked = asksAboutDate(text, hit.index);
+    const kind = classify(text, hit, lead, { trialIsTheJob });
+    // "Also can you do a trial on 24 October?": the trial's own day, never the job's.
+    if (kind.role === "trial") {
+      reading.context.push({ ...readOf(resolved.date, span, asked), what: "trial", role: "trial" });
+      continue;
+    }
+    // "the day before 30/10": the day they want is the one before it.
+    const day =
+      kind.dayBefore === "shift"
+        ? new Date(
+            resolved.date.getFullYear(),
+            resolved.date.getMonth(),
+            resolved.date.getDate() - 1,
+          )
+        : resolved.date;
+    const said = kind.dayBefore === "shift" ? `the day before ${written}` : span;
     plain.push({
-      ...readOf(resolved.date, span, asksAboutDate(text, hit.index)),
+      ...readOf(day, said, asked),
+      ...(kind.role !== "job" ? { role: kind.role } : {}),
+      ...(kind.what ? { what: kind.what } : {}),
       dated: hit.day > 0,
+      echo: SAYS_A_DAY.test(said),
     });
+    // "need it done fri 16th before inspection sat": the inspection is its own day.
+    const following = FOLLOWING_CONTEXT.exec(after);
+    if (following && kind.role === "deadline") {
+      const weekday = following[2] ? weekdayIndex(following[2]) : undefined;
+      if (weekday !== undefined) {
+        const gap = (weekday - resolved.date.getDay() + 7) % 7 || 7;
+        const next = new Date(
+          resolved.date.getFullYear(),
+          resolved.date.getMonth(),
+          resolved.date.getDate() + gap,
+        );
+        reading.context.push({
+          ...readOf(next, following[0].trim(), false),
+          what: following[1]!.toLowerCase(),
+          role: "context",
+        });
+      }
+    }
   }
-  // The day they asked for wins over a day they only mentioned, and a written
-  // date ("the 18th of December") over a bare weekday; otherwise the first
-  // plain date written is the one the customer led with. Two days offered
-  // means neither is the job date.
+  // A day they asked to book always wins. Then the day it must be done by,
+  // then the fixed event the job is for (the wedding) - but only when no
+  // other day is given - then a written date over a bare weekday, then the
+  // first plain date written. Two days offered means neither is the job date.
+  const isJob = (d: { role?: DateRole }) => !d.role || d.role === "job";
   const pick =
-    plain.find((d) => d.asked && d.dated) ??
-    plain.find((d) => d.asked) ??
-    plain.find((d) => d.dated) ??
+    plain.find((d) => isJob(d) && d.asked && d.dated) ??
+    plain.find((d) => isJob(d) && d.asked) ??
+    plain.find((d) => d.role === "deadline") ??
+    plain.find((d) => isJob(d) && d.dated) ??
+    plain.find((d) => d.role === "event") ??
+    plain.find(isJob) ??
     plain[0];
   // A window they are free in is the ask: no one day of it is the job date.
   if (!reading.options && !reading.window && pick) {
-    const { dated: _dated, ...jobDate } = pick;
+    const { dated: _dated, echo: _echo, ...jobDate } = pick;
     reading.jobDate = jobDate;
   }
+  // Every other day they wrote is still said back, never silently dropped -
+  // but only a day their own words name ("5/12" beside an address is not).
+  for (const d of plain) {
+    if (d === pick && reading.jobDate) continue;
+    if (reading.jobDate?.iso === d.iso) continue;
+    const { dated: _dated, echo, role, what, ...other } = d;
+    if (!echo && !d.asked && (!role || role === "job")) continue;
+    reading.context.push({ ...other, what: what ?? "", role: role ?? "job" });
+  }
+  // "the day before (29/10)" beside settlement: the row says what it is before.
+  const job = reading.jobDate;
+  if (job?.what === "day before") {
+    const next = reading.context.find((d) => d.role === "context" && d.iso > job.iso);
+    reading.jobDate = {
+      ...job,
+      label: `${job.label} (day before ${next?.what || format(new Date(`${job.iso}T00:00:00`).getTime() + 86_400_000, "EEE d MMM", { locale: enAU })})`,
+    };
+  }
+  reading.context.push(...trialMonths(text, today, trialIsTheJob));
   if (weekdays.preference && !soon?.two) reading.preference = weekdays.preference;
   if (!reading.jobDate && !reading.options && !reading.window && !reading.issue) {
     const tomorrow = readTomorrow(text, today);
@@ -1474,8 +1742,10 @@ export function readEnquiryBasics(
   now = new Date(),
   tz = "Australia/Brisbane",
   ctx: NameContext = {},
+  /** The service the owner typed, when there is one: a trial service books the trial's day. */
+  service = "",
 ): EnquiryBasics {
-  const dates = readDates(text, now, tz);
+  const dates = readDates(text, now, tz, { service });
   return {
     customerName: readCustomerName(text, ctx),
     jobDate: dates.jobDate,

@@ -403,7 +403,9 @@ export const BENCHMARK_CASES: BenchmarkCase[] = [
         amountMinor: 48000,
       },
       trust: { neverConfirmedFields: ["date"], primaryEnabled: true },
-      draft: { mustContain: ["$480"], mustNotContain: ["arch", "14 Feb"] },
+      // The wedding day is the customer's own words (with its month), so the
+      // reply may say it back as the event - never as a booked or confirmed day.
+      draft: { mustContain: ["$480"], mustNotContain: ["arch", "is confirmed", "booked in"] },
     },
     followUps: [],
   },
@@ -661,7 +663,11 @@ export const BENCHMARK_CASES: BenchmarkCase[] = [
       },
       trust: { neverConfirmedFields: ["date"], primaryEnabled: true },
       draft: {
-        mustContain: ["$320", "Just let me know if you'd like to go ahead."],
+        // The day is still the owner's to confirm, so going ahead never books it.
+        mustContain: [
+          "$320",
+          "Just let me know if you'd like to go ahead and I'll confirm the day.",
+        ],
         mustNotContain: ["we're available", "yes we can make Friday", "confirmed for Friday"],
       },
     },

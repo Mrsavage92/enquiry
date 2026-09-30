@@ -41,7 +41,15 @@ export type CoverageLine = {
 };
 
 export type CoverageFlag = {
-  kind: "mention" | "note" | "closed_day" | "not_offered" | "recurring" | "rule" | "included";
+  kind:
+    | "mention"
+    | "note"
+    | "closed_day"
+    | "not_offered"
+    | "recurring"
+    | "rule"
+    | "included"
+    | "headcount";
   text: string;
   /** A rule of the owner's to apply or waive for this job (kind "rule"). */
   check?: RuleCheck;
@@ -57,6 +65,17 @@ export type CoverageFlag = {
    * tell them, come back to them on it, or say they did not ask.
    */
   thing?: string;
+  /**
+   * For a count of people beside a flat price (kind "headcount"): the owner's
+   * choices, [value, button label], recorded against `thing`.
+   */
+  choices?: [string, string][];
+  /**
+   * For a thing they mention that one of the owner's saved prices covers
+   * ("They mention the oven" and "Oven clean $60"): that price, so the owner
+   * can add it with one tap.
+   */
+  offer?: { service: string; amountMinor?: number; unit?: string };
 };
 
 export type Coverage = {

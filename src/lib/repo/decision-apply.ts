@@ -3,7 +3,7 @@ import { activeRules, decideEnquiry } from "../../domain/decide.ts";
 import { ASAP_VALUE, isFollowUp, replyContextFromFacts } from "../../domain/reply-context.ts";
 import { practicePriceFrom } from "./practice-price.ts";
 import { COVERAGE_FIELD } from "../../domain/coverage.ts";
-import { activeDetails, closedTimesOf } from "../../domain/business-detail.ts";
+import { activeDetails, closedTimesOf, surchargeDaysOf } from "../../domain/business-detail.ts";
 import { snapshotFromDecision, stateFromDecision } from "../../domain/decision-snapshot.ts";
 import type { Decision } from "../../domain/decide.ts";
 import {
@@ -198,6 +198,7 @@ function decideFrom(
       ownerFirstName: inputs.ownerFirstName,
       serviceLabel: enquiry.serviceLabel,
       closed: closedTimesOf(activeDetails({ knowledge: inputs.knowledge })),
+      surchargeDays: surchargeDaysOf(activeDetails({ knowledge: inputs.knowledge })),
       followUp,
       message: messageText,
     }),
@@ -216,7 +217,8 @@ async function workOutDecision(
 ): Promise<WorkedDecision> {
   const facts = await sql<LiveFact>`
     select field, value, status, display_value, provenance->>'asked' as date_asked,
-      provenance->>'span' as date_span, provenance->'issue' as date_issue
+      provenance->>'span' as date_span, provenance->'issue' as date_issue,
+      provenance->>'role' as date_role, provenance->>'what' as date_what
     from enquiry_fact
     where enquiry_id = ${input.enquiryId} and superseded = false
   `;
@@ -362,7 +364,8 @@ export async function redecideOpenEnquiries(sql: Sql, businessId: string): Promi
   const ids = rows.map((r) => r.id);
   const facts = await sql<LiveFact & { enquiry_id: string }>`
     select enquiry_id, field, value, status, display_value, provenance->>'asked' as date_asked,
-      provenance->>'span' as date_span, provenance->'issue' as date_issue
+      provenance->>'span' as date_span, provenance->'issue' as date_issue,
+      provenance->>'role' as date_role, provenance->>'what' as date_what
     from enquiry_fact
     where enquiry_id = any(${ids}::uuid[]) and superseded = false
   `;
@@ -377,6 +380,8 @@ export async function redecideOpenEnquiries(sql: Sql, businessId: string): Promi
       date_asked: f.date_asked,
       date_span: f.date_span,
       date_issue: f.date_issue,
+      date_role: f.date_role,
+      date_what: f.date_what,
     });
     factsById.set(f.enquiry_id, list);
   }

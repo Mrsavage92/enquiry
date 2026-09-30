@@ -142,7 +142,7 @@ test("2: Whitfield - a Sunday they asked for is said plainly, with the next day 
   const { reply } = replyFor([EXTERIOR, SUNDAYS, SINGLE], "Exterior painting", facts, message);
   assert.match(
     reply,
-    /You mentioned Sunday 11 October - I don't work Sundays\. Would Monday 12 October suit instead\?/,
+    /You mentioned Sunday 11 October - I don't work Sundays\. If another day suits, I could look at Monday 12 October - I'll confirm it's free\./,
   );
   assert.doesNotMatch(reply, /confirm whether/);
 });
@@ -179,7 +179,7 @@ test("2: Bec - 'this Sunday 4th? or 20/10 if not' keeps both days, and says Sund
   );
   assert.match(
     reply,
-    /You mentioned Sunday 4th or 20\/10 - I don't work Sundays, so would Tuesday 20 October suit\?/,
+    /You mentioned Sunday 4th or 20\/10 - I don't work Sundays, so I'll confirm whether Tuesday 20 October works\./,
   );
 });
 
@@ -203,7 +203,8 @@ test("2: 'week of the 12th' is a loose ask; 'tomorrow arvo' is tomorrow, said as
   const tomorrow = readDates("can you come tomorrow arvo", NOW);
   assert.equal(tomorrow.approx, undefined);
   assert.equal(tomorrow.jobDate?.iso, "2026-09-28");
-  assert.equal(tomorrow.jobDate?.span, "tomorrow arvo (Monday 28 September)");
+  // Stored as the day itself, so a reply sent after midnight never says "tomorrow".
+  assert.equal(tomorrow.jobDate?.span, "Monday 28 September (afternoon)");
   const message = "Interior walls, maybe 40sqm, can you come tomorrow arvo";
   const { reply } = replyFor(
     [INTERIOR],
@@ -213,7 +214,7 @@ test("2: 'week of the 12th' is a loose ask; 'tomorrow arvo' is tomorrow, said as
   );
   assert.match(
     reply,
-    /You mentioned tomorrow arvo \(Monday 28 September\) - I'll confirm whether that works\./,
+    /You mentioned Monday 28 September \(afternoon\) - I'll confirm whether that works\./,
   );
   const week = replyFor(
     [INTERIOR],
@@ -237,7 +238,7 @@ test("2: a day in the owner's closed dates is said plainly too", () => {
   const { reply } = replyFor([OVEN, closed], "Oven clean", facts, "Can you do Monday 28 December?");
   assert.match(
     reply,
-    /You mentioned Monday 28 December - I'm not working from 24 December to 2 January\. Would Sunday 3 January suit instead\?/,
+    /You mentioned Monday 28 December - I'm not working from 24 December to 2 January\. If another day suits, I could look at Sunday 3 January - I'll confirm it's free\./,
   );
 });
 

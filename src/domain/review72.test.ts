@@ -230,7 +230,7 @@ test("H4: a day only mentioned in the closed dates is still said, and the flag i
   const { d, reply } = replyFor([INTERIOR, XMAS], "Interior painting", facts, message);
   assert.match(
     reply,
-    /You mentioned 22nd of December - I'm not working from 20 December to 5 January\. Would Wednesday 6 January suit instead\?/,
+    /You mentioned 22nd of December - I'm not working from 20 December to 5 January\. If another day suits, I could look at Wednesday 6 January - I'll confirm it's free\./,
   );
   const flag = decideEnquiry(brain(INTERIOR, XMAS), {
     serviceLabel: "Interior painting",
@@ -251,7 +251,7 @@ test("H4: a day only mentioned in the closed dates is still said, and the flag i
   ).reply;
   assert.match(
     r2,
-    /Monday 21 December or Tuesday 22 December - I'm not working from 20 December to 5 January\. Would Wednesday 6 January suit instead\?/,
+    /Monday 21 December or Tuesday 22 December - I'm not working from 20 December to 5 January\. If another day suits, I could look at Wednesday 6 January - I'll confirm it's free\./,
   );
 });
 
@@ -303,7 +303,13 @@ test("H6: negations are never rules; a line with two rules keeps both", () => {
 
 test("M5: several days offered, one a Saturday: the rate is said, never added", () => {
   const message = "Could you do Sat 3 Oct or Mon 5 Oct?";
-  const facts = [fact("service", "Oven clean"), ...dateFacts(message)];
+  // Trust pass 8: a mixed day is one of the owner's checks; waived for now,
+  // the reply says the rate plainly and the total does not include it.
+  const facts = [
+    fact("service", "Oven clean"),
+    ...dateFacts(message),
+    fact("rule:surcharge:6:20", "waive"),
+  ];
   const { d, reply } = replyFor([OVEN, SAT20], "Oven clean", facts, message);
   assert.equal(d.price.kind === "EXACT" && d.price.amountMinor, 9000);
   assert.match(reply, /Just so you know, Saturdays are 20% more\./);
@@ -332,7 +338,7 @@ test("M3: their own second choice is offered, not a day they did not name", () =
   );
   assert.match(
     reply,
-    /Sunday 11 October or Saturday 17 October - I don't work Sundays, so would Saturday 17 October suit\?/,
+    /Sunday 11 October or Saturday 17 October - I don't work Sundays, so I'll confirm whether Saturday 17 October works\./,
   );
   assert.deepEqual(
     readDates("Sunday 11/10 or Monday 12/10?", NOW).options?.days.map((x) => x.iso),

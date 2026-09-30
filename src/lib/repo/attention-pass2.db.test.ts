@@ -192,7 +192,8 @@ test("the customer's name and job date are read from a pasted message", async ()
     [e.enquiryId],
   );
   assert.deepEqual(facts.rows, [
-    { field: "date_context", value: "2026-10-10", status: "inferred" },
+    // The day with what it is for, so the reply can say it truly.
+    { field: "date_context", value: "2026-10-10~context~moving out", status: "inferred" },
   ]);
   const asked = await enquiry(
     pg,

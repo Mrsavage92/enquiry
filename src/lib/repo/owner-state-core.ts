@@ -2,6 +2,7 @@ import type { getSql } from "@/lib/db";
 import { cleanPrefs, withDefaults } from "@/domain/workspace-prefs";
 import type { WorkspacePrefs } from "@/domain/types";
 import { requireBusinessAccess, requireEnquiryAccess } from "./tenancy.server";
+import { describeChange, editFigureChanges, type PricedLine } from "@/domain/edit-figures";
 
 /**
  * What an owner leaves behind when they are interrupted (server-only):
@@ -28,6 +29,11 @@ export type OwnerState = {
    * chooses which to keep.
    */
   staleDrafts: Record<string, string>;
+  /**
+   * enquiryId -> the figures an edit (current or out of date) names that the
+   * quote now says differently: "Makeup trial $90 -> $95". Empty when none.
+   */
+  draftChanges: Record<string, string[]>;
   /** businessId -> preferences, defaults filled in. */
   prefs: Record<string, WorkspacePrefs>;
 };
@@ -110,14 +116,22 @@ export async function markSeenForUser(
  * decision has since moved on are left out rather than offered back.
  */
 export async function loadOwnerState(sql: Sql, businessIds: string[]): Promise<OwnerState> {
-  if (businessIds.length === 0) return { drafts: {}, staleDrafts: {}, prefs: {} };
+  if (businessIds.length === 0) return { drafts: {}, staleDrafts: {}, draftChanges: {}, prefs: {} };
   const [draftRows, prefRows] = await Promise.all([
     // An edit is current when its decision has not moved. One whose decision
     // has moved is still returned, as stale, unless the enquiry is waiting on
     // the customer or a reply was recorded as sent after the edit - then the
     // edit has been dealt with and offering it back would be noise.
-    sql<{ enquiry_id: string; body: string; current: boolean }>`
-      select d.enquiry_id, d.body, (e.decision_revision = d.decision_revision) as current
+    sql<{
+      enquiry_id: string;
+      body: string;
+      current: boolean;
+      price: { amountMinor?: number; lines?: PricedLine[] } | null;
+      coverage_lines: PricedLine[] | null;
+    }>`
+      select d.enquiry_id, d.body, (e.decision_revision = d.decision_revision) as current,
+        e.decision_snapshot -> 'price' as price,
+        e.decision_snapshot -> 'coverage' -> 'lines' as coverage_lines
       from reply_draft d
       join enquiry e on e.id = d.enquiry_id
       where d.business_id = any(${businessIds})
@@ -140,12 +154,24 @@ export async function loadOwnerState(sql: Sql, businessIds: string[]): Promise<O
   ]);
   const drafts: Record<string, string> = {};
   const staleDrafts: Record<string, string> = {};
+  const draftChanges: Record<string, string[]> = {};
   for (const row of draftRows) {
     if (row.current) drafts[row.enquiry_id] = row.body;
     else staleDrafts[row.enquiry_id] = row.body;
+    // What the edit says against what the quote says now: the lines of a
+    // priced quote, or the lines still waiting on "That's everything".
+    const lines = row.price?.lines ?? row.coverage_lines ?? [];
+    const total =
+      typeof row.price?.amountMinor === "number"
+        ? row.price.amountMinor
+        : row.coverage_lines?.length
+          ? row.coverage_lines.reduce((s, l) => s + l.amountMinor, 0)
+          : null;
+    const changes = editFigureChanges(row.body, lines, total).map(describeChange);
+    if (changes.length) draftChanges[row.enquiry_id] = changes;
   }
   const prefs: Record<string, WorkspacePrefs> = {};
   for (const id of businessIds) prefs[id] = withDefaults({});
   for (const row of prefRows) prefs[row.business_id] = withDefaults(cleanPrefs(row.prefs));
-  return { drafts, staleDrafts, prefs };
+  return { drafts, staleDrafts, draftChanges, prefs };
 }

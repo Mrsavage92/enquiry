@@ -1,4 +1,5 @@
 import { distinctiveStems, mentionsAny, serviceWords, stem, stemsOf } from "./service-words.ts";
+import { fitsTrade } from "./trades.ts";
 
 /**
  * A second thing the customer asked for, beside the main service.
@@ -360,6 +361,19 @@ function wholeSentence(text: string, index: number): string {
   return text.slice(start, endRel === -1 ? text.length : index + endRel);
 }
 
+/** "Extras: Oven, Carpets (2 rooms)", "Add-ons - windows & blinds": a form's list of extras. */
+const FORM_EXTRAS =
+  /^\s*(?:extras?|add[- ]?ons?|additional(?:\s+services?)?)\s*[:\-–]\s*(.+?)\s*$/im;
+
+function formExtras(text: string): string[] {
+  const list = FORM_EXTRAS.exec(text)?.[1];
+  if (!list || /^(?:no|none|nil|n\/a|-)$/i.test(list.trim())) return [];
+  return list
+    .split(/\s*(?:,|;|&|\band\b|\+)\s*/i)
+    .map((i) => i.replace(/\([^)]*\)/g, "").trim())
+    .filter((i) => /[a-z]/i.test(i) && i.split(/\s+/).length <= 4);
+}
+
 /** The clause holding the first mention of one of these stems. */
 function mentionAt(text: string, stems: readonly string[]): number {
   const re = /[a-z]+/gi;
@@ -388,8 +402,33 @@ export function readExtraRequests(
   const seen = new Set<string>();
   const said = new Set(stemsOf(text));
 
+  // 0. A form's own list: "Extras: Oven, Carpets (2 rooms)". Each item is a
+  // thing they asked for, matched to a saved service by a word of its own.
+  for (const item of formExtras(text)) {
+    const stems = stemsOf(item).filter((s) => !WORK_STEMS.has(s));
+    const named = others.filter((s) =>
+      distinctiveStems(s, [main]).some((st) => !WORK_STEMS.has(st) && stems.includes(st)),
+    );
+    if (named.length === 1) {
+      const service = named[0]!;
+      if (seen.has(service.toLowerCase())) continue;
+      seen.add(service.toLowerCase());
+      out.push({ label: service, service, span: item });
+      continue;
+    }
+    const head = item.toLowerCase().split(/\s+/).pop() ?? "";
+    if (named.length === 0 && SERVICE_NOUNS.has(head) && !seen.has(item.toLowerCase())) {
+      seen.add(item.toLowerCase());
+      out.push({ label: item.toLowerCase(), span: item });
+    }
+  }
+
   // 1. Another saved service the message names in full, by words of its own.
   for (const service of others) {
+    if (seen.has(service.toLowerCase())) continue;
+    // "black mould on the ceiling, can u clean that": a cleaning message never
+    // asks for the painting service "Ceilings".
+    if (!fitsTrade(service, text)) continue;
     const need = [...new Set(stemsOf(service))];
     if (need.length === 0 || !need.every((s) => said.has(s))) continue;
     const own = distinctiveStems(service, [main]);

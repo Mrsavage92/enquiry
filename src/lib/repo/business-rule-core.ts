@@ -6,6 +6,7 @@ import {
   type BusinessRule,
 } from "../../domain/business-rule.ts";
 import { redecideOpenEnquiries } from "./decision-apply.ts";
+import { cleanPrefs, withDefaults, workingHoursChange } from "../../domain/workspace-prefs.ts";
 import { requireBusinessAccess } from "./tenancy.server.ts";
 import {
   minimumScope,
@@ -251,6 +252,12 @@ export async function saveBusinessDetailsInTransaction(
   }
   const ids: string[] = [];
   for (const [index, detail] of input.details.entries()) {
+    // Working hours live in Settings, and only there: saving them here sets
+    // them, so the business screen and Settings can never say two things.
+    if (detail.kind === "working_hours") {
+      await saveWorkingHours(sql, input.businessId, detail);
+      continue;
+    }
     const key = detailKey(detail);
     if (have.has(key)) continue;
     if (detail.kind === "minimum_charge") {
@@ -285,6 +292,48 @@ export async function saveBusinessDetailsInTransaction(
     ids.push(row.id);
   }
   return ids;
+}
+
+/** Set the business's working hours in its Settings, keeping every other preference. */
+async function saveWorkingHours(
+  sql: Sql,
+  businessId: string,
+  hours: Extract<BusinessDetail, { kind: "working_hours" }>,
+): Promise<void> {
+  const rows = await sql<{ prefs: unknown }>`
+    select prefs from workspace_prefs where business_id = ${businessId}
+  `;
+  const previous = withDefaults(cleanPrefs(rows[0]?.prefs));
+  const next = withDefaults({
+    ...previous,
+    ...cleanPrefs({
+      workingDays: hours.workingDays,
+      hoursStart: hours.hoursStart,
+      hoursEnd: hours.hoursEnd,
+    }),
+  });
+  await sql`
+    insert into workspace_prefs (business_id, prefs, updated_at)
+    values (${businessId}, ${JSON.stringify(next)}::jsonb, now())
+    on conflict (business_id) do update set prefs = excluded.prefs, updated_at = now()
+  `;
+  // On the record with the hours they replaced, so the change can be undone.
+  await sql`
+    insert into audit_event (business_id, actor, summary, detail, object_type, object_id)
+    values (
+      ${businessId}, ${"owner"},
+      ${workingHoursChange(previous, next)},
+      ${JSON.stringify({
+        previous: {
+          workingDays: previous.workingDays,
+          hoursStart: previous.hoursStart,
+          hoursEnd: previous.hoursEnd,
+        },
+        next: { workingDays: next.workingDays, hoursStart: next.hoursStart, hoursEnd: next.hoursEnd },
+      })},
+      ${"brain"}, ${null}
+    )
+  `;
 }
 
 /**

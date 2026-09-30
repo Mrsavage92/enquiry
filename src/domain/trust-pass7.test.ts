@@ -209,7 +209,7 @@ test("9: a window of days, 'this sat or sun', tomorrow, and 'except Friday' neve
   );
   const dave = readDates("can you do it tmrw?", TUE_29_SEP);
   assert.equal(dave.jobDate?.iso, "2026-09-30");
-  assert.equal(dave.jobDate?.span, "tomorrow (Wednesday 30 September)");
+  assert.equal(dave.jobDate?.span, "Wednesday 30 September");
 });
 
 test("12: a saved fact reads in the owner's words, never 'authoritative · 1' or 'Active'", async () => {

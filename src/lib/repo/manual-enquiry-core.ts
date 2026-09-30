@@ -14,10 +14,11 @@ import {
   isFollowUp,
   replyContextFromFacts,
 } from "../../domain/reply-context.ts";
-import { activeDetails, closedTimesOf } from "../../domain/business-detail.ts";
+import { activeDetails, closedTimesOf, surchargeDaysOf } from "../../domain/business-detail.ts";
 import { readCustomerAsks } from "../../domain/customer-asks.ts";
 import { questionField, readServiceQuestions } from "../../domain/service-questions.ts";
 import { namesService } from "../../domain/service-words.ts";
+import { encodeContextDates, mentionWords, roleLabel } from "../../domain/date-roles.ts";
 
 /**
  * Creating a real enquiry, as pure SQL logic - deliberately separate from
@@ -76,9 +77,15 @@ export async function insertManualEnquiry(
   // The name, contact details and job date the customer wrote plainly, read
   // without a model so they are there even when no interpreter is configured.
   // What the owner typed always wins; anything read this way is `inferred`.
-  const basics = readEnquiryBasics(input.body, input.now ?? new Date(), undefined, {
-    place: owner?.base_location ?? "",
-  });
+  const basics = readEnquiryBasics(
+    input.body,
+    input.now ?? new Date(),
+    undefined,
+    {
+      place: owner?.base_location ?? "",
+    },
+    input.serviceLabel,
+  );
   const typedName = input.customerName.trim();
   const customerName = typedName || basics.customerName || "";
   const business = {
@@ -175,12 +182,16 @@ export async function insertManualEnquiry(
         date_asked: f.provenance.asked as boolean | undefined,
         date_span: (f.provenance.span as string | undefined) ?? null,
         date_issue: f.provenance.issue,
+        date_role: (f.provenance.role as string | undefined) ?? null,
+        date_what: (f.provenance.what as string | undefined) ?? null,
+        display_value: f.displayValue,
       })),
       {
         customerName,
         ownerFirstName: owner?.owner_first_name ?? undefined,
         serviceLabel: input.serviceLabel,
         closed: closedTimesOf(activeDetails(business)),
+        surchargeDays: surchargeDaysOf(activeDetails(business)),
         followUp: isFollowUp([input.body]),
         message: input.body,
       },
@@ -188,7 +199,9 @@ export async function insertManualEnquiry(
   );
   const state = stateFromDecision(decision);
   const dateLabel =
-    basics.jobDate?.label ??
+    (basics.jobDate
+      ? roleLabel(basics.jobDate.role, basics.jobDate.what, basics.jobDate.label)
+      : undefined) ??
     basics.dates.options?.label ??
     basics.dates.window?.label ??
     (basics.dates.asap ? "ASAP" : null) ??
@@ -293,7 +306,11 @@ export function modelFactsToKeep<T extends { field: string }>(
   let questions = 0;
   return facts.filter((f) => {
     const field = f.field.trim().toLowerCase();
-    if (OWNER_ONLY_FIELDS.has(field) || field.startsWith("rule:")) return false;
+    // Questions they asked, a headcount choice and the days around the job are
+    // read from their words by rule, never planted by a model: each one would
+    // hold the reply until the owner answered it.
+    if (OWNER_ONLY_FIELDS.has(field) || /^(?:rule|ask|count):/.test(field)) return false;
+    if (field === "date_context") return false;
     const isExtra = field.startsWith("extra:");
     const isQuestion = field.startsWith("question:");
     if (!isExtra && !isQuestion) return true;
@@ -317,7 +334,7 @@ export function questionFacts(
       q.notOffered ? "no" : "open",
       q.span,
       q.span,
-      `They asked if you do ${q.thing}`,
+      q.requested ? `They asked for ${q.thing}` : `They asked if you do ${q.thing}`,
     ),
   );
 }
@@ -370,6 +387,8 @@ function dateFacts(dates: DateReading): ArrivalFact[] {
         label: "Read from the customer's message",
         span: d.span,
         asked: d.asked,
+        ...(d.role ? { role: d.role } : {}),
+        ...(d.what ? { what: d.what } : {}),
       },
     });
   } else if (dates.issue) {
@@ -458,11 +477,14 @@ function dateFacts(dates: DateReading): ArrivalFact[] {
     );
   }
   if (dates.context.length) {
+    // Each day with what it is for: the trial, the inspection, a second day.
     out.push(
       readFact(
         "date_context",
-        dates.context.map((d) => d.iso).join(","),
-        dates.context.map((d) => `${d.what} ${d.label}`).join("; "),
+        encodeContextDates(dates.context),
+        dates.context
+          .map((d) => mentionWords({ what: d.what, label: d.label, role: d.role ?? "context" }))
+          .join("; "),
         dates.context.map((d) => d.span).join("; "),
         "Also mentioned",
       ),

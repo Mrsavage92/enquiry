@@ -273,7 +273,7 @@ test("3 Whitfield: two storey against 'single storey only' is declined kindly, w
   const quoted = await row(pg, e.enquiryId);
   assert.match(
     quoted.decision_snapshot.draft.body,
-    /You mentioned Sunday 11 October - I don't work Sundays\. Would Monday 12 October suit instead\?/,
+    /You mentioned Sunday 11 October - I don't work Sundays\. If another day suits, I could look at Monday 12 October - I'll confirm it's free\./,
   );
 });
 
@@ -293,7 +293,7 @@ test("2 Bec: 'this Sunday 4th? or 20/10' keeps both days and offers the one you 
   assert.equal(r.date_label, "Sun 4 or Tue 20 Oct");
   assert.match(
     r.decision_snapshot.draft.body,
-    /You mentioned Sunday 4th or 20\/10 - I don't work Sundays, so would Tuesday 20 October suit\?/,
+    /You mentioned Sunday 4th or 20\/10 - I don't work Sundays, so I'll confirm whether Tuesday 20 October works\./,
   );
 });
 
@@ -535,6 +535,6 @@ test("PR72 H4: a closed-dates day only mentioned is said in the reply", async ()
   assert.equal((await confirmCoverage(pg, "user-a", e.enquiryId)).ok, true);
   assert.match(
     (await row(pg, e.enquiryId)).decision_snapshot.draft.body,
-    /I'm not working from 20 December to 5 January\. Would Wednesday 6 January suit instead\?/,
+    /I'm not working from 20 December to 5 January\. If another day suits, I could look at Wednesday 6 January - I'll confirm it's free\./,
   );
 });

@@ -15,7 +15,14 @@ import { mentionsAny, namesService, stemsOf } from "./service-words.ts";
 
 export const QUESTION_PREFIX = "question:";
 
-export const QUESTION_ANSWER = { yes: "yes", no: "no", open: "open" } as const;
+/** `later`: the owner will come back to them on it, and the reply says so. */
+export const QUESTION_ANSWER = { yes: "yes", no: "no", later: "later", open: "open" } as const;
+
+/** Whether the owner has settled a "do you do X?": yes, no, or come back on it. */
+export function questionSettled(value: unknown): boolean {
+  const v = String(value ?? "");
+  return v === QUESTION_ANSWER.yes || v === QUESTION_ANSWER.no || v === QUESTION_ANSWER.later;
+}
 
 export function questionField(thing: string): string {
   return `${QUESTION_PREFIX}${thing}`;
@@ -36,7 +43,28 @@ export type ServiceQuestion = {
   span: string;
   /** Read as "No" because the business said it does not offer it. */
   notOffered: boolean;
+  /**
+   * Asked for without a question ("get the outside of the house painted")
+   * and the owner said they don't do it: read as No for them to confirm, so
+   * the reply says so rather than passing over it.
+   */
+  requested?: true;
 };
+
+/** A sentence that turns something down or is about the past: never a request. */
+const NOT_ASKED =
+  /\b(?:no(?!\s+idea)|not(?!\s+(?:sure|certain))|don'?t(?!\s+know)|do not(?!\s+know)|doesn'?t|without|except|skip|already|came|did|was|were|had|last (?:week|time|month|year)|ago|previously)\b/i;
+
+/** The sentence that asks for a thing the owner said they don't do, or null. */
+function requestSentence(text: string, service: string): string | null {
+  for (const raw of text.split(/(?<=[.!?\n])/)) {
+    const sentence = raw.trim();
+    if (!sentence || !namesService(sentence, service)) continue;
+    if (NOT_ASKED.test(sentence)) continue;
+    return sentence.length > 140 ? `${sentence.slice(0, 137).trimEnd()}...` : sentence;
+  }
+  return null;
+}
 
 const ASKS = [
   /\b(?:do|would|could|can|will)\s+(?:you|u|ya)\s+(?:guys\s+)?(?:also\s+)?(?:do|offer|provide|handle|remove|fix|clean|paint|treat)\s+(?:any\s+)?([a-z][a-z0-9' -]{2,60}?)\s*(\?|\.|,|!|$|\s+(?:as well|too|at all|also)\b)/gi,
@@ -100,12 +128,21 @@ export function readServiceQuestions(
       });
     }
   }
+  for (const d of details) {
+    if (d.kind !== "not_offered") continue;
+    const thing = d.service.trim().toLowerCase();
+    if (out.some((q) => namesService(q.thing, thing) || namesService(thing, q.thing))) continue;
+    const span = requestSentence(text, d.service);
+    if (!span) continue;
+    out.push({ thing, span: span.replace(/\s+/g, " "), notOffered: true, requested: true });
+  }
   return out;
 }
 
 /** The reply's line for an answered question. Never a price. */
 export function questionReplyLine(thing: string, answer: string): string | null {
   if (answer === QUESTION_ANSWER.no) return `Sorry, I don't do ${thing}.`;
+  if (answer === QUESTION_ANSWER.later) return `I'll come back to you on ${thing}.`;
   if (answer === QUESTION_ANSWER.yes) {
     return `Yes, I can help with ${thing} - I'll come back to you with a price for that.`;
   }

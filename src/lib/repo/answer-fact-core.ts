@@ -9,6 +9,7 @@ import { EXTRA_CHOICE, isExtraField } from "../../domain/extras.ts";
 import { QUESTION_ANSWER, isQuestionField } from "../../domain/service-questions.ts";
 import { COVERAGE_FIELD } from "../../domain/coverage.ts";
 import { isRuleChoice, isRuleField } from "../../domain/rule-checks.ts";
+import { COUNT_CHOICE, isCountChoice, isCountChoiceField } from "../../domain/headcount.ts";
 import {
   ASK_CHOICE,
   askAnswerProblem,
@@ -67,6 +68,11 @@ export type AnswerFactResult = {
 
 /** How an owner's choice about an extra reads back in the case file. */
 function displayFor(field: string, value: string): string {
+  if (isCountChoiceField(field)) {
+    if (value === COUNT_CHOICE.each) return "Priced per person";
+    if (value === COUNT_CHOICE.one) return "One price for the booking";
+    return "You'll come back to them on the price";
+  }
   if (isRuleField(field)) {
     if (value === "apply") return "Your rule applied to this quote";
     if (value === "decline") return "Declined - outside your rule";
@@ -74,6 +80,7 @@ function displayFor(field: string, value: string): string {
     return "Your rule doesn't apply here";
   }
   if (isQuestionField(field)) {
+    if (value === QUESTION_ANSWER.later) return "You'll come back to them on it";
     return value === QUESTION_ANSWER.yes ? "Yes - you do this" : "No - you don't do this";
   }
   if (isAskField(field)) {
@@ -217,7 +224,8 @@ export async function answerFactForUser(
   if (
     isQuestionField(input.field) &&
     value !== QUESTION_ANSWER.yes &&
-    value !== QUESTION_ANSWER.no
+    value !== QUESTION_ANSWER.no &&
+    value !== QUESTION_ANSWER.later
   ) {
     throw new Error("Answer yes or no.");
   }
@@ -228,6 +236,9 @@ export async function answerFactForUser(
   // "only if" rule) quoted anyway or declined. Nothing else is a choice.
   if (isRuleField(input.field) && !isRuleChoice(value)) {
     throw new Error("Choose whether your rule applies to this job.");
+  }
+  if (isCountChoiceField(input.field) && !isCountChoice(value)) {
+    throw new Error("Choose per person, one price for the booking, or come back to them.");
   }
   const problem = validateFactAnswer(brain, enq.service_label ?? "", input.field, value);
   if (problem) throw new Error(problem);
@@ -252,7 +263,7 @@ export async function answerFactForUser(
       !exact &&
       reading &&
       String(reading.value).trim() === value &&
-      /\b(?:about|roughly|around|approx(?:imately)?|maybe|~|nearly|almost|ish)\b|~/i.test(
+      /\b(?:about|roughly|around|approx(?:imately)?|maybe|probably|prob|~|nearly|almost|ish)\b|~/i.test(
         reading.display_value ?? "",
       );
     // A question keeps their words as its display, answered or not: moving

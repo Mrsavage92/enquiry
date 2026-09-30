@@ -33,6 +33,13 @@ const OUTER_WALLS =
  */
 function impliedWords(text: string): string[] {
   const out: string[] = [];
+  // "gel mani", "gel nails": a manicure; "vacate clean", "bond clean", "exit
+  // clean": an end of lease clean, whatever the business calls it.
+  if (/\b(?:mani|manis|nails?)\b/i.test(text)) out.push("manicure");
+  if (/\b(?:pedi|pedis)\b/i.test(text)) out.push("pedicure");
+  if (/\b(?:vacate|vacating|bond|exit|move[- ]?out|moving[- ]?out)\s+clean/i.test(text)) {
+    out.push("end", "lease");
+  }
   if (WALLS.test(text) && !OUTER_WALLS.test(text)) out.push("interior");
   for (const sentence of text.split(/[.!?\n]/)) {
     if (!PAINT_WORK.test(sentence)) continue;

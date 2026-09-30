@@ -3,6 +3,7 @@ import { composeReply } from "./compose-reply.ts";
 import { questionStep } from "./customer-asks.ts";
 import { decidingPhrase, impliedAmountsMinor } from "./price-compiler.ts";
 import { countParts, isOwnerEstimate } from "./count-phrase.ts";
+import { datesOnCard } from "./date-roles.ts";
 import type { ReplyContext } from "./compose-reply.ts";
 import type {
   CommercialState,
@@ -115,9 +116,13 @@ export function snapshotFromDecision(decision: Decision, who: ReplyContext = {})
     // A reading the owner has not confirmed is not something to send on either.
     primaryEnabled: decision.action !== "ESCALATE_HUMAN" && !decision.blocker?.inferred,
   };
+  const dates = datesOnCard(who);
   return {
     ...base,
     recommendation,
+    ...(dates.length ? { dates } : {}),
+    ...(decision.asked?.length ? { asked: decision.asked } : {}),
+    ...(decision.checks ? { checks: decision.checks } : {}),
     // Worked out from prices the owner confirmed, so the badge that says
     // "Low" would be telling them to doubt their own price list.
     confidence: decision.action === "ESCALATE_HUMAN" ? base.confidence : "High",

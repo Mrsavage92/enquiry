@@ -444,7 +444,8 @@ test("a read day is quoted, never 'Happy to lock it in'", () => {
     jobDateSpan: "Sat 3rd",
     jobDateConfirmed: false,
   });
-  assert.match(reply, /You mentioned Saturday 3rd - I'll confirm whether that works\./);
+  // A day without its month is said as the day itself, never "Saturday 3rd".
+  assert.match(reply, /You mentioned Saturday 3 October - I'll confirm whether that works\./);
   assert.doesNotMatch(reply, /lock it in/i);
   const options = composeReply(d, { dateOptions: "Sat 26 or Sun 27 Sep" });
   assert.match(

@@ -454,6 +454,23 @@ export type DecisionSnapshot = {
   coverage?: import("./coverage.ts").Coverage;
   /** A "do you do X?" the owner has not answered; nothing is ready until they do. */
   questionPending?: import("./decide.ts").QuestionPending;
+  /**
+   * Every day the customer wrote, with what it is for: the job's own day
+   * (`job`, `deadline` or `event`) first, then the trial, the inspection, a
+   * second day. For the card's date fields.
+   */
+  dates?: import("./date-roles.ts").DateMention[];
+  /**
+   * Everything they asked for or asked about, and where each stands: answered
+   * in the reply, left out by the owner, to come back on, or still open. A
+   * reply never goes out with one of these missing.
+   */
+  asked?: import("./asked.ts").AskedItem[];
+  /**
+   * The owner's checks on this enquiry: how many are settled and how many
+   * there are in all, so "Check 2 of 4" never restarts at 1.
+   */
+  checks?: { done: number; total: number };
 };
 
 export type WhyItem = {

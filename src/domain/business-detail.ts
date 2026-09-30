@@ -1,3 +1,5 @@
+import { WORKING_DAY_CHOICES } from "./workspace-prefs.ts";
+
 /**
  * Business details that are not prices: a note the owner wants shown on the
  * enquiries it concerns ("Travel fee $40 outside Brisbane northside"), a
@@ -47,6 +49,11 @@ export type FeeDetail = {
   /** The owner's own words, shown back exactly. */
   text: string;
   service?: string;
+  /**
+   * "Weekend jobs have a $50 surcharge": only on these weekdays (0 is
+   * Sunday). Without it the fee concerns every quote.
+   */
+  days?: number[];
 };
 /** "Exterior painting only if single storey": when a job qualifies at all. */
 export type EligibilityDetail = {
@@ -71,7 +78,15 @@ export type ClosedDatesDetail = { kind: "closed_dates"; from: string; to: string
 export type DiscountDetail = {
   kind: "discount";
   percent: number;
-  frequency: "weekly" | "fortnightly" | "monthly" | "regular";
+  /** A repeat-job discount: how often the job repeats. */
+  frequency?: "weekly" | "fortnightly" | "monthly" | "regular";
+  /**
+   * A discount for some customers ("pensioners"): checked with one tap on a
+   * quote whose message mentions them, never applied by itself.
+   */
+  condition?: string;
+  /** The owner's own words for a discount with a condition. */
+  text?: string;
   service?: string;
 };
 
@@ -80,6 +95,21 @@ export type DiscountDetail = {
  * saved the first time they type it and offered again, never sent unasked.
  */
 export type AnswerDetail = { kind: "answer"; topic: string; question: string; text: string };
+
+/**
+ * "Mon-Sat 7am-5pm": the owner's working hours. Never kept as a business
+ * fact: saving it sets the hours in Settings, the one place they live, so the
+ * two can never disagree.
+ */
+export type WorkingHoursDetail = {
+  kind: "working_hours";
+  /** One of Settings' own choices: "Monday to Saturday". */
+  workingDays: string;
+  /** "07:00". */
+  hoursStart: string;
+  /** "17:00". */
+  hoursEnd: string;
+};
 
 export const FREQUENCIES = ["weekly", "fortnightly", "monthly", "regular"] as const;
 
@@ -93,7 +123,8 @@ export type BusinessDetail =
   | SurchargeDetail
   | FeeDetail
   | EligibilityDetail
-  | ClosedDatesDetail;
+  | ClosedDatesDetail
+  | WorkingHoursDetail;
 
 export const DETAIL_KINDS = [
   "note",
@@ -106,6 +137,7 @@ export const DETAIL_KINDS = [
   "closed_dates",
   "discount",
   "answer",
+  "working_hours",
 ] as const;
 
 const MONTH_DAY = /^(\d{2})-(\d{2})$/;
@@ -193,7 +225,24 @@ function parseMoneyRule(
     if (amount === null || !label || !words) {
       return { ok: false, reason: "A fee needs an amount and what it is for." };
     }
-    return { ok: true, detail: { kind: "fee", amount, label, text: words, ...withService } };
+    const days = Array.isArray(r.days) ? r.days : [];
+    const valid = [...new Set(days)].filter(
+      (d): d is number => typeof d === "number" && Number.isInteger(d) && d >= 0 && d <= 6,
+    );
+    if (valid.length !== days.length || valid.length === 7) {
+      return { ok: false, reason: "Say which days the fee is for." };
+    }
+    return {
+      ok: true,
+      detail: {
+        kind: "fee",
+        amount,
+        label,
+        text: words,
+        ...withService,
+        ...(valid.length ? { days: valid.sort((a, b) => a - b) } : {}),
+      },
+    };
   }
   if (r.kind === "eligibility") {
     const condition = text(r.condition);
@@ -221,8 +270,25 @@ function parseMoneyRule(
   if (r.kind === "discount") {
     const percent = typeof r.percent === "number" ? r.percent : Number.NaN;
     const frequency = FREQUENCIES.find((f) => f === r.frequency);
-    if (!(percent > 0 && percent < 100) || !frequency) {
-      return { ok: false, reason: "A discount needs a percentage and how often the job repeats." };
+    const condition = text(r.condition).toLowerCase();
+    if (!(percent > 0 && percent < 100) || (!frequency && !condition)) {
+      return {
+        ok: false,
+        reason: "A discount needs a percentage and who gets it or how often the job repeats.",
+      };
+    }
+    if (!frequency) {
+      const words = text(r.text);
+      return {
+        ok: true,
+        detail: {
+          kind: "discount",
+          percent,
+          condition,
+          ...(words ? { text: words } : {}),
+          ...withService,
+        },
+      };
     }
     return { ok: true, detail: { kind: "discount", percent, frequency, ...withService } };
   }
@@ -235,7 +301,73 @@ function parseMoneyRule(
     }
     return { ok: true, detail: { kind: "answer", topic, question, text: words } };
   }
+  if (r.kind === "working_hours") {
+    const days = text(r.workingDays);
+    const start = text(r.hoursStart);
+    const end = text(r.hoursEnd);
+    const hm = /^([01]\d|2[0-3]):[0-5]\d$/;
+    if (!(WORKING_DAY_CHOICES as readonly string[]).includes(days)) {
+      return { ok: false, reason: "Working days must be one of the choices in Settings." };
+    }
+    if (!hm.test(start) || !hm.test(end) || end <= start) {
+      return { ok: false, reason: "Working hours need a start and a later finish." };
+    }
+    return {
+      ok: true,
+      detail: { kind: "working_hours", workingDays: days, hoursStart: start, hoursEnd: end },
+    };
+  }
   return { ok: false, reason: `Unknown business detail: ${String(r.kind)}` };
+}
+
+/** "07:00" -> "7am", "17:30" -> "5:30pm". */
+function clock(hm: string): string {
+  const [h, m] = hm.split(":").map(Number) as [number, number];
+  const hour = h % 12 === 0 ? 12 : h % 12;
+  return `${hour}${m ? `:${String(m).padStart(2, "0")}` : ""}${h < 12 ? "am" : "pm"}`;
+}
+
+const DAY_ABBR = String.raw`(mon|tue|wed|thu|fri|sat|sun)[a-z]*\.?`;
+const TIME = String.raw`(\d{1,2})(?:[:.](\d{2}))?\s*(am|pm)?`;
+/** "Mon-Sat 7am-5pm", "Hours: Monday to Friday 8-4:30", "every day 7-5". */
+const HOURS_LINE = new RegExp(
+  String.raw`^\s*(?:(?:our|my)\s+)?(?:(?:working|business|opening|trading)\s+)?(?:hours?\s*(?:are|:|-)?\s*)?(?:open\s+)?(?:(every\s+day|7\s+days|daily)|${DAY_ABBR}\s*(?:-|–|to|through|thru)\s*${DAY_ABBR}),?\s*${TIME}\s*(?:-|–|to|until|till)\s*${TIME}\s*[.!]?\s*$`,
+  "i",
+);
+const DAY_RANGES: Record<string, string> = {
+  "mon-fri": "Monday to Friday",
+  "mon-sat": "Monday to Saturday",
+  "mon-sun": "Every day",
+  "sat-sun": "Weekends",
+};
+
+function hm(hour: number, minute: number): string {
+  return `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
+}
+
+/**
+ * "Mon-Sat 7am-5pm" as working hours Settings can hold, or null. A stretch
+ * of days Settings cannot hold ("Tue-Thu") is left for the owner as a note.
+ */
+export function readWorkingHours(line: string): WorkingHoursDetail | null {
+  const m = HOURS_LINE.exec(line);
+  if (!m) return null;
+  const days = m[1] ? "Every day" : DAY_RANGES[`${m[2]!.toLowerCase()}-${m[3]!.toLowerCase()}`];
+  if (!days) return null;
+  const toHour = (h: string, ap: string | undefined, isEnd: boolean, start?: number) => {
+    let n = Number(h);
+    if (ap) return ap.toLowerCase() === "pm" ? (n % 12) + 12 : n % 12;
+    // "7-5": a finish written smaller than the start is in the afternoon.
+    if (isEnd && start !== undefined && n <= start) n += 12;
+    return n;
+  };
+  const startHour = toHour(m[4]!, m[6], false);
+  const endHour = toHour(m[7]!, m[9], true, startHour);
+  if (startHour > 23 || endHour > 23) return null;
+  const hoursStart = hm(startHour, Number(m[5] ?? 0));
+  const hoursEnd = hm(endHour, Number(m[8] ?? 0));
+  if (hoursEnd <= hoursStart) return null;
+  return { kind: "working_hours", workingDays: days, hoursStart, hoursEnd };
 }
 
 type DetailBearing = { state?: string | null; rulePayload?: unknown };
@@ -370,9 +502,13 @@ export function describeDetail(detail: BusinessDetail): string {
     case "closed_dates":
       return describeClosedDates(detail);
     case "discount":
-      return `${capitalFirst(detail.frequency)} ${detail.service ? detail.service.toLowerCase() : "jobs"}: ${detail.percent}% off`;
+      return detail.frequency
+        ? `${capitalFirst(detail.frequency)} ${detail.service ? detail.service.toLowerCase() : "jobs"}: ${detail.percent}% off`
+        : `${capitalFirst(detail.condition ?? "")}: ${detail.percent}% off, when you choose it on a quote`;
     case "answer":
-      return `When asked "${detail.question}": ${detail.text}`;
+      return `Saved as an answer for: ${detail.topic} - "${detail.text}"`;
+    case "working_hours":
+      return `Working hours: ${detail.workingDays}, ${clock(detail.hoursStart)} to ${clock(detail.hoursEnd)}`;
   }
 }
 
@@ -411,7 +547,7 @@ export function detailEffect(detail: BusinessDetail): string {
   switch (detail.kind) {
     case "closed_days":
     case "closed_dates":
-      return "When they ask for a day you don't work, the reply says so and offers the next day you do. For a wedding or another fixed day it asks if there is any flexibility instead.";
+      return "When they ask for a day you don't work, the reply says so and names another day you could look at, never as booked. For a wedding or another fixed day it asks if there is any flexibility instead.";
     case "not_offered":
       return "When a customer asks if you do it, Enquiry reads that as No for you to confirm.";
     case "minimum_charge":
@@ -419,15 +555,21 @@ export function detailEffect(detail: BusinessDetail): string {
     case "surcharge":
       return "When the job falls on that day, Enquiry asks you with one tap: add it, or not this time.";
     case "fee":
-      return "On the quotes it concerns, Enquiry asks you with one tap: add it, or it doesn't apply.";
+      return detail.days?.length
+        ? `When the job falls on ${dayList(detail.days)}, Enquiry asks you with one tap: add it, or it doesn't apply.`
+        : "On the quotes it concerns, Enquiry asks you with one tap: add it, or it doesn't apply.";
     case "eligibility":
       return "On those quotes, Enquiry asks you to check the job fits before any price goes out.";
     case "note":
       return "Shown to you on the quotes it concerns. Never added to a price.";
     case "discount":
-      return `Once you confirm a job repeats ${detail.frequency === "regular" ? "regularly" : detail.frequency}, Enquiry asks you with one tap: take ${detail.percent}% off, or not this time.`;
+      return detail.frequency
+        ? `Once you confirm a job repeats ${detail.frequency === "regular" ? "regularly" : detail.frequency}, Enquiry asks you with one tap: take ${detail.percent}% off, or not this time.`
+        : `When a customer mentions ${detail.condition ?? "it"} or asks about a discount, Enquiry asks you with one tap: take ${detail.percent}% off, or not this time.`;
     case "answer":
-      return "Offered when a customer asks this again. Never sent unless you choose it.";
+      return `Offered with one tap when a customer asks "${detail.question}". Never sent unless you choose it.`;
+    case "working_hours":
+      return "Saved as your working hours in Settings, the one place they are kept. Follow-ups count only these hours.";
   }
 }
 
@@ -437,7 +579,7 @@ export function detailSection(
 ): "policy" | "service" | "capacity" | "operating" {
   if (detail.kind === "not_offered" || detail.kind === "eligibility") return "service";
   if (detail.kind === "closed_days" || detail.kind === "closed_dates") return "capacity";
-  if (detail.kind === "answer") return "operating";
+  if (detail.kind === "answer" || detail.kind === "working_hours") return "operating";
   return "policy";
 }
 
@@ -464,6 +606,8 @@ export function detailTitle(detail: BusinessDetail): string {
       return "Discount";
     case "answer":
       return "Your answer";
+    case "working_hours":
+      return "Working hours";
   }
 }
 
@@ -479,6 +623,16 @@ export function closedTimesOf(details: readonly BusinessDetail[]): {
       : [],
   );
   return { days, ranges };
+}
+
+/** Weekdays a job costs more on: a percentage surcharge or a fee for those days. */
+export function surchargeDaysOf(details: readonly BusinessDetail[]): number[] {
+  const out = new Set<number>();
+  for (const d of details) {
+    if (d.kind === "surcharge") d.days.forEach((n) => out.add(n));
+    if (d.kind === "fee") (d.days ?? []).forEach((n) => out.add(n));
+  }
+  return [...out].sort((a, b) => a - b);
 }
 
 /** Every day the business does not work, from its closed-days details. */
