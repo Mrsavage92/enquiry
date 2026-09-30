@@ -975,7 +975,7 @@ function gateCoverage(start: Decision, ctx: CoverageContext): Decision {
   const plan = planClosedDays(linesOf(start), ctx.reply);
   const services = linesOf(start).filter((l) => !l.adjustment);
   if (plan && plan.held.length > 0 && plan.held.length === services.length) {
-    return nothingBookable(start, plan);
+    return nothingBookable(start, plan, ctx);
   }
   let decided = plan && plan.held.length > 0 ? withoutHeld(start, plan, ctx.rules) : start;
   const held = plan?.held ?? [];
@@ -1018,15 +1018,7 @@ function gateCoverage(start: Decision, ctx: CoverageContext): Decision {
     [...ruled.implied, ...counted.implied],
     [...ruled.declined, ...ruled.notes, ...counted.notes],
   );
-  const handled = ctx.facts
-    .filter((f) => isExtraField(f.field) && f.status === "confirmed")
-    .map((f) => extraLabel(f.field))
-    // A question they asked and the owner answered is settled, not a gap.
-    .concat(
-      ctx.facts
-        .filter((f) => isQuestionField(f.field) && f.status === "confirmed")
-        .map((f) => questionThing(f.field)),
-    );
+  const handled = handledOf(ctx.facts);
   const flagged = coverageFlags({
     message: ctx.message,
     covered: [ctx.serviceLabel, ...lines.map((l) => l.label), ...handled],
@@ -1172,15 +1164,59 @@ function withoutHeld(decided: Decision, plan: ClosedDayPlan, rules: readonly Bus
  * price is named or recordable, and the reply asks whether the date can move.
  * The owner confirming a day themselves prices it as usual.
  */
-function nothingBookable(decided: Decision, plan: ClosedDayPlan): Decision {
+function nothingBookable(decided: Decision, plan: ClosedDayPlan, ctx: CoverageContext): Decision {
   const day = spokenDate(plan.held[0]!.iso) ?? plan.held[0]!.iso;
+  const closedDay: ClosedDay = { days: plan.days, held: plan.held, bookable: false };
+  // Something else they mention may be bookable ("trial on 24 October" with a
+  // saved makeup trial price): the owner settles each one first, so the
+  // trial is never lost behind the closed wedding day.
+  const open = coverageFlags({
+    message: ctx.message,
+    covered: [ctx.serviceLabel, ...plan.held.map((h) => h.label), ...handledOf(ctx.facts)],
+    services: ctx.services,
+    details: ctx.details,
+    jobDates: allDatesOf(ctx.facts),
+  })
+    .map((f) => withOffer(f, ctx.rules, []))
+    .filter((f) => Boolean(f.thing));
+  if (open.length > 0) {
+    const key = coverageKey({
+      serviceLabel: ctx.serviceLabel,
+      lines: [],
+      flagged: open,
+      facts: ctx.facts.map((f) => ({
+        field: f.field,
+        value: String(f.value ?? ""),
+        status: f.status,
+      })),
+    });
+    return {
+      ...decided,
+      action: "ESCALATE_HUMAN",
+      explanation: `${day} is a day you don't work. Check what else they asked for first.`,
+      coverage: { key, confirmed: false, lines: [], flagged: open, recurring: false },
+      closedDay,
+    };
+  }
   return {
     ...decided,
     action: "REQUEST_INFORMATION",
     explanation: `${day} is a day you don't work, and nothing else they asked for can be booked. The reply asks if the date can move and names no price.`,
     coverage: undefined,
-    closedDay: { days: plan.days, held: plan.held, bookable: false },
+    closedDay,
   };
+}
+
+/** Extras and questions the owner already settled: never a gap in what is covered. */
+function handledOf(facts: ReadonlyArray<DecideFact>): string[] {
+  return facts
+    .filter((f) => isExtraField(f.field) && f.status === "confirmed")
+    .map((f) => extraLabel(f.field))
+    .concat(
+      facts
+        .filter((f) => isQuestionField(f.field) && f.status === "confirmed")
+        .map((f) => questionThing(f.field)),
+    );
 }
 
 /**
