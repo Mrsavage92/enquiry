@@ -110,7 +110,7 @@ test("1/2: a Sunday wedding with nothing else on the quote is priced for a day t
   assert.match(snap.draft.body, /I'm sorry, I'm not available on Sunday 8 November/);
   assert.doesNotMatch(snap.draft.body, /that comes to \$250\./);
   // The price the send check holds the reply to is the same price.
-  assert.equal(snap.price?.amountMinor, 25000);
+  assert.equal(snap.price?.kind === "EXACT" && snap.price.amountMinor, 25000);
 });
 
 test("2: a job that can move, asked for on a closed day, keeps its price; only the day can't be done", () => {

@@ -162,7 +162,7 @@ test("2: a Sunday wedding with nothing else to book is 'Not yet - that day is a 
     body,
     /You mentioned Sunday 8 November - I'm sorry, I'm not available on Sunday 8 November\. Is there any flexibility on the date\?/,
   );
-  assert.equal(snapshot.closedDay?.bookable, false);
+  assert.equal((snapshot as { closedDay?: { bookable: boolean } }).closedDay?.bookable, false);
   // Was "Yes - reply ready".
   assert.equal(await verdict(pg, e.enquiryId), "Not yet - that day is a closed day");
 });
