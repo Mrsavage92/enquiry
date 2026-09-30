@@ -118,7 +118,7 @@ export function SendPreview({
           and reports truthfully whether the clipboard actually took it. */}
       <Button
         variant={copied ? "secondary" : "primary"}
-        className="reply-copy-button min-h-12 w-full"
+        className="reply-copy-button h-auto min-h-12 w-full whitespace-normal py-2"
         data-copy-state={copyState}
         disabled={pending || !preview.body}
         onClick={() => {
@@ -142,7 +142,7 @@ export function SendPreview({
       {staleMessage && onConfirmStale ? (
         <Button
           variant="secondary"
-          className="min-h-12 w-full"
+          className="h-auto min-h-12 w-full whitespace-normal py-2"
           disabled={pending}
           onClick={onConfirmStale}
         >
@@ -151,7 +151,7 @@ export function SendPreview({
       ) : (
         <Button
           variant={copied ? "primary" : "secondary"}
-          className="min-h-12 w-full"
+          className="h-auto min-h-12 w-full whitespace-normal py-2"
           disabled={pending || Boolean(blockedReason)}
           onClick={onConfirm}
         >
