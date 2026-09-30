@@ -3,9 +3,13 @@ import test from "node:test";
 import { decideEnquiry } from "./decide.ts";
 import { snapshotFromDecision } from "./decision-snapshot.ts";
 import { askedLedger, readableAsked, type AskedItem } from "./asked.ts";
-import { dollarMatches, isNonPriceFigure } from "./voice-detect.ts";
+import { dollarMatches } from "./voice-detect.ts";
 import type { ReplyContext } from "./compose-reply.ts";
-import { amountAgrees, priceFigures } from "../lib/repo/reviewed-send-core.ts";
+import {
+  INSURANCE_AS_ANSWER,
+  amountAgrees,
+  mismatchMessage,
+} from "../lib/repo/reviewed-send-core.ts";
 
 /**
  * Trust pass 10: three reply-logic problems found walking the app, the send
@@ -82,6 +86,10 @@ test("HIGH-2: 'the oven' is not 'Oven racks', 'windows' and 'window cleaning' ar
     { field: "extra:Window cleaning", value: "come_back", status: "confirmed" },
     { field: "question:oven", value: "yes", status: "confirmed" },
     { field: "question:windows", value: "later", status: "confirmed" },
+    // Round 2: each shares a word with a priced line, so the owner says
+    // whether it is the same thing; here, something else.
+    { field: "rule:same:oven", value: "waive", status: "confirmed" },
+    { field: "rule:same:windows", value: "waive", status: "confirmed" },
   ]);
   assert.equal(d.price.kind === "EXACT" && d.price.amountMinor, 47000);
   assert.deepEqual(d.replyNotes, [
@@ -329,9 +337,9 @@ test("3: a ledger stored before pass 10 reads as the thing asked about; a bad on
   assert.deepEqual(readableAsked([null, 7]), []);
 });
 
-// 4 / HIGH-3. Money in a reply -------------------------------------------------
+// 4 / HIGH-3 / round 2. Money in a reply: one rule --------------------------
 
-test("4: amounts followed by million, m, k or thousand are read at their true value", () => {
+test("4/M6: money is read in every form a person writes it, at its true value", () => {
   const read = (t: string) => dollarMatches(t).map((m) => m.amount);
   assert.deepEqual(read("$90 million cover"), [90_000_000]);
   assert.deepEqual(read("$20m public liability"), [20_000_000]);
@@ -344,42 +352,38 @@ test("4: amounts followed by million, m, k or thousand are read at their true va
   assert.deepEqual(read("$1,000 thousand"), [1_000_000]);
   assert.deepEqual(read("fifty thousand dollars"), [50_000]);
   assert.deepEqual(read("$250k"), [250_000]);
-  assert.deepEqual(
-    dollarMatches("£500 or €500").map((m) => [m.amount, m.foreign]),
-    [
-      [500, true],
-      [500, true],
-    ],
-  );
+  assert.deepEqual(read("5 grand"), [5000]);
+  assert.deepEqual(read("five grand"), [5000]);
+  assert.deepEqual(read("Bridal makeup is 250 if you can move it."), [250]);
+  assert.deepEqual(read("Bridal makeup is AUD250."), [250]);
+  assert.deepEqual(read("Price: 5000"), [5000]);
+  assert.deepEqual(read("Quote: 5000"), [5000]);
+  assert.deepEqual(read("That'll be 5000"), [5000]);
+  assert.deepEqual(read("5,000 all up"), [5000]);
+  for (const t of ["500 euros", "340 NZD", "NZ$340", "US$340", "USD 340", "£500", "€500"]) {
+    const m = dollarMatches(t);
+    assert.equal(m.length, 1, t);
+    assert.equal(m[0]!.foreign, true, t);
+  }
 });
 
-test("HIGH-3: only named insurance is not a price; anything said as a price or a line item is", () => {
-  const exempt = (t: string) => dollarMatches(t).map((m) => isNonPriceFigure(t, m));
-  assert.deepEqual(exempt("We have $20m public liability."), [true]);
-  assert.deepEqual(exempt("We carry $1.5m public liability."), [true]);
-  assert.deepEqual(exempt("Public liability insurance of $20,000,000."), [true]);
-  assert.deepEqual(exempt("Insurance claims carry a $2k excess."), [true]);
+test("M1/M6: dates, times, counts, phone numbers and ABNs are not money", () => {
+  const read = (t: string) => dollarMatches(t).map((m) => m.amount);
+  assert.deepEqual(read("Total: 14 October booking, $340"), [340]);
   for (const t of [
-    "We carry $90 million cover.",
-    "Insured to $1.5m.",
-    "$1.5m",
-    "Your excess is $500.",
-    "Price: $5,000 insurance included.",
-    "Quote: $2m.",
-    "that'll be $5m",
-    "You'll pay $5m",
-    "Wedding package - $5.5m",
-    "Deposit: $1m",
-    "deposit $5m",
-    "Pool cover: $1,200.",
-    "Full cover for $5,000.",
-    "Fully insured: $5,000.",
-    "Cover: $2,000.",
-    "Removal of excess: $150.",
-    "Total $1.5m cover",
-    "That comes to $2m.",
+    "Call me on 0412 345 678.",
+    "Our ABN is 12 345 678 901.",
+    "The house is 3 bedrooms.",
+    "The wedding is 8 November.",
+    "The trial is 24/10.",
+    "There are 4 of us.",
+    "Start time is 9:30.",
+    "Start time is 9am.",
+    "That's 3 hours.",
+    "The inspection is on the 17th.",
+    "It's 20 square metres.",
   ]) {
-    assert.ok(!exempt(t).some(Boolean), t);
+    assert.deepEqual(read(t), [], t);
   }
 });
 
@@ -396,35 +400,75 @@ const PRICE = (amountMinor: number) => ({
   } as never,
 });
 
-test("HIGH-3: the reviewer's table - every one refuses, with the quote total present or not, and with no quote", () => {
-  const base = "Hi Mia,\n\nFor the makeup trial, that comes to $90.";
-  for (const row of [
-    "Price: $5,000 insurance included.",
-    "Quote: $2m.",
-    "that'll be $5m",
-    "You'll pay $5m",
-    "Wedding package - $5.5m",
-    "Deposit: $1m",
-    "deposit $5m",
-    "Pool cover: $1,200.",
-    "Full cover for $5,000.",
-    "Fully insured: $5,000.",
-    "Cover: $2,000.",
-    "Removal of excess: $150.",
-    "That comes to $2m",
-    "Total $1.5m cover",
-    "$250k",
-    "$1,000 thousand",
-    "fifty thousand dollars",
-    "$3.6k",
-    "A $50 deposit holds the day.",
-    "We carry $90 million cover.",
-    "That comes to £90.",
-    "2 thousand dollars",
-  ]) {
+const BASE = "Hi Mia,\n\nFor the makeup trial, that comes to $90.";
+
+/** Every one of these refuses: alone, beside the correct total, and with no quote. */
+const REFUSED = [
+  // Round 1.
+  "Price: $5,000 insurance included.",
+  "Quote: $2m.",
+  "that'll be $5m",
+  "You'll pay $5m",
+  "Wedding package - $5.5m",
+  "Deposit: $1m",
+  "deposit $5m",
+  "Pool cover: $1,200.",
+  "Full cover for $5,000.",
+  "Fully insured: $5,000.",
+  "Cover: $2,000.",
+  "Removal of excess: $150.",
+  "That comes to $2m",
+  "Total $1.5m cover",
+  "$250k",
+  "$1,000 thousand",
+  "fifty thousand dollars",
+  "$3.6k",
+  "A $50 deposit holds the day.",
+  "We carry $90 million cover.",
+  "That comes to £90.",
+  "2 thousand dollars",
+  // Round 2, H1: a total hidden behind an insurance word.
+  "If you can move the wedding, the total including insurance $340.",
+  "Total with insurance $340.",
+  "All up with public liability $340.",
+  "Wedding day total inc. public liability $340.",
+  "Clean $340. Total including $20m public liability insurance $5,000",
+  "Clean $340. Total inc. insurance $5,000.",
+  // H2: charges named after insurance.
+  "Plus a $250 insurance fee for the wedding day.",
+  "plus $150 insurance fee",
+  "plus a $150 public liability levy",
+  "$50 insurance applies",
+  "Damage insurance $50 per day",
+  "Plus $20 product liability surcharge",
+  "Indemnity $80.",
+  "Professional indemnity $80 extra.",
+  "around $5,000 insurance incl.",
+  "Per our cancellation policy, an excess of $50 applies.",
+  // Free-edited cover figures: a saved answer only.
+  "We have $20m public liability.",
+  "We're insured for $20m.",
+  "Insurance claims carry a $2k excess.",
+  // M6.
+  "Bridal makeup is 250 if you can move it.",
+  "Bridal makeup is AUD250.",
+  "5 grand",
+  "Price: 5000",
+  "Quote: 5000",
+  "That'll be 5000",
+  "5,000 all up",
+  "500 euros",
+  "340 NZD",
+  "NZ$340",
+  "US$340",
+  "That comes to US$90.",
+];
+
+test("round 2: every money row refuses - alone, beside the correct total, and with no quote", () => {
+  for (const row of REFUSED) {
     assert.equal(amountAgrees(row, PRICE(9000), [9000]), false, `alone: ${row}`);
     assert.equal(
-      amountAgrees(`${base}\n\n${row}`, PRICE(9000), [9000]),
+      amountAgrees(`${BASE}\n\n${row}`, PRICE(9000), [9000]),
       false,
       `with total: ${row}`,
     );
@@ -435,21 +479,199 @@ test("HIGH-3: the reviewer's table - every one refuses, with the quote total pre
   assert.equal(amountAgrees(excess, PRICE(500_000), [500_000]), false);
 });
 
-test("HIGH-3: named insurance goes out only beside the correct quote total", () => {
-  const base = "Hi Mia,\n\nFor the makeup trial, that comes to $90.";
-  for (const line of [
+test("round 2: a free-edited cover figure is refused with 'write it as a saved answer'", () => {
+  for (const row of [
     "We have $20m public liability.",
-    "We carry $1.5m public liability.",
-    "Insurance claims carry a $2k excess.",
+    "Plus a $250 insurance fee for the wedding day.",
   ]) {
-    assert.deepEqual(priceFigures(`${base}\n\n${line}`), [90], line);
-    assert.equal(amountAgrees(`${base}\n\n${line}`, PRICE(9000), [9000]), true, line);
-    assert.equal(amountAgrees(line, PRICE(9000), [9000]), false, `no total: ${line}`);
-    assert.equal(amountAgrees(line, null), false, `no quote: ${line}`);
-    const wrong = `Hi Mia,\n\nFor the makeup trial, that comes to $95.\n\n${line}`;
-    assert.equal(amountAgrees(wrong, PRICE(9000), [9000]), false, `wrong total: ${line}`);
+    assert.equal(
+      mismatchMessage(`${BASE}\n\n${row}`, PRICE(9000), [9000]),
+      INSURANCE_AS_ANSWER,
+      row,
+    );
   }
-  // The owner's own typed answer stays trusted as written, as in pass 7.
-  const owned = "We have $20 million public liability insurance.";
-  assert.equal(amountAgrees(owned, null, [], [2_000_000_000]), true);
+});
+
+test("M1/M2: the owner's own answer sentence carries its own figures - there, as written, and nowhere else", () => {
+  for (const answer of [
+    "We have public liability cover $20m.",
+    "We're insured for $20m.",
+    "Yes, fully insured with $20m public liability.",
+  ]) {
+    const own = [answer];
+    assert.equal(amountAgrees(`${BASE}\n\n${answer}`, PRICE(9000), [9000], own), true, answer);
+    // The same answer on a reply with no quote: its own figures only.
+    assert.equal(amountAgrees(`Hi Mia,\n\n${answer}`, null, [], own), true, answer);
+    // Edited, it is no longer the owner's sentence.
+    const edited = answer.replace("$20m", "$25m");
+    assert.equal(amountAgrees(`${BASE}\n\n${edited}`, PRICE(9000), [9000], own), false, edited);
+  }
+  // M2: an answer's number is never allowed anywhere else by value.
+  const deposit = ["Yes, a $50 deposit secures the day."];
+  assert.equal(
+    amountAgrees(
+      `Hi Mia,\n\nTrial $90. Total: $50.\n\n${deposit[0]}`,
+      PRICE(9000),
+      [9000],
+      deposit,
+    ),
+    false,
+  );
+  const cover = ["We have $20m public liability."];
+  assert.equal(
+    amountAgrees(
+      `Bridal makeup plus travel, all up $20m.\n\n${cover[0]}`,
+      PRICE(9000),
+      [9000],
+      cover,
+    ),
+    false,
+  );
+  const both = ["All up we'd be at $340 for the wedding."];
+  assert.equal(amountAgrees("Trial $90. Total: $340.", PRICE(9000), [9000], both), false);
+  // M1: "Makeup trial $90" then a line with no figure: just the quote.
+  assert.equal(
+    amountAgrees("Makeup trial $90\nInsurance: I'm fully insured.", PRICE(9000), [9000]),
+    true,
+  );
+});
+
+// M4. A thing asked about beside a priced line that shares a word -----------
+
+const NAILS = { knowledge: [fixed("Pedicure", 60), fixed("Gel manicure", 50)] };
+
+test("M4: 'manicures' answered No beside a priced gel manicure is a conflict, never both in a reply", () => {
+  const d = confirmed(NAILS, "Pedicure", [
+    { field: "service", value: "Pedicure", status: "confirmed" },
+    { field: "extra:Gel manicure", value: "include", status: "confirmed" },
+    { field: "question:manicures", value: "no", status: "confirmed" },
+  ]);
+  assert.equal(d.action, "ESCALATE_HUMAN");
+  assert.match(
+    d.conflict ?? "",
+    /You said you don't do manicures, but gel manicure is on this quote/,
+  );
+  const snap = snapshotFromDecision(d);
+  assert.equal(snap.price, undefined);
+  assert.equal(snap.conflict, d.conflict, "the desk can show it");
+});
+
+test("M4: 'painting' answered No beside interior and exterior painting is a conflict", () => {
+  const brain = { knowledge: [fixed("Interior painting", 900), fixed("Exterior painting", 1500)] };
+  const d = confirmed(brain, "Interior painting", [
+    { field: "service", value: "Interior painting", status: "confirmed" },
+    { field: "extra:Exterior painting", value: "include", status: "confirmed" },
+    { field: "question:painting", value: "no", status: "confirmed" },
+  ]);
+  assert.match(d.conflict ?? "", /You said you don't do painting/);
+});
+
+test("M4: a Yes beside a priced line that shares a word is the owner's one tap: same thing, or come back", () => {
+  const cases: [string, string, string][] = [
+    ["Carpet steam clean", "carpets", "Regular house clean"],
+    ["Carpet steam clean", "carpet cleaning", "Regular house clean"],
+    ["Wall washing", "walls", "Regular house clean"],
+    ["Makeup trial", "trial run", "Bridal makeup"],
+    ["Oven racks", "oven", "End of lease clean"],
+  ];
+  for (const [line, thing, main] of cases) {
+    const brain = { knowledge: [fixed(main, 300), fixed(line, 80)] };
+    const facts = [
+      { field: "service", value: main, status: "confirmed" },
+      { field: `extra:${line}`, value: "include", status: "confirmed" },
+      { field: `question:${thing}`, value: "yes", status: "confirmed" },
+    ];
+    const open = decideEnquiry(brain, { serviceLabel: main, facts: facts as never });
+    const check = open.coverage?.flagged.find((f) => f.check?.field === `rule:same:${thing}`);
+    assert.ok(check, `${thing}: ${JSON.stringify(open.coverage?.flagged)}`);
+    assert.equal(open.coverage?.confirmed, false);
+    const same = confirmed(brain, main, [
+      ...facts,
+      { field: `rule:same:${thing}`, value: "apply", status: "confirmed" },
+    ]);
+    assert.equal(same.action, "SEND_QUOTE", thing);
+    assert.doesNotMatch((same.replyNotes ?? []).join(" "), /come back/, thing);
+    const other = confirmed(brain, main, [
+      ...facts,
+      { field: `rule:same:${thing}`, value: "waive", status: "confirmed" },
+    ]);
+    assert.equal(other.action, "SEND_QUOTE", thing);
+    assert.match((other.replyNotes ?? []).join(" "), new RegExp(`help with ${thing}`), thing);
+  }
+});
+
+// M5 / LOW. What a closed wedding day holds ----------------------------------
+
+test("M5: a trial the owner calls 'Makeup preview' is the trial's day's work, never held with the wedding", () => {
+  const brain = { knowledge: [fixed("Bridal makeup", 250), fixed("Makeup preview", 90)] };
+  const d = confirmed(
+    brain,
+    "Bridal makeup",
+    [
+      { field: "service", value: "Bridal makeup", status: "confirmed" },
+      { field: "extra:Makeup preview", value: "include", status: "confirmed" },
+    ],
+    WITH_TRIAL,
+  );
+  assert.equal(d.action, "SEND_QUOTE");
+  assert.equal(d.price.kind === "EXACT" && d.price.amountMinor, 9000);
+  assert.deepEqual(
+    d.closedDay?.held.map((h) => h.label),
+    ["Bridal makeup"],
+  );
+  assert.equal(d.closedDay?.bookable, true);
+});
+
+test("LOW: the rule the reduced quote reads from is never the held line's; a repeat discount is worked on what is left", () => {
+  const brain = {
+    knowledge: [
+      fixed("Regular house clean", 160),
+      fixed("Oven clean", 60),
+      {
+        state: "Active",
+        rulePayload: { kind: "discount", percent: 10, condition: "fortnightly cleans" },
+      },
+    ],
+  };
+  const party: ReplyContext = {
+    serviceLabel: "Regular house clean",
+    jobDateIso: "2026-11-08",
+    jobDateSpan: "Sunday 8 November",
+    jobDateConfirmed: false,
+    jobDateRole: "event",
+    jobDateWhat: "party",
+    fixedEvent: "party",
+    closed: SUNDAYS,
+    otherDates: [{ iso: "2026-11-07", role: "job", what: "oven", label: "Sat 7 Nov" }],
+  };
+  let facts: Fact[] = [
+    { field: "service", value: "Regular house clean", status: "confirmed" },
+    { field: "extra:Oven clean", value: "include", status: "confirmed" },
+    { field: "recurring", value: "yes", status: "confirmed" },
+  ];
+  // Settle every check the owner is shown, their rule's own way.
+  for (let i = 0; i < 6; i += 1) {
+    const d = decideEnquiry(brain as never, {
+      serviceLabel: "Regular house clean",
+      facts: facts as never,
+      reply: party,
+    });
+    const open = (d.coverage?.flagged ?? []).find(
+      (f) => f.check && !facts.some((x) => x.field === f.check!.field),
+    );
+    if (!open) break;
+    facts = [...facts, { field: open.check!.field, value: "apply", status: "confirmed" }];
+  }
+  const d = confirmed(brain, "Regular house clean", facts, party);
+  assert.equal(d.action, "SEND_QUOTE");
+  assert.deepEqual(
+    d.closedDay?.held.map((h) => h.label),
+    ["Regular house clean"],
+  );
+  const snap = snapshotFromDecision(d, party);
+  const total = snap.price?.kind === "EXACT" ? snap.price.amountMinor : 0;
+  assert.ok(total > 0 && total <= 6000, String(total));
+  for (const heldAmount of [16000, 14400, 22000]) {
+    assert.ok(!(snap.impliedAmountsMinor ?? []).includes(heldAmount), String(heldAmount));
+  }
 });

@@ -61,7 +61,7 @@ const SUFFIXED = new RegExp(
  * time, a phone number or an ABN: those are followed by their own words or by
  * more digits.
  */
-const CUE = String.raw`\b(?:comes?\s+to|came\s+to|total(?:\s+(?:of|is))?|all\s+up|price(?:\s+(?:is|of))?|quote(?:d)?(?:\s+(?:is|of|at))?|costs?(?:\s+is)?|charge(?:\s+is)?|fee(?:\s+is)?|that'?ll\s+be|that\s+will\s+be|that'?s|it'?s|is|are|will\s+be|would\s+be|you'?ll\s+pay|pay)\s*[:=-]?\s*(?:about|around|approx(?:imately)?|roughly|just|only)?\s*`;
+const CUE = String.raw`\b(?:comes?\s+to|came\s+to|total(?:\s+(?:of|is))?|all\s+up|price(?:\s+(?:is|of))?|quote(?:d)?(?:\s+(?:is|of|at))?|costs?(?:\s+is)?|charge(?:\s+is)?|fee(?:\s+is)?|that'?ll\s+be|that\s+will\s+be|that'?s|it'?s|is|are|will\s+be|would\s+be|you'?ll\s+pay|pay)\s*[:=-]?\s*(?:(?:about|around|approx(?:imately)?|roughly|just|only|usually|normally|typically|generally)\s+)*\s*`;
 const NOT_MONEY_AFTER = String.raw`(?!\s*(?:%|per\b|x\b|hours?\b|hrs?\b|h\b|mins?\b|minutes?\b|rooms?\b|bed|bath|sq|m2|metres?|meters?|people|persons?|guests|ppl|doors?|windows?|days?\b|weeks?\b|months?\b|years?\b|yrs?\b|visits?|items?|of\s+(?:us|them)|kids|adults|bridesmaids|am\b|pm\b|o'?clock|st\b|nd\b|rd\b|th\b|jan|feb|mar|apr|may\b|jun|jul|aug|sep|oct|nov|dec|[/:.]\d|,?\s?\d|-\d|k\b|thousand|grand|million|mil\b|m\b|bn\b|billion|dollars?|bucks|aud|usd|nzd|euros?|pounds?|\$))`;
 const CUED = new RegExp(
   String.raw`${CUE}(?!0\d)${AMOUNT}\b(\s?(?:thousand|million|mil|m|bn|billion)\b)?${NOT_MONEY_AFTER}`,

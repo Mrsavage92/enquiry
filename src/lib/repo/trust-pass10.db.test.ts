@@ -5,6 +5,7 @@ import { ForbiddenError, requireEnquiryAccess } from "./tenancy.server.ts";
 import { confirmCoverageForUser } from "./coverage-core.ts";
 import { toEnquiry, type EnquiryRow } from "./rows.ts";
 import { promiseVerdict } from "../../domain/labels.ts";
+import { INSURANCE_AS_ANSWER } from "./reviewed-send-core.ts";
 import {
   WED_30_SEP,
   answer,
@@ -247,6 +248,23 @@ test("M3: 'do you do trials?' answered No beside a priced makeup trial is held f
   assert.equal(both, false, s.draft.body);
   const sent = await sendAs(pg, a.businessId, e.enquiryId, s.draft.body);
   assert.equal(sent.ok, false);
+  // Round 2 (M3): "That's everything" is refused while they disagree, so the
+  // enquiry can never be confirmed into a state the desk cannot settle; the
+  // snapshot carries the conflict for the desk to show. Nothing moves.
+  assert.match((s as { conflict?: string }).conflict ?? "", /You said you don't do trial/);
+  const tap = (userId: string) =>
+    confirmCoverageForUser(sqlFor(pg), (fn) => tx(pg, fn), userId, {
+      enquiryId: e.enquiryId,
+      key: s.coverage?.key ?? "",
+      revision: Number(r.decision_revision),
+    });
+  const refusedTap = await tap("user-a");
+  assert.equal(refusedTap.ok, false);
+  assert.equal(!refusedTap.ok && refusedTap.reason, "conflict");
+  await assert.rejects(tap("user-b"), ForbiddenError);
+  const still = await row(pg, e.enquiryId);
+  assert.equal(still.decision_revision, r.decision_revision);
+  assert.deepEqual(still.decision_snapshot, r.decision_snapshot);
   await refusedForOther(pg, e.enquiryId, "question:trial", "yes");
   // The owner settles it: Yes, they do trials. One priced reply, no "Sorry".
   await answer(pg, "user-a", e.enquiryId, "question:trial", "yes");
@@ -415,57 +433,127 @@ test("3: an answered 'do you do exterior painting?' is 'Exterior painting' in th
   assert.equal(migrated?.declined, true);
 });
 
-test("4: insurance figures go out beside the total; cover, prices, line items and money with no quote do not", async (t) => {
+// 4 / round 2. One rule for money in a reply: an amount of the quote, or a
+// figure inside the owner's own answer sentence as they wrote it.
+
+test("round 2 (M1/M2): a cover figure goes out as the owner's own answer, as written, and nowhere else", async (t) => {
   const { pg, a } = await setup(t);
   const e = await enquiry(
     pg,
     a.businessId,
-    "Hi, could I book a makeup trial please? Mia",
+    "Hi, could I book a makeup trial please? Are you insured? Mia",
     "Makeup trial",
     WED_14_OCT,
   );
-  const s0 = await row(pg, e.enquiryId);
-  const done = await confirmCoverageForUser(sqlFor(pg), (fn) => tx(pg, fn), "user-a", {
-    enquiryId: e.enquiryId,
-    key: s0.decision_snapshot.coverage!.key,
-    revision: Number(s0.decision_revision),
-  });
-  assert.equal(done.ok, true);
-  const prepared = (await row(pg, e.enquiryId)).decision_snapshot.draft.body;
-  assert.match(prepared, /For the makeup trial, that comes to \$90\./);
-  // Another tenant cannot reach the send path, and nothing is prepared or moved.
-  const before = await row(pg, e.enquiryId);
-  await assert.rejects(requireEnquiryAccess("user-b", e.enquiryId, sqlFor(pg)), ForbiddenError);
-  assert.equal(await reviewedSends(pg, e.enquiryId), 0);
-  assert.deepEqual(await row(pg, e.enquiryId), before);
-  const edit = (line: string) => prepared.replace("Hi there,", "Hi Mia,") + `\n\n${line}`;
-  for (const line of [
-    "We have $20m public liability.",
-    "We carry $1.5m public liability.",
-    "Insurance claims carry a $2k excess.",
-  ]) {
-    const res = await sendAs(pg, a.businessId, e.enquiryId, edit(line));
-    assert.equal(res.ok, true, `${line}: ${JSON.stringify(res)}`);
-    assert.equal(res.ok && res.amountMinor, 9000, line);
+  const q = (await row(pg, e.enquiryId)).decision_snapshot.questionPending;
+  assert.equal(q?.field, "ask:insurance");
+  await refusedForOther(pg, e.enquiryId, "ask:insurance", "We have public liability cover $20m.");
+  await answer(pg, "user-a", e.enquiryId, "ask:insurance", "We have public liability cover $20m.");
+  await settle(pg, e.enquiryId);
+  const { body, sent } = await send(pg, a.businessId, e.enquiryId);
+  assert.equal(sent.ok, true, JSON.stringify(sent));
+  assert.equal(sent.ok && sent.amountMinor, 9000);
+  assert.match(
+    body,
+    /For the makeup trial, that comes to \$90\.\n\nWe have public liability cover \$20m\./,
+  );
+  // Edited, the sentence is no longer the owner's answer; the same $20m
+  // anywhere else is a figure like any other (review M2).
+  for (const [edited, message] of [
+    [body.replace("cover $20m.", "cover $25m."), INSURANCE_AS_ANSWER],
+    [`${body}\n\nBridal makeup plus travel, all up $20m.`, null],
+    [
+      body.replace(
+        "We have public liability cover $20m.",
+        "We're insured for $20m, and the total is $20m.",
+      ),
+      INSURANCE_AS_ANSWER,
+    ],
+  ] as const) {
+    const res = await sendAs(pg, a.businessId, e.enquiryId, edited);
+    assert.equal(!res.ok && res.reason, "amount_mismatch", edited);
+    if (message) assert.equal(!res.ok && res.message, message, edited);
   }
-  for (const body of [
-    prepared.replace("$90.", "$95."),
-    edit("A $50 deposit and that's all."),
-    "Hi Mia,\n\nA $50 deposit holds the day.\n\nThanks,\nSam",
-    "Hi Mia,\n\nWe have $20m public liability.\n\nThanks,\nSam",
-    edit("That comes to $2m."),
-    edit("We carry $90 million cover."),
-    edit("Price: $5,000 insurance included."),
-    edit("Pool cover: $1,200."),
-    edit("Deposit: $1m"),
-    edit("That comes to £90."),
-  ]) {
-    const res = await sendAs(pg, a.businessId, e.enquiryId, body);
-    assert.equal(!res.ok && res.reason, "amount_mismatch", body);
-  }
+  // The owner answers again in other words: those words carry the figure now.
+  await answer(pg, "user-a", e.enquiryId, "ask:insurance", "We're insured for $20m.");
+  await settle(pg, e.enquiryId);
+  const again = await send(pg, a.businessId, e.enquiryId);
+  assert.equal(again.sent.ok, true, JSON.stringify(again.sent));
+  assert.match(again.body, /We're insured for \$20m\./);
 });
 
-test("4 (HIGH-3): money about insurance on a reply with no quote is refused, never read as 'no money named'", async (t) => {
+test("round 2 (M2): a deposit the owner wrote is theirs in its sentence, never a total elsewhere", async (t) => {
+  const { pg, a } = await setup(t);
+  const e = await enquiry(
+    pg,
+    a.businessId,
+    "Hi, could I book a makeup trial please? Do you need a deposit? Mia",
+    "Makeup trial",
+    WED_14_OCT,
+  );
+  await answer(pg, "user-a", e.enquiryId, "ask:deposit", "Yes, a $50 deposit secures the day.");
+  await settle(pg, e.enquiryId);
+  const { body, sent } = await send(pg, a.businessId, e.enquiryId);
+  assert.equal(sent.ok, true, JSON.stringify(sent));
+  assert.match(body, /Yes, a \$50 deposit secures the day\./);
+  const res = await sendAs(
+    pg,
+    a.businessId,
+    e.enquiryId,
+    body.replace("that comes to $90.", "that comes to $90. Total: $50."),
+  );
+  assert.equal(!res.ok && res.reason, "amount_mismatch");
+});
+
+test("round 2 (M6): the all-closed wedding names no money in any form; the trial quote only its own", async (t) => {
+  const { pg, a } = await setup(t);
+  const closed = await enquiry(
+    pg,
+    a.businessId,
+    "Hi, my wedding is Sunday 8 November, I need bridal makeup please. Amy",
+    "Bridal makeup",
+    WED_14_OCT,
+  );
+  await settle(pg, closed.enquiryId);
+  const draft = (await row(pg, closed.enquiryId)).decision_snapshot.draft.body;
+  assert.equal(
+    (await sendAs(pg, a.businessId, closed.enquiryId, draft)).ok,
+    true,
+    "Send stays enabled",
+  );
+  for (const line of [
+    "Bridal makeup is 250 if you can move it.",
+    "Bridal makeup is AUD250.",
+    "It would be 5 grand.",
+    "Price: 5000",
+    "5,000 all up",
+    "US$250",
+    "We have $20m public liability.",
+  ]) {
+    const res = await sendAs(pg, a.businessId, closed.enquiryId, `${draft}\n\n${line}`);
+    assert.equal(!res.ok && res.reason, "amount_mismatch", line);
+  }
+  const trial = await chloe(pg, a.businessId);
+  const body = (await row(pg, trial.enquiryId)).decision_snapshot.draft.body;
+  const s = await row(pg, trial.enquiryId);
+  const done = await confirmCoverageForUser(sqlFor(pg), (fn) => tx(pg, fn), "user-a", {
+    enquiryId: trial.enquiryId,
+    key: s.decision_snapshot.coverage!.key,
+    revision: Number(s.decision_revision),
+  });
+  assert.equal(done.ok, true);
+  const ready = (await row(pg, trial.enquiryId)).decision_snapshot.draft.body;
+  void body;
+  const res = await sendAs(
+    pg,
+    a.businessId,
+    trial.enquiryId,
+    `${ready}\n\nBridal makeup is 250 on another day.`,
+  );
+  assert.equal(!res.ok && res.reason, "amount_mismatch");
+});
+
+test("4 (HIGH-3): money on a reply with no quote is refused, whatever it is about", async (t) => {
   const { pg, a } = await setup(t, ["End of lease clean $190 per bedroom"].join("\n"), "cleaning");
   const e = await enquiry(
     pg,
@@ -480,9 +568,233 @@ test("4 (HIGH-3): money about insurance on a reply with no quote is refused, nev
     "Pool cover: $1,200.",
     "We have $20m public liability.",
     "Fully insured: $5,000.",
+    "It's usually 380 for two.",
   ]) {
     const res = await sendAs(pg, a.businessId, e.enquiryId, `${s.draft.body}\n\n${line}`);
     assert.equal(!res.ok && res.reason, "amount_mismatch", line);
   }
   assert.equal((await sendAs(pg, a.businessId, e.enquiryId, s.draft.body)).ok, true);
+  // Another tenant cannot reach the send path, and nothing is prepared or moved.
+  const before = await row(pg, e.enquiryId);
+  const sends = await reviewedSends(pg, e.enquiryId);
+  await assert.rejects(requireEnquiryAccess("user-b", e.enquiryId, sqlFor(pg)), ForbiddenError);
+  assert.equal(await reviewedSends(pg, e.enquiryId), sends);
+  assert.deepEqual(await row(pg, e.enquiryId), before);
+});
+
+/**
+ * The permanent regression suite: owner-edited bodies against a $340 quote
+ * (bridal makeup $250 and a makeup trial $90, wedding on a Saturday the owner
+ * works) and a $90 one (Chloe's trial, the Sunday wedding held). Each row is
+ * appended to the app's own reply and sent through the send path.
+ * [row, goes out on the $340 quote, goes out on the $90 quote]
+ */
+const FUZZ: [string, boolean, boolean][] = [
+  // Words with no money in them.
+  ["Looking forward to it!", true, true],
+  ["See you on the 24th.", true, true],
+  ["Call me on 0412 345 678.", true, true],
+  ["Our ABN is 12 345 678 901.", true, true],
+  ["There are 4 of us.", true, true],
+  ["Start time is 9:30.", true, true],
+  ["The wedding is 8 November.", true, true],
+  ["Total: 14 October booking.", true, true],
+  ["It's about 2 hours.", true, true],
+  ["Insurance: I'm fully insured.", true, true],
+  ["Parking is fine out the front.", true, true],
+  ["I'll bring everything I need.", true, true],
+  // The quote's own amounts.
+  ["So $340 all up.", true, false],
+  ["Total $340.", true, false],
+  ["That comes to 340 dollars.", true, false],
+  ["Three hundred and forty dollars all up.", true, false],
+  ["So $90 all up.", true, true],
+  ["The trial is $90 of that.", true, true],
+  ["The bridal makeup is $250.", true, false],
+  ["Bridal makeup is 250 if you can move it.", true, false],
+  ["Bridal makeup is AUD250.", true, false],
+  ["Bridal makeup is 250 on another day.", true, false],
+  // H1: a total behind an insurance word is just a figure.
+  ["If you can move the wedding, the total including insurance $340.", true, false],
+  ["Total with insurance $340.", true, false],
+  ["All up with public liability $340.", true, false],
+  ["Wedding day total inc. public liability $340.", true, false],
+  ["Plus a $250 insurance fee for the wedding day.", true, false],
+  ["Clean $340. Total including $20m public liability insurance $5,000", false, false],
+  ["Clean $340. Total inc. insurance $5,000.", false, false],
+  // H2: charges named after insurance.
+  ["plus $150 insurance fee", false, false],
+  ["plus a $150 public liability levy", false, false],
+  ["$50 insurance applies", false, false],
+  ["Damage insurance $50 per day", false, false],
+  ["Plus $20 product liability surcharge", false, false],
+  ["Indemnity $80.", false, false],
+  ["Professional indemnity $80 extra.", false, false],
+  ["around $5,000 insurance incl.", false, false],
+  ["Per our cancellation policy, an excess of $50 applies.", false, false],
+  // Free-edited cover figures: a saved answer only.
+  ["We have $20m public liability.", false, false],
+  ["We're insured for $20m.", false, false],
+  ["Insurance claims carry a $2k excess.", false, false],
+  ["We carry $90 million cover.", false, false],
+  // Round 1.
+  ["Price: $5,000 insurance included.", false, false],
+  ["Quote: $2m.", false, false],
+  ["that'll be $5m", false, false],
+  ["You'll pay $5m", false, false],
+  ["Wedding package - $5.5m", false, false],
+  ["Deposit: $1m", false, false],
+  ["deposit $5m", false, false],
+  ["Pool cover: $1,200.", false, false],
+  ["Full cover for $5,000.", false, false],
+  ["Fully insured: $5,000.", false, false],
+  ["Cover: $2,000.", false, false],
+  ["Removal of excess: $150.", false, false],
+  ["That comes to $2m", false, false],
+  ["Total $1.5m cover", false, false],
+  ["$250k", false, false],
+  ["$1,000 thousand", false, false],
+  ["fifty thousand dollars", false, false],
+  ["$3.6k", false, false],
+  ["A $50 deposit holds the day.", false, false],
+  ["2 thousand dollars", false, false],
+  // M6: forms the gate could not see.
+  ["It would be 5 grand.", false, false],
+  ["Price: 5000", false, false],
+  ["Quote: 5000", false, false],
+  ["That'll be 5000", false, false],
+  ["5,000 all up", false, false],
+  ["500 euros", false, false],
+  ["340 NZD", false, false],
+  ["NZ$340", false, false],
+  ["US$340", false, false],
+  ["USD 340", false, false],
+  ["£340", false, false],
+  ["€90", false, false],
+  ["That comes to $341.", false, false],
+  ["That comes to $89.", false, false],
+  ["That comes to three hundred dollars.", false, false],
+];
+
+test(`round 2: the ${FUZZ.length}-row regression table of owner edits against a $340 and a $90 quote`, async (t) => {
+  assert.ok(FUZZ.length >= 60);
+  const { pg, a } = await setup(t);
+  // The $340 quote: a Saturday wedding the owner works, the trial added.
+  const sat = await enquiry(
+    pg,
+    a.businessId,
+    "Hi! Wedding is Saturday 7 November, need bridal makeup. Could you also do a makeup trial on 24 October? Chloe",
+    "Bridal makeup",
+    WED_30_SEP,
+  );
+  await settle(pg, sat.enquiryId, { answers: { "extra:Makeup trial": "include" } });
+  const s340 = await send(pg, a.businessId, sat.enquiryId);
+  assert.equal(s340.sent.ok, true, JSON.stringify(s340.sent));
+  assert.equal(s340.snapshot.price?.amountMinor, 34000, s340.body);
+  // The $90 quote: Chloe's trial, the Sunday wedding held.
+  const sun = await chloe(pg, a.businessId);
+  const s90 = await send(pg, a.businessId, sun.enquiryId);
+  assert.equal(s90.sent.ok, true, JSON.stringify(s90.sent));
+  assert.equal(s90.snapshot.price?.amountMinor, 9000, s90.body);
+  const wrong: string[] = [];
+  for (const [line, on340, on90] of FUZZ) {
+    for (const [quote, id, want] of [
+      [s340, sat.enquiryId, on340],
+      [s90, sun.enquiryId, on90],
+    ] as const) {
+      const res = await sendAs(pg, a.businessId, id, `${quote.body}\n\n${line}`);
+      if (res.ok !== want) {
+        wrong.push(`${quote === s340 ? "$340" : "$90"} "${line}": ${res.ok ? "sent" : res.reason}`);
+      }
+      if (res.ok) assert.equal(res.amountMinor, quote.snapshot.price?.amountMinor, line);
+    }
+  }
+  assert.deepEqual(wrong, []);
+});
+
+test("round 2 (M4): 'do you do manicures?' answered No beside a priced gel manicure is a conflict; never sent", async (t) => {
+  const { pg, a } = await setup(t, "Pedicure $60");
+  const e = await enquiry(
+    pg,
+    a.businessId,
+    "Pedicure please, plus a gel manicure. Do you do manicures? Kim",
+    "Pedicure",
+    WED_14_OCT,
+  );
+  assert.equal(
+    (await row(pg, e.enquiryId)).decision_snapshot.questionPending?.field,
+    "question:manicures",
+  );
+  await answer(pg, "user-a", e.enquiryId, "question:manicures", "no");
+  await tell(pg, a.businessId, "Gel manicure $50");
+  await settle(pg, e.enquiryId, { answers: { "extra:Gel manicure": "include" } });
+  const r = await row(pg, e.enquiryId);
+  const s = r.decision_snapshot as typeof r.decision_snapshot & { conflict?: string };
+  assert.match(
+    s.conflict ?? "",
+    /You said you don't do manicures, but gel manicure is on this quote/,
+  );
+  assert.equal(s.price, undefined);
+  const sent = await sendAs(pg, a.businessId, e.enquiryId, s.draft.body);
+  assert.equal(sent.ok, false);
+  const tap = await confirmCoverageForUser(sqlFor(pg), (fn) => tx(pg, fn), "user-a", {
+    enquiryId: e.enquiryId,
+    key: s.coverage?.key ?? "",
+    revision: Number(r.decision_revision),
+  });
+  assert.equal(!tap.ok && tap.reason, "conflict");
+});
+
+test("round 2 (M4): 'do you do carpets?' beside a priced carpet steam clean is the owner's one tap", async (t) => {
+  for (const [choice, said] of [
+    ["apply", false],
+    ["waive", true],
+  ] as const) {
+    const { pg, a } = await setup(t, "Regular house clean $160", "cleaning");
+    const e = await enquiry(
+      pg,
+      a.businessId,
+      "Regular clean please, plus a carpet steam clean. Do you do carpets? Sue",
+      "Regular house clean",
+      WED_14_OCT,
+    );
+    assert.equal(
+      (await row(pg, e.enquiryId)).decision_snapshot.questionPending?.field,
+      "question:carpets",
+    );
+    await answer(pg, "user-a", e.enquiryId, "question:carpets", "yes");
+    await tell(pg, a.businessId, "Carpet steam clean $80");
+    await answer(pg, "user-a", e.enquiryId, "extra:Carpet steam clean", "include");
+    const flagged = (await row(pg, e.enquiryId)).decision_snapshot.coverage?.flagged ?? [];
+    const check = flagged.find((f) => f.check?.field === "rule:same:carpets");
+    assert.ok(check, JSON.stringify(flagged));
+    await refusedForOther(pg, e.enquiryId, "rule:same:carpets", choice);
+    await settle(pg, e.enquiryId, { checks: [[/carpets/, choice]] });
+    const { body, sent } = await send(pg, a.businessId, e.enquiryId);
+    assert.equal(sent.ok, true, JSON.stringify(sent));
+    assert.match(body, /- Carpet steam clean: \$80/);
+    assert.equal(/Yes, I can help with carpets/.test(body), said, body);
+  }
+});
+
+test("round 2 (M5): a trial the owner calls 'Makeup preview' is priced on the trial's day, never held with the wedding", async (t) => {
+  const { pg, a } = await setup(
+    t,
+    ["Bridal makeup $250", "Makeup preview $90", "We don't work Sundays"].join("\n"),
+  );
+  const e = await enquiry(pg, a.businessId, CHLOE, "Bridal makeup", WED_30_SEP);
+  await refusedForOther(pg, e.enquiryId, "extra:Makeup preview", "include");
+  await answer(pg, "user-a", e.enquiryId, "extra:Makeup preview", "include");
+  await settle(pg, e.enquiryId);
+  const { body, sent, snapshot } = await send(pg, a.businessId, e.enquiryId);
+  assert.equal(sent.ok, true, JSON.stringify(sent));
+  assert.equal(sent.ok && sent.amountMinor, 9000, body);
+  assert.match(body, /For the makeup preview, that comes to \$90\./);
+  assert.match(
+    body,
+    /I haven't included the bridal makeup, as I'm not available on Sunday 8 November\./,
+  );
+  assert.doesNotMatch(body, /nothing else/);
+  assert.equal((snapshot as { closedDay?: { bookable: boolean } }).closedDay?.bookable, true);
+  assert.equal(await verdict(pg, e.enquiryId), "Yes - reply ready, one date can't be done");
 });

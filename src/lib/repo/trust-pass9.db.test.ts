@@ -6,6 +6,7 @@ import { confirmCoverageForUser } from "./coverage-core.ts";
 import { saveReplyDraftForUser } from "./owner-state-core.ts";
 import { saveBusinessDetailsForUser } from "./business-rule-core.ts";
 import { readBusinessDetails } from "../../domain/business-details-read.ts";
+import { INSURANCE_AS_ANSWER } from "./reviewed-send-core.ts";
 import {
   answer,
   enquiry,
@@ -303,13 +304,19 @@ test("M1: a kept edit whose figures move is on the record, with what it said bef
     "select body from reply_draft where enquiry_id = $1",
     [e.enquiryId],
   );
-  // Pass 10 (review of PR #79): "$90 million" is read at its true value, but
-  // bare "cover" is not named insurance ("Pool cover: $1,200" is a price), so
-  // the kept edit with it is still refused; the reply that goes out is the
-  // kept edit without it. "$90 million public liability" would go out.
+  // Pass 10 (second review of PR #79): "$90 million" is read at its true
+  // value, and a cover figure the owner edits in is refused whatever it is
+  // called - it goes out only as the owner's saved answer, where Enquiry can
+  // check it. The reply that goes out is the kept edit without it.
   const keptBody = draft.rows[0]!.body;
-  const refused = await sendAs(pg, a.businessId, e.enquiryId, keptBody);
-  assert.equal(!refused.ok && refused.reason, "amount_mismatch");
+  for (const edit of [
+    keptBody,
+    keptBody.replace("$90 million cover", "$90 million public liability"),
+  ]) {
+    const refused = await sendAs(pg, a.businessId, e.enquiryId, edit);
+    assert.equal(!refused.ok && refused.reason, "amount_mismatch", edit);
+    assert.equal(!refused.ok && refused.message, INSURANCE_AS_ANSWER, edit);
+  }
   const sent = await sendAs(
     pg,
     a.businessId,
@@ -317,13 +324,6 @@ test("M1: a kept edit whose figures move is on the record, with what it said bef
     keptBody.replace(" We carry $90 million cover.", ""),
   );
   assert.equal(sent.ok, true, JSON.stringify(sent));
-  const named = await sendAs(
-    pg,
-    a.businessId,
-    e.enquiryId,
-    keptBody.replace("$90 million cover", "$90 million public liability"),
-  );
-  assert.equal(named.ok, true, JSON.stringify(named));
 });
 
 test("M6: working hours saved from a sentence are on the record with the hours they replaced; another tenant cannot", async (t) => {
