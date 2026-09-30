@@ -840,11 +840,12 @@ function gateCoverage(decided: Decision, ctx: CoverageContext): Decision {
   }).map((f) => withOffer(f, ctx.rules, lines));
   flagged.push(
     ...ruled.infos.map((text) => ({ kind: "note" as const, text: `Your note: ${text}` })),
+    // Shown as one of the owner's checks, one tap each way.
     ...counted.open.map((c) => ({
-      kind: "headcount" as const,
+      kind: "rule" as const,
       text: c.text,
       thing: c.field,
-      choices: c.choices,
+      check: { field: c.field, kind: "headcount" as const, text: c.text, choices: c.choices },
     })),
   );
   // How often comes before the owner's rules: a repeat-job discount is only

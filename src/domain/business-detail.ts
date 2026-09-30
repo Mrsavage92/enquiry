@@ -547,7 +547,7 @@ export function detailEffect(detail: BusinessDetail): string {
   switch (detail.kind) {
     case "closed_days":
     case "closed_dates":
-      return "When they ask for a day you don't work, the reply says so and offers the next day you do. For a wedding or another fixed day it asks if there is any flexibility instead.";
+      return "When they ask for a day you don't work, the reply says so and names another day you could look at, never as booked. For a wedding or another fixed day it asks if there is any flexibility instead.";
     case "not_offered":
       return "When a customer asks if you do it, Enquiry reads that as No for you to confirm.";
     case "minimum_charge":
@@ -555,7 +555,9 @@ export function detailEffect(detail: BusinessDetail): string {
     case "surcharge":
       return "When the job falls on that day, Enquiry asks you with one tap: add it, or not this time.";
     case "fee":
-      return "On the quotes it concerns, Enquiry asks you with one tap: add it, or it doesn't apply.";
+      return detail.days?.length
+        ? `When the job falls on ${dayList(detail.days)}, Enquiry asks you with one tap: add it, or it doesn't apply.`
+        : "On the quotes it concerns, Enquiry asks you with one tap: add it, or it doesn't apply.";
     case "eligibility":
       return "On those quotes, Enquiry asks you to check the job fits before any price goes out.";
     case "note":

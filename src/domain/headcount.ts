@@ -12,7 +12,12 @@ import { readQuantityFromMessage } from "./quantity-reader.ts";
 
 export const COUNT_PREFIX = "count:";
 
-export const COUNT_CHOICE = { each: "each", one: "one", later: "later" } as const;
+/**
+ * The owner's choices, in the same words as a rule check so the coverage card
+ * shows them as one: per person is the count applied, one price is it waived,
+ * and "later" (come back to them on it) is accepted from any caller.
+ */
+export const COUNT_CHOICE = { each: "apply", one: "waive", later: "later" } as const;
 
 const CHOICES = new Set<string>(Object.values(COUNT_CHOICE));
 
@@ -41,7 +46,7 @@ export type HeadcountCheck = {
   people: number;
   text: string;
   /** [value, button label], the owner's choices. */
-  choices: [string, string][];
+  choices: ["apply" | "waive", string][];
 };
 
 /** How many people they said there are, when it is more than one. */
@@ -90,7 +95,6 @@ export function applyHeadcount<L extends Line>(input: {
         choices: [
           [COUNT_CHOICE.each, `${people.n} x ${each} (per person)`],
           [COUNT_CHOICE.one, `One ${each} for the booking`],
-          [COUNT_CHOICE.later, "Come back to them on it"],
         ],
       });
       return line;

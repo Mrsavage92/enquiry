@@ -109,11 +109,11 @@ async function settle(pg: PGlite, enquiryId: string, choice: Choice = {}) {
       await answer(pg, "user-a", enquiryId, s.extraPending.field, value);
       continue;
     }
-    const flag = (s.coverage?.flagged ?? []).find((f) => f.check || f.kind === "headcount");
+    const flag = (s.coverage?.flagged ?? []).find((f) => f.check);
     if (flag && !s.coverage?.confirmed) {
       const field = flag.check?.field ?? flag.thing!;
       const picked = choice.checks?.find(([re]) => re.test(flag.text))?.[1];
-      await answer(pg, "user-a", enquiryId, field, picked ?? (flag.check ? "waive" : "one"));
+      await answer(pg, "user-a", enquiryId, field, picked ?? "waive");
       continue;
     }
     // "They mention the garage": part of this price, the owner says.
@@ -179,7 +179,7 @@ test("1a/7 Chloe: a Sunday wedding is said plainly, the trial gets its own line,
   const asked = (await row(pg, e.enquiryId)).decision_snapshot.questionPending;
   assert.equal(asked?.saved, "We have $20 million public liability insurance.");
   await refusedForOther(pg, e.enquiryId, "ask:insurance", "Yes");
-  await settle(pg, e.enquiryId, { checks: [[/makeup trial price is per booking/, "one"]] });
+  await settle(pg, e.enquiryId, { checks: [[/makeup trial price is per booking/, "waive"]] });
   const { body, sent, snapshot } = await send(pg, a.businessId, e.enquiryId);
   assert.equal(sent.ok, true, JSON.stringify(sent));
   assert.equal(snapshot.price?.amountMinor, 81000, body);
@@ -264,7 +264,7 @@ test("1d/3 Mel: '4 of us' is read, the wedding in a closed stretch and a Decembe
   const first = await row(pg, e.enquiryId);
   assert.equal(first.decision_snapshot.missing[0]?.inferred?.value, "4");
   assert.doesNotMatch(first.decision_snapshot.draft.body, /how many people/);
-  await settle(pg, e.enquiryId, { checks: [[/makeup trial price is per booking/, "one"]] });
+  await settle(pg, e.enquiryId, { checks: [[/makeup trial price is per booking/, "waive"]] });
   const { body, sent } = await send(pg, a.businessId, e.enquiryId);
   assert.equal(sent.ok, true, JSON.stringify(sent));
   assert.match(body, /I'm not available on Saturday 2 January/);
@@ -290,11 +290,11 @@ test("3 Brooke: two manicures are never quoted as one; another tenant cannot cho
   const flag = s.coverage?.flagged.find((f) => /gel manicure price is per booking/.test(f.text));
   assert.equal(flag?.text, "They mention 2 people - your gel manicure price is per booking");
   assert.equal(s.coverage?.confirmed, false);
-  await refusedForOther(pg, e.enquiryId, flag!.thing!, "each");
+  await refusedForOther(pg, e.enquiryId, flag!.thing!, "apply");
   const counters = await settle(pg, e.enquiryId, {
     checks: [
-      [/gel manicure price is per booking/, "each"],
-      [/lash lift price is per booking/, "one"],
+      [/gel manicure price is per booking/, "apply"],
+      [/lash lift price is per booking/, "waive"],
     ],
   });
   // "Check 1 of 4" never restarts: settled only grows, and so does the total.
@@ -495,7 +495,7 @@ test("1g/3 Tash: 'tmrw' is Thursday 1 October in the reply, and three people are
     "gel nails tmrw for 3 of us?? birthday brunch lol. how much all up",
     "Gel manicure",
   );
-  await settle(pg, e.enquiryId, { checks: [[/gel manicure price is per booking/, "each"]] });
+  await settle(pg, e.enquiryId, { checks: [[/gel manicure price is per booking/, "apply"]] });
   const { body, sent, snapshot } = await send(pg, a.businessId, e.enquiryId);
   assert.equal(sent.ok, true, JSON.stringify(sent));
   assert.equal(snapshot.price?.amountMinor, 16500, body);

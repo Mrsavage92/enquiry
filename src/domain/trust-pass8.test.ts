@@ -252,16 +252,16 @@ test("3: two people against a flat price is asked, never priced as one", () => {
     facts: base as never,
     messageText: message,
   });
-  const flag = open.coverage?.flagged.find((f) => f.kind === "headcount");
+  const flag = open.coverage?.flagged.find((f) => f.check?.kind === "headcount");
   assert.equal(flag?.text, "They mention 2 people - your gel manicure price is per booking");
   assert.deepEqual(
-    flag?.choices?.map((c) => c[0]),
-    ["each", "one", "later"],
+    flag?.check?.choices.map((c) => c[0]),
+    ["apply", "waive"],
   );
   assert.equal(open.coverage?.confirmed, false);
   const each = decideEnquiry(brain, {
     serviceLabel: "Gel manicure",
-    facts: [...base, { field: flag!.thing!, value: "each", status: "confirmed" }] as never,
+    facts: [...base, { field: flag!.thing!, value: "apply", status: "confirmed" }] as never,
     messageText: message,
   });
   assert.equal(each.price.kind === "EXACT" ? each.price.amountMinor : 0, 11000);
