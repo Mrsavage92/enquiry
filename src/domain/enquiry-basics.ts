@@ -1,6 +1,7 @@
 import { format } from "date-fns";
 import { enAU } from "date-fns/locale";
 import { wallNow } from "./format";
+import { fixedEventNear } from "./fixed-event.ts";
 
 /**
  * The things almost every pasted enquiry states plainly: who is asking, how to
@@ -28,6 +29,10 @@ export type JobDateRead = {
    * volunteer a date nobody asked about.
    */
   asked: boolean;
+  /** What the day is for, when it is not a plain job day. */
+  role?: DateRole;
+  /** The event or deadline it is about: "wedding", "settlement". */
+  what?: string;
 };
 
 /**
@@ -53,8 +58,20 @@ export type DateIssue = {
   actualDay?: string;
 };
 
-/** A day written beside a move-out, an inspection, the keys: context, not the job. */
-export type ContextDate = JobDateRead & { what: string };
+/**
+ * What a day is for. `job` is the day they want the work; `deadline` the day
+ * it must be done by ("the day before settlement (29/10)", "fri 16th b4
+ * inspection"); `event` a day that cannot move (the wedding the makeup is
+ * for); `trial` a separate appointment before it; `context` a day about
+ * something else (the inspection, settlement, the keys).
+ */
+export type DateRole = "job" | "deadline" | "event" | "trial" | "context";
+
+/**
+ * A day written beside a move-out, an inspection, the keys, a trial: never the
+ * job date. `to` is set for a stretch ("a trial in December").
+ */
+export type ContextDate = JobDateRead & { what: string; role?: DateRole; to?: string };
 
 export type DateReading = {
   jobDate?: JobDateRead;
@@ -627,10 +644,96 @@ function readOffered(
 const WEEK_OF_BEFORE =
   /\b(?:week|weekend|fortnight)\s+(?:of|starting|beginning|commencing)\s+(?:the\s+)?$/i;
 
+/** "vacate clean", "move out clean": the job itself, never a day about something else. */
+const CONTEXT_IS_THE_JOB = /^\s*(?:clean|cleaning|cleans)\b/i;
+/** A request after the context word makes the day the job's own: "settlement is 30/10 so we need ...". */
+const JOB_REQUEST = /\b(?:need|needs|want|wants|book|booking|have it|get it|like it)\b/i;
+/** "... fri 16th before the inspection": the day is before the context, so it is the job's. */
+const BEFORE_CONTEXT = /\b(?:before|prior to|ahead of)\s+(?:the\s+|my\s+|our\s+|their\s+)?$/i;
+
 function contextOf(before: string, after: string): string | undefined {
-  const all = [...before.matchAll(new RegExp(CONTEXT_WORDS.source, "gi"))];
-  const nearest = all[all.length - 1] ?? CONTEXT_WORDS.exec(after.slice(0, 25));
-  return nearest?.[1]?.toLowerCase();
+  const all = [...before.matchAll(new RegExp(CONTEXT_WORDS.source, "gi"))].filter(
+    (m) => !CONTEXT_IS_THE_JOB.test(before.slice((m.index ?? 0) + m[0].length)),
+  );
+  const last = all[all.length - 1];
+  if (last) {
+    const rest = before.slice((last.index ?? 0) + last[0].length);
+    if (!JOB_REQUEST.test(rest)) return last[1]!.toLowerCase();
+    return undefined;
+  }
+  const head = after.slice(0, 25);
+  const ahead = CONTEXT_WORDS.exec(head);
+  if (!ahead) return undefined;
+  if (CONTEXT_IS_THE_JOB.test(head.slice(ahead.index + ahead[0].length))) return undefined;
+  if (BEFORE_CONTEXT.test(head.slice(0, ahead.index))) return undefined;
+  return ahead[1]!.toLowerCase();
+}
+
+/** "before inspection sat", "before the settlement on Friday": the context day after a job day. */
+const FOLLOWING_CONTEXT = new RegExp(
+  String.raw`^\s*[,(]?\s*(?:before|prior to|ahead of)\s+(?:the\s+|my\s+|our\s+|their\s+)?(${CONTEXT_WORDS.source.slice(3, -3)})(?:\s+(?:is\s+|on\s+)?(?:(?:this|next)\s+)?${WEEKDAY_WORD}\b)?`,
+  "i",
+);
+
+/** "trial" in the clause before the day: a separate appointment, never the job day. */
+const TRIAL_BEFORE = /\btrials?\b[^.!?\n]{0,40}$/i;
+/** "by", "before", "the day before (": the job must be done by this day. */
+const DEADLINE_CUE =
+  /\b(?:by|before|no later than|prior to|ahead of)\s+(?:the\s+)?\(?\s*$|\bthe\s+day\s+before\s*\(?\s*$/i;
+
+type Classified = { role: DateRole; what?: string };
+
+/** What a plain day is for: a trial, the fixed event, the day it must be done by, or the job. */
+function classify(text: string, hitIndex: number, span: string, before: string): Classified {
+  const sentenceStart =
+    Math.max(
+      text.lastIndexOf(".", hitIndex - 1),
+      text.lastIndexOf("!", hitIndex - 1),
+      text.lastIndexOf("?", hitIndex - 1),
+      text.lastIndexOf("\n", hitIndex - 1),
+    ) + 1;
+  const lead = text.slice(sentenceStart, hitIndex);
+  if (TRIAL_BEFORE.test(lead)) return { role: "trial", what: "trial" };
+  const event = fixedEventNear(text, span);
+  if (event && event !== "deadline") return { role: "event", what: event };
+  if (event === "deadline") {
+    const sentence = sentenceAt(text, hitIndex);
+    const word = [...sentence.matchAll(new RegExp(CONTEXT_WORDS.source, "gi"))]
+      .map((m) => m[1]!.toLowerCase())
+      .find((w) => !/^vacat/.test(w));
+    return { role: "deadline", ...(word ? { what: word } : {}) };
+  }
+  if (DEADLINE_CUE.test(before)) return { role: "deadline" };
+  return { role: "job" };
+}
+
+/** "a trial in December": a month, read as that whole month the next time it comes round. */
+const MONTH_MENTION = new RegExp(
+  String.raw`\b(?:in|during|early|mid|late|sometime in|around)\s+${MONTH}\b(?!\s*\d)`,
+  "gi",
+);
+
+function trialMonths(text: string, today: Date): ContextDate[] {
+  const out: ContextDate[] = [];
+  for (const m of text.matchAll(MONTH_MENTION)) {
+    const index = m.index ?? 0;
+    const sentence = sentenceAt(text, index);
+    if (!/\btrials?\b/i.test(sentence)) continue;
+    const month = monthIndex(m[1]!);
+    if (month === undefined) continue;
+    const year = month >= today.getMonth() ? today.getFullYear() : today.getFullYear() + 1;
+    const from = new Date(year, month, 1);
+    const to = new Date(year, month + 1, 0);
+    const read = readOf(from, m[0].trim(), asksAboutDate(text, index));
+    out.push({
+      ...read,
+      label: format(from, "MMMM", { locale: enAU }),
+      to: readOf(to, "", false).iso,
+      role: "trial",
+      what: "trial",
+    });
+  }
+  return out;
 }
 
 /** "between 12 and 16 October", "from the 2nd to the 9th of November". */
@@ -779,10 +882,22 @@ function readTomorrow(text: string, today: Date): JobDateRead | undefined {
   const { before, after } = clauseAround(text, index, m[0].length);
   if (contextOf(before, after) || DATE_NEGATED.test(sentenceAt(text, index))) return undefined;
   const date = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1);
-  const part = m[1] ? ` ${m[1].toLowerCase()}` : "";
-  const span = `tomorrow${part} (${format(date, "EEEE d MMMM", { locale: enAU })})`;
+  // Stored as the day itself, never "tomorrow": a reply sent after midnight
+  // would otherwise name the wrong day.
+  const part = m[1] ? DAY_PART[m[1].toLowerCase()] : undefined;
+  const span = `${format(date, "EEEE d MMMM", { locale: enAU })}${part ? ` (${part})` : ""}`;
   return readOf(date, span, true);
 }
+
+const DAY_PART: Record<string, string> = {
+  morning: "morning",
+  am: "morning",
+  arvo: "afternoon",
+  afternoon: "afternoon",
+  pm: "afternoon",
+  evening: "evening",
+  night: "evening",
+};
 
 /** "keys on the 1st": a day of the month beside a move or the keys, read in the window's month. */
 const CONTEXT_DAY = new RegExp(
@@ -809,7 +924,13 @@ function contextDays(text: string, today: Date, window: DateReading["window"]): 
   return out;
 }
 
-export function readDates(text: string, now = new Date(), tz = "Australia/Brisbane"): DateReading {
+export function readDates(
+  written: string,
+  now = new Date(),
+  tz = "Australia/Brisbane",
+): DateReading {
+  // "b4 inspection" is "before inspection": same words, read the same way.
+  const text = written.replace(/\bb4\b/gi, "before");
   const today = wallNow(now, tz);
   const reading: DateReading = { unavailable: [], context: [], asap: asksForAsap(text) };
   const plain: (JobDateRead & { dated: boolean })[] = [];
@@ -876,7 +997,11 @@ export function readDates(text: string, now = new Date(), tz = "Australia/Brisba
     // "we move out Mon 5 Oct", "inspection on the 7th": about something else.
     const context = contextOf(before, after);
     if (context && resolved.kind === "date") {
-      reading.context.push({ ...readOf(resolved.date, span, false), what: context });
+      reading.context.push({
+        ...readOf(resolved.date, span, false),
+        what: context,
+        role: "context",
+      });
       continue;
     }
     // "Last clean was on 3 Sept": history, not a request. It is never the job
@@ -913,16 +1038,45 @@ export function readDates(text: string, now = new Date(), tz = "Australia/Brisba
       };
       continue;
     }
+    const read = readOf(resolved.date, span, asksAboutDate(text, hit.index));
+    const kind = classify(text, hit.index, span, before);
+    // "Also can you do a trial on 24 October?": the trial's own day, never the job's.
+    if (kind.role === "trial") {
+      reading.context.push({ ...read, what: "trial", role: "trial" });
+      continue;
+    }
     plain.push({
-      ...readOf(resolved.date, span, asksAboutDate(text, hit.index)),
+      ...read,
+      ...(kind.role !== "job" ? { role: kind.role } : {}),
+      ...(kind.what ? { what: kind.what } : {}),
       dated: hit.day > 0,
     });
+    // "need it done fri 16th before inspection sat": the inspection is its own day.
+    const following = FOLLOWING_CONTEXT.exec(after);
+    if (following && kind.role !== "job") {
+      const weekday = following[2] ? weekdayIndex(following[2]) : undefined;
+      if (weekday !== undefined) {
+        const gap = (weekday - resolved.date.getDay() + 7) % 7 || 7;
+        const day = new Date(
+          resolved.date.getFullYear(),
+          resolved.date.getMonth(),
+          resolved.date.getDate() + gap,
+        );
+        reading.context.push({
+          ...readOf(day, following[0].trim(), false),
+          what: following[1]!.toLowerCase(),
+          role: "context",
+        });
+      }
+    }
   }
-  // The day they asked for wins over a day they only mentioned, and a written
-  // date ("the 18th of December") over a bare weekday; otherwise the first
-  // plain date written is the one the customer led with. Two days offered
-  // means neither is the job date.
+  // The fixed event the job is for (the wedding), then the day it must be done
+  // by, then the day they asked for over a day they only mentioned, and a
+  // written date ("the 18th of December") over a bare weekday; otherwise the
+  // first plain date written. Two days offered means neither is the job date.
   const pick =
+    plain.find((d) => d.role === "event") ??
+    plain.find((d) => d.role === "deadline") ??
     plain.find((d) => d.asked && d.dated) ??
     plain.find((d) => d.asked) ??
     plain.find((d) => d.dated) ??
@@ -932,6 +1086,14 @@ export function readDates(text: string, now = new Date(), tz = "Australia/Brisba
     const { dated: _dated, ...jobDate } = pick;
     reading.jobDate = jobDate;
   }
+  // Every other day they wrote is still said back, never silently dropped.
+  for (const d of plain) {
+    if (d === pick && reading.jobDate) continue;
+    if (reading.jobDate?.iso === d.iso) continue;
+    const { dated: _dated, role, what, ...other } = d;
+    reading.context.push({ ...other, what: what ?? "", role: role ?? "job" });
+  }
+  reading.context.push(...trialMonths(text, today));
   if (weekdays.preference && !soon?.two) reading.preference = weekdays.preference;
   if (!reading.jobDate && !reading.options && !reading.window && !reading.issue) {
     const tomorrow = readTomorrow(text, today);

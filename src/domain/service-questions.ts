@@ -36,7 +36,28 @@ export type ServiceQuestion = {
   span: string;
   /** Read as "No" because the business said it does not offer it. */
   notOffered: boolean;
+  /**
+   * Asked for without a question ("get the outside of the house painted")
+   * and the owner said they don't do it: read as No for them to confirm, so
+   * the reply says so rather than passing over it.
+   */
+  requested?: true;
 };
+
+/** A sentence that turns something down or is about the past: never a request. */
+const NOT_ASKED =
+  /\b(?:no(?!\s+idea)|not(?!\s+(?:sure|certain))|don'?t(?!\s+know)|do not(?!\s+know)|doesn'?t|without|except|skip|already|came|did|was|were|had|last (?:week|time|month|year)|ago|previously)\b/i;
+
+/** The sentence that asks for a thing the owner said they don't do, or null. */
+function requestSentence(text: string, service: string): string | null {
+  for (const raw of text.split(/(?<=[.!?\n])/)) {
+    const sentence = raw.trim();
+    if (!sentence || !namesService(sentence, service)) continue;
+    if (NOT_ASKED.test(sentence)) continue;
+    return sentence.length > 140 ? `${sentence.slice(0, 137).trimEnd()}...` : sentence;
+  }
+  return null;
+}
 
 const ASKS = [
   /\b(?:do|would|could|can|will)\s+(?:you|u|ya)\s+(?:guys\s+)?(?:also\s+)?(?:do|offer|provide|handle|remove|fix|clean|paint|treat)\s+(?:any\s+)?([a-z][a-z0-9' -]{2,60}?)\s*(\?|\.|,|!|$|\s+(?:as well|too|at all|also)\b)/gi,
@@ -99,6 +120,14 @@ export function readServiceQuestions(
         notOffered: notOfferedMatch(thing, details),
       });
     }
+  }
+  for (const d of details) {
+    if (d.kind !== "not_offered") continue;
+    const thing = d.service.trim().toLowerCase();
+    if (out.some((q) => namesService(q.thing, thing) || namesService(thing, q.thing))) continue;
+    const span = requestSentence(text, d.service);
+    if (!span) continue;
+    out.push({ thing, span: span.replace(/\s+/g, " "), notOffered: true, requested: true });
   }
   return out;
 }

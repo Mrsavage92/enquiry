@@ -6,6 +6,8 @@ import { dateQuestion, type DateIssue } from "./enquiry-basics.ts";
 import { countOf, countParts, howMany, humanField, isOwnerEstimate } from "./count-phrase.ts";
 import { SERVICE_NOUNS } from "./extras.ts";
 import { closedRangeCovers, closedRangeReason, type ClosedRange } from "./business-detail.ts";
+import type { DateRole } from "./enquiry-basics.ts";
+import type { DateMention } from "./date-roles.ts";
 
 export { humanField, howMany };
 
@@ -62,11 +64,27 @@ export type ReplyContext = {
    * the reply's line about the day, never a second "I'll confirm" beside it.
    */
   dateAnswered?: boolean;
+  /** What that answer leaves open: a No on every day asks what suits, a "come back" confirms later. */
+  dateAnswerClose?: DateClose;
   /**
    * The day is for something that cannot move - a wedding, a formal, a
    * funeral, a deadline: the reply never offers another day for it.
    */
   fixedEvent?: string;
+  /** What the job's day is for: the day it must be done by, or the event itself. */
+  jobDateRole?: DateRole;
+  /** The deadline's reason ("settlement", "inspection") or the event ("wedding"). */
+  jobDateWhat?: string;
+  /**
+   * Every other day they wrote: the trial, the inspection, a second day. Each
+   * gets its own true sentence, never silently passed over.
+   */
+  otherDates?: DateMention[];
+  /**
+   * Weekdays that cost more (a weekend surcharge): a day offered instead is
+   * never one of these without saying so.
+   */
+  surchargeDays?: readonly number[];
 };
 
 /**
@@ -112,11 +130,29 @@ export function nextWorkingDay(iso: string, closed: ClosedTimes | undefined): st
   return null;
 }
 
-/** "Would Monday 12 October suit instead?", or asking them for another day. */
-function offerInstead(iso: string, closed: ClosedTimes | undefined): string {
-  const next = nextWorkingDay(iso, closed);
-  const day = next ? spokenDate(next) : null;
-  return day ? `Would ${day} suit instead?` : "What other day would suit you?";
+/**
+ * Another day to look at, never presented as free: nothing checks the
+ * calendar, so the owner confirms it. A day that costs more (a weekend
+ * surcharge) is skipped for one that does not, within a week; when every day
+ * near it costs more, the reply says so rather than offering it quietly.
+ */
+function offerInstead(
+  iso: string,
+  closed: ClosedTimes | undefined,
+  surchargeDays: readonly number[] = [],
+): string {
+  const first = nextWorkingDay(iso, closed);
+  if (!first) return "What other day would suit you?";
+  let pick = first;
+  for (let i = 0; i < 7 && surchargeDays.includes(dateOf(pick)!.getDay()); i += 1) {
+    const next = nextWorkingDay(pick, closed);
+    if (!next) break;
+    pick = next;
+  }
+  const day = spokenDate(pick)!;
+  const costsMore = surchargeDays.includes(dateOf(pick)!.getDay());
+  const note = costsMore ? ` (${DAY_NAMES[dateOf(pick)!.getDay()]} jobs cost more)` : "";
+  return `If another day suits, I could look at ${day}${note} - I'll confirm it's free.`;
 }
 
 /** "2026-10-03" -> "Saturday 3 October", or null for anything else. */
@@ -185,36 +221,202 @@ export function dateLine(iso: string | undefined, span?: string, confirmed = tru
   if (confirmed || !span?.trim()) {
     return confirmed ? `I'll confirm whether ${day} works.` : null;
   }
-  return `You mentioned ${spokenSpan(span)} - I'll confirm whether that works.`;
+  return `You mentioned ${daySaid(span, iso)} - I'll confirm whether that works.`;
 }
 
-/** The one date sentence a reply carries, if any. */
-function dateSentence(opts: ReplyContext): string | null {
-  if (opts.dateAnswered) return null;
-  if (opts.dateIssue) return dateQuestion(opts.dateIssue, opts.asap);
+/** "today", "tmrw", "this sat": words that name a different day once time passes. */
+const RELATIVE =
+  /\b(?:today|tonight|tomorrow|tmrw|tmr|tomoz|2moro|this|next|coming|arvo)\b|\bweek(?:end)?\b/i;
+const HAS_MONTH = /\b(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\b/i;
+
+/**
+ * Their words for a day when those words name it for good ("24 October",
+ * "Saturday 3 October"); the day itself otherwise ("Saturday 3 October" for
+ * "this sat 3rd", "Thursday 1 October" for "tmrw"), so a reply sent later
+ * never names the wrong day.
+ */
+function daySaid(span: string | undefined, iso: string | undefined): string {
+  const words = (span ?? "").trim();
+  const day = spokenDate(iso);
+  if (!words) return day ?? "";
+  if (day && (RELATIVE.test(words) || !HAS_MONTH.test(words))) {
+    const part = /\((morning|afternoon|evening)\)/i.exec(words)?.[1];
+    return part ? `${day} (${part.toLowerCase()})` : day;
+  }
+  return spokenSpan(words);
+}
+
+/**
+ * What the reply's date lines leave open. `closed`: a day they asked for is
+ * one the owner does not work, so the close asks what date suits. `unconfirmed`:
+ * a day the owner still has to confirm, so the close never implies it is booked.
+ */
+export type DateClose = "closed" | "unconfirmed";
+type DateTalk = { lines: string[]; close?: DateClose };
+
+function worst(a: DateClose | undefined, b: DateClose | undefined): DateClose | undefined {
+  if (a === "closed" || b === "closed") return "closed";
+  return a ?? b;
+}
+
+/** "the inspection", "settlement", "the keys". */
+function theThing(what: string): string {
+  const w = what.trim().toLowerCase();
+  if (!w) return "";
+  if (/^(?:settlement|handover|vacate|vacating|moving out|move out)$/.test(w)) return w;
+  return `the ${w}`;
+}
+
+/** "your lease ends on Thursday 1 October", "the inspection is on Saturday 17 October". */
+function contextSaid(what: string, day: string): string {
+  const w = what.trim().toLowerCase();
+  if (/^lease\s+(?:ends?|finishes|is\s+up)$/.test(w)) return `your lease ends on ${day}`;
+  if (/^(?:moving out|move[sd]? out|moving|vacate|vacating)$/.test(w)) {
+    return `you're moving out on ${day}`;
+  }
+  if (/^move in$/.test(w)) return `you're moving in on ${day}`;
+  if (/^keys?$/.test(w)) return `the keys are due on ${day}`;
+  if (/^(?:real estate|hand(?:ing)? over)$/.test(w)) return `the handover is on ${day}`;
+  if (w && !/^inspect(?:ed|ing)$/.test(w)) return `${theThing(w)} is on ${day}`;
+  if (w) return `the inspection is on ${day}`;
+  return `you mentioned ${day}`;
+}
+
+/** Every date line a reply carries, and what its close may say. */
+function dateTalk(opts: ReplyContext): DateTalk {
+  const others = [...(opts.otherDates ?? [])];
+  const main = mainDateTalk(opts, others);
+  const rest = others.map((d) => otherDateTalk(d, opts));
+  return {
+    lines: [...main.lines, ...rest.flatMap((r) => r.lines)],
+    close: rest.reduce<DateClose | undefined>((c, r) => worst(c, r.close), main.close),
+  };
+}
+
+/**
+ * The job's own day: a problem asked about, two days offered, a day they
+ * don't work, the day it must be done by, or the day itself. A context day
+ * that follows it ("before the inspection on Saturday 17 October") is folded
+ * in and taken out of `others`.
+ */
+function mainDateTalk(opts: ReplyContext, others: DateMention[]): DateTalk {
+  if (opts.dateAnswered) return { lines: [], close: opts.dateAnswerClose };
+  if (opts.dateIssue) {
+    return { lines: [dateQuestion(opts.dateIssue, opts.asap)], close: "closed" };
+  }
   if (opts.dateOptions?.trim()) return optionsSentence(opts.dateOptions, opts);
   const closedLine = closedDaySentence(opts);
-  if (closedLine) return closedLine;
-  const line = dateLine(
-    opts.jobDateIso,
-    opts.jobDateSpan,
-    opts.jobDateConfirmed ?? !opts.jobDateSpan,
-  );
-  if (line) return line;
-  if (opts.asap) return "I'll let you know the soonest day I can do it.";
+  if (closedLine) return { lines: [closedLine], close: "closed" };
+  const iso = opts.jobDateIso ?? opts.mentionedDateIso;
+  const day = spokenDate(iso);
+  if (iso && day) {
+    // A day with none of their words is one the owner gave: stated as such.
+    const confirmed = opts.jobDateConfirmed ?? !(opts.jobDateSpan ?? opts.mentionedDateSpan);
+    const reason = foldContext(iso, opts.jobDateWhat, others);
+    if (opts.jobDateRole === "deadline") {
+      return {
+        lines: [
+          `I understand you need it done by ${day}${reason} - I'll confirm whether that works.`,
+        ],
+        close: "unconfirmed",
+      };
+    }
+    if (opts.jobDateRole === "event" && opts.jobDateWhat) {
+      return {
+        lines: [
+          `You mentioned ${day} for ${theThing(opts.jobDateWhat)} - I'll confirm whether that works.`,
+        ],
+        close: "unconfirmed",
+      };
+    }
+    if (confirmed) return { lines: [`I'll confirm whether ${day} works.`], close: "unconfirmed" };
+    const said = daySaid(opts.jobDateSpan ?? opts.mentionedDateSpan, iso);
+    return {
+      lines: [`You mentioned ${said}${reason} - I'll confirm whether that works.`],
+      close: "unconfirmed",
+    };
+  }
+  if (opts.asap) {
+    return { lines: ["I'll let you know the soonest day I can do it."], close: "unconfirmed" };
+  }
   if (opts.approxSpan?.trim()) {
     const span = spokenSpan(opts.approxSpan);
-    return /\b(?:week|fortnight|month|days|between|from)\b/i.test(span)
-      ? `You mentioned ${span} - I'll confirm which day works.`
-      : `You mentioned ${span} - I'll confirm whether that works.`;
+    return {
+      lines: [
+        /\b(?:week|fortnight|month|days|between|from)\b/i.test(span)
+          ? `You mentioned ${span} - I'll confirm which day works.`
+          : `You mentioned ${span} - I'll confirm whether that works.`,
+      ],
+      close: "unconfirmed",
+    };
   }
   return preferenceSentence(opts);
 }
 
 /**
+ * ", before the inspection on Saturday 17 October": the context day just after
+ * the job's own, named in the same sentence and taken out of the others.
+ */
+function foldContext(iso: string, what: string | undefined, others: DateMention[]): string {
+  const at = others.findIndex(
+    (d) =>
+      d.role === "context" &&
+      !d.to &&
+      d.iso > iso &&
+      (!what || !d.what || d.what.toLowerCase() === what.toLowerCase()),
+  );
+  if (at === -1) return "";
+  const d = others[at]!;
+  others.splice(at, 1);
+  return `, before ${beforeSaid(d.what)} on ${spokenDate(d.iso)}`;
+}
+
+/** "you move out", "your lease ends", "the inspection". */
+function beforeSaid(what: string): string {
+  const w = what.trim().toLowerCase();
+  if (/^lease\s+(?:ends?|finishes|is\s+up)$/.test(w)) return "your lease ends";
+  if (/^(?:moving out|move[sd]? out|moving|vacate|vacating)$/.test(w)) return "you move out";
+  if (/^move in$/.test(w)) return "you move in";
+  if (/^keys?$/.test(w)) return "the keys are due";
+  if (/^inspect(?:ed|ing)$/.test(w)) return "the inspection";
+  return theThing(w) || "that";
+}
+
+/** One sentence for a day that is not the job's: the trial, the inspection, a second day. */
+function otherDateTalk(d: DateMention, opts: ReplyContext): DateTalk {
+  const day = spokenDate(d.iso);
+  if (!day) return { lines: [] };
+  if (d.to) {
+    // "a trial in December": a whole month, with any days in it they don't work.
+    const range = (opts.closed?.ranges ?? []).find(
+      (r) => closedRangeCovers(d.iso, r) || closedRangeCovers(d.to!, r),
+    );
+    const month = d.label;
+    const lead = d.what ? `For ${theThing(d.what)} in ${month}` : `For ${month}`;
+    return range
+      ? {
+          lines: [`${lead}, I'll confirm which day works - ${closedRangeReason(range)}.`],
+          close: "unconfirmed",
+        }
+      : { lines: [`${lead}, I'll confirm which day works.`], close: "unconfirmed" };
+  }
+  const reason = closedReason(d.iso, opts.closed);
+  if (d.role === "context") {
+    const said = contextSaid(d.what, day);
+    return { lines: [`I understand ${said} - I'll work around that.`] };
+  }
+  const lead =
+    d.role === "trial" || (d.what && d.role !== "job")
+      ? `For ${theThing(d.what || "trial")}, you mentioned ${day}`
+      : `You also mentioned ${day}`;
+  if (reason) return { lines: [`${lead} - ${reason}.`], close: "closed" };
+  return { lines: [`${lead} - I'll confirm whether that works.`], close: "unconfirmed" };
+}
+
+/**
  * A day they asked for that the owner said they don't work: said plainly, with
- * the next day they do. Only for a day read from the message - a day the owner
- * confirmed is the owner's call.
+ * a day to look at instead. Only for a day read from the message - a day the
+ * owner confirmed is the owner's call.
  */
 function closedDaySentence(opts: ReplyContext): string | null {
   if (opts.jobDateConfirmed) return null;
@@ -223,52 +425,84 @@ function closedDaySentence(opts: ReplyContext): string | null {
   const reason = closedReason(iso, opts.closed);
   if (!reason) return null;
   const span = opts.jobDateIso ? opts.jobDateSpan : opts.mentionedDateSpan;
-  const said = span?.trim() ? spokenSpan(span) : spokenDate(iso);
+  const said = daySaid(span, iso);
   // A wedding or a formal cannot move to Monday: say the day is taken and
   // ask, never offer another day.
-  if (opts.fixedEvent) return fixedDaySentence(said ?? iso, [iso]);
-  return `You mentioned ${said} - ${reason}. ${offerInstead(iso, opts.closed)}`;
+  if (opts.fixedEvent) return fixedDaySentence(said || iso, [iso], opts.fixedEvent);
+  return `You mentioned ${said} - ${reason}. ${offerInstead(iso, opts.closed, opts.surchargeDays)}`;
 }
 
-/** "You mentioned 19 December - I'm sorry, I'm not available on Saturday 19 December. Is there any flexibility on the date?" */
-function fixedDaySentence(said: string, isos: string[]): string {
+/** "You mentioned Sunday 8 November - I'm sorry, I'm not available on Sunday 8 November. Is there any flexibility on the date?" */
+function fixedDaySentence(said: string, isos: string[], event?: string): string {
   const days = isos.map((iso) => spokenDate(iso)).filter(Boolean);
   const which = days.length > 1 ? `${days.slice(0, -1).join(", ")} or ${days.at(-1)}` : days[0];
+  // A deadline can come earlier; an event day cannot move at all.
+  if (event === "deadline") {
+    return `You mentioned ${said} - I'm sorry, I'm not available on ${which}. Could it be done on an earlier day?`;
+  }
   return `You mentioned ${said} - I'm sorry, I'm not available on ${which}. Is there any flexibility on the date?`;
 }
 
 /** Two days offered, the first preferred: a closed one is said, the other offered. */
-function optionsSentence(span: string, opts: ReplyContext): string {
+function optionsSentence(span: string, opts: ReplyContext): DateTalk {
   const said = spokenSpan(span);
   const [first, second] = opts.dateOptionIsos ?? [];
   const firstClosed = first ? closedReason(first, opts.closed) : null;
   const secondClosed = second ? closedReason(second, opts.closed) : null;
   if (!first || !second || (!firstClosed && !secondClosed)) {
-    return `You mentioned ${said} - I'll confirm which day works.`;
+    return {
+      lines: [`You mentioned ${said} - I'll confirm which day works.`],
+      close: "unconfirmed",
+    };
   }
   if (firstClosed && !secondClosed) {
-    return `You mentioned ${said} - ${firstClosed}, so would ${spokenDate(second)} suit?`;
+    return {
+      lines: [
+        `You mentioned ${said} - ${firstClosed}, so I'll confirm whether ${spokenDate(second)} works.`,
+      ],
+      close: "unconfirmed",
+    };
   }
   if (!firstClosed) {
-    return `You mentioned ${said} - I'll confirm whether ${spokenDate(first)} works.`;
+    return {
+      lines: [
+        `You mentioned ${said} - I'll confirm whether ${spokenDate(first)} works. ${secondClosed![0]!.toUpperCase()}${secondClosed!.slice(1)}.`,
+      ],
+      close: "unconfirmed",
+    };
   }
-  if (opts.fixedEvent) return fixedDaySentence(said, [first, second]);
+  if (opts.fixedEvent) {
+    return { lines: [fixedDaySentence(said, [first, second], opts.fixedEvent)], close: "closed" };
+  }
   const reasons = [...new Set([firstClosed, secondClosed])].join(" and ");
-  return `You mentioned ${said} - ${reasons}. ${offerInstead(first, opts.closed)}`;
+  return {
+    lines: [
+      `You mentioned ${said} - ${reasons}. ${offerInstead(first, opts.closed, opts.surchargeDays)}`,
+    ],
+    close: "closed",
+  };
 }
 
 /** "tuesdays pref": a preference, never a date. A closed day in it is said plainly. */
-function preferenceSentence(opts: ReplyContext): string | null {
+function preferenceSentence(opts: ReplyContext): DateTalk {
   const pref = opts.dayPreference?.trim();
-  if (!pref) return null;
+  if (!pref) return { lines: [] };
   const closedNames = DAY_NAMES.filter((name, i) => {
     if (!(opts.closed?.days ?? []).includes(i)) return false;
     return new RegExp(String.raw`\b${name}`, "i").test(pref);
   });
   if (closedNames.length > 0) {
-    return `You mentioned you'd prefer ${pref} - I don't work ${closedNames.map((n) => `${n}s`).join(" or ")}, so I'll let you know which days I can do.`;
+    return {
+      lines: [
+        `You mentioned you'd prefer ${pref} - I don't work ${closedNames.map((n) => `${n}s`).join(" or ")}, so I'll let you know which days I can do.`,
+      ],
+      close: "closed",
+    };
   }
-  return `You mentioned you'd prefer ${pref} - I'll confirm which day I can do.`;
+  return {
+    lines: [`You mentioned you'd prefer ${pref} - I'll confirm which day I can do.`],
+    close: "unconfirmed",
+  };
 }
 
 /** "120 square metres", "1 bedroom": a count said the way a person says it. */
@@ -398,6 +632,17 @@ function notesBlock(decision: Decision): string[] {
  * day they asked about is still the owner's to confirm.
  */
 const CLOSE = "Just let me know if you'd like to go ahead.";
+/** A day they asked for is one the owner does not work: the close never says "go ahead". */
+export const CLOSE_CLOSED_DAY = "Let me know what date suits and I'll confirm.";
+/** A day the owner still has to confirm: going ahead never books it. */
+export const CLOSE_UNCONFIRMED_DAY =
+  "Just let me know if you'd like to go ahead and I'll confirm the day.";
+
+function closeFor(close: DateClose | undefined): string {
+  if (close === "closed") return CLOSE_CLOSED_DAY;
+  if (close === "unconfirmed") return CLOSE_UNCONFIRMED_DAY;
+  return CLOSE;
+}
 
 /**
  * Write the reply the owner will actually send.
@@ -417,8 +662,8 @@ export function composeReply(decision: Decision, opts: ReplyContext = {}): strin
   const who = (opts.customerName ?? "").trim();
   const first = /^(\S+\s+(?:&|and)\s+\S+)/.exec(who)?.[1] ?? who.split(/\s+/)[0] ?? "";
   const greeting = first ? `Hi ${first},` : "Hi there,";
-  const date = dateSentence(opts);
-  const dateBlock = date ? [date, ""] : [];
+  const date = dateTalk(opts);
+  const dateBlock = date.lines.length ? [...date.lines, ""] : [];
   const signOff = opts.ownerFirstName?.trim() ? `Thanks,\n${opts.ownerFirstName.trim()}` : "Thanks";
   const service = (opts.serviceLabel ?? "").trim();
   const hello = opts.followUp ? "Thanks for your message." : "Thanks for getting in touch.";
@@ -446,7 +691,7 @@ export function composeReply(decision: Decision, opts: ReplyContext = {}): strin
       "",
       ...notesBlock(decision),
       ...dateBlock,
-      CLOSE,
+      closeFor(date.close),
       "",
       signOff,
     ].join("\n");

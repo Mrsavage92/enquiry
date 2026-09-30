@@ -308,8 +308,15 @@ test("repro 3: a conditional price is never on the total, and the day asked for 
     /For the end of lease clean \(3 bedrooms\) and the oven clean, that comes to \$665:/,
   );
   assert.match(body, /I haven't included the windows in this price\./);
-  assert.match(body, /You mentioned Saturday 3rd - I'll confirm whether that works\./);
-  assert.doesNotMatch(body, /lock it in|Monday 5|Wednesday 7|\$761/i);
+  // Every day they wrote is said truly: the job's day, what it comes before,
+  // and the inspection as theirs - never a day the owner offers to work.
+  assert.match(
+    body,
+    /You mentioned Saturday 3 October, before you move out on Monday 5 October - I'll confirm whether that works\./,
+  );
+  assert.match(body, /I understand the inspection is on Wednesday 7 October/);
+  assert.doesNotMatch(body, /confirm whether Monday|confirm whether Wednesday/);
+  assert.doesNotMatch(body, /lock it in|\$761/i);
 });
 
 // Repro 4 (Priya): a fortnightly clean was quoted "all up" -----------------

@@ -2,6 +2,7 @@ import type { Sql } from "../db.ts";
 import { COVERAGE_FIELD, unsettledFlags, type CoverageFlag } from "../../domain/coverage.ts";
 import { applyDecision, isClosed, lockEnquiry } from "./decision-apply.ts";
 import { requireEnquiryAccess } from "./tenancy.server.ts";
+import { openAsked, type AskedItem } from "../../domain/asked.ts";
 
 /**
  * "That's everything": the owner confirming what a price covers, as pure SQL
@@ -34,14 +35,32 @@ export async function confirmCoverageInTransaction(
   if (!locked || isClosed(locked.lifecycle)) {
     return { ok: false, businessId, reason: "closed", message: "That enquiry is closed." };
   }
-  const [row] = await tx<{ key: string | null; flagged: CoverageFlag[] | null }>`
+  const [row] = await tx<{
+    key: string | null;
+    flagged: CoverageFlag[] | null;
+    asked: AskedItem[] | null;
+  }>`
     select decision_snapshot -> 'coverage' ->> 'key' as key,
-      decision_snapshot -> 'coverage' -> 'flagged' as flagged
+      decision_snapshot -> 'coverage' -> 'flagged' as flagged,
+      decision_snapshot -> 'asked' as asked
     from enquiry where id = ${enquiryId}
   `;
   const stored = row?.key ?? "";
   if (!stored || stored !== input.key || locked.decisionRevision !== input.revision) {
     return { ok: false, businessId, reason: "changed", message: CHANGED };
+  }
+  // Everything they asked for or about has an answer, a "leave it out" or a
+  // "come back": "That's everything" is never said over one still open.
+  const unasked = openAsked(row?.asked ?? []).filter(
+    (i) => i.kind !== "service" && i.kind !== "date",
+  );
+  if (unasked.length > 0) {
+    return {
+      ok: false,
+      businessId,
+      reason: "unsettled",
+      message: `Settle what they asked first: ${unasked.map((i) => i.text).join(", ")}.`,
+    };
   }
   const open = unsettledFlags(row?.flagged ?? []);
   if (open.length > 0) {

@@ -118,6 +118,8 @@ type Snap = {
     when?: string;
     saved?: string;
     readAs?: string;
+    said?: string;
+    thing: string;
   };
   coverage?: {
     key: string;
@@ -435,11 +437,14 @@ test("7a Graham: exterior painting he asked for is declined kindly, the interior
     "Interior painting",
   );
   await confirmReadings(pg, "user-a", e.enquiryId);
+  // Asked for without a question: read as No from the owner's own rule, and
+  // settled before any price is ready, so the reply can never pass over it.
   const open = await row(pg, e.enquiryId);
-  const flag = open.decision_snapshot.coverage?.flagged.find((f) => f.kind === "not_offered");
-  assert.equal(flag?.text, "You don't paint exteriors - they asked about it");
-  assert.equal((await confirmCoverage(pg, "user-a", e.enquiryId)).ok, false, "blocking");
-  await answer(pg, "user-a", e.enquiryId, questionField(flag!.thing!), "no");
+  const asked = open.decision_snapshot.questionPending;
+  assert.equal(asked?.readAs, "no");
+  assert.equal(asked?.said, "You don't paint exteriors");
+  assert.equal(open.decision_snapshot.coverage, undefined, "nothing to confirm yet");
+  await answer(pg, "user-a", e.enquiryId, questionField(asked!.thing), "no");
   assert.equal((await confirmCoverage(pg, "user-a", e.enquiryId)).ok, true);
   const body = (await row(pg, e.enquiryId)).decision_snapshot.draft.body;
   assert.match(body, /Sorry, I don't paint exteriors\./);

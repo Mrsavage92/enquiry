@@ -47,6 +47,11 @@ export type FeeDetail = {
   /** The owner's own words, shown back exactly. */
   text: string;
   service?: string;
+  /**
+   * "Weekend jobs have a $50 surcharge": only on these weekdays (0 is
+   * Sunday). Without it the fee concerns every quote.
+   */
+  days?: number[];
 };
 /** "Exterior painting only if single storey": when a job qualifies at all. */
 export type EligibilityDetail = {
@@ -193,7 +198,24 @@ function parseMoneyRule(
     if (amount === null || !label || !words) {
       return { ok: false, reason: "A fee needs an amount and what it is for." };
     }
-    return { ok: true, detail: { kind: "fee", amount, label, text: words, ...withService } };
+    const days = Array.isArray(r.days) ? r.days : [];
+    const valid = [...new Set(days)].filter(
+      (d): d is number => typeof d === "number" && Number.isInteger(d) && d >= 0 && d <= 6,
+    );
+    if (valid.length !== days.length || valid.length === 7) {
+      return { ok: false, reason: "Say which days the fee is for." };
+    }
+    return {
+      ok: true,
+      detail: {
+        kind: "fee",
+        amount,
+        label,
+        text: words,
+        ...withService,
+        ...(valid.length ? { days: valid.sort((a, b) => a - b) } : {}),
+      },
+    };
   }
   if (r.kind === "eligibility") {
     const condition = text(r.condition);
@@ -479,6 +501,16 @@ export function closedTimesOf(details: readonly BusinessDetail[]): {
       : [],
   );
   return { days, ranges };
+}
+
+/** Weekdays a job costs more on: a percentage surcharge or a fee for those days. */
+export function surchargeDaysOf(details: readonly BusinessDetail[]): number[] {
+  const out = new Set<number>();
+  for (const d of details) {
+    if (d.kind === "surcharge") d.days.forEach((n) => out.add(n));
+    if (d.kind === "fee") (d.days ?? []).forEach((n) => out.add(n));
+  }
+  return [...out].sort((a, b) => a - b);
 }
 
 /** Every day the business does not work, from its closed-days details. */

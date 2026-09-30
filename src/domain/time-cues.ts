@@ -1,3 +1,4 @@
+import { ROLE_LABEL } from "./date-roles.ts";
 import { format } from "date-fns";
 import { enAU } from "date-fns/locale";
 import { addCalendarDays, dayKeyFromDate, startOfDay, wallNow } from "./format";
@@ -66,8 +67,10 @@ export function statusChip(enquiry: Enquiry, now = new Date(), tz = DEFAULT_ZONE
 export function jobDateCue(enquiry: Pick<Enquiry, "dateLabel" | "facts">): string {
   const label = enquiry.dateLabel?.trim();
   if (!label) return "";
-  // A preference ("Prefers Tuesdays") is never a date: shown as it is.
-  if (/^Prefers /.test(label)) return label;
+  // A preference ("Prefers Tuesdays") is never a date, and a day that says
+  // what it is for ("Deadline Thu 29 Oct", "Wedding Sun 8 Nov") is not a day
+  // they asked for: both are shown as they are.
+  if (/^Prefers /.test(label) || ROLE_LABEL.test(label)) return label;
   const date = (enquiry.facts ?? []).find(
     (f) => !f.superseded && f.field.trim().toLowerCase() === "date",
   );

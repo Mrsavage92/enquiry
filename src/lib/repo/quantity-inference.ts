@@ -30,6 +30,9 @@ export type LiveFact = {
   date_span?: string | null;
   /** For a date fact: a day that has passed or disagrees (provenance.issue). */
   date_issue?: unknown;
+  /** For a date fact: what the day is for (provenance.role, provenance.what). */
+  date_role?: string | null;
+  date_what?: string | null;
 };
 
 export type InboundBody = { id: string; body: string };
@@ -171,7 +174,7 @@ export async function inferQuestions(
           (enquiry_id, field, label, value, display_value, status, confidence,
            asserted_by, provenance, customer_specific)
         values (
-          ${enquiryId}, ${field}, ${`They asked if you do ${q.thing}`}, ${value}, ${q.span},
+          ${enquiryId}, ${field}, ${q.requested ? `They asked for ${q.thing}` : `They asked if you do ${q.thing}`}, ${value}, ${q.span},
           ${"inferred"}, ${"Medium"}, ${"system"},
           ${JSON.stringify({
             kind: "message",
