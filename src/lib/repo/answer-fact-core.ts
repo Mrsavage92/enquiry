@@ -21,6 +21,13 @@ import {
 } from "../../domain/customer-asks.ts";
 import { closedReason } from "../../domain/compose-reply.ts";
 import {
+  CLOSED_DAY_CHOICE,
+  DATE_CHECK_CHOICE,
+  isClosedDayField,
+  isDateCheckField,
+  sweepChoiceProblem,
+} from "../../domain/date-sweep.ts";
+import {
   activeDetails,
   closedTimesOf,
   describeDetail,
@@ -82,6 +89,16 @@ function displayFor(field: string, value: string): string {
   if (isQuestionField(field)) {
     if (value === QUESTION_ANSWER.later) return "You'll come back to them on it";
     return value === QUESTION_ANSWER.yes ? "Yes - you do this" : "No - you don't do this";
+  }
+  if (isClosedDayField(field)) {
+    return value === CLOSED_DAY_CHOICE.available
+      ? "You can do that day - the reply does not say otherwise"
+      : "Not available - the reply says so";
+  }
+  if (isDateCheckField(field)) {
+    return value === DATE_CHECK_CHOICE.confirm
+      ? "The reply says you'll confirm which day works"
+      : "Not a date - nothing about it goes in the reply";
   }
   if (isAskField(field)) {
     if (value === ASK_CHOICE.later) return "You'll come back to them on it";
@@ -237,6 +254,9 @@ export async function answerFactForUser(
   if (isRuleField(input.field) && !isRuleChoice(value)) {
     throw new Error("Choose whether your rule applies to this job.");
   }
+  // A day the date sweep caught: the owner's word, one of two, never a date typed here.
+  const sweepProblem = sweepChoiceProblem(input.field, value);
+  if (sweepProblem) throw new Error(sweepProblem);
   if (isCountChoiceField(input.field) && !isCountChoice(value)) {
     throw new Error("Choose per person, one price for the booking, or come back to them.");
   }

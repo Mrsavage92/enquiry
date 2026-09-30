@@ -21,7 +21,7 @@ const VOICE: VoiceProfile = {
   bullets: false,
   signOff: "Thanks,\nDana",
   preferredPhrases: [],
-} as VoiceProfile;
+} as unknown as VoiceProfile;
 
 test("1: a greeting changed only by a confirmed name is not the owner changing their voice", () => {
   const prepared = "Hi Mel,\n\nThanks for getting in touch.\n\nThanks,\nDana";

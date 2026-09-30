@@ -931,7 +931,11 @@ function readThisNext(
   const first = weekdayIndex(m[1]!);
   if (first === undefined) return undefined;
   const start = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-  const ahead = (first - start.getDay() + 7) % 7 || 7;
+  // "this Thursday" is the coming one; "next Thursday" is the one after it
+  // (on Wednesday 30 September: Thursday 1 and Thursday 8 October). The same
+  // rule the date sweep uses (date-sweep.ts).
+  const after = /^next\b/i.test(m[0]) ? 7 : 0;
+  const ahead = ((first - start.getDay() + 7) % 7 || 7) + after;
   const a = new Date(start.getFullYear(), start.getMonth(), start.getDate() + ahead);
   const span = m[0].replace(/\s+/g, " ").trim();
   const asked = asksAboutDate(text, index);
@@ -1076,6 +1080,15 @@ export function readDates(
     }
     // "away until 3 October": a boundary, not the day they want.
     if (boundary && /\b(?:away|not|busy|unavailable)\b|n't\b/i.test(before)) continue;
+    // "the week of 9 Nov": a week, quoted back in their words, never the 9th alone.
+    const weekOf = WEEK_OF_BEFORE.exec(before);
+    if (weekOf && resolved.kind === "date") {
+      const the = /\bthe\s+$/i.test(before.slice(0, weekOf.index)) ? "the " : "";
+      reading.approx ??= {
+        span: `${the}${weekOf[0].trim()} ${written}`.replace(/\s+/g, " "),
+      };
+      continue;
+    }
     // "we move out Mon 5 Oct", "inspection on the 7th": about something else.
     const context = contextOf(before, after);
     if (context && resolved.kind === "date") {
@@ -1207,7 +1220,7 @@ export function readDates(
   }
   if (!reading.jobDate && !reading.options && !reading.window && !reading.issue) {
     const approx = approxAsk(text);
-    if (approx) reading.approx = approx;
+    if (approx) reading.approx ??= approx;
   }
   if (exceptDays.length) reading.exceptDays = exceptDays;
   // A date problem makes the day doubtful; the owner settles it rather than

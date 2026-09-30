@@ -63,7 +63,7 @@ import { distinctiveStems, mentionsAny, namesService, stemsOf } from "./service-
 import { sameCountWords } from "./quantity-reader.ts";
 import { applyHeadcount } from "./headcount.ts";
 import { contextMentions } from "./date-roles.ts";
-import { askedLedger, checkCount, openAsked, type AskedItem } from "./asked.ts";
+import { askedLedger, checkCount, holdingItems, type AskedItem } from "./asked.ts";
 
 /** One priced line of a quote with more than one thing on it. */
 export type QuoteLine = {
@@ -352,10 +352,10 @@ export function decideEnquiry(
 function withLedger(
   decided: Decision,
   facts: ReadonlyArray<DecideFact>,
-  enquiry: { serviceLabel?: string | null },
+  enquiry: { serviceLabel?: string | null; reply?: ReplyContext },
 ): Decision {
-  const asked = askedLedger(decided, facts, enquiry.serviceLabel ?? "");
-  const open = openAsked(asked).filter((i) => i.kind !== "service" && i.kind !== "date");
+  const asked = askedLedger(decided, facts, enquiry.serviceLabel ?? "", enquiry.reply);
+  const open = holdingItems(asked);
   const flags = decided.coverage ? unsettledFlags(decided.coverage.flagged).length : 0;
   const checks = checkCount(facts, open.length + flags + (decided.blocker?.inferred ? 1 : 0));
   const coverage =

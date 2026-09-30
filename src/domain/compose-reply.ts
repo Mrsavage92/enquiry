@@ -85,6 +85,16 @@ export type ReplyContext = {
    * never one of these without saying so.
    */
   surchargeDays?: readonly number[];
+  /**
+   * Days the date sweep read (date-sweep.ts) that fall on a day the owner
+   * doesn't work and that no other line says: a day they need is said as not
+   * available (`say`); a day about something else only once the owner says so.
+   */
+  sweptClosed?: { iso: string; span: string; say: boolean }[];
+  /** Date-like words Enquiry could not read that the owner said to confirm. */
+  sweptUnread?: string[];
+  /** A swept day or fragment the owner has not settled: the close never says "go ahead". */
+  sweptOpen?: boolean;
 };
 
 /**
@@ -286,11 +296,44 @@ function contextSaid(what: string, day: string): string {
 function dateTalk(opts: ReplyContext): DateTalk {
   const others = [...(opts.otherDates ?? [])];
   const main = mainDateTalk(opts, others);
-  const rest = others.map((d) => otherDateTalk(d, opts));
+  const rest = [...others.map((d) => otherDateTalk(d, opts)), sweptTalk(opts)];
   return {
     lines: [...main.lines, ...rest.flatMap((r) => r.lines)],
     close: rest.reduce<DateClose | undefined>((c, r) => worst(c, r.close), main.close),
   };
+}
+
+/** "Sunday 27 or Monday 28 December", "Saturday 26 December". */
+function daysSaid(isos: readonly string[]): string {
+  const days = [...isos].sort().map((iso) => dateOf(iso)!);
+  const sameMonth = days.every((d) => d.getMonth() === days[0]!.getMonth());
+  const said = days.map((d, i) =>
+    format(d, sameMonth && i < days.length - 1 ? "EEEE d" : "EEEE d MMMM", { locale: enAU }),
+  );
+  return said.length <= 1 ? (said[0] ?? "") : `${said.slice(0, -1).join(", ")} or ${said.at(-1)}`;
+}
+
+/**
+ * The days only the date sweep caught: a closed day they need, said as not
+ * available in their words; a fragment the owner said to confirm. Anything
+ * still waiting on the owner keeps "go ahead" out of the close.
+ */
+function sweptTalk(opts: ReplyContext): DateTalk {
+  const lines: string[] = [];
+  let close: DateClose | undefined = opts.sweptOpen ? "unconfirmed" : undefined;
+  const say = (opts.sweptClosed ?? []).filter((d) => d.say);
+  const spans = [...new Set(say.map((d) => d.span))];
+  for (const span of spans) {
+    const isos = say.filter((d) => d.span === span).map((d) => d.iso);
+    lines.push(`You mentioned ${spokenSpan(span)} - I'm sorry, I'm not available on ${daysSaid(isos)}.`);
+    close = "closed";
+  }
+  if ((opts.sweptClosed ?? []).some((d) => !d.say)) close = worst(close, "unconfirmed");
+  for (const words of opts.sweptUnread ?? []) {
+    lines.push(`You mentioned ${spokenSpan(words)} - I'll confirm which day works.`);
+    close = worst(close, "unconfirmed");
+  }
+  return { lines, close };
 }
 
 /**
@@ -429,15 +472,15 @@ function otherDateTalk(d: DateMention, opts: ReplyContext): DateTalk {
   }
   const reason = closedReason(d.iso, opts.closed);
   // Another day's event ("the wedding is Saturday 24 October" beside a
-  // makeup job the day before): theirs, said as theirs, never booked.
+  // makeup job the day before) or a day about something else ("your lease
+  // ends on Sunday 27 December"): theirs, said as theirs, never promised
+  // around. Nothing checks a calendar, so the job's day is still the owner's
+  // to confirm.
   if (d.role === "context" || d.role === "event") {
     const said = contextSaid(d.what, day);
     return {
-      lines: [
-        d.role === "event"
-          ? `I understand ${said}.`
-          : `I understand ${said} - I'll work around that.`,
-      ],
+      lines: [`I understand ${said}.`],
+      ...(d.role === "context" ? { close: "unconfirmed" as const } : {}),
     };
   }
   const lead =

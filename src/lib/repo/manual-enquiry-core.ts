@@ -6,6 +6,7 @@ import { snapshotFromDecision, stateFromDecision } from "../../domain/decision-s
 import { applyDecision, isClosed, lockEnquiry } from "./decision-apply.ts";
 import type { EnquiryInterpreter, InterpretFailureReason } from "../interpret/types.ts";
 import { readEnquiryBasics, type DateReading } from "../../domain/enquiry-basics.ts";
+import { DATE_SWEEP_FIELD, sweepDates, sweepValue, sweptLabel } from "../../domain/date-sweep.ts";
 import { blockedQuantity, findQuantityInMessages, newExtraRequests } from "./quantity-inference.ts";
 import {
   APPROX_VALUE,
@@ -133,6 +134,18 @@ export async function insertManualEnquiry(
   // Every reading goes in before the decision: what the price covers is
   // fingerprinted over all of them, so the first decision already knows them.
   facts.push(...dateFacts(basics.dates));
+  // Every day they mention, whatever it is for, against the same clock: a
+  // closed day the reader tagged "not the job date" is still caught.
+  const sweep = sweepDates(input.body, input.now ?? new Date());
+  if (sweep.days.length || sweep.unread.length) {
+    const said = [
+      ...sweep.days.map((d) => sweptLabel(d.iso)),
+      ...sweep.unread.map((u) => `"${u}" (not read)`),
+    ].join(", ");
+    facts.push(
+      readFact(DATE_SWEEP_FIELD, sweepValue(sweep), `Days they mention: ${said}`, said, "Days they mention"),
+    );
+  }
   if (!typedName && basics.customerName) {
     facts.push(readFact("name", basics.customerName, basics.customerName, basics.customerName));
   }
@@ -311,8 +324,10 @@ export function modelFactsToKeep<T extends { field: string }>(
     // Questions they asked, a headcount choice and the days around the job are
     // read from their words by rule, never planted by a model: each one would
     // hold the reply until the owner answered it.
-    if (OWNER_ONLY_FIELDS.has(field) || /^(?:rule|ask|count):/.test(field)) return false;
-    if (field === "date_context") return false;
+    if (OWNER_ONLY_FIELDS.has(field) || /^(?:rule|ask|count|closed_day|date_check):/.test(field)) {
+      return false;
+    }
+    if (field === "date_context" || field === DATE_SWEEP_FIELD) return false;
     const isExtra = field.startsWith("extra:");
     const isQuestion = field.startsWith("question:");
     if (!isExtra && !isQuestion) return true;

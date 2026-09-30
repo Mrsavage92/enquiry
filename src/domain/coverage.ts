@@ -424,7 +424,7 @@ export function coverageFlags(input: {
  */
 export function isInternalFact(field: string): boolean {
   const f = field.trim().toLowerCase();
-  return f === COVERAGE_FIELD || f === "practice_price";
+  return f === COVERAGE_FIELD || f === "practice_price" || f === "date_sweep";
 }
 
 /** Flags the owner has to settle one by one before the price can be confirmed. */

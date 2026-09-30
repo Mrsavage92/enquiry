@@ -1,6 +1,6 @@
 import { mentionWords, roleLabel, type DateMention } from "@/domain/date-roles";
 import { jobDateCue, leadMention } from "@/domain/time-cues";
-import type { AskedItem, AskedStatus } from "@/domain/asked";
+import { holdingItems, type AskedItem, type AskedStatus } from "@/domain/asked";
 import type { Enquiry } from "@/domain/types";
 
 /**
@@ -94,15 +94,16 @@ export const ASKED_CHIP: Record<AskedStatus, { word: string; tone: "ok" | "neutr
   open: { word: "To settle", tone: "warn" },
 };
 
+/** A day they wrote that the owner doesn't work: the reply says so. */
+export const CLOSED_CHIP = { word: "Not available", tone: "neutral" as const };
+
 /**
  * What "That's everything" waits on from the ledger: the same items the server
  * refuses the confirmation over (the job itself and the days are never a
  * choice for the owner).
  */
 export function openAskedItems(items: readonly AskedItem[] | undefined): AskedItem[] {
-  return (items ?? []).filter(
-    (i) => i.status === "open" && i.kind !== "service" && i.kind !== "date",
-  );
+  return holdingItems(items ?? []);
 }
 
 /** A kept edit's changes, split for the notice: figures that moved, and lines it lacks. */

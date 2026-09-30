@@ -61,7 +61,7 @@ export function enableFollowUp(enquiry: Enquiry): Enquiry {
   next.decision.draft = {
     ...next.decision.draft,
     action: "FOLLOW_UP",
-    body: `Hi ${name},\n\nJust checking you still want this - the quote already sent stays as written. Happy to hold the date if so.\n\n`,
+    body: `Hi ${name},\n\nJust checking you still want this - the quote already sent stays as written. Let me know if you'd still like to go ahead and I'll confirm the day.\n\n`,
   };
   return next;
 }
