@@ -71,6 +71,16 @@ test("3: the sweep reads every day, whatever it is for, against the injected clo
     days.map((d) => d.iso),
     ["2026-10-01", "2026-10-08"],
   );
+  // Said on a Thursday, "next Thursday" is a week today, in the sweep and the reader alike.
+  const THU_1_OCT = new Date("2026-10-01T10:15:00+10:00");
+  assert.deepEqual(
+    sweepDates("Free next Thursday?", THU_1_OCT).days.map((d) => d.iso),
+    ["2026-10-08"],
+  );
+  assert.equal(
+    readEnquiryBasics("Could you come next Thursday? Liz", THU_1_OCT).jobDate?.iso,
+    "2026-10-08",
+  );
   const week = sweepDates("the week of 9 Nov if possible", WED_30_SEP).days[0]!;
   assert.equal(week.to, "2026-11-15");
   assert.equal(week.span, "the week of 9 Nov");

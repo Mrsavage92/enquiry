@@ -16,8 +16,9 @@ import { wallNow } from "./format.ts";
  *
  * Rules, stated once:
  *  - "this Thursday" / "coming Thursday" is the next Thursday after today;
- *    "next Thursday" is the one after that (on Wednesday 30 September 2026,
- *    Thursday 1 October and Thursday 8 October).
+ *    "next Thursday" is the Thursday of next week (on Wednesday 30 September
+ *    2026, Thursday 1 October and Thursday 8 October; said on Thursday 1
+ *    October, "next Thursday" is Thursday 8 October).
  *  - A bare weekday ("Sunday") is the next one after today.
  *  - "27th" with no month takes the month of the nearest date written with
  *    one ("settlement 28/12 ... 27th or 28th" is 27 December); with no month
@@ -280,8 +281,11 @@ function collect(text: string, today: Date): Token[] {
   for (const m of text.matchAll(THIS_NEXT)) {
     const weekday = weekdayIndex(m[2]!);
     if (weekday === -1) continue;
-    const first = upcoming(weekday, today);
-    const date = m[1]!.toLowerCase() === "next" ? plusDays(first, 7) : first;
+    // "next Thursday" is the Thursday of next week: a week today when said on a Thursday.
+    const date =
+      m[1]!.toLowerCase() === "next"
+        ? plusDays(today, ((weekday - today.getDay() + 7) % 7) + 7)
+        : upcoming(weekday, today);
     add({ index: m.index ?? 0, length: m[0].length, kind: "weekday", date });
   }
   for (const m of text.matchAll(WEEKDAY_ORDINAL)) {

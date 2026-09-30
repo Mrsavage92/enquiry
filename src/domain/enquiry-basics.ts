@@ -934,8 +934,9 @@ function readThisNext(
   // "this Thursday" is the coming one; "next Thursday" is the one after it
   // (on Wednesday 30 September: Thursday 1 and Thursday 8 October). The same
   // rule the date sweep uses (date-sweep.ts).
-  const after = /^next\b/i.test(m[0]) ? 7 : 0;
-  const ahead = ((first - start.getDay() + 7) % 7 || 7) + after;
+  // Said on that very weekday, "next Thursday" is a week today, not a fortnight.
+  const toFirst = (first - start.getDay() + 7) % 7;
+  const ahead = /^next\b/i.test(m[0]) ? toFirst + 7 : toFirst || 7;
   const a = new Date(start.getFullYear(), start.getMonth(), start.getDate() + ahead);
   const span = m[0].replace(/\s+/g, " ").trim();
   const asked = asksAboutDate(text, index);
