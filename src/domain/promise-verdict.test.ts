@@ -96,7 +96,7 @@ test("a closed wedding day is never 'Yes - reply ready': Not yet with nothing to
     ...ready,
     decision: { ...ready.decision, closedDay },
   });
-  const wedding = { label: "Bridal makeup", amountMinor: 25000, iso: "2026-11-08" };
+  const wedding = { label: "Bridal makeup", iso: "2026-11-08" };
   const nothing = withClosed({ days: ["2026-11-08"], held: [wedding], bookable: false });
   assert.equal(promiseVerdict(nothing).line, "Not yet - that day is a closed day");
   assert.equal(derivedLabel(nothing.state, nothing), STATUS.needsDetail);
@@ -105,8 +105,26 @@ test("a closed wedding day is never 'Yes - reply ready': Not yet with nothing to
   assert.equal(derivedLabel(trial.state, trial), STATUS.replyReady);
   const movable = withClosed({ days: ["2026-10-18"], held: [], bookable: true });
   assert.equal(promiseVerdict(movable).line, "Yes - reply ready, one date can't be done");
+  // Two closed days are two dates, and a date to check is still said beside them.
+  const two = withClosed({ days: ["2026-10-18", "2026-10-25"], held: [], bookable: true });
+  assert.equal(promiseVerdict(two).line, "Yes - reply ready, two dates can't be done");
+  const checked = {
+    ...two,
+    facts: [
+      { id: "d", field: "date", label: "date", value: "2026-10-18", status: "check_this" },
+    ] as Enquiry["facts"],
+  };
+  assert.equal(
+    promiseVerdict(checked).line,
+    "Yes - reply ready, two dates can't be done, one date to check",
+  );
+  // With nothing bookable the reply only asks about the date: Not yet, even
+  // though that reply can be sent.
+  const asking = { ...nothing, state: { ...nothing.state, decision: "NEEDS_INFORMATION" as const } };
+  assert.equal(promiseVerdict(asking).line, "Not yet - that day is a closed day");
+  assert.equal(derivedLabel(asking.state, asking), STATUS.needsDetail);
   // Every lifecycle and decision state still maps to one of the three words.
-  for (const e of [nothing, trial, movable]) {
+  for (const e of [nothing, trial, movable, two, checked]) {
     for (const lifecycle of LIFECYCLES) {
       for (const decision of DECISIONS) {
         const verdict = promiseVerdict({ ...e, state: { ...e.state, lifecycle, decision } });

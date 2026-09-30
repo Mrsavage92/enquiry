@@ -61,6 +61,7 @@ export const SETUP_REASON = {
 
 function recommendationLabel(decision: Decision): string {
   if (decision.questionPending) return questionStep(decision.questionPending).step;
+  if (decision.conflict) return "Settle what's on the quote";
   if (decision.coverage && !decision.coverage.confirmed)
     return "Check it covers everything they asked for";
   if (decision.extraPending?.kind === "no_price") {
@@ -69,7 +70,6 @@ function recommendationLabel(decision: Decision): string {
   if (decision.extraPending) {
     return `Add or leave out ${decision.extraPending.label.toLowerCase()}`;
   }
-  if (decision.conflict) return "Settle what's on the quote";
   if (decision.closedDay && !decision.closedDay.bookable) return "Ask if the date can move";
   if (decision.action === "SEND_QUOTE") return "Send the quote";
   if (decision.action === "DECLINE") return "Send the reply";
