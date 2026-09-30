@@ -214,6 +214,22 @@ export type Decision = {
    * message. A price per hour never takes a count of square metres.
    */
   countPeers?: string[];
+  /**
+   * A day they asked for is one the owner doesn't work. Set on a priced reply
+   * only (see `closed-day.ts`): lines for a wedding or a formal on that day are
+   * held out of the total and named as not included, and `bookable` says
+   * whether anything left on the quote can be done.
+   */
+  closedDay?: ClosedDay;
+};
+
+export type ClosedDay = {
+  /** The days, yyyy-mm-dd, the owner doesn't work. */
+  days: string[];
+  /** Lines held out of the total because their fixed day is closed. */
+  held: { label: string; amountMinor: number; iso: string }[];
+  /** Something on the quote can still be done (the trial), or the job can move. */
+  bookable: boolean;
 };
 
 /**
@@ -350,7 +366,10 @@ function decideCore(
   const primary = decidePrimary(rules, serviceLabel, facts);
   const knownServices = [...new Set(rules.map((r) => r.service))];
   const decided = primary.price.kind === "EXACT" ? decideExtras(rules, primary, facts) : primary;
-  const notes = replyNotesFrom(facts, details);
+  // What the quote prices: never also a thing the reply comes back on.
+  const priced =
+    decided.price.kind === "EXACT" ? [serviceLabel, ...linesOf(decided).map((l) => l.label)] : [];
+  const notes = replyNotesFrom(facts, details, priced);
   const withNotes = notes.length ? { ...decided, replyNotes: notes } : decided;
   const pending = pendingQuestion(facts);
   const rule = pending?.readAs
@@ -659,10 +678,32 @@ function questionExplanation(q: QuestionPending): string {
   return `They asked if you do ${q.thing}. Say yes or no and the reply answers it.`;
 }
 
-/** Answered questions and things the owner will come back on, in the order asked. */
+/** Work words every service shares: never enough to say two things are one. */
+const SHARED_WORK = new Set(["clean", "paint", "servi", "wash", "repai", "insta", "remov", "job"]);
+
+/**
+ * Whether the quote already prices this thing: "trial" beside a "Makeup trial"
+ * line. Every word of its own is one of the line's words.
+ */
+function onTheQuote(thing: string, priced: readonly string[]): boolean {
+  const own = stemsOf(thing).filter((s) => !SHARED_WORK.has(s));
+  if (own.length === 0) return false;
+  return priced.some((label) => {
+    const words = stemsOf(label);
+    return own.every((s) => words.includes(s));
+  });
+}
+
+/**
+ * Answered questions and things the owner will come back on, in the order
+ * asked. A thing the quote prices is never also one the reply "will come back
+ * to you" on: `priced` is every label on the quote, and a Yes or a come-back on
+ * one of them says nothing more (the price paragraph names it).
+ */
 function replyNotesFrom(
   facts: ReadonlyArray<DecideFact>,
   details: readonly BusinessDetail[] = [],
+  priced: readonly string[] = [],
 ): string[] {
   const out: string[] = [];
   const when = askWhen(facts);
@@ -674,14 +715,16 @@ function replyNotesFrom(
     }
     if (isQuestionField(f.field)) {
       const thing = questionThing(f.field);
+      const answer = String(f.value);
+      if (answer !== QUESTION_ANSWER.no && onTheQuote(thing, priced)) continue;
       const line =
-        String(f.value) === QUESTION_ANSWER.no
-          ? noLine(thing, details)
-          : questionReplyLine(thing, String(f.value));
+        answer === QUESTION_ANSWER.no ? noLine(thing, details) : questionReplyLine(thing, answer);
       if (line) out.push(line);
     }
     if (isExtraField(f.field) && String(f.value) === EXTRA_CHOICE.comeBack) {
-      out.push(`I'll come back to you on the ${extraLabel(f.field).toLowerCase()}.`);
+      const label = extraLabel(f.field);
+      if (onTheQuote(label, priced)) continue;
+      out.push(`I'll come back to you on the ${label.toLowerCase()}.`);
     }
   }
   return out;

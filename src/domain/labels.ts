@@ -180,6 +180,12 @@ export function promiseVerdict(enquiry: Enquiry): { word: PromiseWord; line: str
   if (isPricingStep(setup)) return v(PROMISE_WORDS.notYet, "your prices decide it");
   if (setup || needsOneDetail(enquiry)) return v(PROMISE_WORDS.notYet, "say which service");
   if (decision === "ACTION_READY") {
+    // A Sunday wedding the owner doesn't work is never "reply ready" as if it
+    // could be done: with nothing else to book it is Not yet; with the trial
+    // priced beside it, the reply is ready and says the one day can't be.
+    const closed = enquiry.decision?.closedDay;
+    if (closed && !closed.bookable) return v(PROMISE_WORDS.notYet, "that day is a closed day");
+    if (closed) return v(PROMISE_WORDS.yes, "reply ready, one date can't be done");
     // The reply asks about a day that has passed or does not match its weekday.
     const dateToCheck = (enquiry.facts ?? []).some(
       (f) =>
@@ -231,6 +237,10 @@ export function derivedLabel(
     return STATUS.needsDetail;
   }
   if (state.decision === "NEEDS_HUMAN") return STATUS.yourCall;
+  // The same word as the verdict: a wedding on a day the owner doesn't work,
+  // with nothing else to book, is "Not yet" on the chip too.
+  const closed = enquiry?.decision?.closedDay;
+  if (state.decision === "ACTION_READY" && closed && !closed.bookable) return STATUS.needsDetail;
   if (state.decision === "ACTION_READY") return STATUS.replyReady;
   return STATUS.open;
 }

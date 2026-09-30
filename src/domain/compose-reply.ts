@@ -620,9 +620,14 @@ function priceBlock(decision: Decision): string[] {
   // will confirm it - never stated as a firm price.
   const about = decision.approximate ? "about " : "";
   const hedge = decision.approximate ? ", I'll confirm once I've seen the job" : "";
+  // Everything on the quote is for a wedding day the owner doesn't work: the
+  // price is theirs to know, never a total for a day that can't be booked.
+  const held = decision.closedDay?.held ?? [];
+  const onlyOnAnotherDay = held.length > 0 && !decision.closedDay?.bookable;
+  const when = onlyOnAnotherDay ? " on a day I'm available" : "";
   const head = recurring
-    ? `For ${covered}, that's ${about}${total} per visit${hedge}`
-    : `For ${covered}, that comes to ${about}${total}${hedge}`;
+    ? `For ${covered}, that's ${about}${total} per visit${when}${hedge}`
+    : `For ${covered}, that comes to ${about}${total}${when}${hedge}`;
   const body =
     lines.length > 1
       ? [`${head}:`, ...itemised(lines, currency)]
@@ -633,7 +638,17 @@ function priceBlock(decision: Decision): string[] {
   const left = decision.leftOut?.length
     ? [`I haven't included ${joinLabels(decision.leftOut.map(withArticle))} in this price.`]
     : [];
-  const after = [...firstVisit, ...left];
+  // The trial is priced; the wedding day's work is named with its own price
+  // and said plainly not to be in the total, because that day can't be done.
+  const notIncluded =
+    held.length > 0 && !onlyOnAnotherDay
+      ? [
+          `I haven't included ${held
+            .map((h) => `the ${h.label.toLowerCase()} (${formatMinor(h.amountMinor, currency)})`)
+            .join(" or ")}, as I'm not available on ${spokenDate(held[0]!.iso)}.`,
+        ]
+      : [];
+  const after = [...firstVisit, ...left, ...notIncluded];
   return after.length ? [...body, "", ...after] : body;
 }
 

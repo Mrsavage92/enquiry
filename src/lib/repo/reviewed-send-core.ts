@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import type { Sql } from "../db.ts";
 import type { Channel, DecisionPrice, EvaluatorResult } from "../../domain/types.ts";
-import { dollarAmounts, unreadableMoney } from "../../domain/voice-detect.ts";
+import { dollarMatches, isNonPriceFigure, unreadableMoney } from "../../domain/voice-detect.ts";
 import { formatMinorAud } from "../../domain/money-format.ts";
 import { COVERAGE_FIELD } from "../../domain/coverage.ts";
 import { isClosed, lockEnquiry } from "./decision-apply.ts";
@@ -86,15 +86,20 @@ export type PrepareReviewResult =
       amounts?: { named: number[]; expectedMinor: number | null };
     };
 
-/** The figures in the text (in minor units) that the decision does not imply. */
 /**
  * The money a reply names that is about the job: every figure, less the ones
  * the owner typed themselves in an answer ("insured with $20m public
- * liability"), which are trusted as written and never read as a price.
+ * liability"), which are trusted as written and never read as a price, and
+ * less an insurance figure written anywhere ("We carry $90 million cover",
+ * "$2k excess"), read at its true value and never compared with the quote. A
+ * figure said as the total is always compared.
  */
 export function priceFigures(body: string, ownerMinor: readonly number[] = []): number[] {
   const own = new Set(ownerMinor);
-  return dollarAmounts(body).filter((n) => !own.has(Math.round(n * 100)));
+  return dollarMatches(body)
+    .filter((m) => !isNonPriceFigure(body, m))
+    .map((m) => m.amount)
+    .filter((n) => !own.has(Math.round(n * 100)));
 }
 
 export function mismatchAmounts(

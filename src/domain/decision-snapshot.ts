@@ -4,6 +4,7 @@ import { questionStep } from "./customer-asks.ts";
 import { decidingPhrase, impliedAmountsMinor } from "./price-compiler.ts";
 import { countParts, isOwnerEstimate } from "./count-phrase.ts";
 import { datesOnCard } from "./date-roles.ts";
+import { holdClosedDays } from "./closed-day.ts";
 import type { ReplyContext } from "./compose-reply.ts";
 import type {
   CommercialState,
@@ -86,8 +87,13 @@ function recommendationLabel(decision: Decision): string {
   return "Your call on this one";
 }
 
-/** How a live `Decision` reads in the desk's own vocabulary. */
-export function snapshotFromDecision(decision: Decision, who: ReplyContext = {}): DecisionSnapshot {
+/**
+ * How a live `Decision` reads in the desk's own vocabulary. A day they asked
+ * for that the owner doesn't work is applied first, so the reply, the price the
+ * send check holds it to and the verdict all say the same thing about it.
+ */
+export function snapshotFromDecision(decided: Decision, who: ReplyContext = {}): DecisionSnapshot {
+  const decision = holdClosedDays(decided, who);
   const base = emptyDecisionSnapshot();
   const recommendation: Recommendation = {
     action: decision.action,
@@ -123,6 +129,7 @@ export function snapshotFromDecision(decision: Decision, who: ReplyContext = {})
     ...(dates.length ? { dates } : {}),
     ...(decision.asked?.length ? { asked: decision.asked } : {}),
     ...(decision.checks ? { checks: decision.checks } : {}),
+    ...(decision.closedDay ? { closedDay: decision.closedDay } : {}),
     // Worked out from prices the owner confirmed, so the badge that says
     // "Low" would be telling them to doubt their own price list.
     confidence: decision.action === "ESCALATE_HUMAN" ? base.confidence : "High",

@@ -471,6 +471,13 @@ export type DecisionSnapshot = {
    * there are in all, so "Check 2 of 4" never restarts at 1.
    */
   checks?: { done: number; total: number };
+  /**
+   * A day they asked for is one the owner doesn't work, on a reply that is
+   * ready: which days, the work held out of the total for a wedding day that
+   * can't be done, and whether anything can be booked. The verdict reads it,
+   * so a Sunday wedding is never "Yes - reply ready" as if it could be done.
+   */
+  closedDay?: import("./decide.ts").ClosedDay;
 };
 
 export type WhyItem = {

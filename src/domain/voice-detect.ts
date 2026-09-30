@@ -9,7 +9,8 @@ export type VoiceProposal = {
   reason: string;
 };
 
-export type DollarMatch = { raw: string; amount: number; index: number };
+/** `scale` is the multiplier written after it: 1000 for "$2k", 1000000 for "$20m". */
+export type DollarMatch = { raw: string; amount: number; index: number; scale?: number };
 
 /**
  * Every way a message can name money: "$3,000", "$ 3000", "A$3000", "AU$3000",
@@ -20,7 +21,7 @@ export type DollarMatch = { raw: string; amount: number; index: number };
 const AMOUNT = String.raw`(\d{1,3}(?:,\d{3})+|\d+)(?:\.(\d{1,2}))?`;
 /** "$880", "A$880", "AUD 880", "USD 880", "$3.6k". */
 const PREFIXED = new RegExp(
-  String.raw`(?:\bAUD\s?\$|\bAU\$|\bA\$|\bUS\$|\bAUD\b|\bUSD\b|\$)\s?${AMOUNT}(\s?(?:k|m|mil|million|bn|b|billion)\b)?`,
+  String.raw`(?:\bAUD\s?\$|\bAU\$|\bA\$|\bUS\$|\bAUD\b|\bUSD\b|\$)\s?${AMOUNT}(\s?(?:k|thousand|m|mil|million|bn|b|billion)\b)?`,
   "gi",
 );
 /** "880 dollars", "880 AUD", "880AUD", "880$", "3k". */
@@ -38,28 +39,47 @@ const WRITTEN = new RegExp(String.raw`(${NUMBER_PHRASE})\s+(?:dollars?|bucks|aud
 
 type Hit = DollarMatch & { end: number };
 
+const SCALES: Record<string, number> = {
+  k: 1e3,
+  thousand: 1e3,
+  m: 1e6,
+  mil: 1e6,
+  million: 1e6,
+  b: 1e9,
+  bn: 1e9,
+  billion: 1e9,
+};
+
+function scaleOf(suffix: string): number {
+  return SCALES[suffix.trim().toLowerCase()] ?? 1;
+}
+
 function numberFrom(whole: string, cents: string | undefined, suffix: string): number {
   const base = Number(cents ? `${whole.replace(/,/g, "")}.${cents}` : whole.replace(/,/g, ""));
-  // "$2k", "$1.5m", "$20m": read with their multiplier, never as $2, $1.50 or $20.
-  const scale: Record<string, number> = {
-    k: 1e3,
-    m: 1e6,
-    mil: 1e6,
-    million: 1e6,
-    b: 1e9,
-    bn: 1e9,
-    billion: 1e9,
-  };
-  const by = scale[suffix.trim().toLowerCase()] ?? 1;
+  // "$2k", "$1.5m", "$20m", "$90 million": read with their multiplier, never
+  // as $2, $1.50, $20 or $90.
+  const by = scaleOf(suffix);
   return by === 1 ? base : Math.round(base * by * 100) / 100;
 }
 
 function hitsOf(text: string): Hit[] {
   const hits: Hit[] = [];
-  const push = (m: RegExpMatchArray, amount: number) =>
-    hits.push({ raw: m[0], amount, index: m.index ?? 0, end: (m.index ?? 0) + m[0].length });
-  for (const m of text.matchAll(PREFIXED)) push(m, numberFrom(m[1]!, m[2], m[3] ?? ""));
-  for (const m of text.matchAll(SUFFIXED)) push(m, numberFrom(m[1]!, m[2], m[3] ?? ""));
+  const push = (m: RegExpMatchArray, amount: number, suffix = "") => {
+    const scale = scaleOf(suffix);
+    hits.push({
+      raw: m[0],
+      amount,
+      index: m.index ?? 0,
+      end: (m.index ?? 0) + m[0].length,
+      ...(scale > 1 ? { scale } : {}),
+    });
+  };
+  for (const m of text.matchAll(PREFIXED)) {
+    push(m, numberFrom(m[1]!, m[2], m[3] ?? ""), m[3] ?? "");
+  }
+  for (const m of text.matchAll(SUFFIXED)) {
+    push(m, numberFrom(m[1]!, m[2], m[3] ?? ""), m[3] ?? "");
+  }
   for (const m of text.matchAll(TOTAL_WORDS)) {
     const at = m[0].search(/\d/);
     hits.push({
@@ -92,7 +112,37 @@ export function dollarMatches(text: string): DollarMatch[] {
     if (prev && h.index < prev.end) continue;
     out.push(h);
   }
-  return out.map(({ raw, amount, index }) => ({ raw, amount, index }));
+  return out.map(({ raw, amount, index, scale }) => ({
+    raw,
+    amount,
+    index,
+    ...(scale ? { scale } : {}),
+  }));
+}
+
+/** Said as a total: "comes to $2m", "total $1.5m", "that's $90 million all up". */
+const TOTAL_BEFORE =
+  /\b(?:comes?\s+to|came\s+to|total(?:\s+(?:of|is))?|price\s+(?:is|of)|costs?(?:\s+is)?|quote\s+(?:is|of)|that'?s|it'?s|will\s+be|would\s+be)\s*:?\s*$/i;
+const TOTAL_AFTER = /^\s*(?:all\s+up|in\s+total|total|for\s+(?:the|this|that)\s+(?:job|lot))\b/i;
+/** Insurance words right beside a figure: "$2k excess", "public liability of $20,000". */
+const COVER_AFTER =
+  /^\s*(?:of\s+)?(?:public\s+|product\s+)?(?:liability|cover|insurance|excess|indemnity)\b/i;
+const COVER_BEFORE =
+  /\b(?:liability|cover|insurance|insured|excess|indemnity)(?:\s+(?:of|up\s+to|to|for))?\s*:?\s*$/i;
+
+/**
+ * A figure the owner wrote that is not a price for the job: an insurance cover
+ * ("$20m public liability", "$90 million cover", "$1.5m") or an excess ("$2k
+ * excess"). A figure in the millions is never what a job costs; an amount beside
+ * an insurance word is about the insurance. Either one said as the total ("that
+ * comes to $2m") is still a price, and the send check compares it.
+ */
+export function isNonPriceFigure(text: string, m: DollarMatch): boolean {
+  const before = text.slice(Math.max(0, m.index - 30), m.index);
+  const after = text.slice(m.index + m.raw.length, m.index + m.raw.length + 40);
+  if (TOTAL_BEFORE.test(before) || TOTAL_AFTER.test(after)) return false;
+  if ((m.scale ?? 1) >= 1e6) return true;
+  return COVER_AFTER.test(after) || COVER_BEFORE.test(before);
 }
 
 /**
