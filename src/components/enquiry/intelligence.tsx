@@ -219,6 +219,7 @@ export function Intelligence({
   // An edit written before the facts moved: never dropped silently. The owner
   // sees it beside the new prepared reply and chooses.
   const staleEdit = usePrototype((s) => s.staleDrafts[enquiry.id]);
+  const draftBase = usePrototype((s) => s.draftBases?.[enquiry.id]);
   const staleChanges = usePrototype((s) => s.draftChanges[enquiry.id]);
   const resolveStaleDraft = usePrototype((s) => s.resolveStaleDraft);
   const showStaleEdit =
@@ -590,7 +591,9 @@ export function Intelligence({
                   variant="secondary"
                   onClick={() => {
                     resolveStaleDraft(enquiry.id);
-                    editDraft(enquiry.id, staleEdit!);
+                    // The kept edit is still based on the reply it was written
+                    // against, not the one prepared after the facts moved.
+                    editDraft(enquiry.id, staleEdit!, draftBase ?? staleEdit!);
                     setDraftOpen(true);
                   }}
                 >

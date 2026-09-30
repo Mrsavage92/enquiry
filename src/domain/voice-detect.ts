@@ -358,6 +358,21 @@ function greetingTemplate(
   return null;
 }
 
+/**
+ * A greeting with the customer's name, or the stand-in used before the name
+ * was known, read as the same greeting: "Hi there," and "Hi Mel," differ only
+ * because a name was confirmed, which is not the owner changing their voice.
+ */
+function greetingKey(line: string, firstName: string): string {
+  const escaped = firstName.trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const withName = escaped ? line.replace(new RegExp(`\\b${escaped}\\b`, "gi"), "{name}") : line;
+  return withName
+    .replace(/\bthere\b/gi, "{name}")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
+}
+
 export function detectVoiceEdit(
   original: string,
   edited: string,
@@ -376,7 +391,7 @@ export function detectVoiceEdit(
   let from = "";
   let to = "";
 
-  if (origG !== newG) {
+  if (origG !== newG && greetingKey(origG, firstName) !== greetingKey(newG, firstName)) {
     const parsed = greetingTemplate(newG, firstName);
     if (parsed && parsed.greeting !== voice.greeting) {
       patch.greeting = parsed.greeting;

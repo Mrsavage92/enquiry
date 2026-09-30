@@ -514,10 +514,12 @@ export async function prepareReviewedSendInTransaction(
   // response - resolve to the SAME artefact rather than a second one, and
   // `do update` rather than `do nothing` so the id comes back either way.
   //
-  // The existing row keeps its original decision_revision. That matters: an
-  // artefact prepared before the facts moved stays pinned to the decision it
-  // actually described, so confirming it is correctly seen as stale rather
-  // than quietly re-pointed at a newer amount.
+  // A row nobody has recorded yet is bound again to the decision it was just
+  // checked against: every rule above ran on THIS revision, so the same text
+  // is a fresh review now (an owner's kept edit after "Use this name" was
+  // otherwise refused as stale forever). An artefact that is not prepared
+  // again stays pinned to the revision it described, so confirming it after
+  // the facts moved is still stale. A recorded row is never re-pointed.
   const [row] = await sql<{
     id: string;
     consumed_at: string | null;
@@ -542,7 +544,21 @@ export async function prepareReviewedSendInTransaction(
       ${enq.engine_version ?? "0"}
     )
     on conflict (enquiry_id, body_hash)
-      do update set reviewed_by = excluded.reviewed_by
+      do update set
+        reviewed_by = excluded.reviewed_by,
+        decision_revision = case when reviewed_send.consumed_at is null then excluded.decision_revision else reviewed_send.decision_revision end,
+        action = case when reviewed_send.consumed_at is null then excluded.action else reviewed_send.action end,
+        channel = case when reviewed_send.consumed_at is null then excluded.channel else reviewed_send.channel end,
+        recipient = case when reviewed_send.consumed_at is null then excluded.recipient else reviewed_send.recipient end,
+        price_kind = case when reviewed_send.consumed_at is null then excluded.price_kind else reviewed_send.price_kind end,
+        amount_minor = case when reviewed_send.consumed_at is null then excluded.amount_minor else reviewed_send.amount_minor end,
+        range_min_minor = case when reviewed_send.consumed_at is null then excluded.range_min_minor else reviewed_send.range_min_minor end,
+        range_max_minor = case when reviewed_send.consumed_at is null then excluded.range_max_minor else reviewed_send.range_max_minor end,
+        currency = case when reviewed_send.consumed_at is null then excluded.currency else reviewed_send.currency end,
+        service_label = case when reviewed_send.consumed_at is null then excluded.service_label else reviewed_send.service_label end,
+        reason = case when reviewed_send.consumed_at is null then excluded.reason else reviewed_send.reason end,
+        evaluators = case when reviewed_send.consumed_at is null then excluded.evaluators else reviewed_send.evaluators end,
+        engine_version = case when reviewed_send.consumed_at is null then excluded.engine_version else reviewed_send.engine_version end
     returning id, consumed_at, decision_revision, amount_minor, currency
   `;
   if (!row) throw new Error("Could not prepare that send for review.");
