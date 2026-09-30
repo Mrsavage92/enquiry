@@ -55,11 +55,19 @@ const SMALL: Record<string, number> = { two: 2, three: 3, four: 4, five: 5, six:
 /** "for 2", "for two": how many are booking, when nothing else is counted. */
 const FOR_N =
   /\bfor\s+(\d{1,2}|two|three|four|five|six)\b(?!\s*(?:hours?|hrs?|h\b|rooms?|bed|bath|days?|weeks?|months?|m2|sqm|square|metres?|meters?|%|am\b|pm\b|:|\/|dollars?|bucks))/i;
+/** "me and my 2 kids", "myself + 3 friends": them and the others they count. */
+const ME_AND_N =
+  /\b(?:me|myself)\s+(?:and|&|\+|plus|n)\s+(?:my\s+|our\s+)?(\d{1,2}|two|three|four|five|six)\s+(?:kids|children|daughters|sons|girls|boys|friends|mates|sisters|brothers|bridesmaids|guests|others)\b/i;
 /** "4 of us live here": who lives there, not who is booked. */
 const LIVES_THERE = /^\s*(?:who\s+)?(?:live|living|stay|staying|in\s+the\s+house|here)\b/i;
 
 /** How many people they said there are, when it is more than one. */
 export function peopleIn(message: string): { n: number; span: string } | undefined {
+  const me = ME_AND_N.exec(message);
+  if (me) {
+    const n = (SMALL[me[1]!.toLowerCase()] ?? Number(me[1])) + 1;
+    if (n >= 2 && n <= 20) return { n, span: me[0] };
+  }
   const read = readQuantityFromMessage(message, "people", "person");
   if (read) {
     const at = message.indexOf(read.span);

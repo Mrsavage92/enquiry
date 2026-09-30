@@ -1,14 +1,15 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import type { PGlite } from "@electric-sql/pglite";
 import { ForbiddenError } from "./tenancy.server.ts";
 import { confirmCoverageForUser } from "./coverage-core.ts";
 import { loadOwnerState, saveReplyDraftForUser } from "./owner-state-core.ts";
 import { saveBusinessDetailsForUser } from "./business-rule-core.ts";
-import { prepareReviewedSendInTransaction } from "./reviewed-send-core.ts";
 import {
   WED_30_SEP,
   answer,
+  refusedForOther,
+  sendAs,
+  settle,
   enquiry,
   freshDb,
   row,
@@ -58,94 +59,6 @@ async function setup(t: { after: (fn: () => Promise<void>) => void }) {
   const b = await tenant(pg, "user-b", "Bravo");
   await tell(pg, a.businessId, BUSINESS);
   return { pg, a, b };
-}
-
-type Choice = {
-  /** Answers by fact field; a function of the pending question otherwise. */
-  answers?: Record<string, string>;
-  /** The choice for a rule check or a headcount, by the start of its text. */
-  checks?: [RegExp, string][];
-};
-
-/**
- * Drive one enquiry to "That's everything" the way the owner does, one step
- * at a time, recording the checks counter at each step. Stops when nothing
- * is left for the owner, or after 20 steps.
- */
-async function settle(pg: PGlite, enquiryId: string, choice: Choice = {}) {
-  const counters: { done: number; total: number }[] = [];
-  for (let i = 0; i < 20; i += 1) {
-    const s = (await row(pg, enquiryId)).decision_snapshot;
-    if (s.checks) counters.push(s.checks);
-    const q = s.questionPending;
-    if (q) {
-      const typed = choice.answers?.[q.field];
-      const value =
-        typed ??
-        (q.kind === "availability"
-          ? "later"
-          : q.kind === "ask"
-            ? (q.saved ?? "later")
-            : q.readAs === "no"
-              ? "no"
-              : "yes");
-      await answer(pg, "user-a", enquiryId, q.field, value);
-      continue;
-    }
-    const reading = s.missing.find((m) => m.inferred);
-    if (reading) {
-      await answer(pg, "user-a", enquiryId, reading.factField, reading.inferred!.value);
-      continue;
-    }
-    const typedCount = s.missing[0] && choice.answers?.[s.missing[0].factField];
-    if (typedCount) {
-      await answer(pg, "user-a", enquiryId, s.missing[0]!.factField, typedCount);
-      continue;
-    }
-    if (s.extraPending) {
-      const value =
-        choice.answers?.[s.extraPending.field] ??
-        (s.extraPending.kind === "check" ? "include" : "come_back");
-      await answer(pg, "user-a", enquiryId, s.extraPending.field, value);
-      continue;
-    }
-    const flag = (s.coverage?.flagged ?? []).find((f) => f.check);
-    if (flag && !s.coverage?.confirmed) {
-      const field = flag.check?.field ?? flag.thing!;
-      const picked = choice.checks?.find(([re]) => re.test(flag.text))?.[1];
-      await answer(pg, "user-a", enquiryId, field, picked ?? "waive");
-      continue;
-    }
-    // "They mention the garage": part of this price, the owner says.
-    const mention = (s.coverage?.flagged ?? []).find((f) => f.kind === "mention" && f.thing);
-    if (mention && !s.coverage?.confirmed) {
-      await answer(pg, "user-a", enquiryId, `extra:${mention.thing}`, "covered");
-      continue;
-    }
-    break;
-  }
-  return counters;
-}
-
-async function sendAs(pg: PGlite, businessId: string, enquiryId: string, body: string) {
-  return tx(pg, (sql) =>
-    prepareReviewedSendInTransaction(sql, {
-      enquiryId,
-      businessId,
-      userId: "user-a",
-      body,
-      channel: "manual",
-    }),
-  );
-}
-
-/** Another tenant's write is refused and moves nothing: not the snapshot, not the revision. */
-async function refusedForOther(pg: PGlite, enquiryId: string, field: string, value: string) {
-  const before = await row(pg, enquiryId);
-  await assert.rejects(answer(pg, "user-b", enquiryId, field, value), ForbiddenError);
-  const after = await row(pg, enquiryId);
-  assert.equal(after.decision_revision, before.decision_revision);
-  assert.deepEqual(after.decision_snapshot, before.decision_snapshot);
 }
 
 const NEVER_GO_AHEAD_WHEN_CLOSED =

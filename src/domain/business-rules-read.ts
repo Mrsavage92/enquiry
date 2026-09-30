@@ -49,6 +49,11 @@ const ALL_AMOUNTS = /\$\s?\d/g;
 const HAS_AMOUNT = /\$\s?\d/;
 const MIN_WORD = String.raw`min(?:imum)?(?:\s+(?:charge|job|fee|call[- ]?out|callout|price))?`;
 
+/** "Minimum charge $200 only for painting": the amount, then the service it is for. */
+const MIN_THEN_FOR = new RegExp(
+  String.raw`^\s*(?:(?:our|a|the|my)\s+)?${MIN_WORD}\s*(?:is|of|:|-|=)?\s*${AMOUNT}\s+(?:only\s+)?(?:for|on)\s+(.+?)\s*[.!]?\s*$`,
+  "i",
+);
 /** "..., minimum charge $450" after a price. */
 const TRAILING_MIN = new RegExp(
   String.raw`^(.*\$\s?\d[^$]*?)[,;]?\s*(?:with\s+(?:a\s+)?|and\s+(?:a\s+)?|but\s+(?:a\s+)?)?${MIN_WORD}\s*(?:of|is|:|-)?\s*${AMOUNT}\s*[.!]?\s*$`,
@@ -227,6 +232,13 @@ function readMinimum(line: string): RuleLineRead | null {
         { kind: "minimum_charge", amount: amountOf(first[2]!), ...(service ? { service } : {}) },
       ],
     };
+  }
+  const then = MIN_THEN_FOR.exec(scoped);
+  if (then) {
+    const service = serviceName(then[2]);
+    return service
+      ? { details: [{ kind: "minimum_charge", amount: amountOf(then[1]!), service }] }
+      : null;
   }
   const after = MIN_AFTER_SERVICE.exec(line);
   const service = serviceName(after?.[1]);

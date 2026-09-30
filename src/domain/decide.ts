@@ -740,12 +740,17 @@ function jobWeekdaysOf(facts: ReadonlyArray<DecideFact>): number[] {
   const preference = find("day_preference");
   if (preference) weekdaysSaid(String(preference.value ?? "")).forEach((d) => out.add(d));
   const context = find("date_context");
+  // An event beside a day of its own ("wedding Saturday, trial done by
+  // Friday") is when it happens, not when the work is; with no day of its own,
+  // the event's day may well be the work's.
+  const hasOwnDay = /^\d{4}-\d{2}-\d{2}/.test(value);
   if (context) {
     for (const m of contextMentions(
       String(context.value ?? ""),
       String(context.displayValue ?? ""),
     )) {
       if (m.to || m.role === "context") continue;
+      if (m.role === "event" && hasOwnDay) continue;
       out.add(new Date(`${m.iso}T00:00:00`).getDay());
     }
   }
