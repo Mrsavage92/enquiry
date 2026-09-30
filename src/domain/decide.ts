@@ -567,12 +567,7 @@ function onlyTheQuestions(
 /** The first question they asked that the owner has not answered. */
 function pendingQuestion(facts: ReadonlyArray<DecideFact>): QuestionPending | undefined {
   const open = facts.find(
-    (f) =>
-      isQuestionField(f.field) &&
-      !(
-        f.status === "confirmed" &&
-        questionSettled(f.value)
-      ),
+    (f) => isQuestionField(f.field) && !(f.status === "confirmed" && questionSettled(f.value)),
   );
   if (!open) return undefined;
   return {
@@ -746,7 +741,10 @@ function jobWeekdaysOf(facts: ReadonlyArray<DecideFact>): number[] {
   if (preference) weekdaysSaid(String(preference.value ?? "")).forEach((d) => out.add(d));
   const context = find("date_context");
   if (context) {
-    for (const m of contextMentions(String(context.value ?? ""), String(context.displayValue ?? ""))) {
+    for (const m of contextMentions(
+      String(context.value ?? ""),
+      String(context.displayValue ?? ""),
+    )) {
       if (m.to || m.role === "context") continue;
       out.add(new Date(`${m.iso}T00:00:00`).getDay());
     }
@@ -819,7 +817,21 @@ function withRuledLines(
     before.length === after.length &&
     before.every((l, i) => l.amountMinor === after[i]?.amountMinor && l.label === after[i]?.label);
   const notes = declined.length ? { replyNotes: [...(decided.replyNotes ?? []), ...declined] } : {};
-  if (same || decided.price.kind !== "EXACT") return { ...decided, ...notes };
+  if (decided.price.kind !== "EXACT") return { ...decided, ...notes };
+  if (same) {
+    // Nothing moved on the total, but a line the reply carries may name an
+    // amount of the owner's ("weekend jobs have a $50 surcharge").
+    return implied.length
+      ? {
+          ...decided,
+          ...notes,
+          price: {
+            ...decided.price,
+            alsoImplied: [...impliedAmountsMinor(decided.price), ...implied].filter((n) => n > 0),
+          },
+        }
+      : { ...decided, ...notes };
+  }
   const total = after.reduce((sum, l) => sum + l.amountMinor, 0);
   const workings = after
     .map((l) => `${l.label}: ${formatMinorAud(l.amountMinor)}${l.detail ? ` (${l.detail})` : ""}.`)

@@ -303,7 +303,13 @@ test("H6: negations are never rules; a line with two rules keeps both", () => {
 
 test("M5: several days offered, one a Saturday: the rate is said, never added", () => {
   const message = "Could you do Sat 3 Oct or Mon 5 Oct?";
-  const facts = [fact("service", "Oven clean"), ...dateFacts(message)];
+  // Trust pass 8: a mixed day is one of the owner's checks; waived for now,
+  // the reply says the rate plainly and the total does not include it.
+  const facts = [
+    fact("service", "Oven clean"),
+    ...dateFacts(message),
+    fact("rule:surcharge:6:20", "waive"),
+  ];
   const { d, reply } = replyFor([OVEN, SAT20], "Oven clean", facts, message);
   assert.equal(d.price.kind === "EXACT" && d.price.amountMinor, 9000);
   assert.match(reply, /Just so you know, Saturdays are 20% more\./);

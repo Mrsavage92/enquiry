@@ -527,7 +527,10 @@ function applyFees(ctx: Ctx, start: RuleLine[], notes: string[]): RuleLine[] {
     if (fit === "none") continue;
     const field = `${RULE_PREFIX}fee:${idOf(norm(f.text))}`;
     if (fit === "unsure" && ctx.settled.get(norm(field)) === RULE_CHOICE.waive) {
-      notes.push(`Just so you know, ${f.text.replace(/[.;]+$/, "")}.`);
+      const said = f.text.replace(/[.;]+$/, "");
+      notes.push(`Just so you know, ${said.charAt(0).toLowerCase()}${said.slice(1)}.`);
+      // The owner's own words carry the amount; the send check knows it.
+      ctx.implied.push(amount);
     }
     const label = feeLineLabel(f);
     const check: RuleCheck = label

@@ -203,7 +203,7 @@ test("1b Doyle: the deadline is acknowledged, 5 bedrooms and 4 upstairs are read
     "End of lease clean",
   );
   const first = await row(pg, e.enquiryId);
-  assert.equal(first.date_label, "Deadline Thu 29 Oct");
+  assert.equal(first.date_label, "Thu 29 Oct (day before settlement)");
   assert.deepEqual(
     first.decision_snapshot.missing.map((m) => [m.factField, m.inferred?.value]),
     [["bedrooms", "5"]],
@@ -218,7 +218,7 @@ test("1b Doyle: the deadline is acknowledged, 5 bedrooms and 4 upstairs are read
   assert.equal(snapshot.price?.amountMinor, 75000, body);
   assert.match(
     body,
-    /I understand you need it done by Thursday 29 October, before settlement on Friday 30 October - I'll confirm whether that works\./,
+    /You mentioned Thursday 29 October, the day before settlement on Friday 30 October - I'll confirm whether that works\./,
   );
   assert.match(body, /We have \$20 million public liability insurance\./);
   assert.match(body, /Just let me know if you'd like to go ahead and I'll confirm the day\./);

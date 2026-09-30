@@ -79,7 +79,7 @@ export function updateEditFigures(
     const now = formatMinorAud(totalMinor);
     let replaced = 0;
     text = text.replace(
-      new RegExp(`${escapeRe(formatMinorAud(was))}(?![\\d,.])`, "g"),
+      new RegExp(`${escapeRe(formatMinorAud(was))}(?![\\d,]|\\.\\d)`, "g"),
       (hit: string, at: number, whole: string) => {
         const after = whole.slice(at + hit.length);
         const before = whole.slice(Math.max(0, at - 40), at);

@@ -24,22 +24,39 @@ const WED_30_SEP = new Date("2026-09-30T10:15:00+10:00");
 
 // 1. Dates and their roles ------------------------------------------------
 
-test("1b/7: 'the day before (29/10)' settlement is a deadline, never context, never 'No date given'", () => {
+test("1b/7 (H3): 'the day before (29/10)' is the day they want, the day before settlement", () => {
   const read = readDates(
     "Hi, settlement is 30/10 so we need a vacate clean the day before (29/10). House is 5 bedrooms.",
     WED_30_SEP,
   );
   assert.equal(read.jobDate?.iso, "2026-10-29");
-  assert.equal(read.jobDate?.role, "deadline");
-  assert.equal(read.jobDate?.what, "settlement");
+  assert.equal(read.jobDate?.role, undefined, "the job's own day, never a 'by' deadline");
+  assert.equal(read.jobDate?.what, "day before");
   assert.deepEqual(
     read.context.map((d) => [d.iso, d.role, d.what]),
     [["2026-10-30", "context", "settlement"]],
   );
   assert.equal(
     roleLabel(read.jobDate?.role, read.jobDate?.what, read.jobDate!.label),
-    "Deadline Thu 29 Oct",
+    "Thu 29 Oct (day before settlement)",
   );
+});
+
+test("H3: 'the day before 30/10' is Thursday 29 October, worked out and said as worked out", () => {
+  const read = readDates("we need a vacate clean the day before 30/10", WED_30_SEP);
+  assert.equal(read.jobDate?.iso, "2026-10-29");
+  assert.equal(read.jobDate?.span, "the day before 30/10");
+  const reply = composeReply(priced("End of lease clean"), {
+    jobDateIso: read.jobDate!.iso,
+    jobDateSpan: read.jobDate!.span,
+    jobDateWhat: "day before",
+    jobDateConfirmed: false,
+  });
+  assert.match(
+    reply,
+    /You mentioned the day before Friday 30 October, which is Thursday 29 October - I'll confirm whether that works\./,
+  );
+  assert.doesNotMatch(reply, /done by Friday 30 October|28 October/);
 });
 
 test("1c: 'fri 16th oct b4 inspection sat' is the job by Friday, the inspection Saturday", () => {
@@ -353,11 +370,13 @@ test("6: pensioners, weekend surcharge, oven per oven, minimum scope, hours and 
   assert.deepEqual(fee?.days, [0, 6]);
   assert.equal(read.prices[0]?.rule.service, "Oven clean");
   assert.equal(read.prices[0]?.rule.kind === "per_unit" && read.prices[0].rule.unit, "oven");
-  // Said with painting, never on a manicure: kept as a note until "every job".
-  assert.ok(read.unread.some((u) => u.line === "Minimum job $600" && u.note));
+  // H7: an unscoped minimum is every job - a one-tap check on each quote under it.
   assert.deepEqual(
     find("minimum_charge").map((d) => [d.amount, d.service]),
-    [[600, undefined]],
+    [
+      [600, undefined],
+      [600, undefined],
+    ],
   );
   const [hours] = find("working_hours");
   assert.deepEqual(
