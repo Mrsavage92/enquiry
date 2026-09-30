@@ -182,7 +182,10 @@ export function CoverageCheck({
           </ul>
         </div>
       ) : null}
-      <AskedList enquiry={enquiry} business={business} />
+      {/* Something still to settle goes above the button that waits on it;
+          otherwise the list is the record under it, and "That's everything"
+          stays on the first screen. */}
+      {openAsked > 0 ? <AskedList enquiry={enquiry} business={business} /> : null}
       {unsettled > 0 ? (
         <p id="coverage-unsettled" className="mt-3 text-sm text-ink-2">
           {openAsked > 0 && unsettled === openAsked
@@ -210,6 +213,7 @@ export function CoverageCheck({
           They asked for more
         </Button>
       </div>
+      {openAsked > 0 ? null : <AskedList enquiry={enquiry} business={business} />}
       {more ? (
         <div className="mt-3 space-y-3 rounded-md border border-line-strong p-3">
           {choices.length > 0 ? (

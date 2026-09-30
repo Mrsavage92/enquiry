@@ -419,6 +419,17 @@ export function Intelligence({
     "vertical",
   );
 
+  // Waiting on their answer, on the phone: the status block above says it all,
+  // so no empty card around a lone control - just the way to record what
+  // happened next.
+  if (inline && compact && awaitingOutcome && !demoMode) {
+    return (
+      <div className="px-5 pb-4">
+        <WaitingDesk enquiry={enquiry} onDone={onDone} />
+      </div>
+    );
+  }
+
   return (
     <div
       className={cn(
@@ -627,13 +638,15 @@ export function Intelligence({
                           Something changed - take another look.
                         </p>
                       ) : null}
+                      {/* Above the verdict: the heading must stay the verdict's
+                          next sibling, which the phone card styles as the step. */}
+                      {stepCounter ? (
+                        <p className="mb-1 text-xs font-medium text-ink-2">{stepCounter}</p>
+                      ) : null}
                       {/* The promise, in the product's three words. */}
                       <p id="rec-heading" className="eyebrow-decision">
                         {promiseVerdict(enquiry).line}
                       </p>
-                      {stepCounter ? (
-                        <p className="mt-1 text-sm text-ink-2">{stepCounter}</p>
-                      ) : null}
                       <p className="mt-2 text-xl font-semibold leading-snug tracking-tight">
                         {inline
                           ? choosingService
@@ -670,7 +683,13 @@ export function Intelligence({
                       {inline && choosingService ? (
                         <ServiceReadAs enquiry={enquiry} business={business} bare />
                       ) : null}
-                      {inline && !demoMode && blockingMissing ? (
+                      {/* One check at a time: while their question or an extra
+                          waits, the reading behind it comes next, not beside it. */}
+                      {inline &&
+                      !demoMode &&
+                      blockingMissing &&
+                      !questionPending &&
+                      !enquiry.decision.extraPending ? (
                         <AnswerBlocker enquiry={enquiry} folded />
                       ) : null}
                     </>

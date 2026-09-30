@@ -60,7 +60,7 @@ export function ExtraDecision({ enquiry }: { enquiry: Enquiry }) {
             {saving === EXTRA_CHOICE.include
               ? "Adding…"
               : price
-                ? `Add it - ${price}`
+                ? `Add your ${price} ${extra.label.toLowerCase()}`
                 : "Add it to the quote"}
           </Button>
         ) : null}

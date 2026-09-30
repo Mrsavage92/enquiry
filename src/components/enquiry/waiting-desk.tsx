@@ -187,10 +187,10 @@ export function WaitingDesk({ enquiry, onDone }: { enquiry: Enquiry; onDone?: ()
               screen (WaitingSummary); saying it again here was noise. */}
           <button
             type="button"
-            className="min-h-11 w-full text-sm text-stone"
+            className="inline-flex min-h-11 items-center text-sm font-medium text-mark-strong underline-offset-4 hover:underline"
             onClick={() => setMoreOpen(true)}
           >
-            More
+            Record what happened
           </button>
         </>
       ) : (

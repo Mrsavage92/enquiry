@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useFirstBetaActions } from "@/lib/workspace/live-mutations";
 import { EXTRA_CHOICE } from "@/domain/extras";
-import { QUESTION_ANSWER } from "@/domain/service-questions";
+import { QUESTION_ANSWER, questionThing } from "@/domain/service-questions";
 import { ASK_CHOICE, askTopic } from "@/domain/customer-asks";
 import { activeRules } from "@/domain/decide";
 import { lineChoicesFor } from "@/domain/line-choices";
@@ -13,7 +13,7 @@ import { describeRule } from "@/domain/business-rule";
 import type { AskedItem } from "@/domain/asked";
 import type { Business, Enquiry } from "@/domain/types";
 import { cn } from "@/lib/utils";
-import { ASKED_CHIP, openAskedItems } from "./card-cues";
+import { ASKED_CHIP, leadDateCue, openAskedItems } from "./card-cues";
 
 /** Rows shown before "Show all": enough for a normal enquiry, short enough to scan. */
 const VISIBLE_ROWS = 6;
@@ -73,6 +73,19 @@ function choicesFor(item: AskedItem, priced: string | null): Choice[] {
     ];
   }
   return [];
+}
+
+/** A line's words: the job's day by what it is for ("Wedding Sun 8 Nov"), the rest capitalised. */
+function itemWords(item: AskedItem, enquiry: Enquiry): string {
+  // A "do you do X?" is named by what they asked, never by the answer the
+  // ledger may carry as its display ("No - you don't do this").
+  const text =
+    item.id === "date"
+      ? leadDateCue(enquiry) || item.text
+      : item.kind === "question"
+        ? `Do you do ${questionThing(item.id)}?`
+        : item.text;
+  return text ? `${text[0]!.toUpperCase()}${text.slice(1)}` : text;
 }
 
 /**
@@ -145,10 +158,11 @@ export function AskedList({
             (f) => !f.superseded && f.field === item.id && f.status === "confirmed",
           )?.value;
           const expanded = openId === item.id;
+          const words = itemWords(item, enquiry);
           const row = (
             <>
-              <span className="min-w-0 flex-1 truncate text-ink" title={item.text}>
-                {item.text}
+              <span className="min-w-0 flex-1 truncate text-ink" title={words}>
+                {words}
               </span>
               <Badge tone={chip.tone}>{chip.word}</Badge>
               {choices.length ? (
@@ -169,13 +183,13 @@ export function AskedList({
                   type="button"
                   className="flex min-h-11 w-full items-center gap-2 px-3 py-2 text-left text-sm"
                   aria-expanded={expanded}
-                  aria-label={`${item.text}: ${chip.word}. Change`}
+                  aria-label={`${words}: ${chip.word}. Change`}
                   onClick={() => setOpenId(expanded ? null : item.id)}
                 >
                   {row}
                 </button>
               ) : (
-                <div className="flex min-h-11 items-center gap-2 px-3 py-2 text-sm">{row}</div>
+                <div className="flex min-h-9 items-center gap-2 px-3 py-1.5 text-sm">{row}</div>
               )}
               {expanded ? (
                 <div className="flex flex-wrap gap-2 px-3 pb-3">
