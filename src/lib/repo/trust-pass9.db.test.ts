@@ -303,15 +303,12 @@ test("M1: a kept edit whose figures move is on the record, with what it said bef
     "select body from reply_draft where enquiry_id = $1",
     [e.enquiryId],
   );
-  // The owner's "$90 million cover" is theirs; the send gate reads it as an
-  // amount of its own, so the reply that goes out is the kept edit without it.
-  const sent = await sendAs(
-    pg,
-    a.businessId,
-    e.enquiryId,
-    draft.rows[0]!.body.replace(" We carry $90 million cover.", ""),
-  );
+  // Pass 10: the owner's "$90 million cover" is read at its true value and is
+  // not a price, so the kept edit goes out exactly as kept (it was refused as
+  // amount_mismatch before, and this test sent it with the sentence removed).
+  const sent = await sendAs(pg, a.businessId, e.enquiryId, draft.rows[0]!.body);
   assert.equal(sent.ok, true, JSON.stringify(sent));
+  assert.match(sent.ok ? sent.body : "", /We carry \$90 million cover\./);
 });
 
 test("M6: working hours saved from a sentence are on the record with the hours they replaced; another tenant cannot", async (t) => {
