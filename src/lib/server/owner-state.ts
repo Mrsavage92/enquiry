@@ -63,3 +63,21 @@ export const markWorkspaceSeen = createServerFn({ method: "POST" })
     const { markSeenForUser } = await import("@/lib/repo/owner-state-core");
     return markSeenForUser(await getSql(), context.userId, data.businessId);
   });
+
+/**
+ * Undo the working hours a business-screen save set: the hours it replaced,
+ * from that save's own record. Tenant-scoped in owner-state-core.ts.
+ */
+export const undoWorkingHours = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .validator((raw: unknown) => {
+    const d = (raw ?? {}) as Record<string, unknown>;
+    const businessId = idOf(d.businessId);
+    if (!businessId) throw new Error("A business id is required.");
+    return { businessId };
+  })
+  .handler(async ({ context, data }) => {
+    const { getSql } = await import("@/lib/db");
+    const { undoWorkingHoursForUser } = await import("@/lib/repo/owner-state-core");
+    return undoWorkingHoursForUser(await getSql(), context.userId, data.businessId);
+  });

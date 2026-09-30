@@ -232,6 +232,7 @@ export function useFirstBetaActions() {
         audit: data.audit,
         drafts: data.drafts,
         staleDrafts: data.staleDrafts,
+        draftChanges: data.draftChanges,
         setupCallUrl: data.setupCallUrl,
         prefs: data.prefs,
       });
@@ -258,6 +259,13 @@ export function useFirstBetaActions() {
     ) => {
       const { saveBusinessRules } = await import("@/lib/server/enquiry-actions");
       const res = await saveBusinessRules({ data: { businessId, rules, details, said } });
+      await refresh();
+      return res;
+    },
+    /** Put back the working hours a business-screen save replaced, then reload. */
+    undoWorkingHours: async (businessId: string) => {
+      const { undoWorkingHours } = await import("@/lib/server/owner-state");
+      const res = await undoWorkingHours({ data: { businessId } });
       await refresh();
       return res;
     },

@@ -51,6 +51,7 @@ import {
   noteFor,
 } from "@/domain/business-detail";
 import { activeRules } from "@/domain/decide";
+import { workingHoursChange } from "@/domain/workspace-prefs";
 import { decidingPhrase } from "@/domain/price-compiler";
 import { useFirstBetaActions } from "@/lib/workspace/live-mutations";
 
@@ -105,6 +106,14 @@ export function BrainScreen() {
   // Conditional prices and other lines the owner chose to keep as notes.
   const [notesChosen, setNotesChosen] = useState<Set<string>>(new Set());
   const [savingPrices, setSavingPrices] = useState(false);
+  // Why the last save was refused ("Save up to 20 details at a time."), said
+  // inside the preview beside the button, never in a toast that vanishes.
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const prefs = usePrototype((s) => s.prefs);
+  // After a save changed Settings hours: the change, with an Undo that stays
+  // until the owner dismisses it (a toast is gone before an owner looks up).
+  const [hoursSaved, setHoursSaved] = useState<string | null>(null);
+  const [undoingHours, setUndoingHours] = useState(false);
   const firstBeta = useFirstBetaActions();
   const search = useSearch({ strict: false }) as {
     section?: string;
@@ -530,6 +539,7 @@ export function BrainScreen() {
                 return;
               }
               setNotesChosen(new Set(noteable.map((u) => u.line)));
+              setSaveError(null);
               setLivePrices(read);
             }}
           >
@@ -577,6 +587,49 @@ export function BrainScreen() {
             </div>
           </form>
         )}
+
+        {hoursSaved ? (
+          <div className="callout mt-3 bg-paper-2 text-ink" role="status">
+            <p className="text-sm font-medium">{hoursSaved}.</p>
+            <div className="mt-2 flex flex-wrap gap-2">
+              <Button
+                size="sm"
+                variant="secondary"
+                className="min-h-11"
+                disabled={undoingHours}
+                onClick={() => {
+                  setUndoingHours(true);
+                  void firstBeta
+                    .undoWorkingHours(business.id)
+                    .then((undo) => {
+                      if (!undo.ok) {
+                        toast.error(undo.message);
+                        return;
+                      }
+                      setHoursSaved(null);
+                      toast.success(`Undone. ${undo.summary}.`);
+                    })
+                    .catch((err: unknown) =>
+                      toast.error(
+                        err instanceof Error ? err.message : "Could not undo the hours change.",
+                      ),
+                    )
+                    .finally(() => setUndoingHours(false));
+                }}
+              >
+                {undoingHours ? "Undoing…" : "Undo"}
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                className="min-h-11"
+                onClick={() => setHoursSaved(null)}
+              >
+                Keep it
+              </Button>
+            </div>
+          </div>
+        ) : null}
 
         {tabValue === "pricing" && !demoMode ? (
           // A real business writes its prices as a sentence first (the box
@@ -745,6 +798,13 @@ export function BrainScreen() {
                   })}
                   {livePrices.details.map((d) => (
                     <li key={d.line}>
+                      {d.detail.kind === "working_hours" ? (
+                        // The one detail that changes Settings: said as the
+                        // change it makes, so saving is the owner confirming it.
+                        <p className="callout bg-paper-2 font-medium text-ink">
+                          {workingHoursChange(prefs, d.detail)}
+                        </p>
+                      ) : null}
                       <p className="font-medium">{describeDetail(d.detail)}</p>
                       <p className="mt-0.5 text-ink-2">{detailEffect(d.detail)}</p>
                       {minimumClash(d.detail, [
@@ -805,11 +865,25 @@ export function BrainScreen() {
                 <p className="text-ink-2">
                   Open enquiries that are waiting on your prices update when you save.
                 </p>
+                {saveError ? (
+                  <p className="text-sm text-danger" role="alert">
+                    {saveError}
+                  </p>
+                ) : null}
                 <div className="flex flex-wrap gap-2">
                   <Button
                     disabled={savingPrices}
                     onClick={async () => {
                       setSavingPrices(true);
+                      setSaveError(null);
+                      // The hours Settings held before this save, for the Undo.
+                      const hoursChange = livePrices.details.find(
+                        (d) => d.detail.kind === "working_hours",
+                      );
+                      const hoursLine =
+                        hoursChange?.detail.kind === "working_hours"
+                          ? workingHoursChange(prefs, hoursChange.detail)
+                          : null;
                       try {
                         // One call: every price and detail saves, or none does.
                         const services = activeRules(business).map((r) => r.service);
@@ -861,6 +935,9 @@ export function BrainScreen() {
                           setComposerOpen(false);
                         }
                         const count = res.saved + res.details;
+                        if (hoursLine && !hoursLine.startsWith("Settings hours stay")) {
+                          setHoursSaved(hoursLine);
+                        }
                         toast.success(
                           search.back && !pricedIt && search.service
                             ? `Saved ${count} ${count === 1 ? "detail" : "details"}. There is still no price for ${search.service.toLowerCase()} - add one to finish that enquiry.`
@@ -869,7 +946,7 @@ export function BrainScreen() {
                               : "Saved. Enquiry can price these now.",
                         );
                       } catch (err) {
-                        toast.error(
+                        setSaveError(
                           err instanceof Error ? err.message : "Could not save those prices.",
                         );
                       } finally {

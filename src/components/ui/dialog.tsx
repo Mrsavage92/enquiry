@@ -15,11 +15,14 @@ export function DialogContent({
   className,
   title,
   onOpenAutoFocus,
+  footer,
 }: {
   children: ReactNode;
   className?: string;
   title: string;
   onOpenAutoFocus?: (event: Event) => void;
+  /** Pinned under the scrolling body, as on the phone sheet. */
+  footer?: ReactNode;
 }) {
   return (
     <DialogPrimitive.Portal>
@@ -28,6 +31,7 @@ export function DialogContent({
         onOpenAutoFocus={onOpenAutoFocus}
         className={cn(
           "fixed left-1/2 top-1/2 z-50 w-[min(92vw,32rem)] -translate-x-1/2 -translate-y-1/2 rounded-lg bg-raised p-5 shadow-float data-[state=open]:animate-dialog-in data-[state=closed]:animate-dialog-out",
+          footer && "flex max-h-[90dvh] flex-col",
           className,
         )}
       >
@@ -41,7 +45,16 @@ export function DialogContent({
             </Button>
           </DialogPrimitive.Close>
         </div>
-        {children}
+        {footer ? (
+          <>
+            <div className="min-h-0 flex-1 overflow-y-auto">{children}</div>
+            <div className="-mx-5 -mb-5 mt-4 shrink-0 border-t border-line px-5 pb-5 pt-3">
+              {footer}
+            </div>
+          </>
+        ) : (
+          children
+        )}
       </DialogPrimitive.Content>
     </DialogPrimitive.Portal>
   );

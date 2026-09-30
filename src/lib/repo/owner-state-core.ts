@@ -1,5 +1,5 @@
 import type { getSql } from "@/lib/db";
-import { cleanPrefs, withDefaults } from "@/domain/workspace-prefs";
+import { cleanPrefs, withDefaults, workingHoursChange } from "@/domain/workspace-prefs";
 import type { WorkspacePrefs } from "@/domain/types";
 import { requireBusinessAccess, requireEnquiryAccess } from "./tenancy.server";
 import { describeChange, editFigureChanges, type PricedLine } from "@/domain/edit-figures";
@@ -86,6 +86,81 @@ export async function saveWorkspacePrefsForUser(
     on conflict (business_id) do update set prefs = excluded.prefs, updated_at = now()
   `;
   return next;
+}
+
+type Hours = Pick<WorkspacePrefs, "workingDays" | "hoursStart" | "hoursEnd">;
+
+function hoursOf(raw: unknown): Hours | null {
+  if (!raw || typeof raw !== "object") return null;
+  const clean = cleanPrefs(raw);
+  return clean.workingDays && clean.hoursStart && clean.hoursEnd
+    ? { workingDays: clean.workingDays, hoursStart: clean.hoursStart, hoursEnd: clean.hoursEnd }
+    : null;
+}
+
+const sameHours = (a: Hours, b: Hours) =>
+  a.workingDays === b.workingDays && a.hoursStart === b.hoursStart && a.hoursEnd === b.hoursEnd;
+
+export type UndoWorkingHoursResult =
+  { ok: true; prefs: WorkspacePrefs; summary: string } | { ok: false; message: string };
+
+/**
+ * Put back the working hours a business-screen save replaced. The hours it
+ * replaced are read from that save's own audit record (business-rule-core.ts
+ * saveWorkingHours), never from the caller, and only while Settings still
+ * holds the hours that save wrote: a later change is never undone by an old
+ * Undo. Tenant-scoped first; the undo is itself on the record.
+ */
+export async function undoWorkingHoursForUser(
+  sql: Sql,
+  userId: string,
+  businessIdInput: string,
+): Promise<UndoWorkingHoursResult> {
+  const businessId = await requireBusinessAccess(userId, businessIdInput, sql);
+  const [event] = await sql<{ detail: string | null }>`
+    select detail from audit_event
+    where business_id = ${businessId} and object_type = ${"brain"}
+      and summary like ${"Settings hours %"}
+    order by at desc
+    limit 1
+  `;
+  let recorded: { previous?: unknown; next?: unknown } = {};
+  try {
+    recorded = JSON.parse(event?.detail ?? "{}") as typeof recorded;
+  } catch {
+    recorded = {};
+  }
+  const previous = hoursOf(recorded.previous);
+  const saved = hoursOf(recorded.next);
+  if (!previous || !saved) {
+    return { ok: false, message: "There is no working hours change to undo." };
+  }
+  const rows = await sql<{ prefs: unknown }>`
+    select prefs from workspace_prefs where business_id = ${businessId}
+  `;
+  const current = withDefaults(cleanPrefs(rows[0]?.prefs));
+  if (!sameHours(current, saved)) {
+    return {
+      ok: false,
+      message: "Your hours have changed since then. Set them in Settings instead.",
+    };
+  }
+  const next = withDefaults({ ...current, ...previous });
+  await sql`
+    insert into workspace_prefs (business_id, prefs, updated_at)
+    values (${businessId}, ${JSON.stringify(next)}::jsonb, now())
+    on conflict (business_id) do update set prefs = excluded.prefs, updated_at = now()
+  `;
+  const summary = workingHoursChange(current, next);
+  await sql`
+    insert into audit_event (business_id, actor, summary, detail, object_type, object_id)
+    values (
+      ${businessId}, ${userId}, ${`Undone: ${summary}`},
+      ${JSON.stringify({ undone: { previous: current, restored: previous } })},
+      ${"brain"}, ${null}
+    )
+  `;
+  return { ok: true, prefs: next, summary };
 }
 
 /**

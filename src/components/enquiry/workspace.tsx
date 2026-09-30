@@ -1,4 +1,5 @@
-import { statusChip, jobDateCue } from "@/domain/time-cues";
+import { statusChip } from "@/domain/time-cues";
+import { leadDateCue, otherDateCues } from "./card-cues";
 import { useEffect, useState } from "react";
 import { initialsOf } from "@/domain/customer-name";
 import { ArrowLeft, ArrowRight, CircleHelp, Mail, MapPin, PanelRightOpen } from "lucide-react";
@@ -207,10 +208,10 @@ export function EnquiryWorkspace({ enquiryId }: { enquiryId?: string }) {
                 <h1>{enquiry.customerName}</h1>
                 <Badge tone={statusTone(enquiry)}>{statusChip(enquiry)}</Badge>
               </div>
-              <p>
-                {enquiry.serviceLabel}
-                {enquiry.dateLabel ? ` · ${jobDateCue(enquiry)}` : ""}
-              </p>
+              <p>{[enquiry.serviceLabel, leadDateCue(enquiry)].filter(Boolean).join(" · ")}</p>
+              {otherDateCues(enquiry).length ? (
+                <p className="text-xs text-stone">{otherDateCues(enquiry).join(" · ")}</p>
+              ) : null}
             </div>
             <Button
               variant="ghost"

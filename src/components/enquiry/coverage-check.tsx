@@ -12,6 +12,11 @@ import { unsettledFlags, type CoverageFlag } from "@/domain/coverage";
 import { QUESTION_ANSWER, questionField } from "@/domain/service-questions";
 import type { LineChoice } from "@/domain/line-choices";
 import type { RuleChoice } from "@/domain/rule-checks";
+import { AskedList } from "./asked-list";
+import { checkStep, openAskedItems } from "./card-cues";
+
+/** What "That's everything" came back with, for the card around it. */
+export type CoverageOutcome = { editKept?: string[]; recheck?: boolean };
 
 /**
  * "What this price covers": every line (service x count = amount), anything
@@ -23,9 +28,11 @@ import type { RuleChoice } from "@/domain/rule-checks";
 export function CoverageCheck({
   enquiry,
   business,
+  onConfirmed,
 }: {
   enquiry: Enquiry;
   business: Business | undefined;
+  onConfirmed?: (outcome: CoverageOutcome) => void;
 }) {
   const coverage = enquiry.decision.coverage;
   const actions = useFirstBetaActions();
@@ -39,7 +46,11 @@ export function CoverageCheck({
   const rough = coverage.lines.filter((l) => l.rough && !l.firstVisit);
   const perJob = coverage.lines.filter((l) => !l.firstVisit);
   const total = perJob.reduce((sum, l) => sum + l.amountMinor, 0);
-  const unsettled = unsettledFlags(coverage.flagged).length;
+  // Open flags and anything they asked still to settle: the server refuses
+  // "That's everything" over either, so the button waits for both.
+  const openAsked = openAskedItems(enquiry.decision.asked).length;
+  const unsettled = unsettledFlags(coverage.flagged).length + openAsked;
+  const step = checkStep(enquiry.decision.checks);
   // What needs a tap comes first; what is only for reading goes under the
   // buttons, so "That's everything" stays on the first screen.
   const toSettle = coverage.flagged.filter((f) => f.thing);
@@ -68,19 +79,31 @@ export function CoverageCheck({
     }
   };
 
-  const confirm = () =>
-    run(
-      "all",
-      async () => {
-        const res = await actions.confirmCoverage(
-          enquiry.id,
-          coverage.key,
-          enquiry.decisionRevision ?? -1,
-        );
-        if (!res.ok) throw new Error(res.message);
-      },
-      "Confirmed. The reply now says exactly what the price covers.",
-    );
+  const confirm = async () => {
+    setSaving("all");
+    setError(null);
+    try {
+      const res = await actions.confirmCoverage(
+        enquiry.id,
+        coverage.key,
+        enquiry.decisionRevision ?? -1,
+      );
+      if (!res.ok) throw new Error(res.message);
+      toast.dismiss();
+      // Saved, but something moved underneath: the card says so and the
+      // enquiry (already re-read) is looked at again, never a false "done".
+      if (res.reason === "recheck") {
+        onConfirmed?.({ recheck: true });
+        return;
+      }
+      toast.success("Confirmed. The reply now says exactly what the price covers.");
+      onConfirmed?.({ editKept: res.editKept?.changes });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not save that. Try again.");
+    } finally {
+      setSaving(null);
+    }
+  };
 
   const comeBack = () => {
     const thing = other.trim();
@@ -129,9 +152,7 @@ export function CoverageCheck({
       {toSettle.length > 0 ? (
         <div className="callout mt-3 bg-warn-bg text-warn">
           {/* One check at a time: the next appears once this one is answered. */}
-          <p className="text-sm font-medium">
-            {toSettle.length === 1 ? "Check this first" : `Check 1 of ${toSettle.length}`}
-          </p>
+          <p className="text-sm font-medium">{step ?? "Check this first"}</p>
           <ul className="mt-1 space-y-3 text-sm text-ink">
             {toSettle.slice(0, 1).map((f) => (
               <li key={f.text}>
@@ -147,7 +168,9 @@ export function CoverageCheck({
                   <FlagChoices
                     flag={f as CoverageFlag & { thing: string }}
                     priced={choices.find(
-                      (c) => c.rule.service.toLowerCase() === f.thing!.toLowerCase(),
+                      (c) =>
+                        c.rule.service.toLowerCase() ===
+                        (f.offer?.service ?? f.thing!).toLowerCase(),
                     )}
                     saving={saving}
                     onChoose={(key, job, done) => void run(key, job, done)}
@@ -159,9 +182,12 @@ export function CoverageCheck({
           </ul>
         </div>
       ) : null}
+      <AskedList enquiry={enquiry} business={business} />
       {unsettled > 0 ? (
         <p id="coverage-unsettled" className="mt-3 text-sm text-ink-2">
-          Answer the {unsettled === 1 ? "check" : "checks"} above first.
+          {openAsked > 0 && unsettled === openAsked
+            ? "Settle what is marked To settle above first."
+            : `Answer the ${unsettled === 1 ? "check" : "checks"} above first.`}
         </p>
       ) : null}
       <p className="mt-3 text-sm font-medium text-ink">Did they ask for anything else?</p>
@@ -432,11 +458,17 @@ function FlagChoices({
   const label = thing.toLowerCase();
   const field = priced?.field ?? extraField(label);
   const answer = (value: string) => () => actions.answerFact(enquiryId, field, value);
-  const button = (key: string, text: string, job: () => Promise<unknown>, done: string) => (
+  const button = (
+    key: string,
+    text: string,
+    job: () => Promise<unknown>,
+    done: string,
+    primary = false,
+  ) => (
     <Button
       key={key}
       size="sm"
-      variant="secondary"
+      variant={primary ? "primary" : "secondary"}
       className="min-h-11"
       disabled={saving !== null}
       onClick={() => onChoose(`${thing}:${key}`, job, done)}
@@ -480,9 +512,10 @@ function FlagChoices({
               ? [
                   button(
                     "add",
-                    `Add it - ${describeRule(priced.rule).replace(/^[^:]*:\s*/, "")}`,
+                    addLabel(flag, priced),
                     answer(EXTRA_CHOICE.include),
-                    `Added ${label} to the quote.`,
+                    `Added ${priced.rule.service.toLowerCase()} to the quote.`,
+                    true,
                   ),
                 ]
               : []),
@@ -512,4 +545,16 @@ function FlagChoices({
             ),
           ];
   return <div className="mt-2 flex flex-wrap gap-2">{buttons}</div>;
+}
+
+/**
+ * "Add your $60 oven clean": the saved price a mention matches, said as the
+ * owner's own price, so adding it is one tap at exactly that price.
+ */
+function addLabel(flag: CoverageFlag, priced: LineChoice): string {
+  const service = priced.rule.service.toLowerCase();
+  if (flag.offer && typeof flag.offer.amountMinor === "number") {
+    return `Add your ${formatMinorAud(flag.offer.amountMinor)} ${service}`;
+  }
+  return `Add your ${service} (${describeRule(priced.rule).replace(/^[^:]*:\s*/, "")})`;
 }

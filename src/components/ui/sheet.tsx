@@ -12,12 +12,18 @@ export function SheetContent({
   title,
   flush,
   onOpenAutoFocus,
+  footer,
 }: {
   children: ReactNode;
   className?: string;
   title: string;
   flush?: boolean;
   onOpenAutoFocus?: (event: Event) => void;
+  /**
+   * Pinned under the scrolling body: the sheet's main action stays on screen
+   * however long the content above it grows.
+   */
+  footer?: ReactNode;
 }) {
   return (
     <DialogPrimitive.Portal>
@@ -66,6 +72,11 @@ export function SheetContent({
         <div className={cn("min-h-0 flex-1", flush ? "overflow-hidden pt-14" : "overflow-y-auto")}>
           {children}
         </div>
+        {footer ? (
+          <div className="sheet-footer -mx-5 shrink-0 border-t border-line bg-raised px-5 pt-3">
+            {footer}
+          </div>
+        ) : null}
       </DialogPrimitive.Content>
     </DialogPrimitive.Portal>
   );
