@@ -45,7 +45,7 @@ export function SettingsPage() {
           <SettingsGroup
             icon={Clock3}
             title="Working hours"
-            description={`${prefs.workingDays} · ${prefs.hoursStart}–${prefs.hoursEnd}`}
+            description={`${prefs.workingDays} · ${prefs.hoursStart}-${prefs.hoursEnd}`}
           >
             <p>Follow-up timing. These hours do not confirm booking availability.</p>
             <div className="mt-4 grid gap-4 sm:grid-cols-2">

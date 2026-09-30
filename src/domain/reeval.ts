@@ -111,7 +111,7 @@ function applyF09(next: Enquiry, service: string): Enquiry {
         return {
           ...e,
           status: "RANGE",
-          summary: "Estimated $720–$1,080 for 4–6 hours of event coverage",
+          summary: "Estimated $720-$1,080 for 4-6 hours of event coverage",
           range: { min: 720, max: 1080, currency: "AUD" },
         };
       }
@@ -134,7 +134,7 @@ function applyF09(next: Enquiry, service: string): Enquiry {
     next.decision.draft = {
       ...next.decision.draft,
       action: "SEND_ESTIMATE",
-      body: "Hi Leah,\n\nCoverage of the opening night is event photography - $180 an hour with a four-hour minimum, so likely $720–$1,080 depending on how long you need me. I don't shoot video. A few staff portraits can sit inside that coverage if we take them at the start.\n\nAlex\nNorthlight",
+      body: "Hi Leah,\n\nCoverage of the opening night is event photography - $180 an hour with a four-hour minimum, so likely $720-$1,080 depending on how long you need me. I don't shoot video. A few staff portraits can sit inside that coverage if we take them at the start.\n\nAlex\nNorthlight",
     };
     next.decision.explanation =
       "You corrected this to Event coverage. Video remains unsupported. Hours weren't given, so value stays a range.";

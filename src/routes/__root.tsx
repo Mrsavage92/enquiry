@@ -9,25 +9,85 @@ import { AuthProvider } from "@/lib/auth/provider";
 import { PreviewHostBridge } from "@/components/preview-host-bridge";
 import { PaletteFlag } from "@/components/palette-flag";
 import { PALETTE_INLINE_SCRIPT } from "@/lib/palette-flag";
+import { useEffect } from "react";
+import { useNarrow } from "@/lib/use-narrow";
 import { Toaster } from "sonner";
 import appCss from "../styles.css?url";
 
 const APP_NAME = "Enquiry";
 
+/** Phone width, matching the app shell's narrow layout. */
+const PHONE_MAX = 860;
+const TOAST_GAP = 8;
+
 /**
- * On an enquiry the decision, its buttons and the choices under a changed
- * reply fill the lower screen, so a toast there would cover the very action
- * it reports on. Enquiry screens show toasts at the top, over the header;
- * everywhere else they sit above the phone's bottom navigation.
+ * Where a phone toast may sit: above whatever is pinned to the bottom of the
+ * screen - the tab bar, or an open sheet with its actions - and never over
+ * the header at the top. Measured from layout (offsetHeight), not from the
+ * sheet's slide-in transform, so it is right on the first frame.
+ */
+function useToastFloor() {
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  useEffect(() => {
+    const root = document.documentElement;
+    let frame = 0;
+    const measure = () => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => {
+        if (window.innerWidth > PHONE_MAX) {
+          root.style.removeProperty("--toast-floor");
+          return;
+        }
+        let floor = 0;
+        const pinned = document.querySelectorAll<HTMLElement>(
+          '.app-nav, [role="dialog"][data-state="open"]',
+        );
+        for (const el of pinned) {
+          const style = getComputedStyle(el);
+          const rect = el.getBoundingClientRect();
+          const atBottom =
+            style.position === "fixed"
+              ? style.bottom === "0px"
+              : Math.abs(rect.bottom - window.innerHeight) < 2;
+          if (atBottom) floor = Math.max(floor, el.offsetHeight);
+        }
+        root.style.setProperty("--toast-floor", `${floor + TOAST_GAP}px`);
+      });
+    };
+    measure();
+    const observer = new MutationObserver(measure);
+    observer.observe(document.body, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      attributeFilter: ["data-state"],
+    });
+    window.addEventListener("resize", measure);
+    return () => {
+      cancelAnimationFrame(frame);
+      observer.disconnect();
+      window.removeEventListener("resize", measure);
+    };
+  }, [pathname]);
+}
+
+/**
+ * On a phone every toast sits at the bottom, above the tab bar or an open
+ * sheet, so it covers neither the header (back button, name) nor the actions
+ * pinned at the bottom. On a wider screen an enquiry keeps its toasts at the
+ * top, clear of the decision and its buttons in the lower half.
  */
 function AppToaster() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const onEnquiry = /^\/enquiries\/[^/]+/.test(pathname);
+  const narrow = useNarrow(PHONE_MAX);
+  useToastFloor();
   return (
     <Toaster
-      position={onEnquiry ? "top-center" : "bottom-center"}
+      position={onEnquiry && narrow === false ? "top-center" : "bottom-center"}
       offset={24}
-      mobileOffset={onEnquiry ? { top: 8 } : { bottom: 96 }}
+      mobileOffset={{ bottom: 96 }}
+      closeButton
       toastOptions={{
         className: "font-sans text-ink bg-raised shadow-float",
       }}

@@ -34,7 +34,7 @@ function LabPage() {
     <div className="mx-auto h-full max-w-3xl overflow-y-auto px-4 py-5 pb-8 sm:py-8">
       <PageHeader
         title="Fixture lab"
-        description="F01–F20. Interaction counts are local, for Step 18 budgets."
+        description="F01-F20. Interaction counts are local, for Step 18 budgets."
       />
       <div className="mt-6 flex flex-wrap gap-2">
         <Button
@@ -198,11 +198,11 @@ function LabPage() {
       <h2 className="mt-10 text-lg font-semibold tracking-tight">Screens</h2>
       <span className="page-rule" aria-hidden />
       <ul className="mt-4 space-y-1.5 text-sm text-ink-2">
-        <li>W01–W07 Onboarding - /onboarding</li>
+        <li>W01-W07 Onboarding - /onboarding</li>
         <li>W08 Queue - /enquiries</li>
-        <li>W09–W18 Enquiry workspace - /enquiries/f01 … f17</li>
+        <li>W09-W18 Enquiry workspace - /enquiries/f01 … f17</li>
         <li>W19 Customer booking - /book/b2</li>
-        <li>W20–W23 Trust - /trust</li>
+        <li>W20-W23 Trust - /trust</li>
         <li>W24 Bookings - /bookings</li>
         <li>W25 Insights - /insights</li>
         <li>Business Brain - /business</li>

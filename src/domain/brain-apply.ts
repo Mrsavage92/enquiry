@@ -539,7 +539,7 @@ function applyNorthlight(
         return { enquiry, changed: false };
       }
       const from = enquiry.valueRange
-        ? `${formatAud(enquiry.valueRange.min)}–${formatAud(enquiry.valueRange.max)}`
+        ? `${formatAud(enquiry.valueRange.min)}-${formatAud(enquiry.valueRange.max)}`
         : "Previous estimate";
       next.valueRange = range;
       next.valueExact = undefined;
@@ -548,7 +548,7 @@ function applyNorthlight(
           ? {
               ...e,
               status: "RANGE" as const,
-              summary: `Estimated ${formatAud(range.min)}–${formatAud(range.max)}`,
+              summary: `Estimated ${formatAud(range.min)}-${formatAud(range.max)}`,
               range,
               assumptions: [`${formatAud(rate)}/hr`, "4-hour minimum", "Range preserved - not coerced"],
             }
@@ -557,13 +557,13 @@ function applyNorthlight(
       next.decision.draft = {
         ...next.decision.draft,
         body: rewriteDraftMoney(enquiry.decision.draft.body, [
-          [enquiry.valueRange ? `${formatAud(enquiry.valueRange.min)}–${formatAud(enquiry.valueRange.max)}` : "", `${formatAud(range.min)}–${formatAud(range.max)}`],
+          [enquiry.valueRange ? `${formatAud(enquiry.valueRange.min)}-${formatAud(enquiry.valueRange.max)}` : "", `${formatAud(range.min)}-${formatAud(range.max)}`],
           ["$180", formatAud(rate)],
         ]),
       };
-      next.decision.explanation = `Event coverage is ${formatAud(rate)}/hour with a 4-hour minimum, so ${hours.min}–${hours.max} hours is ${formatAud(range.min)}–${formatAud(range.max)}.`;
+      next.decision.explanation = `Event coverage is ${formatAud(rate)}/hour with a 4-hour minimum, so ${hours.min}-${hours.max} hours is ${formatAud(range.min)}-${formatAud(range.max)}.`;
       next.decision.changeDiff = [
-        { factLabel: "Event coverage", from: from, to: `${formatAud(range.min)}–${formatAud(range.max)}` },
+        { factLabel: "Event coverage", from: from, to: `${formatAud(range.min)}-${formatAud(range.max)}` },
       ];
       next.updatedAt = new Date().toISOString();
       return { enquiry: next, changed: true };

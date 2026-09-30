@@ -3,7 +3,6 @@ import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
-import { cn } from "@/lib/utils";
 import type { KnowledgeItem } from "@/domain/types";
 import { concreteWhen } from "@/domain/time-cues";
 import { useFirstBetaActions } from "@/lib/workspace/live-mutations";
@@ -100,18 +99,7 @@ export function FactRow({
   };
 
   return (
-    <li className="relative pl-3" data-testid="fact-row">
-      <span
-        aria-hidden
-        className={cn(
-          "absolute inset-y-3 left-0 w-0.5 rounded-full",
-          item.state === "Needs review"
-            ? "bg-warn"
-            : item.state === "Active"
-              ? "bg-ok"
-              : "bg-transparent",
-        )}
-      />
+    <li data-testid="fact-row">
       <div className="flex items-start justify-between gap-3">
         <h2 className="font-medium leading-snug">{item.title}</h2>
         <Badge tone={tone}>{factStateWord(item.state)}</Badge>
@@ -125,7 +113,7 @@ export function FactRow({
       <div className="mt-1 flex flex-wrap gap-x-4">
         <button
           type="button"
-          className="inline-flex min-h-11 items-center text-sm font-medium text-ink-2 underline-offset-4 hover:text-ink hover:underline"
+          className="inline-flex min-h-11 min-w-11 items-center justify-center text-sm font-medium text-ink-2 underline-offset-4 hover:text-ink hover:underline"
           onClick={() => setDetailOpen(true)}
         >
           Details
@@ -134,14 +122,14 @@ export function FactRow({
           <>
             <button
               type="button"
-              className="inline-flex min-h-11 items-center text-sm font-medium text-mark-strong underline-offset-4 hover:underline"
+              className="inline-flex min-h-11 min-w-11 items-center justify-center text-sm font-medium text-mark-strong underline-offset-4 hover:underline"
               onClick={() => setEditOpen(true)}
             >
               Edit
             </button>
             <button
               type="button"
-              className="inline-flex min-h-11 items-center text-sm font-medium text-danger underline-offset-4 hover:underline"
+              className="inline-flex min-h-11 min-w-11 items-center justify-center text-sm font-medium text-danger underline-offset-4 hover:underline"
               onClick={() => setRemoveOpen(true)}
             >
               Remove

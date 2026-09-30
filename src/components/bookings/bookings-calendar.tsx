@@ -513,7 +513,7 @@ function PhoneWeek({
           <ChevronLeft className="size-4" aria-hidden />
         </button>
         <p className="text-sm text-stone">
-          {days[0]!.getDate()}–{days[6]!.getDate()}{" "}
+          {days[0]!.getDate()}-{days[6]!.getDate()}{" "}
           {days[6]!.toLocaleDateString("en-AU", { month: "short" })}
         </p>
         <button

@@ -488,7 +488,7 @@ export function commercialValue(enquiry: Enquiry): CommercialValue {
     const range = enquiry.valueRange ?? pricing?.range;
     return {
       kind: "estimate",
-      amountLabel: range ? `${formatAud(range.min)}–${formatAud(range.max)}` : "Estimate",
+      amountLabel: range ? `${formatAud(range.min)}-${formatAud(range.max)}` : "Estimate",
       caption: "Estimate",
     };
   }

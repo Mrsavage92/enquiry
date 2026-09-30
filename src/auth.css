@@ -187,7 +187,8 @@
   animation: signal-content-arrive 180ms ease-out;
 }
 .onboarding-flow .field {
-  background: #fff;
+  /* background-color only: the shorthand wiped the select's chevron image. */
+  background-color: #fff;
   min-height: 48px;
   font-size: 16px;
 }

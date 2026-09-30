@@ -103,7 +103,7 @@ test("Priya is an exact quote", () => {
 test("Jordan's event hours are an estimate", () => {
   const v = commercialValue(byId("f02"));
   assert.equal(v.kind, "estimate");
-  assert.equal(v.amountLabel, "$720–$1,080");
+  assert.equal(v.amountLabel, "$720-$1,080");
 });
 
 test("A. Patel has no invented price", () => {

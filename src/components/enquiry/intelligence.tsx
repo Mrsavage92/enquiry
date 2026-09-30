@@ -1032,7 +1032,9 @@ export function Intelligence({
         ) : null}
       </div>
 
-      {quietFooter ? null : (
+      {/* Waiting on the phone: the status block at the top says it all,
+          including that there is nothing to do, so no footer. */}
+      {quietFooter || (awaitingInformation && inline && !evaluating) ? null : (
         <div
           className={cn(
             "shrink-0 border-t border-line bg-raised px-5 py-3",
@@ -1041,17 +1043,16 @@ export function Intelligence({
         >
           {evaluating ? (
             <p className="text-sm text-stone">Wait until Enquiry finishes reading.</p>
-          ) : awaitingInformation && inline ? (
-            // The phone shows who you are waiting on, and when it comes back, at
-            // the top of the screen (WaitingSummary), not down here.
-            <p className="text-sm text-ink-2">Nothing to do until they answer.</p>
           ) : awaitingInformation ? (
             <section className="reply-waiting" aria-label="Waiting for customer" role="status">
               <span className="reply-recorded-mark" aria-hidden>
                 <Check size={20} />
               </span>
               <div className="reply-waiting-copy">
-                <p>Waiting on {firstName(enquiry)}</p>
+                <p className="flex flex-wrap items-center gap-2">
+                  Waiting on {firstName(enquiry)}
+                  <Badge tone="neutral">Waiting</Badge>
+                </p>
                 <p>
                   {sent
                     ? `You sent this ${sent.when}: "${sent.excerpt}"`
@@ -1647,7 +1648,7 @@ function labelStatus(result: EvaluatorResult, omitAmount?: boolean): string {
     case "RANGE":
       if (omitAmount) return "Estimate";
       return result.range
-        ? `Estimate ${formatAud(result.range.min)}–${formatAud(result.range.max)}`
+        ? `Estimate ${formatAud(result.range.min)}-${formatAud(result.range.max)}`
         : "Estimate";
     case "NOT_QUOTABLE":
       return "Not quotable";

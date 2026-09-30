@@ -247,7 +247,7 @@ function MoveForm({
         </div>
       </div>
       <p className="text-xl font-semibold tabular-nums">
-        {formatTime(when)}–{formatTime(end)}
+        {formatTime(when)}-{formatTime(end)}
       </p>
       <p className="text-sm text-stone">{formatDuration(duration)}</p>
       {clashes.length > 0 ? (

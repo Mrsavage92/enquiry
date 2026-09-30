@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useId, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { useFirstBetaActions } from "@/lib/workspace/live-mutations";
@@ -37,6 +37,11 @@ export function AddEnquiry({
   const [serviceLabel, setServiceLabel] = useState("");
   const [intakeNote, setIntakeNote] = useState("");
   const [saving, setSaving] = useState(false);
+  // Said under the field it is about, never in a toast over the buttons.
+  const [bodyError, setBodyError] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const bodyRef = useRef<HTMLTextAreaElement>(null);
+  const errorId = useId();
 
   // Show the operator what Enquiry will do with this BEFORE they commit it, so
   // "it needs the guest count" is visible while they still have the customer's
@@ -46,7 +51,12 @@ export function AddEnquiry({
     : null;
 
   const submit = async () => {
-    if (!body.trim()) return toast.error("Paste what the customer said.");
+    setSaveError(null);
+    if (!body.trim()) {
+      setBodyError("Paste what the customer said.");
+      bodyRef.current?.focus();
+      return;
+    }
     setSaving(true);
     try {
       const id = await actions.addEnquiry({
@@ -66,7 +76,7 @@ export function AddEnquiry({
       setOpen(false);
       onCreated?.(id);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Could not add that enquiry.");
+      setSaveError(err instanceof Error ? err.message : "Could not add that enquiry.");
     } finally {
       setSaving(false);
     }
@@ -94,12 +104,23 @@ export function AddEnquiry({
         <label className="block text-sm">
           <span className="mb-1.5 block text-stone">What the customer said</span>
           <textarea
+            ref={bodyRef}
             className="field min-h-28 w-full"
             value={body}
-            onChange={(e) => setBody(e.target.value)}
-            placeholder={examples.message}
+            onChange={(e) => {
+              setBody(e.target.value);
+              if (bodyError && e.target.value.trim()) setBodyError(null);
+            }}
+            aria-invalid={bodyError ? true : undefined}
+            aria-describedby={bodyError ? errorId : undefined}
+            placeholder={`e.g. ${examples.message}`}
           />
         </label>
+        {bodyError ? (
+          <p id={errorId} className="-mt-1.5 text-sm font-medium text-danger">
+            {bodyError}
+          </p>
+        ) : null}
         <div className="grid gap-3 sm:grid-cols-2">
           <label className="block text-sm">
             <span className="mb-1.5 block text-stone">Their name</span>
@@ -107,7 +128,7 @@ export function AddEnquiry({
               className="field w-full"
               value={customerName}
               onChange={(e) => setCustomerName(e.target.value)}
-              placeholder={examples.customerName}
+              placeholder={`e.g. ${examples.customerName}`}
             />
           </label>
           <label className="block text-sm">
@@ -116,7 +137,7 @@ export function AddEnquiry({
               className="field w-full"
               value={customerEmail}
               onChange={(e) => setCustomerEmail(e.target.value)}
-              placeholder={examples.customerEmail}
+              placeholder={`e.g. ${examples.customerEmail}`}
             />
           </label>
         </div>
@@ -126,7 +147,7 @@ export function AddEnquiry({
             className="field w-full"
             value={serviceLabel}
             onChange={(e) => setServiceLabel(e.target.value)}
-            placeholder={examples.service}
+            placeholder={`e.g. ${examples.service}`}
           />
           {preview ? (
             <span className="mt-1.5 block text-xs text-stone">
@@ -144,11 +165,16 @@ export function AddEnquiry({
             className="field w-full"
             value={intakeNote}
             onChange={(e) => setIntakeNote(e.target.value)}
-            placeholder={examples.intakeNote}
+            placeholder={`e.g. ${examples.intakeNote}`}
           />
         </label>
       </div>
 
+      {saveError ? (
+        <p role="alert" className="mt-4 text-sm font-medium text-danger">
+          {saveError}
+        </p>
+      ) : null}
       <div className="mt-5 flex gap-2">
         <Button className="min-h-11" disabled={saving} onClick={() => void submit()}>
           {saving ? "Adding…" : "Add enquiry"}

@@ -1,6 +1,12 @@
 /* Quiet Signal: a lilac shell, white work, and lightly separated repeated items. */
 @import "./workspace-refinement.css";
 .app-root {
+  /* App type floor: meta and list text at 13px, chips and tab labels at 12px.
+     Scoped here so the public site keeps its own scale. */
+  --text-xs: 0.8125rem;
+  --text-xs--line-height: 1.4;
+  --text-2xs: 0.75rem;
+  --text-2xs--line-height: 1.35;
   --motion-quick: 160ms;
   --motion-settle: 220ms;
   --ease-settle: cubic-bezier(0.22, 1, 0.36, 1);
@@ -236,7 +242,7 @@
 }
 .more-workspace small {
   display: block;
-  font-size: 12px;
+  font-size: 13px;
   margin-top: 4px;
   color: var(--color-stone);
 }
@@ -244,7 +250,7 @@
   padding-block: 14px;
   cursor: pointer;
   color: var(--color-stone);
-  font-size: 12px;
+  font-size: 13px;
 }
 .account-section {
   margin-top: 32px;
@@ -415,7 +421,7 @@
 }
 .today-stat > span > span {
   display: block;
-  font-size: 12px;
+  font-size: 13px;
   margin-top: 5px;
   color: var(--color-stone);
 }
@@ -490,7 +496,7 @@ li:nth-child(3n + 3) .customer-avatar {
 .today-row-meta,
 .today-row-preview {
   display: block;
-  font-size: 12px;
+  font-size: 13px;
   color: var(--color-ink-2);
   margin-top: 4px;
   overflow: hidden;
@@ -514,7 +520,7 @@ li:nth-child(3n + 3) .customer-avatar {
   color: var(--color-stone);
 }
 .today-row-update time {
-  font-size: 10px;
+  font-size: 12px;
   text-align: right;
 }
 .today-enquiry-row > svg {
@@ -532,7 +538,7 @@ li:nth-child(3n + 3) .customer-avatar {
 .today-row-cue {
   display: block;
   margin-top: 4px;
-  font-size: 12px;
+  font-size: 13px;
   color: var(--color-stone);
 }
 /* "Start here": one enquiry, its next step, one button. Same surface as a row. */
@@ -611,7 +617,7 @@ li:nth-child(3n + 3) .customer-avatar {
   color: var(--color-mark);
 }
 .today-reset-date {
-  font-size: 12px;
+  font-size: 13px;
 }
 .today-week {
   display: grid;
@@ -638,7 +644,7 @@ li:nth-child(3n + 3) .customer-avatar {
   background: #ece6fc;
 }
 .today-week span {
-  font-size: 10px;
+  font-size: 12px;
 }
 .today-week strong {
   font-size: 13px;
@@ -658,7 +664,7 @@ li:nth-child(3n + 3) .customer-avatar {
   padding: 16px 0;
 }
 .today-time {
-  font-size: 12px;
+  font-size: 13px;
   color: var(--color-stone);
   width: 50px;
   flex-shrink: 0;
@@ -670,7 +676,7 @@ li:nth-child(3n + 3) .customer-avatar {
 }
 .today-bookings li > span > span {
   display: block;
-  font-size: 12px;
+  font-size: 13px;
   color: var(--color-stone);
   margin-top: 5px;
 }
@@ -700,7 +706,7 @@ li:nth-child(3n + 3) .customer-avatar {
   border-radius: 8px;
   background: #fffbf1;
   padding: 14px;
-  font-size: 12px;
+  font-size: 13px;
   color: var(--color-warn);
   line-height: 1.6;
 }
@@ -716,7 +722,7 @@ li:nth-child(3n + 3) .customer-avatar {
   padding: 8px 0;
   color: var(--color-warn);
   border-bottom: 1px solid var(--color-line);
-  font-size: 12px;
+  font-size: 13px;
 }
 .today-risk-link span {
   flex: 1;
@@ -794,7 +800,7 @@ li:nth-child(3n + 3) .customer-avatar {
 .business-destination small {
   display: inline;
   color: var(--color-stone);
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.5;
 }
 .business-overview {
@@ -865,7 +871,7 @@ li:nth-child(3n + 3) .customer-avatar {
 .business-row-review {
   display: inline-block;
   margin-left: 10px;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 550;
   color: var(--color-warn);
 }
@@ -977,14 +983,6 @@ li:nth-child(3n + 3) .customer-avatar {
   top: 10px;
   font-size: 20px;
 }
-.today-menu {
-  display: grid;
-  place-items: center;
-  height: 44px;
-  width: 44px;
-  margin-left: -10px;
-  color: var(--color-ink);
-}
 .today-phone .ui-page-header > div {
   flex: 1;
 }
@@ -1020,7 +1018,7 @@ li:nth-child(3n + 3) .customer-avatar {
   font-weight: 600;
 }
 .enquiry-header p {
-  font-size: 12px;
+  font-size: 13px;
   color: var(--color-stone);
   margin-top: 5px;
 }
@@ -1075,7 +1073,7 @@ li:nth-child(3n + 3) .customer-avatar {
 }
 .context-reasons span {
   display: block;
-  font-size: 12px;
+  font-size: 13px;
   color: var(--color-stone);
   line-height: 1.6;
   margin-top: 6px;
@@ -1094,7 +1092,7 @@ li:nth-child(3n + 3) .customer-avatar {
   display: flex;
   align-items: flex-start;
   gap: 10px;
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.6;
   color: var(--color-stone);
   margin-top: 14px;
@@ -1149,7 +1147,7 @@ li:nth-child(3n + 3) .customer-avatar {
   height: 30px;
   width: 30px;
   flex-basis: 30px;
-  font-size: 10px;
+  font-size: 12px;
 }
 .inline-reply {
   width: 100%;
@@ -1171,7 +1169,7 @@ li:nth-child(3n + 3) .customer-avatar {
   justify-content: space-between;
   gap: 8px;
   color: var(--color-stone);
-  font-size: 12px;
+  font-size: 13px;
 }
 .return-context-changes {
   margin-top: 8px;
@@ -1211,7 +1209,7 @@ li:nth-child(3n + 3) .customer-avatar {
 }
 .change-disclosure-label {
   color: var(--color-mark-strong);
-  font-size: 12px;
+  font-size: 13px;
 }
 .return-context-changes dl {
   display: flex;
@@ -1222,7 +1220,7 @@ li:nth-child(3n + 3) .customer-avatar {
 }
 .return-context-changes dt {
   color: var(--color-stone);
-  font-size: 12px;
+  font-size: 13px;
 }
 .return-context-changes dd {
   margin-top: 3px;
@@ -1327,7 +1325,7 @@ li:nth-child(3n + 3) .customer-avatar {
   padding: 12px 20px;
 }
 .inline-reply > div:last-of-type > p {
-  font-size: 11px;
+  font-size: 12px;
 }
 .inline-reply section[aria-labelledby="rec-heading"] button {
   min-height: 44px;
@@ -1450,7 +1448,7 @@ li:nth-child(3n + 3) .customer-avatar {
   font-size: 14px;
 }
 .enquiries-list-row .text-sm {
-  font-size: 12px;
+  font-size: 13px;
 }
 .enquiries-customer-service {
   display: none;
@@ -1505,7 +1503,7 @@ li:nth-child(3n + 3) .customer-avatar {
 }
 .booking-agenda-row p.text-sm,
 .booking-agenda-row p.text-2xs {
-  font-size: 12px;
+  font-size: 13px;
 }
 .booking-agenda-row .mt-2:empty {
   display: none;
@@ -1533,7 +1531,7 @@ li:nth-child(3n + 3) .customer-avatar {
     width: 30px;
     height: 30px;
     flex-basis: 30px;
-    font-size: 10px;
+    font-size: 12px;
   }
   .insights-summary {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1578,7 +1576,7 @@ li:nth-child(3n + 3) .customer-avatar {
   .enquiries-list-row .enquiries-customer-service {
     display: block;
   }
-  .enquiries-date > span {
+  .enquiries-date > .enquiries-date-channel {
     display: inline;
     margin-left: 8px;
   }
@@ -1652,7 +1650,7 @@ li:nth-child(3n + 3) .customer-avatar {
     font-size: 22px;
   }
   .ui-date {
-    font-size: 12px;
+    font-size: 13px;
   }
   .ui-page-description {
     font-size: 13px;
@@ -1709,7 +1707,7 @@ li:nth-child(3n + 3) .customer-avatar {
     font-size: 22px;
   }
   .today-stat > span > span {
-    font-size: 11px;
+    font-size: 12px;
     line-height: 1.5;
   }
   .today-work-grid {
@@ -1783,7 +1781,7 @@ li:nth-child(3n + 3) .customer-avatar {
   }
   .inline-reply section[aria-labelledby="rec-heading"] button {
     min-height: 44px;
-    font-size: 12px;
+    font-size: 13px;
     text-decoration: none;
   }
   .inline-reply section.inline-reply-notices {

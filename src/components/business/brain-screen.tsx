@@ -22,9 +22,8 @@ import { pricedTheJob } from "@/domain/next-action";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Dialog, ResponsiveDialogContent } from "@/components/ui/dialog";
 import { Segmented } from "@/components/ui/segmented";
-import { ScrollFade } from "@/components/ui/scroll-fade";
 import { BUSINESSES } from "@/fixtures";
 import { usePrototype } from "@/store/prototype-store";
 import { FactRow } from "@/components/business/fact-row";
@@ -40,7 +39,6 @@ import type { KnowledgeItem } from "@/domain/types";
 import { cn } from "@/lib/utils";
 import { applyVoiceToDraft } from "@/domain/voice-apply";
 import { useNarrow } from "@/lib/use-narrow";
-import { useScrollFade } from "@/lib/use-scroll-fade";
 import { PRICE_EXAMPLE } from "@/domain/price-sentence";
 import { describeRule } from "@/domain/business-rule";
 import { replacementsFor } from "@/domain/price-replacement";
@@ -148,7 +146,6 @@ export function BrainScreen() {
   const phone = useNarrow(860) !== false;
   const tabs = SECTIONS;
   const tabValue = tabs.find((s) => s.id === tab)?.id ?? "all";
-  const { scrollRef: tabScrollRef, edges: tabFade } = useScrollFade<HTMLDivElement>([tabs]);
 
   useEffect(() => {
     if (!focusComposer) return;
@@ -410,18 +407,31 @@ export function BrainScreen() {
   return (
     <div className="ui-page-scroll">
       <div className="ui-page business-detail">
-        <button
-          className="ui-text-link mb-5"
-          onClick={() => {
-            setTab("all");
-            setDetailOpen(false);
-            setComposerOpen(false);
-            setQuery("");
-          }}
-        >
-          <ArrowLeft size={16} aria-hidden />
-          Business
-        </button>
+        {/* One way back, to where the owner came from: the enquiry that sent
+            them here, or the Business list. */}
+        {search.back ? (
+          <Link
+            to="/enquiries/$enquiryId"
+            params={{ enquiryId: search.back }}
+            className="ui-text-link mb-5"
+          >
+            <ArrowLeft size={16} aria-hidden />
+            Back to the enquiry
+          </Link>
+        ) : (
+          <button
+            className="ui-text-link mb-5"
+            onClick={() => {
+              setTab("all");
+              setDetailOpen(false);
+              setComposerOpen(false);
+              setQuery("");
+            }}
+          >
+            <ArrowLeft size={16} aria-hidden />
+            Business
+          </button>
+        )}
         <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
             {phone ? null : <p className="text-sm text-stone">Business</p>}
@@ -455,21 +465,35 @@ export function BrainScreen() {
           )}
         </header>
 
+        {/* Sections sit under the heading and wrap instead of scrolling. On a
+            phone the Business list is the section menu, one tap back. */}
+        {phone ? null : (
+          <div className="mt-6">
+            <Segmented
+              ariaLabel="Business sections"
+              value={tabValue}
+              onChange={setTab}
+              wrap
+              options={tabs.map((s) => ({
+                id: s.id,
+                label: s.label,
+                count:
+                  s.id === "all" && needsReview.length
+                    ? needsReview.length
+                    : s.id === "learning" && pendingLearn.length
+                      ? pendingLearn.length
+                      : undefined,
+              }))}
+            />
+          </div>
+        )}
+
         {tabValue === "pricing" && demoMode ? (
           <div ref={pricingRef} id="pricing" className="scroll-mt-4">
             <PricingRules business={business} autoOpen={deepLinkPricing} />
           </div>
         ) : null}
 
-        {search.back ? (
-          <Link
-            to="/enquiries/$enquiryId"
-            params={{ enquiryId: search.back }}
-            className="ui-text-link mt-4 inline-flex min-h-11 items-center"
-          >
-            Back to the enquiry
-          </Link>
-        ) : null}
         {!composerOpen ? (
           <Button variant="ghost" className="mt-5" onClick={() => setComposerOpen(true)}>
             <Plus size={16} />
@@ -524,7 +548,7 @@ export function BrainScreen() {
                 aria-describedby={tellError ? "tell-error" : undefined}
                 placeholder={
                   !demoMode
-                    ? `${trade.sentence}. ${trade.flatSentence}.`
+                    ? `e.g. ${trade.sentence}. ${trade.flatSentence}.`
                     : business.id === "northlight"
                       ? "Event coverage will be $200 an hour."
                       : business.id === "ridge"
@@ -563,32 +587,8 @@ export function BrainScreen() {
           </div>
         ) : null}
 
-        <div className="relative mt-8">
-          <div
-            ref={tabScrollRef}
-            className="overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-          >
-            <Segmented
-              ariaLabel="Business sections"
-              value={tabValue}
-              onChange={setTab}
-              options={tabs.map((s) => ({
-                id: s.id,
-                label: s.label,
-                count:
-                  s.id === "all" && needsReview.length
-                    ? needsReview.length
-                    : s.id === "learning" && pendingLearn.length
-                      ? pendingLearn.length
-                      : undefined,
-              }))}
-            />
-          </div>
-          <ScrollFade edges={tabFade} />
-        </div>
-
         {tabValue !== "voice" && tabValue !== "learning" ? (
-          <label className="mt-4 block">
+          <label className="mt-8 block">
             <span className="sr-only">Find in business info</span>
             <input
               name="brain-search"
@@ -712,7 +712,7 @@ export function BrainScreen() {
         )}
 
         <Dialog open={Boolean(livePrices)} onOpenChange={(o) => !o && setLivePrices(null)}>
-          <DialogContent title="Business details to save">
+          <ResponsiveDialogContent title="Business details to save">
             {livePrices ? (
               <div className="space-y-3 text-sm">
                 <ul className="space-y-2">
@@ -892,11 +892,11 @@ export function BrainScreen() {
                 </div>
               </div>
             ) : null}
-          </DialogContent>
+          </ResponsiveDialogContent>
         </Dialog>
 
         <Dialog open={Boolean(preview)} onOpenChange={(o) => !o && cancel()}>
-          <DialogContent title="Proposed business change">
+          <ResponsiveDialogContent title="Proposed business change">
             {preview ? (
               <div className="space-y-3 text-sm">
                 <p className="text-ink-2">{preview.input}</p>
@@ -969,7 +969,7 @@ export function BrainScreen() {
                 </div>
               </div>
             ) : null}
-          </DialogContent>
+          </ResponsiveDialogContent>
         </Dialog>
       </div>
     </div>

@@ -32,6 +32,9 @@ import { Link } from "@tanstack/react-router";
  */
 export type SendPreviewCopyState = "idle" | "copied" | "failed";
 
+const LONG_MESSAGE_CHARS = 1200;
+const LONG_MESSAGE_LINES = 22;
+
 export function SendPreview({
   open,
   onOpenChange,
@@ -74,10 +77,22 @@ export function SendPreview({
 }) {
   const [addingLine, setAddingLine] = useState(false);
   const [copyState, setCopyState] = useState<SendPreviewCopyState>("idle");
+  const [showAll, setShowAll] = useState(false);
   const bodyRef = useRef<HTMLDivElement>(null);
+  // The message grows to fit so the sign-off is never hidden in an inner
+  // scroll; only a really long one is cut short, with "Show all" under it.
+  const long =
+    preview.body.length > LONG_MESSAGE_CHARS ||
+    preview.body.split("\n").length > LONG_MESSAGE_LINES;
+  // Copy is step one, so it is the loud button until it has happened; then
+  // "I've sent this externally" is.
+  const copied = copyState !== "idle";
 
   useEffect(() => {
-    if (open) setCopyState("idle");
+    if (open) {
+      setCopyState("idle");
+      setShowAll(false);
+    }
   }, [open]);
 
   const Panel = compact ? SheetContent : DialogContent;
@@ -135,10 +150,25 @@ export function SendPreview({
               ref={bodyRef}
               tabIndex={-1}
               aria-label="Message to review"
-              className="field mt-1 max-h-64 overflow-y-auto whitespace-pre-wrap text-sm leading-relaxed"
+              className={cn(
+                "field mt-1 whitespace-pre-wrap py-3 text-sm leading-relaxed",
+                long && !showAll && "max-h-[24rem] overflow-hidden",
+              )}
             >
               {preview.body || "No message prepared."}
             </div>
+            {long && !showAll ? (
+              <button
+                type="button"
+                className="ui-text-link"
+                onClick={() => {
+                  setShowAll(true);
+                  bodyRef.current?.focus();
+                }}
+              >
+                Show all
+              </button>
+            ) : null}
           </div>
           {preview.amountLabel ? (
             <div>
@@ -213,8 +243,8 @@ export function SendPreview({
           {/* Step one. Copying is copying: it writes nothing, records nothing,
               and reports truthfully whether the clipboard actually took it. */}
           <Button
-            variant="secondary"
-            className="reply-copy-button min-h-11 w-full"
+            variant={copied ? "secondary" : "primary"}
+            className="reply-copy-button min-h-12 w-full"
             data-copy-state={copyState}
             disabled={pending || !preview.body}
             onClick={() => {
@@ -260,6 +290,7 @@ export function SendPreview({
             </Button>
           ) : (
             <Button
+              variant={copied ? "primary" : "secondary"}
               className="min-h-12 w-full"
               disabled={pending || Boolean(blockedReason)}
               onClick={onConfirm}

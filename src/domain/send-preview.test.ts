@@ -42,7 +42,7 @@ test("request-info preview has no amount when there is nothing to quote yet", ()
   });
   assert.equal(preview.channelLabel, "Email");
   assert.equal(preview.recipient, "jordan@lumengoods.example");
-  assert.equal(preview.amountLabel, "$720–$1,080", "a range is restated, not silently dropped");
+  assert.equal(preview.amountLabel, "$720-$1,080", "a range is restated, not silently dropped");
   assert.equal(preview.reason, jordan.decision.recommendation.reason);
 });
 
@@ -165,7 +165,7 @@ test("a range price in the decision snapshot is restated before send, not silent
     draft: priya.decision.draft.body,
     decision: priya.decision,
   });
-  assert.equal(preview.amountLabel, "$720–$1,080");
+  assert.equal(preview.amountLabel, "$720-$1,080");
 });
 
 test("a BLOCKED/unpriceable decision (no price on the snapshot) still has no amount before send", () => {

@@ -9,6 +9,7 @@ import type { Enquiry } from "@/domain/types";
 import { usePrototype } from "@/store/prototype-store";
 import { useFirstBetaActions } from "@/lib/workspace/live-mutations";
 import { AnswerBlocker } from "./answer-blocker";
+import { Badge } from "@/components/ui/badge";
 
 /**
  * Undo "I've sent this" from the enquiry itself, for as long as the server
@@ -76,7 +77,12 @@ export function WaitingSummary({ enquiry }: { enquiry: Enquiry }) {
       className="border-b border-line bg-raised px-5 py-4"
       aria-label="Waiting on the customer"
     >
-      <p className="text-base font-semibold text-ink">{sentence(`Waiting on ${first}`)}</p>
+      <div className="flex flex-wrap items-center gap-2">
+        <p className="text-base font-semibold text-ink">{sentence(`Waiting on ${first}`)}</p>
+        {/* Neutral grey: amber is kept for "check this". */}
+        <Badge tone="neutral">Waiting</Badge>
+      </div>
+      <p className="mt-1 text-base text-ink">Nothing to do until they answer.</p>
       <p className="mt-1 text-sm leading-relaxed text-ink-2">
         {amount
           ? `For their answer to your ${amount} quote.`

@@ -49,6 +49,12 @@ test("the toaster list never takes a tap; only a visible toast does", () => {
   assert.ok(toast, "a visible toast must stay tappable (Undo)");
 });
 
-test("enquiry screens still place toasts at the top, other screens at the bottom", () => {
-  assert.match(root, /onEnquiry \? "top-center" : "bottom-center"/);
+test("wide enquiry screens keep toasts at the top; phones always use the bottom", () => {
+  // Pass 8: at the top of a phone enquiry the toast covered the back button
+  // and the customer's name. Phones now stack toasts above the tab bar or an
+  // open sheet (the measured --toast-floor), never over the header.
+  assert.match(root, /onEnquiry && narrow === false \? "top-center" : "bottom-center"/);
+  assert.match(root, /--toast-floor/);
+  const bottom = rules('[data-y-position="bottom"]').find((r) => r.selector.includes("app-root"));
+  assert.ok(bottom && /var\(--toast-floor/.test(bottom.body), "bottom toaster must use the floor");
 });

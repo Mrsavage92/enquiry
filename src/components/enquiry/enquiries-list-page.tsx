@@ -4,7 +4,7 @@ import { ChevronRight, Plus, Search } from "lucide-react";
 import { AddEnquiry } from "./add-enquiry";
 import { PracticeBadge } from "./practice-note";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Dialog, ResponsiveDialogContent } from "@/components/ui/dialog";
 import { EmptyState } from "@/components/ui/empty-state";
 import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
@@ -175,15 +175,20 @@ export function EnquiriesListPage() {
                       <p className="enquiries-date min-w-0 text-sm text-ink-2">
                         {/* Labelled, because a bare date or "Not set" said
                             nothing about which date it was. */}
-                        {jobDateCue(enquiry) || "No date given"}
-                        <span className="mt-1 block text-xs text-stone">
-                          {/* On the phone the channel sits on the same line:
-                              the dot keeps the two from running together. */}
-                          <span className="enquiries-date-sep" aria-hidden>
-                            {" · "}
-                          </span>
-                          {channelLabel(enquiry.source)}
+                        <span className="whitespace-nowrap">
+                          {jobDateCue(enquiry) || "No date given"}
                         </span>
+                        {/* A typed-in enquiry has no channel worth a line. */}
+                        {enquiry.source === "manual" ? null : (
+                          <span className="enquiries-date-channel mt-1 block text-xs text-stone">
+                            {/* On the phone the channel sits on the same line:
+                                the dot keeps the two from running together. */}
+                            <span className="enquiries-date-sep" aria-hidden>
+                              {" · "}
+                            </span>
+                            {channelLabel(enquiry.source)}
+                          </span>
+                        )}
                       </p>
                       <Badge tone={statusTone(enquiry)}>{statusChip(enquiry)}</Badge>
                       <span className="enquiries-updated text-xs text-stone">
@@ -199,7 +204,7 @@ export function EnquiriesListPage() {
         </div>
       </div>
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-        <DialogContent title="Add an enquiry" className="max-h-[90dvh] overflow-y-auto">
+        <ResponsiveDialogContent title="Add an enquiry">
           {activeBusiness && !demoMode ? (
             <AddEnquiry
               initiallyOpen
@@ -211,7 +216,7 @@ export function EnquiriesListPage() {
               }}
             />
           ) : null}
-        </DialogContent>
+        </ResponsiveDialogContent>
       </Dialog>
     </div>
   );
