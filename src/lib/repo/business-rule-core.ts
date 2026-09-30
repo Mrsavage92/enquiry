@@ -6,7 +6,7 @@ import {
   type BusinessRule,
 } from "../../domain/business-rule.ts";
 import { redecideOpenEnquiries } from "./decision-apply.ts";
-import { cleanPrefs, withDefaults } from "../../domain/workspace-prefs.ts";
+import { cleanPrefs, withDefaults, workingHoursChange } from "../../domain/workspace-prefs.ts";
 import { requireBusinessAccess } from "./tenancy.server.ts";
 import {
   minimumScope,
@@ -303,8 +303,9 @@ async function saveWorkingHours(
   const rows = await sql<{ prefs: unknown }>`
     select prefs from workspace_prefs where business_id = ${businessId}
   `;
+  const previous = withDefaults(cleanPrefs(rows[0]?.prefs));
   const next = withDefaults({
-    ...cleanPrefs(rows[0]?.prefs),
+    ...previous,
     ...cleanPrefs({
       workingDays: hours.workingDays,
       hoursStart: hours.hoursStart,
@@ -315,6 +316,23 @@ async function saveWorkingHours(
     insert into workspace_prefs (business_id, prefs, updated_at)
     values (${businessId}, ${JSON.stringify(next)}::jsonb, now())
     on conflict (business_id) do update set prefs = excluded.prefs, updated_at = now()
+  `;
+  // On the record with the hours they replaced, so the change can be undone.
+  await sql`
+    insert into audit_event (business_id, actor, summary, detail, object_type, object_id)
+    values (
+      ${businessId}, ${"owner"},
+      ${workingHoursChange(previous, next)},
+      ${JSON.stringify({
+        previous: {
+          workingDays: previous.workingDays,
+          hoursStart: previous.hoursStart,
+          hoursEnd: previous.hoursEnd,
+        },
+        next: { workingDays: next.workingDays, hoursStart: next.hoursStart, hoursEnd: next.hoursEnd },
+      })},
+      ${"brain"}, ${null}
+    )
   `;
 }
 

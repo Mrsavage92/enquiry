@@ -33,6 +33,12 @@ export type ConfirmCoverageResult =
        * `changes` says which ("Makeup trial $90 -> $95").
        */
       editKept?: { changes: string[] };
+      /**
+       * "recheck": the confirmation was saved but something is still open
+       * (an enquiry decided before the ledger existed, with a question still
+       * waiting). The owner looks at the enquiry again.
+       */
+      reason?: "recheck";
     }
   | { ok: false; businessId: string; reason: "changed" | "closed" | "unsettled"; message: string };
 
@@ -42,7 +48,7 @@ const CHANGED =
 /** Inside the caller's transaction, for an enquiry already checked to be theirs. */
 export async function confirmCoverageInTransaction(
   tx: Sql,
-  input: ConfirmCoverageInput & { businessId: string },
+  input: ConfirmCoverageInput & { businessId: string; actor?: string },
 ): Promise<ConfirmCoverageResult> {
   const { enquiryId, businessId } = input;
   const locked = await lockEnquiry(tx, enquiryId);
@@ -115,14 +121,18 @@ export async function confirmCoverageInTransaction(
     serviceLabel: locked.serviceLabel,
     customerName: locked.customerName,
   });
-  const editKept = draft ? await keepEdit(tx, enquiryId, draft.body, applied) : undefined;
+  const editKept = draft
+    ? await keepEdit(tx, { enquiryId, businessId, actor: input.actor ?? "system" }, draft.body, applied)
+    : undefined;
+  const confirmed = Boolean(applied.decision.coverage?.confirmed);
   return {
     ok: true,
     businessId,
     enquiryId,
     revision: applied.revision,
-    confirmed: Boolean(applied.decision.coverage?.confirmed),
+    confirmed,
     ...(editKept ? { editKept } : {}),
+    ...(confirmed ? {} : { reason: "recheck" as const }),
   };
 }
 
@@ -133,10 +143,11 @@ export async function confirmCoverageInTransaction(
  */
 async function keepEdit(
   tx: Sql,
-  enquiryId: string,
+  who: { enquiryId: string; businessId: string; actor: string },
   body: string,
   applied: { decision: Decision; revision: number },
 ): Promise<{ changes: string[] }> {
+  const { enquiryId } = who;
   const d = applied.decision;
   const lines =
     d.price.kind !== "EXACT"
@@ -153,13 +164,33 @@ async function keepEdit(
             },
           ];
   const total = d.price.kind === "EXACT" ? d.price.amountMinor : null;
-  const updated = updateEditFigures(body, lines, total);
+  const [prepared] = await tx<{ body: string | null }>`
+    select decision_snapshot -> 'draft' ->> 'body' as body from enquiry where id = ${enquiryId}
+  `;
+  const updated = updateEditFigures(body, lines, total, prepared?.body ?? "");
   await tx`
     update reply_draft
     set body = ${updated.body}, decision_revision = ${applied.revision}, updated_at = now()
     where enquiry_id = ${enquiryId}
   `;
-  return { changes: updated.changes.map(describeChange) };
+  const changes = [
+    ...updated.changes.map(describeChange),
+    ...updated.missing.map((line) => `Not in your edit: "${line}"`),
+  ];
+  // Any time the app changes the owner's own words, it says so on the record,
+  // with what their edit said before.
+  if (updated.body !== body) {
+    await tx`
+      insert into audit_event (business_id, actor, summary, detail, object_type, object_id)
+      values (
+        ${who.businessId}, ${who.actor},
+        ${`Your edit was kept; figures updated: ${updated.changes.map(describeChange).join(", ")}`},
+        ${JSON.stringify({ before: body, after: updated.body })},
+        ${"enquiry"}, ${enquiryId}
+      )
+    `;
+  }
+  return { changes };
 }
 
 export async function confirmCoverageForUser(
@@ -170,7 +201,7 @@ export async function confirmCoverageForUser(
 ): Promise<ConfirmCoverageResult> {
   const { enquiryId, businessId } = await requireEnquiryAccess(userId, input.enquiryId, sql);
   return runInTransaction((tx) =>
-    confirmCoverageInTransaction(tx, { ...input, enquiryId, businessId }),
+    confirmCoverageInTransaction(tx, { ...input, enquiryId, businessId, actor: userId }),
   );
 }
 

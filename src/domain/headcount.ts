@@ -1,23 +1,25 @@
 import type { BusinessRule } from "./business-rule.ts";
 import { formatMinorAud } from "./money-format.ts";
 import { readQuantityFromMessage } from "./quantity-reader.ts";
+import { tradeOf } from "./trades.ts";
 
 /**
  * "could i book gel mani for me n my sister (2 ppl)" against "Gel manicure
  * $55": the price is per booking, but they asked for two. Quoting $55 told the
  * customer one price covered both. So a count of people beside a flat price
  * is never priced silently: the owner says how it is priced - per person (two
- * lots), one price for the booking, or they come back on it - with one tap.
+ * lots) or one price for the booking - with one tap. Only for a service booked
+ * per person or per booking (makeup, nails, lashes): "4 of us live here" on
+ * an end of lease clean is not a headcount.
  */
 
 export const COUNT_PREFIX = "count:";
 
 /**
  * The owner's choices, in the same words as a rule check so the coverage card
- * shows them as one: per person is the count applied, one price is it waived,
- * and "later" (come back to them on it) is accepted from any caller.
+ * shows them as one: per person is the count applied, one price is it waived.
  */
-export const COUNT_CHOICE = { each: "apply", one: "waive", later: "later" } as const;
+export const COUNT_CHOICE = { each: "apply", one: "waive" } as const;
 
 const CHOICES = new Set<string>(Object.values(COUNT_CHOICE));
 
@@ -49,11 +51,27 @@ export type HeadcountCheck = {
   choices: ["apply" | "waive", string][];
 };
 
+const SMALL: Record<string, number> = { two: 2, three: 3, four: 4, five: 5, six: 6 };
+/** "for 2", "for two": how many are booking, when nothing else is counted. */
+const FOR_N =
+  /\bfor\s+(\d{1,2}|two|three|four|five|six)\b(?!\s*(?:hours?|hrs?|h\b|rooms?|bed|bath|days?|weeks?|months?|m2|sqm|square|metres?|meters?|%|am\b|pm\b|:|\/|dollars?|bucks))/i;
+/** "4 of us live here": who lives there, not who is booked. */
+const LIVES_THERE = /^\s*(?:who\s+)?(?:live|living|stay|staying|in\s+the\s+house|here)\b/i;
+
 /** How many people they said there are, when it is more than one. */
 export function peopleIn(message: string): { n: number; span: string } | undefined {
   const read = readQuantityFromMessage(message, "people", "person");
-  const n = read ? Number(read.value) : NaN;
-  return Number.isInteger(n) && n >= 2 && n <= 50 ? { n, span: read!.span } : undefined;
+  if (read) {
+    const at = message.indexOf(read.span);
+    const after = at === -1 ? "" : message.slice(at + read.span.length);
+    const n = Number(read.value);
+    if (LIVES_THERE.test(after)) return undefined;
+    return Number.isInteger(n) && n >= 2 && n <= 50 ? { n, span: read.span } : undefined;
+  }
+  const m = FOR_N.exec(message);
+  if (!m) return undefined;
+  const n = SMALL[m[1]!.toLowerCase()] ?? Number(m[1]);
+  return n >= 2 && n <= 20 ? { n, span: m[0] } : undefined;
 }
 
 /**
@@ -80,6 +98,9 @@ export function applyHeadcount<L extends Line>(input: {
     if (line.adjustment || line.count) return line;
     const rule = input.rules.find((r) => norm(r.service) === norm(line.label));
     if (!rule || rule.kind !== "fixed_price") return line;
+    // A clean or a paint job is priced for the place, never per person.
+    const trade = tradeOf(rule.service);
+    if (trade === "cleaning" || trade === "painting") return line;
     const field = countChoiceField(line.label);
     const chosen = input.facts.find(
       (f) => norm(f.field) === norm(field) && f.status === "confirmed",
@@ -107,11 +128,6 @@ export function applyHeadcount<L extends Line>(input: {
         count: `${people.n} people`,
         detail: `${people.n} people at ${each} each`,
       };
-    }
-    if (choice === COUNT_CHOICE.later) {
-      out.notes.push(
-        `That ${label} price is for one person - I'll come back to you on the price for ${people.n}.`,
-      );
     }
     return line;
   });

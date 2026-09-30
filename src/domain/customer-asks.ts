@@ -52,18 +52,33 @@ const TOPICS: [string, RegExp][] = [
   // "Could you do it for $500?": a counter-offer, answered by the owner, never by the quote.
   [
     "offer",
-    /\b(?:do|doing)\s+(?:it|that|this|the job|the lot)\s+for\s+\$\s?\d|\b(?:take|accept)\s+\$\s?\d|\$\s?\d[\d,]*\s+(?:ok|okay|work|suit|do)\b|\bbest\s+price\b|\bany\s+(?:wiggle|room|movement)\s+on\b/i,
+    /\b(?:do|doing)\s+(?:it|that|this|the job|the lot)\s+for\s+\$\s?\d|\b(?:take|accept)\s+\$\s?\d|\$\s?\d[\d,]*\s+(?:ok|okay|work|suit|do)\b|\bbest\s+price\b|\bany\s+(?:wiggle|room|movement)\b|\bflexib\w*\s+(?:on|with|in)\s+(?:the\s+|your\s+)?(?:price|pricing|quote|rate)\b|\bnegotiable\b/i,
   ],
   ["insurance", /\b(?:insured|insurance|public liability)\b/i],
-  ["licence", /\b(?:licen[cs]ed?|licen[cs]es?|registered|qualified|certified|accredited)\b/i],
+  // A police check or a Working With Children card is about who does the
+  // work: licensing, never insurance and never payment.
+  [
+    "licence",
+    /\b(?:licen[cs]ed?|licen[cs]es?|registered|qualified|certified|accredited|police\s+check(?:ed)?|working\s+with\s+children|blue\s+card)\b/i,
+  ],
+  ["cancellation", /\bcancel(?:l?ation|l?ing|l?ed)?\b|\breschedul\w*\b/i],
   ["duration", /\bhow\s+long\b|\bhow\s+many\s+hours\b/i],
   ["deposit", /\bdeposit\b/i],
-  ["payment", /\b(?:pay(?:ment)?|card|cash|invoice|afterpay|eftpos|bank transfer)\b/i],
+  // Payment only by what it is: "how can I pay", "do you take card". Never a
+  // bare "card" (a Working With Children card) or "pay for parking".
+  [
+    "payment",
+    /\bhow\s+(?:do|can|would|should)\s+(?:i|we)\s+pay\b|\bpayment\s+(?:options?|methods?|terms|plans?)\b|\bpay(?:ing)?\s+(?:by|with|in)\s+(?:card|cash|credit|eftpos|bank\s+transfer|instalments?)\b|\b(?:take|accept)\s+(?:card|credit\s+card|eftpos|afterpay|zip)\b|\bafterpay\b|\beftpos\b|\bbank\s+transfer\b|\binvoice\b/i,
+  ],
   [
     "equipment",
     /\b(?:bring|supply|provide|use|using)\s+(?:(?:your|our|my|their)\s+own\s+|any\s+|all\s+(?:our|my|the)\s+(?:own\s+)?)?(?:\w+\s+)?(?:equipment|products|supplies|gear|vacuum|materials|chemicals)\b/i,
   ],
-  ["pets", /\b(?:pets?|dogs?|cats?)\b/i],
+  // Pets only as pets being there: "is it extra for dog hair?" is about the price.
+  [
+    "pets",
+    /\b(?:(?:have|got|with|own)\s+(?:a\s+|an?\s+|two\s+|2\s+|some\s+)?(?:\w+\s+)?(?:dogs?|cats?|pets?)\b|\bpets?\s+(?:ok|okay|allowed|friendly)\b|\bpet[- ]friendly\b|\b(?:ok|okay|fine)\s+with\s+(?:dogs?|cats?|pets?)\b|\b(?:dogs?|cats?|pets?)\s+(?:be\s+)?(?:ok|okay|a\s+problem|an\s+issue)\b)/i,
+  ],
   ["parking", /\bpark(?:ing)?\b/i],
   ["warranty", /\b(?:warrant(?:y|ies)|guarantee[ds]?)\b/i],
   // "is the price including paint?": what the price covers, not the price itself.
@@ -86,6 +101,7 @@ const ANSWER_TOPICS = new Set([
   "parking",
   "warranty",
   "discount",
+  "cancellation",
 ]);
 
 /** How a customer usually asks it, for a saved answer written as a statement. */
@@ -100,6 +116,7 @@ const TOPIC_QUESTIONS: Record<string, string> = {
   parking: "Is there parking?",
   warranty: "Do you guarantee your work?",
   discount: "Is there a discount?",
+  cancellation: "What's your cancellation policy?",
 };
 
 /**
@@ -125,7 +142,11 @@ const ABOUT_A_DAY =
 
 /** How a real question starts, after any lead-in ("ok thanks, will you ..."). */
 const QUESTION_START =
-  /^(?:and\s+|also\s+|oh\s+|btw\s+|just\s+wondering\s+|i\s+was\s+wondering\s+(?:if|whether)\s+|wondering\s+(?:if|whether)\s+)?(?:do|does|did|are|r|is|was|can|could|will|would|have|has|how|what|when|who|which|where|should)\b/i;
+  /^(?:and\s+|also\s+|oh\s+|btw\s+|just\s+wondering\s+|(?:i\s+was\s+|i'?m\s+|just\s+)?wondering\s+(?:if|whether)\s+)?(?:do|does|did|are|r|is|was|can|could|will|would|have|has|how|what|what'?s|whats|when|who|which|where|should|you|u)\b/i;
+
+/** Small talk, never a question for the owner to answer. */
+const SMALL_TALK =
+  /^(?:hi|hey|hello)?[\s,]*(?:how\s+(?:are|r)\s+(?:you|u|ya)(?:\s+(?:going|doing|today|keeping))?|how'?s\s+(?:it\s+going|things|your\s+(?:day|week|weekend))|hope\s+you(?:'re|\s+are)\s+well|how\s+have\s+you\s+been)\b/i;
 
 /**
  * "please confirm you are insured", "let me know if you bring your own
@@ -135,7 +156,7 @@ const ASK_BY_INSTRUCTION =
   /^(?:and\s+|also\s+)?(?:please\s+|pls\s+|plz\s+|kindly\s+|can\s+(?:you|u)\s+(?:please\s+)?|could\s+(?:you|u)\s+(?:please\s+)?)?(?:confirm|let\s+(?:me|us)\s+know|advise|tell\s+(?:me|us))\b/i;
 
 /** Topics a quote never answers by itself, whatever words they use. */
-const OWN_ANSWER_TOPICS = new Set(["offer", "inclusions", "discount"]);
+const OWN_ANSWER_TOPICS = new Set(["offer", "inclusions", "discount", "cancellation"]);
 
 /** "do you do", "do you offer": a question about a service, read elsewhere. */
 const SERVICE_ASK =
@@ -191,6 +212,7 @@ function idOf(text: string): string {
 
 /** A clause that is a question for the owner, not the job, the price or a service. */
 function ownerQuestion(clause: string, isQuestion: boolean, services: readonly string[]): boolean {
+  if (SMALL_TALK.test(clause.trim())) return false;
   const topic = TOPICS.find(([, re]) => re.test(clause))?.[0];
   const instruction = ASK_BY_INSTRUCTION.test(clause) && Boolean(topic);
   if (!QUESTION_START.test(clause) && !instruction) return false;
@@ -262,6 +284,7 @@ const TOPIC_WORDS: Record<string, string> = {
   pets: "your question about pets",
   parking: "parking",
   warranty: "the guarantee",
+  cancellation: "the cancellation policy",
 };
 
 /** "your question about insurance", "your other question". */

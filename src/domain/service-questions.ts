@@ -15,7 +15,14 @@ import { mentionsAny, namesService, stemsOf } from "./service-words.ts";
 
 export const QUESTION_PREFIX = "question:";
 
-export const QUESTION_ANSWER = { yes: "yes", no: "no", open: "open" } as const;
+/** `later`: the owner will come back to them on it, and the reply says so. */
+export const QUESTION_ANSWER = { yes: "yes", no: "no", later: "later", open: "open" } as const;
+
+/** Whether the owner has settled a "do you do X?": yes, no, or come back on it. */
+export function questionSettled(value: unknown): boolean {
+  const v = String(value ?? "");
+  return v === QUESTION_ANSWER.yes || v === QUESTION_ANSWER.no || v === QUESTION_ANSWER.later;
+}
 
 export function questionField(thing: string): string {
   return `${QUESTION_PREFIX}${thing}`;
@@ -135,6 +142,7 @@ export function readServiceQuestions(
 /** The reply's line for an answered question. Never a price. */
 export function questionReplyLine(thing: string, answer: string): string | null {
   if (answer === QUESTION_ANSWER.no) return `Sorry, I don't do ${thing}.`;
+  if (answer === QUESTION_ANSWER.later) return `I'll come back to you on ${thing}.`;
   if (answer === QUESTION_ANSWER.yes) {
     return `Yes, I can help with ${thing} - I'll come back to you with a price for that.`;
   }

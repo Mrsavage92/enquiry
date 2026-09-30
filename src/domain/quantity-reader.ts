@@ -259,7 +259,7 @@ const ONE_PERSON =
   /^(?:(?:my|the|our|her|his)\s+)?(?:me|myself|bride|groom|mum|mom|mother|dad|father|sister|brother|daughter|son|aunt|auntie|grandma|nan|nanna|friend|partner|husband|wife|flower\s+girl|maid\s+of\s+honou?r|mother\s+of\s+the\s+(?:bride|groom)|mil|mob|mog)$/i;
 /** Several named by a number: "2 bridesmaids", "three friends". */
 const SEVERAL =
-  /^(\d{1,2}|two|three|four|five|six|seven|eight|nine|ten)\s+(?:bridesmaids?|sisters?|friends?|girls?|kids?|children|daughters?|flower\s+girls?|guests?|people|others?|more)$/i;
+  /^(?:(?:my|our|the|her|his)\s+)?(\d{1,2}|two|three|four|five|six|seven|eight|nine|ten)\s+(?:bridesmaids?|sisters?|friends?|girls?|kids?|children|daughters?|flower\s+girls?|guests?|people|others?|more)$/i;
 /** "for bride + mum + 2 bridesmaids", "for me, mum and 3 bridesmaids". */
 const PEOPLE_LIST =
   /\bfor\s+((?:[a-z0-9]+(?:\s+[a-z]+){0,3})(?:\s*(?:\+|,|&|\band\b|\bplus\b|\bn\b)\s*(?:[a-z0-9]+(?:\s+[a-z]+){0,3}))+)/i;

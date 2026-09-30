@@ -66,3 +66,18 @@ export function isTimeZone(value: string): boolean {
 export function withDefaults(partial: Partial<WorkspacePrefs> | undefined): WorkspacePrefs {
   return { ...DEFAULT_PREFS, ...(partial ?? {}) };
 }
+
+/**
+ * "Settings hours change from Monday to Friday 08:00-17:30 to Monday to
+ * Saturday 07:00-17:00": the old hours beside the new, for the read-back
+ * before saving and for the record after.
+ */
+export function workingHoursChange(
+  from: Pick<WorkspacePrefs, "workingDays" | "hoursStart" | "hoursEnd">,
+  to: Pick<WorkspacePrefs, "workingDays" | "hoursStart" | "hoursEnd">,
+): string {
+  const said = (p: typeof from) => `${p.workingDays} ${p.hoursStart}-${p.hoursEnd}`;
+  return said(from) === said(to)
+    ? `Settings hours stay ${said(to)}`
+    : `Settings hours change from ${said(from)} to ${said(to)}`;
+}

@@ -37,9 +37,46 @@ const MESSAGE_TRADES: [Trade, RegExp][] = [
   ["cleaning", /\b(?:clean\w*|steam\w*|vacuum\w*|mop\w*|scrub\w*|pressure\s+wash\w*)\b/i],
 ];
 
+/**
+ * The work word in a service's name decides its trade before any thing it
+ * works on: "Interior car clean" is cleaning, "Ceiling paint" is painting.
+ */
+const WORK_TRADES: [Trade, RegExp][] = [
+  ["cleaning", /\b(?:clean\w*|wash\w*|steam\w*|detail\w*)\b/i],
+  ["painting", /\b(?:paint\w*|repaint\w*|render\w*|stain\w*)\b/i],
+  [
+    "beauty",
+    /\b(?:make-?up|mani(?:cure)?|pedi(?:cure)?|lash(?:es)?|brows?|wax(?:ing)?|facials?)\b/i,
+  ],
+];
+
 /** The trade a service belongs to, or undefined when its name says none. */
 export function tradeOf(service: string): Trade | undefined {
-  return SERVICE_TRADES.find(([, re]) => re.test(service))?.[0];
+  return (
+    WORK_TRADES.find(([, re]) => re.test(service))?.[0] ??
+    SERVICE_TRADES.find(([, re]) => re.test(service))?.[0]
+  );
+}
+
+/** Every word of the service's name is in the message: it names it, whatever the trade. */
+function namedInFull(service: string, message: string): boolean {
+  const said = new Set(
+    message
+      .toLowerCase()
+      .split(/[^a-z]+/)
+      .filter(Boolean),
+  );
+  const words = service
+    .toLowerCase()
+    .split(/[^a-z]+/)
+    .filter((w) => w.length >= 3 && !["and", "the", "for", "with"].includes(w));
+  // One bare thing ("Ceilings") is named by any mention of it ("mould on the
+  // ceiling"): that is not asking for the service.
+  if (words.length < 2 && !WORK_TRADES.some(([, re]) => re.test(service))) return false;
+  return (
+    words.length > 0 &&
+    words.every((w) => said.has(w) || said.has(`${w}s`) || said.has(w.replace(/s$/, "")))
+  );
 }
 
 /** The trades a message asks for work in. */
@@ -53,7 +90,7 @@ export function tradesOf(message: string): Set<Trade> {
  */
 export function fitsTrade(service: string, message: string): boolean {
   const trade = tradeOf(service);
-  if (!trade) return true;
+  if (!trade || namedInFull(service, message)) return true;
   const said = tradesOf(message);
   return said.size === 0 || said.has(trade);
 }

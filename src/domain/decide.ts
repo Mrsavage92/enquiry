@@ -40,6 +40,7 @@ import {
 import {
   QUESTION_ANSWER,
   isQuestionField,
+  questionSettled,
   questionReplyLine,
   questionThing,
 } from "./service-questions.ts";
@@ -570,7 +571,7 @@ function pendingQuestion(facts: ReadonlyArray<DecideFact>): QuestionPending | un
       isQuestionField(f.field) &&
       !(
         f.status === "confirmed" &&
-        (f.value === QUESTION_ANSWER.yes || f.value === QUESTION_ANSWER.no)
+        questionSettled(f.value)
       ),
   );
   if (!open) return undefined;
@@ -699,6 +700,60 @@ function jobDatesOf(facts: ReadonlyArray<DecideFact>): string[] {
     .filter((d) => /^\d{4}-\d{2}-\d{2}$/.test(d));
 }
 
+const DAY_WORDS: [RegExp, number[]][] = [
+  [/\bweekends?\b/i, [0, 6]],
+  [/\bweekdays?\b/i, [1, 2, 3, 4, 5]],
+  [/\bsat(?:urday)?s?\b/i, [6]],
+  [/\bsun(?:day)?s?\b/i, [0]],
+  [/\bmon(?:day)?s?\b/i, [1]],
+  [/\btue(?:s(?:day)?)?s?\b/i, [2]],
+  [/\bwed(?:nesday)?s?\b/i, [3]],
+  [/\bthu(?:r(?:s(?:day)?)?)?s?\b/i, [4]],
+  [/\bfri(?:day)?s?\b/i, [5]],
+];
+
+/** "this weekend", "tuesdays pref": the weekdays some words name. */
+function weekdaysSaid(words: string): number[] {
+  return [...new Set(DAY_WORDS.flatMap(([re, days]) => (re.test(words) ? days : [])))];
+}
+
+/**
+ * Every weekday the job could fall on: the day or days asked, each day of a
+ * stretch ("between 16 and 19 October"), what loose words name ("this
+ * weekend"), a day they prefer, and the trial's or the event's own day. Empty
+ * when no day is said at all - which a day-based charge treats as unsure.
+ */
+function jobWeekdaysOf(facts: ReadonlyArray<DecideFact>): number[] {
+  const out = new Set<number>();
+  const find = (field: string) => facts.find((f) => f.field.trim().toLowerCase() === field);
+  const date = find("date");
+  const value = String(date?.value ?? "").trim();
+  const window = /^(\d{4}-\d{2}-\d{2})\.\.(\d{4}-\d{2}-\d{2})$/.exec(value);
+  if (window) {
+    const [y, m, d] = window[1]!.split("-").map(Number) as [number, number, number];
+    for (let i = 0; i < 62; i += 1) {
+      const day = new Date(y, m - 1, d + i);
+      const iso = `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, "0")}-${String(day.getDate()).padStart(2, "0")}`;
+      if (iso > window[2]!) break;
+      out.add(day.getDay());
+    }
+  } else if (/^\d{4}-\d{2}-\d{2}/.test(value)) {
+    for (const iso of jobDatesOf(facts)) out.add(new Date(`${iso}T00:00:00`).getDay());
+  } else if (date) {
+    weekdaysSaid(String(date.displayValue ?? "")).forEach((d) => out.add(d));
+  }
+  const preference = find("day_preference");
+  if (preference) weekdaysSaid(String(preference.value ?? "")).forEach((d) => out.add(d));
+  const context = find("date_context");
+  if (context) {
+    for (const m of contextMentions(String(context.value ?? ""), String(context.displayValue ?? ""))) {
+      if (m.to || m.role === "context") continue;
+      out.add(new Date(`${m.iso}T00:00:00`).getDay());
+    }
+  }
+  return [...out].sort((a, b) => a - b);
+}
+
 /** The job's days and every other single day they wrote (the trial's): each checked against closed days. */
 function allDatesOf(facts: ReadonlyArray<DecideFact>): string[] {
   const context = facts.find((f) => f.field.trim().toLowerCase() === "date_context");
@@ -808,6 +863,7 @@ function gateCoverage(decided: Decision, ctx: CoverageContext): Decision {
     lines: counted.lines,
     message: ctx.message,
     jobDates: jobDatesOf(ctx.facts),
+    jobWeekdays: jobWeekdaysOf(ctx.facts),
     facts: ctx.facts,
     ...(recurring ? { recurring: frequency ?? "regularly" } : {}),
   });

@@ -1,5 +1,10 @@
 import { EXTRA_CHOICE, extraLabel, isExtraField } from "./extras.ts";
-import { QUESTION_ANSWER, isQuestionField, questionThing } from "./service-questions.ts";
+import {
+  QUESTION_ANSWER,
+  isQuestionField,
+  questionSettled,
+  questionThing,
+} from "./service-questions.ts";
 import { ASK_CHOICE, askTopic, askWhen, availabilitySettled, isAskField } from "./customer-asks.ts";
 import { contextMentions, mentionWords } from "./date-roles.ts";
 import { COVERAGE_FIELD } from "./coverage.ts";
@@ -121,14 +126,16 @@ export function askedLedger(
       continue;
     }
     if (isQuestionField(f.field)) {
-      const answered =
-        f.status === "confirmed" &&
-        (String(f.value) === QUESTION_ANSWER.yes || String(f.value) === QUESTION_ANSWER.no);
+      const settled = f.status === "confirmed" && questionSettled(f.value);
       out.push({
         id: f.field,
         kind: "question",
         text: f.displayValue?.trim() || questionThing(f.field),
-        status: answered ? "answered" : "open",
+        status: !settled
+          ? "open"
+          : String(f.value) === QUESTION_ANSWER.later
+            ? "come_back"
+            : "answered",
       });
       continue;
     }

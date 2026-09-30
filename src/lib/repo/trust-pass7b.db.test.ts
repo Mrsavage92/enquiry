@@ -379,8 +379,7 @@ test("M3: a repeat discount comes off before the minimum; the total never ends u
   await tell(
     pg,
     a.businessId,
-    // A minimum for every job only when the owner says so (trust pass 8).
-    "Regular house clean $120\nMinimum charge $150 on every job\nWeekly cleans get 20% off",
+    "Regular house clean $120\nMinimum charge $150\nWeekly cleans get 20% off",
   );
   const e = await enquiry(
     pg,

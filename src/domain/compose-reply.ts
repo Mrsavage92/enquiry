@@ -307,11 +307,16 @@ function mainDateTalk(opts: ReplyContext, others: DateMention[]): DateTalk {
   if (opts.dateOptions?.trim()) return optionsSentence(opts.dateOptions, opts);
   const closedLine = closedDaySentence(opts);
   if (closedLine) return { lines: [closedLine], close: "closed" };
-  const iso = opts.jobDateIso ?? opts.mentionedDateIso;
+  // A day only mentioned, and not in words that name it, is never said back:
+  // it may be a misread ("Unit 5/12"). A closed one is still said above.
+  const iso = opts.jobDateIso;
   const day = spokenDate(iso);
   if (iso && day) {
     // A day with none of their words is one the owner gave: stated as such.
-    const confirmed = opts.jobDateConfirmed ?? !(opts.jobDateSpan ?? opts.mentionedDateSpan);
+    const confirmed = opts.jobDateConfirmed ?? !opts.jobDateSpan;
+    if (opts.jobDateWhat === "day before" && !opts.jobDateConfirmed) {
+      return { lines: [dayBeforeLine(iso, day, others)], close: "unconfirmed" };
+    }
     const reason = foldContext(iso, opts.jobDateWhat, others);
     if (opts.jobDateRole === "deadline") {
       return {
@@ -330,7 +335,7 @@ function mainDateTalk(opts: ReplyContext, others: DateMention[]): DateTalk {
       };
     }
     if (confirmed) return { lines: [`I'll confirm whether ${day} works.`], close: "unconfirmed" };
-    const said = daySaid(opts.jobDateSpan ?? opts.mentionedDateSpan, iso);
+    const said = daySaid(opts.jobDateSpan, iso);
     return {
       lines: [`You mentioned ${said}${reason} - I'll confirm whether that works.`],
       close: "unconfirmed",
@@ -351,6 +356,28 @@ function mainDateTalk(opts: ReplyContext, others: DateMention[]): DateTalk {
     };
   }
   return preferenceSentence(opts);
+}
+
+/**
+ * "the day before (29/10)" beside settlement: "You mentioned Thursday 29
+ * October, the day before settlement on Friday 30 October". "the day before
+ * 30/10" with nothing named: the day worked out, and said as worked out.
+ */
+function dayBeforeLine(iso: string, day: string, others: DateMention[]): string {
+  const next = nextDayIso(iso);
+  const at = others.findIndex((d) => d.role === "context" && !d.to && d.iso === next);
+  if (at !== -1) {
+    const d = others[at]!;
+    others.splice(at, 1);
+    const what = d.what ? `${beforeSaid(d.what)} on ` : "";
+    return `You mentioned ${day}, the day before ${what}${spokenDate(d.iso)} - I'll confirm whether that works.`;
+  }
+  return `You mentioned the day before ${spokenDate(next)}, which is ${day} - I'll confirm whether that works.`;
+}
+
+function nextDayIso(iso: string): string {
+  const d = dateOf(iso)!;
+  return isoOf(new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1));
 }
 
 /**
@@ -401,9 +428,17 @@ function otherDateTalk(d: DateMention, opts: ReplyContext): DateTalk {
       : { lines: [`${lead}, I'll confirm which day works.`], close: "unconfirmed" };
   }
   const reason = closedReason(d.iso, opts.closed);
-  if (d.role === "context") {
+  // Another day's event ("the wedding is Saturday 24 October" beside a
+  // makeup job the day before): theirs, said as theirs, never booked.
+  if (d.role === "context" || d.role === "event") {
     const said = contextSaid(d.what, day);
-    return { lines: [`I understand ${said} - I'll work around that.`] };
+    return {
+      lines: [
+        d.role === "event"
+          ? `I understand ${said}.`
+          : `I understand ${said} - I'll work around that.`,
+      ],
+    };
   }
   const lead =
     d.role === "trial" || (d.what && d.role !== "job")

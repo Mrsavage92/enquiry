@@ -65,12 +65,9 @@ const MIN_AFTER_SERVICE = new RegExp(
   "i",
 );
 
-/** "on every job", "all jobs", "any booking": a minimum the owner means for everything. */
-const EVERY_JOB =
-  /\b(?:every|all|any|each)\s+(?:jobs?|bookings?|quotes?|services?|visits?)\b|\bper\s+(?:job|booking|visit)\b|\bon\s+everything\b/i;
-
+/** "on every job", "all jobs", "per job": the scope a minimum has anyway, taken off before reading. */
 const EVERY_JOB_TAIL =
-  /[,;]?\s*(?:on|for|per|across)?\s*(?:every|all|any|each)\s+(?:jobs?|bookings?|quotes?|services?|visits?)\s*[.!]?\s*$/i;
+  /[,;]?\s*(?:(?:on|for|per|across)?\s*(?:every|all|any|each)\s+(?:jobs?|bookings?|quotes?|services?|visits?)|per\s+(?:job|booking|visit)|on\s+everything)\s*[.!]?\s*$/i;
 
 const DAY_WORDS: [RegExp, number][] = [
   [/\bsun(?:day)?s?\b/i, 0],
@@ -216,20 +213,15 @@ function readMinimum(line: string): RuleLineRead | null {
     };
   }
   if (amounts !== 1) return null;
-  // "Minimum $600 on every job": the scope said after the amount.
-  const scoped = line.replace(EVERY_JOB_TAIL, "");
+  // "Minimum $600 on every job", "Min charge $150 per job": every job, the
+  // same as saying nothing. "Minimum $150 only for carpet cleaning": that
+  // service. Unscoped, it is every job - one tap on each quote under it, apply
+  // or not this time, never a note that lets a quote go out under it.
+  const scoped = line.replace(EVERY_JOB_TAIL, "").replace(/\bonly\s+(?=(?:for|on)\b)/i, "");
   const first = MIN_FIRST.exec(scoped);
   if (first) {
     const service = serviceName(first[1]);
     if (first[1] && !service) return null;
-    // "Minimum job $600" said beside a painting price: a $55 manicure must
-    // never be asked about it. Every job only when the owner says so.
-    if (!service && !EVERY_JOB.test(line)) {
-      return {
-        details: [],
-        note: `Enquiry doesn't know if this minimum is for every service or only one. It is kept as a note. To check it on every quote, write "Minimum $${amountOf(first[2]!)} on every job"; for one service, name it: "Interior painting minimum $${amountOf(first[2]!)}".`,
-      };
-    }
     return {
       details: [
         { kind: "minimum_charge", amount: amountOf(first[2]!), ...(service ? { service } : {}) },

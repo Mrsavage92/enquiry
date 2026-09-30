@@ -165,6 +165,7 @@ function minimumsInOrder(details: readonly BusinessDetail[]): Minimum[] {
 
 /** "Sunday or Saturday", "Saturdays". */
 function daysWord(days: readonly number[]): string {
+  if (days.length === 2 && days.includes(0) && days.includes(6)) return "Weekends";
   return days.map((d) => `${WEEKDAYS[d]!}s`).join(" and ");
 }
 
@@ -227,6 +228,8 @@ type Ctx = {
   details: readonly BusinessDetail[];
   message: string;
   jobDates: readonly string[];
+  /** Every weekday the job could fall on; empty when no day is said. */
+  weekdays: readonly number[];
   settled: Settled;
   open: RuleCheck[];
   implied: number[];
@@ -272,40 +275,60 @@ function applyMinimums(ctx: Ctx, start: RuleLine[]): RuleLine[] {
  * day was asked for and it is that day. Several days offered, one of them a
  * surcharge day: the reply says the rate plainly, the total does not guess.
  */
+/**
+ * How the job's days stand against a rule's days: every day it could be
+ * falls on them ("all"), none does ("none"), some do or nobody has said which
+ * day ("unsure"). Unsure is asked about, and said in the reply if waived.
+ */
+function dayFit(days: readonly number[], ruleDays: readonly number[]): "all" | "none" | "unsure" {
+  if (days.length === 0) return "unsure";
+  if (days.every((d) => ruleDays.includes(d))) return "all";
+  if (!days.some((d) => ruleDays.includes(d))) return "none";
+  return "unsure";
+}
+
+/**
+ * A surcharge applies to the job price after any minimum, on the days it is
+ * for. Every day the job could be carries it: one tap adds it. Some could and
+ * some could not, or no day is said yet: one tap adds it, and if the owner
+ * waives it the reply says the rate plainly.
+ */
 function applySurcharges(ctx: Ctx, start: RuleLine[], notes: string[]): RuleLine[] {
   let lines = start;
-  const days = ctx.jobDates.map(weekdayOf).filter((d): d is number => d !== undefined);
+  const days = ctx.weekdays;
   for (const s of ctx.details) {
     if (s.kind !== "surcharge") continue;
     // A rule for no one service concerns every job on the quote.
     const target = jobLines(lines).filter((l) => concerns(l, s.service));
-    if (target.length === 0 || !days.some((d) => s.days.includes(d))) continue;
-    // Every day they offered carries the rate ("this sat or sun" and a
-    // weekend rate): it applies whichever day it is. Some do, some don't: the
-    // reply says the rate plainly and the total does not guess.
-    if (!days.every((d) => s.days.includes(d))) {
-      notes.push(`Just so you know, ${daysWord(s.days)} are ${s.percent}% more.`);
-      continue;
-    }
+    const fit = dayFit(days, s.days);
+    if (target.length === 0 || fit === "none") continue;
     const base = sum(target);
     const extra = Math.round((base * s.percent) / 100);
     if (extra <= 0) continue;
-    const unique = [...new Set(days)];
+    const onDays = [...new Set(days.filter((d) => s.days.includes(d)))];
+    const unique = fit === "all" ? onDays : s.days;
     const name =
       unique.length === 1
         ? WEEKDAYS[unique[0]!]!
         : unique.every((d) => d === 0 || d === 6)
           ? "weekend"
           : unique.map((d) => WEEKDAYS[d]!).join(" or ");
+    const field = `${RULE_PREFIX}surcharge:${s.days.join("")}:${s.percent}`;
     const check: RuleCheck = {
-      field: `${RULE_PREFIX}surcharge:${s.days.join("")}:${s.percent}`,
+      field,
       kind: "surcharge",
-      text: `They asked for a ${name} - your ${name} rate is ${s.percent}% more (${s.percent}% of ${formatMinorAud(base)} is ${formatMinorAud(extra)})`,
+      text:
+        fit === "all"
+          ? `They asked for a ${name} - your ${name} rate is ${s.percent}% more (${s.percent}% of ${formatMinorAud(base)} is ${formatMinorAud(extra)})`
+          : `${days.length ? "Some of the days they mentioned are" : "They haven't said which day - it may be"} ${daysWord(s.days).replace(/^Weekends$/, "weekends")} - your rate is ${s.percent}% more then (${formatMinorAud(extra)})`,
       choices: [
         [RULE_CHOICE.apply, `Add ${s.percent}% ${name} rate (${formatMinorAud(extra)})`],
-        [RULE_CHOICE.waive, "Doesn't apply"],
+        [RULE_CHOICE.waive, fit === "all" ? "Doesn't apply" : "Not yet - tell them the rate"],
       ],
     };
+    if (fit === "unsure" && ctx.settled.get(norm(field)) === RULE_CHOICE.waive) {
+      notes.push(`Just so you know, ${daysWord(s.days)} are ${s.percent}% more.`);
+    }
     const line: RuleLine = {
       label: `${capitalise(name)} rate (${s.percent}% of ${formatMinorAud(base)})`,
       amountMinor: extra,
@@ -424,7 +447,16 @@ function applyConditionDiscounts(ctx: Ctx, start: RuleLine[]): RuleLine[] {
   for (const d of ctx.details) {
     if (d.kind !== "discount" || d.frequency || !d.condition) continue;
     const who = d.condition;
-    const said = new RegExp(String.raw`\b${who.slice(0, 5).replace(/[^a-z ]/gi, "")}`, "i");
+    // Who it is for, as whole words: "pensioners" is "pensioner(s)" or "pension";
+    // "new customers" is never "new carpet".
+    const words = who
+      .toLowerCase()
+      .replace(/[^a-z ]/g, "")
+      .split(/\s+/)
+      .filter(Boolean)
+      .map((w, i, all) => (i === all.length - 1 ? `${w.replace(/s$/, "")}s?` : w));
+    const pension = /^pensioner/.test(who.toLowerCase()) ? String.raw`|\bpension\b` : "";
+    const said = new RegExp(String.raw`\b${words.join(String.raw`\s+`)}\b${pension}`, "i");
     if (!said.test(ctx.message) && !/\bdiscount|\bconcession|\bcheaper\b/i.test(ctx.message)) {
       continue;
     }
@@ -483,33 +515,39 @@ export function feeLineLabel(f: Fee): string | null {
 
 function applyFees(ctx: Ctx, start: RuleLine[], notes: string[]): RuleLine[] {
   let lines = start;
-  const days = ctx.jobDates.map(weekdayOf).filter((d): d is number => d !== undefined);
+  const days = ctx.weekdays;
   for (const f of ctx.details) {
     if (f.kind !== "fee" || !jobLines(lines).some((l) => concerns(l, (f as Fee).service))) continue;
     const amount = Math.round(f.amount * 100);
     if (amount <= 0) continue;
-    // "Weekend jobs have a $50 surcharge": only asked about when the day is
-    // one of those; some days offered, some not: said, never guessed.
-    if (f.days?.length) {
-      if (!days.some((d) => f.days!.includes(d))) continue;
-      if (!days.every((d) => f.days!.includes(d))) {
-        notes.push(`Just so you know, ${f.text.replace(/[.;]+$/, "")}.`);
-        continue;
-      }
+    // "Weekend jobs have a $50 surcharge": skipped only when no day the job
+    // could be is one of those. Unsure (some days, or none said yet): asked,
+    // and said in the reply if the owner waives it for now.
+    const fit = f.days?.length ? dayFit(days, f.days) : "all";
+    if (fit === "none") continue;
+    const field = `${RULE_PREFIX}fee:${idOf(norm(f.text))}`;
+    if (fit === "unsure" && ctx.settled.get(norm(field)) === RULE_CHOICE.waive) {
+      notes.push(`Just so you know, ${f.text.replace(/[.;]+$/, "")}.`);
     }
     const label = feeLineLabel(f);
     const check: RuleCheck = label
       ? {
-          field: `${RULE_PREFIX}fee:${idOf(norm(f.text))}`,
+          field,
           kind: "fee",
-          text: `Your ${f.label.toLowerCase()}: "${f.text}"`,
+          text:
+            fit === "unsure"
+              ? `${days.length ? "Some of the days they mentioned are" : "They haven't said which day - it may be"} ${daysWord(f.days ?? []).replace(/^Weekends$/, "weekends")}: "${f.text}"`
+              : `Your ${f.label.toLowerCase()}: "${f.text}"`,
           choices: [
             [RULE_CHOICE.apply, `Add ${formatMinorAud(amount)} ${f.label.toLowerCase()}`],
-            [RULE_CHOICE.waive, "Doesn't apply"],
+            [
+              RULE_CHOICE.waive,
+              fit === "unsure" ? "Not yet - tell them the charge" : "Doesn't apply",
+            ],
           ],
         }
       : {
-          field: `${RULE_PREFIX}fee:${idOf(norm(f.text))}`,
+          field,
           kind: "fee",
           text: `Your extra charge: "${f.text}" - it doesn't say what it is for, so a reply can't name it. Change it on your business screen to say why.`,
           choices: [[RULE_CHOICE.waive, "Leave it off this quote"]],
@@ -541,6 +579,11 @@ export function applyRules(input: {
   lines: readonly RuleLine[];
   message: string;
   jobDates: readonly string[];
+  /**
+   * Every weekday the job could fall on - the days asked, a stretch, "this
+   * weekend", the trial's day. Defaults to the weekdays of `jobDates`.
+   */
+  jobWeekdays?: readonly number[];
   facts: ReadonlyArray<{ field: string; value: unknown; status: string }>;
   /** How often the owner confirmed the job repeats, when it does. */
   recurring?: string;
@@ -549,6 +592,9 @@ export function applyRules(input: {
     details: input.details,
     message: input.message,
     jobDates: input.jobDates,
+    weekdays:
+      input.jobWeekdays ??
+      input.jobDates.map(weekdayOf).filter((d): d is number => d !== undefined),
     settled: settledRules(input.facts),
     open: [],
     implied: [],

@@ -77,9 +77,15 @@ export async function insertManualEnquiry(
   // The name, contact details and job date the customer wrote plainly, read
   // without a model so they are there even when no interpreter is configured.
   // What the owner typed always wins; anything read this way is `inferred`.
-  const basics = readEnquiryBasics(input.body, input.now ?? new Date(), undefined, {
-    place: owner?.base_location ?? "",
-  });
+  const basics = readEnquiryBasics(
+    input.body,
+    input.now ?? new Date(),
+    undefined,
+    {
+      place: owner?.base_location ?? "",
+    },
+    input.serviceLabel,
+  );
   const typedName = input.customerName.trim();
   const customerName = typedName || basics.customerName || "";
   const business = {
@@ -300,7 +306,11 @@ export function modelFactsToKeep<T extends { field: string }>(
   let questions = 0;
   return facts.filter((f) => {
     const field = f.field.trim().toLowerCase();
-    if (OWNER_ONLY_FIELDS.has(field) || field.startsWith("rule:")) return false;
+    // Questions they asked, a headcount choice and the days around the job are
+    // read from their words by rule, never planted by a model: each one would
+    // hold the reply until the owner answered it.
+    if (OWNER_ONLY_FIELDS.has(field) || /^(?:rule|ask|count):/.test(field)) return false;
+    if (field === "date_context") return false;
     const isExtra = field.startsWith("extra:");
     const isQuestion = field.startsWith("question:");
     if (!isExtra && !isQuestion) return true;

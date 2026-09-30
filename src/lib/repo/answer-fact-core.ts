@@ -80,6 +80,7 @@ function displayFor(field: string, value: string): string {
     return "Your rule doesn't apply here";
   }
   if (isQuestionField(field)) {
+    if (value === QUESTION_ANSWER.later) return "You'll come back to them on it";
     return value === QUESTION_ANSWER.yes ? "Yes - you do this" : "No - you don't do this";
   }
   if (isAskField(field)) {
@@ -223,7 +224,8 @@ export async function answerFactForUser(
   if (
     isQuestionField(input.field) &&
     value !== QUESTION_ANSWER.yes &&
-    value !== QUESTION_ANSWER.no
+    value !== QUESTION_ANSWER.no &&
+    value !== QUESTION_ANSWER.later
   ) {
     throw new Error("Answer yes or no.");
   }
