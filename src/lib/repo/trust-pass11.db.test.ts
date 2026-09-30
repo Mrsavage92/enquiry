@@ -268,6 +268,14 @@ test("3 Jase: '27th or 28th' beside 28/12 is read, and both days are in the clos
   assert.match(body, /Let me know what date suits and I'll confirm\./);
   assert.doesNotMatch(body, /Just let me know if you'd like to go ahead/);
   assertNoPromises(body);
+  // Both days are closed, so the weekend rate is never asked about: the quote
+  // is for the day the owner would offer instead.
+  const surcharge = await pg.query(
+    "select 1 from enquiry_fact where enquiry_id = $1 and field like 'rule:surcharge%'",
+    [e.enquiryId],
+  );
+  assert.equal(surcharge.rows.length, 0);
+  assert.equal(sent.ok && sent.amountMinor, 44_000);
 });
 
 test("3 Ahmed: 'lease ends Sunday 27 December ... the 26th or 27th' is never 'I'll work around that'", async (t) => {

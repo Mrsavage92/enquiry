@@ -1148,6 +1148,13 @@ function gateCoverage(start: Decision, ctx: CoverageContext): Decision {
   );
   const recurring = String(recurringAnswer?.value ?? "") === "yes";
   const unruled = linesOf(decided);
+  // The days they need, even when only the date sweep read them ("27th or
+  // 28th"): priced as the day the reply offers, never "it may be weekends".
+  const read = jobDatesOf(ctx.facts);
+  const sweptOnly = read.length === 0 && (ctx.reply?.sweptClosed ?? []).some((d) => d.say);
+  const asked = sweptOnly
+    ? (ctx.reply?.sweptClosed ?? []).filter((d) => d.say).map((d) => d.iso)
+    : read;
   // "for me n my sister (2 ppl)" beside a flat price: priced the way the
   // owner says, never one price read as covering both.
   const counted = applyHeadcount({
@@ -1166,10 +1173,12 @@ function gateCoverage(start: Decision, ctx: CoverageContext): Decision {
     // the closed Sunday of the wedding it no longer prices.
     // A day the owner doesn't work is priced as the day the reply offers
     // instead: never "your Sunday rate" on a Sunday the reply turns down.
-    jobDates: held.length ? plan!.workDays : openDays(jobDatesOf(ctx.facts), ctx.reply),
+    jobDates: held.length ? plan!.workDays : openDays(asked, ctx.reply),
     jobWeekdays: held.length
       ? weekdaysOf(plan!.workDays)
-      : jobWeekdaysOf(ctx.facts, openDay(ctx.reply), ctx.reply?.closed?.days ?? []),
+      : sweptOnly
+        ? weekdaysOf(openDays(asked, ctx.reply))
+        : jobWeekdaysOf(ctx.facts, openDay(ctx.reply), ctx.reply?.closed?.days ?? []),
     facts: ctx.facts,
     ...(recurring ? { recurring: frequency ?? "regularly" } : {}),
   });
