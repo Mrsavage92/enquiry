@@ -259,7 +259,9 @@ export function askedLedger(
   // A day the owner added: theirs, said in the reply.
   for (const f of facts) {
     if (!isDateAddedField(f.field) || f.status !== "confirmed") continue;
-    const isos = readSweep(f.value).days.filter((d) => !d.to).map((d) => d.iso);
+    const isos = readSweep(f.value)
+      .days.filter((d) => !d.to)
+      .map((d) => d.iso);
     out.push({
       id: f.field,
       kind: "date",

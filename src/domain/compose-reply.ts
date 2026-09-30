@@ -340,7 +340,9 @@ function sweptTalk(opts: ReplyContext): DateTalk {
   const spans = [...new Set(say.map((d) => d.span))];
   for (const span of spans) {
     const isos = say.filter((d) => d.span === span).map((d) => d.iso);
-    lines.push(`You mentioned ${spokenSpan(span)} - I'm sorry, I'm not available on ${daysSaid(isos)}.`);
+    lines.push(
+      `You mentioned ${spokenSpan(span)} - I'm sorry, I'm not available on ${daysSaid(isos)}.`,
+    );
     close = "closed";
   }
   if ((opts.sweptClosed ?? []).some((d) => !d.say)) close = worst(close, "unconfirmed");

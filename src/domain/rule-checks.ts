@@ -456,7 +456,8 @@ function applyOverDiscounts(ctx: Ctx, start: RuleLine[]): RuleLine[] {
     if (base <= Math.round(d.over * 100)) continue;
     const offMinor = d.amountOff
       ? Math.round(d.amountOff * 100)
-      : base - target.reduce((s, l) => s + Math.round((l.amountMinor * (100 - d.percent)) / 100), 0);
+      : base -
+        target.reduce((s, l) => s + Math.round((l.amountMinor * (100 - d.percent)) / 100), 0);
     const after = base - offMinor;
     if (offMinor <= 0 || after <= 0) continue;
     const off = d.amountOff ? formatMinorAud(offMinor) : `${d.percent}%`;

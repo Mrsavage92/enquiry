@@ -212,7 +212,11 @@ export function SendPreview({
         <div className="space-y-4">
           {/* Why it can't go, first: never under a message that looks ready. */}
           {blockedReason ? (
-            <div className="callout bg-danger-bg text-danger" role="alert" data-testid="send-refused">
+            <div
+              className="callout bg-danger-bg text-danger"
+              role="alert"
+              data-testid="send-refused"
+            >
               <p className="text-sm font-medium">This reply can't be sent as it is</p>
               <p className="mt-1 text-sm text-ink">{blockedReason}</p>
             </div>

@@ -175,7 +175,9 @@ test("1: another tenant cannot reach the review and nothing moves", async (t) =>
 type Asked = { id: string; kind: string; text: string; status: string; closed?: boolean };
 
 async function ledger(pg: PGlite, enquiryId: string): Promise<Asked[]> {
-  return ((await row(pg, enquiryId)).decision_snapshot as unknown as { asked?: Asked[] }).asked ?? [];
+  return (
+    ((await row(pg, enquiryId)).decision_snapshot as unknown as { asked?: Asked[] }).asked ?? []
+  );
 }
 
 /** Every closed day and unread date the sweep raised, answered the way the owner taps. */
@@ -187,7 +189,8 @@ async function settleDays(
 ) {
   for (const item of await ledger(pg, enquiryId)) {
     if (item.status !== "open") continue;
-    if (item.id.startsWith("closed_day:")) await answer(pg, userId, enquiryId, item.id, closedChoice);
+    if (item.id.startsWith("closed_day:"))
+      await answer(pg, userId, enquiryId, item.id, closedChoice);
     if (item.id.startsWith("date_check:")) await answer(pg, userId, enquiryId, item.id, "confirm");
   }
 }
@@ -427,7 +430,10 @@ test("5 Dr Carter-Wong: the weekly clean is its own item, and the painting is ne
     "Interior painting",
   );
   const items = await ledger(pg, e.enquiryId);
-  assert.ok(items.some((i) => i.text === "Regular house clean"), JSON.stringify(items));
+  assert.ok(
+    items.some((i) => i.text === "Regular house clean"),
+    JSON.stringify(items),
+  );
   await settle(pg, e.enquiryId, {
     answers: {
       "extra:Regular house clean": "come_back",
@@ -465,20 +471,33 @@ test("6: the owner's saved insurance sentence typed by hand is that answer; anot
   );
   const ok = await sendAs(pg, a.businessId, e.enquiryId, withAnswer);
   assert.equal(ok.ok, true, JSON.stringify(ok));
-  const own = body.replace("\n\nThanks,", "\n\nWe carry $10m in public liability cover.\n\nThanks,");
+  const own = body.replace(
+    "\n\nThanks,",
+    "\n\nWe carry $10m in public liability cover.\n\nThanks,",
+  );
   assert.equal((await sendAs(pg, a.businessId, e.enquiryId, own)).ok, true);
   for (const line of [
     "We are fully insured with $5m public liability.",
     "We carry 20 mil in public liability cover.",
   ]) {
-    const res = await sendAs(pg, a.businessId, e.enquiryId, body.replace("\n\nThanks,", `\n\n${line}\n\nThanks,`));
+    const res = await sendAs(
+      pg,
+      a.businessId,
+      e.enquiryId,
+      body.replace("\n\nThanks,", `\n\n${line}\n\nThanks,`),
+    );
     assert.equal(!res.ok && res.reason, "amount_mismatch", line);
     assert.equal(
       !res.ok && res.message,
       "Your saved insurance answer says $10,000,000. Use that figure, or change your saved answer first.",
     );
   }
-  const grand = await sendAs(pg, a.businessId, e.enquiryId, body.replace("\n\nThanks,", "\n\nAll up it is half a grand.\n\nThanks,"));
+  const grand = await sendAs(
+    pg,
+    a.businessId,
+    e.enquiryId,
+    body.replace("\n\nThanks,", "\n\nAll up it is half a grand.\n\nThanks,"),
+  );
   assert.equal(!grand.ok && grand.reason, "amount_mismatch");
 });
 
@@ -501,7 +520,14 @@ test("7: promises the owner writes are listed to check; sending anyway is one ta
   assert.equal(prepared.ok, true, JSON.stringify(prepared));
   if (!prepared.ok) return;
   const warned = prepared.warnings.join(" | ");
-  for (const re of [/10% off/, /throw in|free/, /booked/, /licensed/, /"Sunday 18 October" - I don't work Sundays/, /I can come/]) {
+  for (const re of [
+    /10% off/,
+    /throw in|free/,
+    /booked/,
+    /licensed/,
+    /"Sunday 18 October" - I don't work Sundays/,
+    /I can come/,
+  ]) {
     assert.match(warned, re);
   }
   const refused = await tx(pg, (sql) =>
@@ -586,7 +612,10 @@ test("9: 'How much for a clean?' - the owner asks which clean, one tap, and it c
 });
 
 test("9 Steph: 'Nothing bridal, just glam' never asks about bridal makeup", async (t) => {
-  const { pg, a } = await setup(t, ["Bridal makeup $250", "Party makeup $110 per person"].join("\n"));
+  const { pg, a } = await setup(
+    t,
+    ["Bridal makeup $250", "Party makeup $110 per person"].join("\n"),
+  );
   const e = await enquiry(
     pg,
     a.businessId,
@@ -614,7 +643,10 @@ test("9: a day the owner adds is read on the server and said in the reply; anoth
   await assert.rejects(answer(pg, "user-a", e.enquiryId, "date_added:whenever suits", "added"));
   await answer(pg, "user-a", e.enquiryId, "date_added:Sunday 27 December", "added");
   const body = (await row(pg, e.enquiryId)).decision_snapshot.draft.body;
-  assert.match(body, /You mentioned Sunday 27 December - I'm sorry, I'm not available on Sunday 27 December\./);
+  assert.match(
+    body,
+    /You mentioned Sunday 27 December - I'm sorry, I'm not available on Sunday 27 December\./,
+  );
   const items = await ledger(pg, e.enquiryId);
   assert.ok(items.some((i) => i.text === "Sunday 27 December" && i.closed));
 });

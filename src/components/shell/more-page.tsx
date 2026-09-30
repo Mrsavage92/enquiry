@@ -16,7 +16,8 @@ import { cn } from "@/lib/utils";
 import { BUSINESSES } from "@/fixtures";
 import { visibleBusinesses } from "@/lib/workspace/resolve-business";
 import { InstallAppRow } from "./install-app";
-import { NoticesList, useNotices } from "./notices";
+import { NoticesList } from "./notices";
+import { useNotices } from "./use-notices";
 import { useEmbed } from "@/lib/embed";
 
 export function MorePage() {

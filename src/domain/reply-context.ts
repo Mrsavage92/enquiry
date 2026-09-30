@@ -138,9 +138,18 @@ export function sweptChecks(
   for (const d of sweep.days) {
     if (d.to) {
       // A week always holds a day off; only closed dates inside it count.
-      const hit = (ctx.closed?.ranges ?? []).some((r) => weekIsos(d.iso, d.to!).some((iso) => closedRangeCovers(iso, r)));
+      const hit = (ctx.closed?.ranges ?? []).some((r) =>
+        weekIsos(d.iso, d.to!).some((iso) => closedRangeCovers(iso, r)),
+      );
       if (hit) {
-        out.push({ kind: "closed", field: `${CLOSED_DAY_PREFIX}${d.iso}`, iso: d.iso, span: d.span, context: false, week: true });
+        out.push({
+          kind: "closed",
+          field: `${CLOSED_DAY_PREFIX}${d.iso}`,
+          iso: d.iso,
+          span: d.span,
+          context: false,
+          week: true,
+        });
       }
       continue;
     }
@@ -175,9 +184,7 @@ function weekIsos(from: string, to: string): string[] {
 
 /** The owner's word on a swept check, or undefined while it is open. */
 export function sweptAnswer(facts: readonly ReplyFact[], check: SweptCheck): string | undefined {
-  const f = facts.find(
-    (x) => field(x) === check.field.toLowerCase() && x.status === "confirmed",
-  );
+  const f = facts.find((x) => field(x) === check.field.toLowerCase() && x.status === "confirmed");
   return f ? String(f.value ?? "").trim() : undefined;
 }
 
@@ -345,7 +352,10 @@ export function addedDays(
   facts: readonly ReplyFact[],
   closed: ReplyContext["closed"],
 ): { closed: { iso: string; span: string; say: boolean }[]; confirm: string[] } {
-  const out = { closed: [] as { iso: string; span: string; say: boolean }[], confirm: [] as string[] };
+  const out = {
+    closed: [] as { iso: string; span: string; say: boolean }[],
+    confirm: [] as string[],
+  };
   for (const f of facts) {
     if (!isDateAddedField(f.field) || f.status !== "confirmed") continue;
     const words = dateAddedText(f.field);

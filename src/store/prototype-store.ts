@@ -619,13 +619,12 @@ export const usePrototype = create<PrototypeState & Actions>()(
           // An edit that starts from the prepared reply is based on it; one
           // already under way keeps the reply it started from.
           const from =
-            base ?? (current === undefined || current === prepared ? prepared : (known ?? prepared));
+            base ??
+            (current === undefined || current === prepared ? prepared : (known ?? prepared));
           return {
             drafts: { ...s.drafts, [enquiryId]: body },
             draftBases:
-              from === undefined
-                ? s.draftBases
-                : { ...(s.draftBases ?? {}), [enquiryId]: from },
+              from === undefined ? s.draftBases : { ...(s.draftBases ?? {}), [enquiryId]: from },
           };
         }),
       resolveStaleDraft: (enquiryId) =>

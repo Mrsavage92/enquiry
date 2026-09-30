@@ -38,9 +38,7 @@ export function useDeletePractice() {
                       void navigate({ to: "/enquiries/$enquiryId", params: { enquiryId: id } });
                     })
                     .catch((err: unknown) =>
-                      toast.error(
-                        err instanceof Error ? err.message : "Could not bring it back.",
-                      ),
+                      toast.error(err instanceof Error ? err.message : "Could not bring it back."),
                     ),
               },
             }

@@ -279,7 +279,9 @@ test("9: a 'jobs over' discount is one tap, only on a quote over the amount", ()
     big.open[0]?.text,
     "This job is over $2,000 - your discount is $100 off ($2,880 becomes $2,780)",
   );
-  const applied = run(288_000, [{ field: big.open[0]!.field, value: "apply", status: "confirmed" }]);
+  const applied = run(288_000, [
+    { field: big.open[0]!.field, value: "apply", status: "confirmed" },
+  ]);
   assert.equal(applied.lines[0]?.amountMinor, 278_000);
 });
 

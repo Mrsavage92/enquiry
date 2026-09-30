@@ -313,7 +313,12 @@ export function CoverageCheck({
               }}
             />
           </label>
-          <Button variant="secondary" className="min-h-11" disabled={saving !== null} onClick={addDay}>
+          <Button
+            variant="secondary"
+            className="min-h-11"
+            disabled={saving !== null}
+            onClick={addDay}
+          >
             {saving === "day" ? "Saving…" : "Add the day"}
           </Button>
         </div>

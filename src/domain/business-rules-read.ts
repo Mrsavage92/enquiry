@@ -298,7 +298,22 @@ function readOverDiscount(line: string): RuleLineRead | null {
 }
 
 /** Words that name no job of their own: "Fortnightly cleans get 10% off" is any clean. */
-const ANY_JOB = new Set(["job", "jobs", "clean", "cleans", "booking", "bookings", "visit", "visits", "service", "services", "customer", "customers", "client", "clients"]);
+const ANY_JOB = new Set([
+  "job",
+  "jobs",
+  "clean",
+  "cleans",
+  "booking",
+  "bookings",
+  "visit",
+  "visits",
+  "service",
+  "services",
+  "customer",
+  "customers",
+  "client",
+  "clients",
+]);
 
 /**
  * "Fortnightly regular cleans get 10% off": the job it is for, so a

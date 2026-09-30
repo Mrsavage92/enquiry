@@ -23,7 +23,8 @@ import { SampleWorkspaceBanner } from "./sample-workspace-banner";
 import { SystemBanners } from "./system-banners";
 import { Jump, JumpTrigger } from "./jump";
 import { KeysHelp } from "./keys";
-import { Notices, useNotices } from "./notices";
+import { Notices } from "./notices";
+import { useNotices } from "./use-notices";
 import { useMarkSeen } from "@/lib/workspace/owner-sync";
 import { toast } from "sonner";
 

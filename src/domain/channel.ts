@@ -69,7 +69,9 @@ export function replyTo(enquiry: Enquiry): string {
   if (ch === "instagram" || ch === "facebook") {
     return enquiry.customerHandle || enquiry.customerName;
   }
-  return enquiry.customerEmail || enquiry.customerHandle || enquiry.customerPhone || enquiry.customerName;
+  return (
+    enquiry.customerEmail || enquiry.customerHandle || enquiry.customerPhone || enquiry.customerName
+  );
 }
 
 export function identityLine(enquiry: Enquiry): string {
