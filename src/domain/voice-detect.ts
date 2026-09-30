@@ -149,7 +149,7 @@ export function dollarMatches(text: string): DollarMatch[] {
  * line item ("Pool cover: $1,200"). A figure here is always compared.
  */
 const PRICE_BEFORE =
-  /(?:\b(?:comes?\s+to|came\s+to|total(?:\s+(?:of|is))?|price(?:\s+(?:is|of))?|costs?(?:\s+is)?|quote(?:\s+(?:is|of))?|that'?s|it'?s|will\s+be|would\s+be|you'?ll\s+pay|pay|that'?ll\s+be|package|deposit(?:\s+(?:is|of))?)\s*[:\-]?\s*|[:\-]\s*)$/i;
+  /(?:\b(?:comes?\s+to|came\s+to|total(?:\s+(?:of|is))?|price(?:\s+(?:is|of))?|costs?(?:\s+is)?|quote(?:\s+(?:is|of))?|that'?s|it'?s|will\s+be|would\s+be|you'?ll\s+pay|pay|that'?ll\s+be|package|deposit(?:\s+(?:is|of))?)\s*[:-]?\s*|[:-]\s*)$/i;
 const PRICE_AFTER = /^\s*(?:all\s+up|in\s+total|total|for\s+(?:the|this|that)\s+(?:job|lot))\b/i;
 /** Named insurance right after it: "$20m public liability", "$10m indemnity", "$20m insurance". */
 const INSURANCE_AFTER =

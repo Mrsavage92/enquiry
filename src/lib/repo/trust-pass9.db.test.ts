@@ -307,21 +307,21 @@ test("M1: a kept edit whose figures move is on the record, with what it said bef
   // bare "cover" is not named insurance ("Pool cover: $1,200" is a price), so
   // the kept edit with it is still refused; the reply that goes out is the
   // kept edit without it. "$90 million public liability" would go out.
-  const kept = draft.rows[0]!.body;
-  const refused = await sendAs(pg, a.businessId, e.enquiryId, kept);
+  const keptBody = draft.rows[0]!.body;
+  const refused = await sendAs(pg, a.businessId, e.enquiryId, keptBody);
   assert.equal(!refused.ok && refused.reason, "amount_mismatch");
   const sent = await sendAs(
     pg,
     a.businessId,
     e.enquiryId,
-    kept.replace(" We carry $90 million cover.", ""),
+    keptBody.replace(" We carry $90 million cover.", ""),
   );
   assert.equal(sent.ok, true, JSON.stringify(sent));
   const named = await sendAs(
     pg,
     a.businessId,
     e.enquiryId,
-    kept.replace("$90 million cover", "$90 million public liability"),
+    keptBody.replace("$90 million cover", "$90 million public liability"),
   );
   assert.equal(named.ok, true, JSON.stringify(named));
 });

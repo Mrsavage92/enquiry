@@ -120,7 +120,10 @@ test("a closed wedding day is never 'Yes - reply ready': Not yet with nothing to
   );
   // With nothing bookable the reply only asks about the date: Not yet, even
   // though that reply can be sent.
-  const asking = { ...nothing, state: { ...nothing.state, decision: "NEEDS_INFORMATION" as const } };
+  const asking = {
+    ...nothing,
+    state: { ...nothing.state, decision: "NEEDS_INFORMATION" as const },
+  };
   assert.equal(promiseVerdict(asking).line, "Not yet - that day is a closed day");
   assert.equal(derivedLabel(asking.state, asking), STATUS.needsDetail);
   // Every lifecycle and decision state still maps to one of the three words.

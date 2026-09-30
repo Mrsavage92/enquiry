@@ -1120,7 +1120,11 @@ function weekdaysOf(isos: readonly string[]): number[] {
  * asked for: the total, the lines and every amount they imply are the rest's
  * own. The owner's rules run on it afterwards.
  */
-function withoutHeld(decided: Decision, plan: ClosedDayPlan, rules: readonly BusinessRule[]): Decision {
+function withoutHeld(
+  decided: Decision,
+  plan: ClosedDayPlan,
+  rules: readonly BusinessRule[],
+): Decision {
   if (decided.price.kind !== "EXACT") return decided;
   const isHeld = (l: QuoteLine) => plan.held.some((h) => h.label === l.label);
   const rest = linesOf(decided).filter((l) => !isHeld(l));
