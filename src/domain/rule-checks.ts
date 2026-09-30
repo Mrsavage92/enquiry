@@ -476,7 +476,9 @@ export function feeLineLabel(f: Fee): string | null {
     .replace(/\b(?:extra|charges?|fees?|of|an?|is|are)\b/gi, " ")
     .replace(/\s+/g, " ")
     .trim();
-  return /[a-z]{3}/i.test(reason) ? `Extra charge (${reason.replace(/[.;]+$/, "").toLowerCase()})` : null;
+  return /[a-z]{3}/i.test(reason)
+    ? `Extra charge (${reason.replace(/[.;]+$/, "").toLowerCase()})`
+    : null;
 }
 
 function applyFees(ctx: Ctx, start: RuleLine[], notes: string[]): RuleLine[] {

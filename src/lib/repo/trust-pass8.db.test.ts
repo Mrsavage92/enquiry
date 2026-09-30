@@ -6,7 +6,6 @@ import { confirmCoverageForUser } from "./coverage-core.ts";
 import { loadOwnerState, saveReplyDraftForUser } from "./owner-state-core.ts";
 import { saveBusinessDetailsForUser } from "./business-rule-core.ts";
 import { prepareReviewedSendInTransaction } from "./reviewed-send-core.ts";
-import { ASK_AVAILABILITY } from "../../domain/customer-asks.ts";
 import {
   WED_30_SEP,
   answer,
@@ -18,7 +17,6 @@ import {
   tell,
   tenant,
   tx,
-  type Snap,
 } from "./pass8-db-helpers.ts";
 
 /**

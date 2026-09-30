@@ -184,11 +184,7 @@ export function rankServices(message: string, services: readonly string[]): stri
     })
     .sort(
       (a, b) =>
-        b.fits - a.fits ||
-        b.score - a.score ||
-        b.share - a.share ||
-        a.first - b.first ||
-        a.i - b.i,
+        b.fits - a.fits || b.score - a.score || b.share - a.share || a.first - b.first || a.i - b.i,
     )
     .map((s) => s.service);
 }

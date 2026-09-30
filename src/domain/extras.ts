@@ -362,7 +362,8 @@ function wholeSentence(text: string, index: number): string {
 }
 
 /** "Extras: Oven, Carpets (2 rooms)", "Add-ons - windows & blinds": a form's list of extras. */
-const FORM_EXTRAS = /^\s*(?:extras?|add[- ]?ons?|additional(?:\s+services?)?)\s*[:\-–]\s*(.+?)\s*$/im;
+const FORM_EXTRAS =
+  /^\s*(?:extras?|add[- ]?ons?|additional(?:\s+services?)?)\s*[:\-–]\s*(.+?)\s*$/im;
 
 function formExtras(text: string): string[] {
   const list = FORM_EXTRAS.exec(text)?.[1];
