@@ -937,6 +937,8 @@ export function BrainScreen() {
                         const count = res.saved + res.details;
                         if (hoursLine && !hoursLine.startsWith("Settings hours stay")) {
                           setHoursSaved(hoursLine);
+                          // Only the hours changed: the notice above says it all.
+                          if (res.saved === 0 && count === 1) return;
                         }
                         toast.success(
                           search.back && !pricedIt && search.service
