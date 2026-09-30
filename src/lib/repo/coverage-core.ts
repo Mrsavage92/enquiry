@@ -4,6 +4,8 @@ import { applyDecision, isClosed, lockEnquiry } from "./decision-apply.ts";
 import { requireEnquiryAccess } from "./tenancy.server.ts";
 import { openAsked, type AskedItem } from "../../domain/asked.ts";
 import { describeChange, updateEditFigures } from "../../domain/edit-figures.ts";
+import { questionThing } from "../../domain/service-questions.ts";
+import { askTopic } from "../../domain/customer-asks.ts";
 import type { Decision } from "../../domain/decide.ts";
 
 /**
@@ -42,6 +44,16 @@ export type ConfirmCoverageResult =
     }
   | { ok: false; businessId: string; reason: "changed" | "closed" | "unsettled"; message: string };
 
+/**
+ * An item's name for the owner, never the answer its display may carry: a
+ * "do you do X?" and a question in their words are named by what was asked.
+ */
+function askedLabel(item: AskedItem): string {
+  if (item.kind === "question") return `do you do ${questionThing(item.id)}?`;
+  if (item.kind === "ask") return `their question about ${askTopic(item.id)}`;
+  return item.text;
+}
+
 const CHANGED =
   "The details changed since you looked. Check what the price covers again before you confirm it.";
 
@@ -79,7 +91,7 @@ export async function confirmCoverageInTransaction(
       ok: false,
       businessId,
       reason: "unsettled",
-      message: `Settle what they asked first: ${unasked.map((i) => i.text).join(", ")}.`,
+      message: `Settle what they asked first: ${unasked.map(askedLabel).join(", ")}.`,
     };
   }
   const open = unsettledFlags(row?.flagged ?? []);
@@ -122,7 +134,12 @@ export async function confirmCoverageInTransaction(
     customerName: locked.customerName,
   });
   const editKept = draft
-    ? await keepEdit(tx, { enquiryId, businessId, actor: input.actor ?? "system" }, draft.body, applied)
+    ? await keepEdit(
+        tx,
+        { enquiryId, businessId, actor: input.actor ?? "system" },
+        draft.body,
+        applied,
+      )
     : undefined;
   const confirmed = Boolean(applied.decision.coverage?.confirmed);
   return {

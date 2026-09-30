@@ -1,4 +1,4 @@
-import { ROLE_LABEL } from "./date-roles.ts";
+import { ROLE_LABEL, type DateMention } from "./date-roles.ts";
 import { format } from "date-fns";
 import { enAU } from "date-fns/locale";
 import { addCalendarDays, dayKeyFromDate, startOfDay, wallNow } from "./format";
@@ -79,14 +79,32 @@ export function jobDateCue(enquiry: Pick<Enquiry, "dateLabel" | "facts">): strin
   return date.status === "confirmed" ? `Job ${label}` : `Asked for ${label}`;
 }
 
-/** The day the job is asked for, earliest first: a confirmed day, a read day, or the first of two offered. */
-export function askedDayIso(enquiry: Pick<Enquiry, "facts">): string | undefined {
+/** The day a row leads with when there is no job day: the deadline, else the event. */
+const LEAD_ROLES: readonly DateMention["role"][] = ["job", "deadline", "event"];
+
+export function leadMention(dates: readonly DateMention[] | undefined): DateMention | undefined {
+  for (const role of LEAD_ROLES) {
+    const hit = (dates ?? []).find((d) => d.role === role);
+    if (hit) return hit;
+  }
+  return undefined;
+}
+
+/**
+ * The day the job is asked for, earliest first: a confirmed day, a read day,
+ * or the first of two offered; with no day of their own, the deadline or the
+ * event they wrote - the same day the row's label names.
+ */
+export function askedDayIso(
+  enquiry: Pick<Enquiry, "facts"> & { decision?: { dates?: readonly DateMention[] } },
+): string | undefined {
   const date = (enquiry.facts ?? []).find(
     (f) => !f.superseded && f.field.trim().toLowerCase() === "date",
   );
   // A stretch ("2026-11-02..2026-11-09") is due from its first day.
   const first = String(date?.value ?? "").split(/\||\.\./)[0] ?? "";
-  return /^\d{4}-\d{2}-\d{2}$/.test(first) ? first : undefined;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(first)) return first;
+  return leadMention(enquiry.decision?.dates)?.iso;
 }
 
 function lastInboundAt(e: Enquiry): number {

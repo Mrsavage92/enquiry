@@ -6,7 +6,7 @@ import {
   type BusinessRule,
 } from "../../domain/business-rule.ts";
 import { redecideOpenEnquiries } from "./decision-apply.ts";
-import { cleanPrefs, withDefaults, workingHoursChange } from "../../domain/workspace-prefs.ts";
+import { setWorkingHoursInTransaction, type HoursChange } from "./working-hours-core.ts";
 import { requireBusinessAccess } from "./tenancy.server.ts";
 import {
   minimumScope,
@@ -189,10 +189,13 @@ export async function saveBusinessRulesAndRedecide(
     details?: BusinessDetail[];
     /** The owner's own line for each detail, in order, kept to show back to them. */
     detailSaid?: (string | undefined)[];
+    actor?: string;
   },
 ): Promise<{
   saved: SaveBusinessRuleResult[];
   detailIds: string[];
+  /** The working hours change this save made, for its Undo; null when none. */
+  hours: HoursChange | null;
   updatedEnquiryIds: string[];
 }> {
   const saved: SaveBusinessRuleResult[] = [];
@@ -206,14 +209,15 @@ export async function saveBusinessRulesAndRedecide(
       }),
     );
   }
-  const detailIds = await saveBusinessDetailsInTransaction(sql, {
+  const { ids: detailIds, hours } = await saveBusinessDetailsInTransaction(sql, {
     businessId: input.businessId,
     details: input.details ?? [],
     said: input.detailSaid,
+    ...(input.actor ? { actor: input.actor } : {}),
   });
   const changedAny = saved.some((s) => s.outcome !== "duplicate") || detailIds.length > 0;
   const updatedEnquiryIds = changedAny ? await redecideOpenEnquiries(sql, input.businessId) : [];
-  return { saved, detailIds, updatedEnquiryIds };
+  return { saved, detailIds, hours, updatedEnquiryIds };
 }
 
 function detailKey(detail: BusinessDetail): string {
@@ -230,9 +234,20 @@ function detailKey(detail: BusinessDetail): string {
  */
 export async function saveBusinessDetailsInTransaction(
   sql: Sql,
-  input: { businessId: string; details: BusinessDetail[]; said?: (string | undefined)[] },
-): Promise<string[]> {
-  if (input.details.length === 0) return [];
+  input: {
+    businessId: string;
+    details: BusinessDetail[];
+    said?: (string | undefined)[];
+    actor?: string;
+  },
+): Promise<{ ids: string[]; hours: HoursChange | null }> {
+  if (input.details.length === 0) return { ids: [], hours: null };
+  // One set of hours per save: two lines would be two changes in one moment,
+  // and an Undo could not say which one it puts back.
+  if (input.details.filter((d) => d.kind === "working_hours").length > 1) {
+    throw new Error("Write your working hours once, on one line, then save.");
+  }
+  let hours: HoursChange | null = null;
   const existing = await sql<{ id: string; rule_payload: unknown }>`
     select id, rule_payload from knowledge_item
     where business_id = ${input.businessId} and state = ${"Active"} and rule_payload is not null
@@ -255,7 +270,11 @@ export async function saveBusinessDetailsInTransaction(
     // Working hours live in Settings, and only there: saving them here sets
     // them, so the business screen and Settings can never say two things.
     if (detail.kind === "working_hours") {
-      await saveWorkingHours(sql, input.businessId, detail);
+      hours = await setWorkingHoursInTransaction(sql, {
+        businessId: input.businessId,
+        actor: input.actor ?? "owner",
+        hours: detail,
+      });
       continue;
     }
     const key = detailKey(detail);
@@ -291,49 +310,7 @@ export async function saveBusinessDetailsInTransaction(
     }
     ids.push(row.id);
   }
-  return ids;
-}
-
-/** Set the business's working hours in its Settings, keeping every other preference. */
-async function saveWorkingHours(
-  sql: Sql,
-  businessId: string,
-  hours: Extract<BusinessDetail, { kind: "working_hours" }>,
-): Promise<void> {
-  const rows = await sql<{ prefs: unknown }>`
-    select prefs from workspace_prefs where business_id = ${businessId}
-  `;
-  const previous = withDefaults(cleanPrefs(rows[0]?.prefs));
-  const next = withDefaults({
-    ...previous,
-    ...cleanPrefs({
-      workingDays: hours.workingDays,
-      hoursStart: hours.hoursStart,
-      hoursEnd: hours.hoursEnd,
-    }),
-  });
-  await sql`
-    insert into workspace_prefs (business_id, prefs, updated_at)
-    values (${businessId}, ${JSON.stringify(next)}::jsonb, now())
-    on conflict (business_id) do update set prefs = excluded.prefs, updated_at = now()
-  `;
-  // On the record with the hours they replaced, so the change can be undone.
-  await sql`
-    insert into audit_event (business_id, actor, summary, detail, object_type, object_id)
-    values (
-      ${businessId}, ${"owner"},
-      ${workingHoursChange(previous, next)},
-      ${JSON.stringify({
-        previous: {
-          workingDays: previous.workingDays,
-          hoursStart: previous.hoursStart,
-          hoursEnd: previous.hoursEnd,
-        },
-        next: { workingDays: next.workingDays, hoursStart: next.hoursStart, hoursEnd: next.hoursEnd },
-      })},
-      ${"brain"}, ${null}
-    )
-  `;
+  return { ids, hours };
 }
 
 /**
@@ -352,6 +329,7 @@ export async function saveBusinessDetailsForUser(
   rules: { rule: BusinessRule; readable: string }[];
   saved: SaveBusinessRuleResult[];
   detailIds: string[];
+  hours: HoursChange | null;
   updatedEnquiryIds: string[];
 }> {
   const businessId = await requireBusinessAccess(userId, input.businessId, sql);
@@ -362,6 +340,7 @@ export async function saveBusinessDetailsForUser(
       rules,
       details: input.details,
       detailSaid: input.said?.details,
+      actor: userId,
     }),
   );
   return { businessId, rules, ...result };

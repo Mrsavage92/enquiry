@@ -112,11 +112,65 @@ export function SendPreview({
     selection?.addRange(range);
   };
 
+  const actionBar = (
+    <div className="flex flex-col gap-2" data-testid="send-actions">
+      {/* Step one. Copying is copying: it writes nothing, records nothing,
+          and reports truthfully whether the clipboard actually took it. */}
+      <Button
+        variant={copied ? "secondary" : "primary"}
+        className="reply-copy-button h-auto min-h-12 w-full whitespace-normal py-2"
+        data-copy-state={copyState}
+        disabled={pending || !preview.body}
+        onClick={() => {
+          void onCopy().then((state) => {
+            setCopyState(state);
+            if (state === "failed") selectBody();
+          });
+        }}
+      >
+        <span className="reply-copy-icon" aria-hidden>
+          {copyState === "copied" ? (
+            <Check key="copied" size={18} />
+          ) : (
+            <Copy key="copy" size={18} />
+          )}
+        </span>
+        {copyState === "copied" ? "Copied" : "Copy the message"}
+      </Button>
+
+      {/* Step two, and the only thing that records anything. */}
+      {staleMessage && onConfirmStale ? (
+        <Button
+          variant="secondary"
+          className="h-auto min-h-12 w-full whitespace-normal py-2"
+          disabled={pending}
+          onClick={onConfirmStale}
+        >
+          {pending ? "Recording…" : "I already sent that older message"}
+        </Button>
+      ) : (
+        <Button
+          variant={copied ? "primary" : "secondary"}
+          className="h-auto min-h-12 w-full whitespace-normal py-2"
+          disabled={pending || Boolean(blockedReason)}
+          onClick={onConfirm}
+        >
+          <ClipboardCheck size={18} aria-hidden />
+          {pending
+            ? "Recording…"
+            : demoMode
+              ? "I've sent this externally (demo)"
+              : "I've sent this externally"}
+        </Button>
+      )}
+    </div>
+  );
+
   return (
     <Dialog open={open} onOpenChange={(next) => !pending && onOpenChange(next)}>
       <Panel
         title="Send this?"
-        className={compact ? undefined : "max-h-[85vh] overflow-y-auto"}
+        footer={actionBar}
         onOpenAutoFocus={(event) => {
           event.preventDefault();
           bodyRef.current?.focus();
@@ -170,6 +224,22 @@ export function SendPreview({
               </button>
             ) : null}
           </div>
+          {/* What copying did, in the body so the pinned bar holds only the
+              two buttons and never crowds out the message. */}
+          <p
+            className={cn(
+              "reply-copy-feedback text-xs",
+              copyState === "failed" ? "text-warn" : "text-stone",
+            )}
+            role="status"
+            aria-live="polite"
+          >
+            {copyState === "copied"
+              ? "Copied to your clipboard. Nothing has been sent or recorded yet."
+              : copyState === "failed"
+                ? "Enquiry could not reach your clipboard. The message above is selected - copy it by hand. Nothing has been sent or recorded."
+                : "Copy the message, then send it from your own inbox or phone."}
+          </p>
           {preview.amountLabel ? (
             <div>
               <p className="eyebrow">Amount</p>
@@ -239,70 +309,7 @@ export function SendPreview({
           ) : null}
         </div>
 
-        <div className={cn("mt-5 flex flex-col gap-2", compact && "pb-[var(--app-safe-bottom)]")}>
-          {/* Step one. Copying is copying: it writes nothing, records nothing,
-              and reports truthfully whether the clipboard actually took it. */}
-          <Button
-            variant={copied ? "secondary" : "primary"}
-            className="reply-copy-button min-h-12 w-full"
-            data-copy-state={copyState}
-            disabled={pending || !preview.body}
-            onClick={() => {
-              void onCopy().then((state) => {
-                setCopyState(state);
-                if (state === "failed") selectBody();
-              });
-            }}
-          >
-            <span className="reply-copy-icon" aria-hidden>
-              {copyState === "copied" ? (
-                <Check key="copied" size={18} />
-              ) : (
-                <Copy key="copy" size={18} />
-              )}
-            </span>
-            {copyState === "copied" ? "Copied" : "Copy the message"}
-          </Button>
-          <p
-            className={cn(
-              "reply-copy-feedback text-xs",
-              copyState === "failed" ? "text-warn" : "text-stone",
-            )}
-            role="status"
-            aria-live="polite"
-          >
-            {copyState === "copied"
-              ? "Copied to your clipboard. Nothing has been sent or recorded yet."
-              : copyState === "failed"
-                ? "Enquiry could not reach your clipboard. The message above is selected - copy it by hand. Nothing has been sent or recorded."
-                : "Copy the message, then send it from your own inbox or phone."}
-          </p>
-
-          {/* Step two, and the only thing that records anything. */}
-          {staleMessage && onConfirmStale ? (
-            <Button
-              variant="secondary"
-              className="min-h-12 w-full"
-              disabled={pending}
-              onClick={onConfirmStale}
-            >
-              {pending ? "Recording…" : "I already sent that older message"}
-            </Button>
-          ) : (
-            <Button
-              variant={copied ? "primary" : "secondary"}
-              className="min-h-12 w-full"
-              disabled={pending || Boolean(blockedReason)}
-              onClick={onConfirm}
-            >
-              <ClipboardCheck size={18} aria-hidden />
-              {pending
-                ? "Recording…"
-                : demoMode
-                  ? "I've sent this externally (demo)"
-                  : "I've sent this externally"}
-            </Button>
-          )}
+        <div className="mt-4 flex flex-col gap-2">
           <p className="text-xs text-stone">
             {demoMode
               ? "Demonstration only - no message leaves this browser. In the real product Enquiry does not send either: you send it, then record it here."

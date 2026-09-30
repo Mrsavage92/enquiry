@@ -92,9 +92,9 @@ function ServiceAnswer(props: Props) {
       key="yes"
       value={QUESTION_ANSWER.yes}
       label={`Yes, I do ${question.thing}`}
-      // Equal weight: a yes/no about the business is the owner's call, and
-      // any guess is said in words above, never by a louder button.
-      primary={false}
+      // One filled button per card: No when their details already say no,
+      // otherwise the first answer.
+      primary={!readNo}
       props={props}
       done={`The reply says you can help with ${question.thing} and will come back with a price.`}
     />
@@ -104,9 +104,21 @@ function ServiceAnswer(props: Props) {
       key="no"
       value={QUESTION_ANSWER.no}
       label={`No, I don't do ${question.thing}`}
-      primary={false}
+      // Their own business details already say no: that answer is the one
+      // ready to tap, and the words above say why.
+      primary={readNo}
       props={props}
       done={`The reply tells them you don't do ${question.thing}.`}
+    />
+  );
+  const later = (
+    <Choice
+      key="later"
+      value={QUESTION_ANSWER.later}
+      label="Come back to them"
+      primary={false}
+      props={props}
+      done={`The reply says you'll come back to them on ${question.thing}.`}
     />
   );
   return (
@@ -124,7 +136,7 @@ function ServiceAnswer(props: Props) {
           (from your business details). Check and confirm.
         </p>
       ) : null}
-      <div className="mt-3 flex flex-wrap gap-2">{[yes, no]}</div>
+      <div className="mt-3 flex flex-wrap gap-2">{[yes, no, later]}</div>
     </>
   );
 }

@@ -58,7 +58,7 @@ import { SendPreview, type SendPreviewCopyState } from "./send-preview";
 import { DeclineConfirm } from "./decline-confirm";
 import { isWaitingForInformation } from "./reply-presentation";
 import { discardSavedDraft, useDraftSaver, useDraftSaveState } from "@/lib/workspace/owner-sync";
-import { comesBackCue, jobDateCue, lastSent, parkedUntil, statusChip } from "@/domain/time-cues";
+import { comesBackCue, lastSent, parkedUntil, statusChip } from "@/domain/time-cues";
 import { nextStepLabel, promiseVerdict, STATUS } from "@/domain/labels";
 import { LaterChoices } from "./later-choices";
 import { isPricingStep, pricingLinkSearch, setupStep } from "@/domain/next-action";
@@ -67,7 +67,9 @@ import { PracticeBadge, PracticeNote } from "./practice-note";
 import { ExtraDecision } from "./extra-decision";
 import { DateNotes } from "./date-notes";
 import { NameCheck } from "./name-check";
-import { CoverageCheck } from "./coverage-check";
+import { CoverageCheck, type CoverageOutcome } from "./coverage-check";
+import { AskedList } from "./asked-list";
+import { checkStep, keptEditNotice, leadDateCue, otherDateCues } from "./card-cues";
 import { QuestionAnswer } from "./question-answer";
 import { isInternalFact } from "@/domain/coverage";
 import { isOwnerEstimate } from "@/domain/count-phrase";
@@ -113,6 +115,14 @@ export function Intelligence({
     expectedMinor: number | null;
   } | null>(null);
   const [noteOpen, setNoteOpen] = useState(false);
+  // What "That's everything" came back with: the owner's kept edit and what
+  // changed in it, or a note that something moved and needs another look.
+  const [coverageStored, setCoverageOutcome] = useState<CoverageOutcome | null>(null);
+  useEffect(() => setCoverageOutcome(null), [enquiry.id]);
+  // Only about the decision the confirmation left: once anything moves the
+  // revision on, the notice has gone out of date and is not shown.
+  const coverageOutcome =
+    coverageStored && coverageStored.revision === enquiry.decisionRevision ? coverageStored : null;
   const [declineOpen, setDeclineOpen] = useState(false);
   const [declining, setDeclining] = useState(false);
   const approve = usePrototype((s) => s.approve);
@@ -168,6 +178,14 @@ export function Intelligence({
     Boolean(setupStep(enquiry)) ||
     questionPending ||
     coveragePending;
+  // "Check 2 of 4", from the server's stable count. The coverage step shows
+  // its own counter on its checks, so it is not said twice.
+  const stepCounter =
+    !demoMode &&
+    !coveragePending &&
+    (questionPending || Boolean(enquiry.decision.extraPending) || readingToCheck || ownerEstimate)
+      ? checkStep(enquiry.decision.checks)
+      : null;
   // Worked out from prices the owner confirmed: "Confidence Low" beside that
   // would tell them to doubt their own price list.
   const ruleDerived =
@@ -201,6 +219,7 @@ export function Intelligence({
   // An edit written before the facts moved: never dropped silently. The owner
   // sees it beside the new prepared reply and chooses.
   const staleEdit = usePrototype((s) => s.staleDrafts[enquiry.id]);
+  const staleChanges = usePrototype((s) => s.draftChanges[enquiry.id]);
   const resolveStaleDraft = usePrototype((s) => s.resolveStaleDraft);
   const showStaleEdit =
     !demoMode &&
@@ -404,12 +423,19 @@ export function Intelligence({
     "vertical",
   );
 
+  // Waiting on their answer, on the phone: the status block above says it all,
+  // so no card box around a lone control - the follow-up note, the situation
+  // and every dialog stay, only the frame goes.
+  const phoneWaiting = inline && compact && awaitingOutcome && !demoMode;
+
   return (
     <div
       className={cn(
         "flex flex-col bg-raised",
         inline
-          ? "inline-reply"
+          ? phoneWaiting
+            ? "phone-waiting"
+            : "inline-reply"
           : compact
             ? "min-h-0 flex-1 overflow-hidden"
             : "h-full min-h-0 overflow-hidden xl:border-l xl:border-line",
@@ -449,10 +475,15 @@ export function Intelligence({
                   </h1>
                   <p className="mt-1 text-sm text-ink-2">{identityLine(enquiry)}</p>
                   <p className="mt-1.5 text-sm text-ink-2">
-                    {enquiry.serviceLabel}
-                    {enquiry.dateLabel ? ` · ${jobDateCue(enquiry)}` : ""}
-                    {enquiry.locationLabel ? ` · ${enquiry.locationLabel}` : ""}
+                    {[enquiry.serviceLabel, leadDateCue(enquiry), enquiry.locationLabel]
+                      .filter(Boolean)
+                      .join(" · ")}
                   </p>
+                  {otherDateCues(enquiry).length ? (
+                    <p className="mt-0.5 text-xs text-stone">
+                      {otherDateCues(enquiry).join(" · ")}
+                    </p>
+                  ) : null}
                 </div>
                 <div className="flex flex-wrap items-center justify-end gap-2">
                   <PracticeBadge enquiry={enquiry} />
@@ -521,6 +552,15 @@ export function Intelligence({
               <p id="stale-edit-heading" className="text-base font-semibold text-ink">
                 Details changed since your edit
               </p>
+              {staleChanges?.length ? (
+                <ul className="mt-1 space-y-0.5 text-sm text-ink-2" aria-label="What changed">
+                  {staleChanges.map((c) => (
+                    <li key={c} className="tabular-nums">
+                      {c}
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
               <div className="mt-3 grid gap-3 sm:grid-cols-2">
                 <div>
                   <p className="text-sm font-medium text-ink">Your edit</p>
@@ -590,6 +630,26 @@ export function Intelligence({
                     </p>
                   ) : (
                     <>
+                      {coverageOutcome?.recheck ? (
+                        <p
+                          className="callout mb-3 bg-warn-bg text-sm font-medium text-warn"
+                          role="status"
+                        >
+                          Something changed - take another look.
+                        </p>
+                      ) : null}
+                      {/* The kept edit's changes are said wherever the owner is:
+                          above Review reply when it is ready, here otherwise. */}
+                      {coverageOutcome?.editKept?.length && !(sendable && !replyOnHold) ? (
+                        <div className="mb-3">
+                          <KeptEditNotice changes={coverageOutcome.editKept} />
+                        </div>
+                      ) : null}
+                      {/* Above the verdict: the heading must stay the verdict's
+                          next sibling, which the phone card styles as the step. */}
+                      {stepCounter ? (
+                        <p className="mb-1 text-xs font-medium text-ink-2">{stepCounter}</p>
+                      ) : null}
                       {/* The promise, in the product's three words. */}
                       <p id="rec-heading" className="eyebrow-decision">
                         {promiseVerdict(enquiry).line}
@@ -612,7 +672,16 @@ export function Intelligence({
                       {demoMode ? null : <DateNotes enquiry={enquiry} />}
                       {demoMode ? null : <QuestionAnswer enquiry={enquiry} />}
                       {demoMode ? null : <ExtraDecision enquiry={enquiry} />}
-                      {demoMode ? null : <CoverageCheck enquiry={enquiry} business={business} />}
+                      {demoMode ? null : (
+                        <CoverageCheck
+                          enquiry={enquiry}
+                          business={business}
+                          onConfirmed={setCoverageOutcome}
+                        />
+                      )}
+                      {demoMode || !sendable || replyOnHold ? null : (
+                        <AskedList enquiry={enquiry} business={business} />
+                      )}
                       {/* On the phone the card holds one heading and one
                           control; the reasoning is behind Why?. */}
                       {inline || recReasonIsMissingReason ? null : (
@@ -621,7 +690,13 @@ export function Intelligence({
                       {inline && choosingService ? (
                         <ServiceReadAs enquiry={enquiry} business={business} bare />
                       ) : null}
-                      {inline && !demoMode && blockingMissing ? (
+                      {/* One check at a time: while their question or an extra
+                          waits, the reading behind it comes next, not beside it. */}
+                      {inline &&
+                      !demoMode &&
+                      blockingMissing &&
+                      !questionPending &&
+                      !enquiry.decision.extraPending ? (
                         <AnswerBlocker enquiry={enquiry} folded />
                       ) : null}
                     </>
@@ -1037,7 +1112,8 @@ export function Intelligence({
       {quietFooter || (awaitingInformation && inline && !evaluating) ? null : (
         <div
           className={cn(
-            "shrink-0 border-t border-line bg-raised px-5 py-3",
+            "shrink-0 bg-raised px-5 py-3",
+            !phoneWaiting && "border-t border-line",
             compact && "pb-[max(0.75rem,var(--app-safe-bottom))]",
           )}
         >
@@ -1088,6 +1164,9 @@ export function Intelligence({
                     <ConfidenceBadge confidence={enquiry.decision.confidence} />
                   ) : null}
                 </div>
+              ) : null}
+              {sendable && !replyOnHold && coverageOutcome?.editKept?.length ? (
+                <KeptEditNotice changes={coverageOutcome.editKept} />
               ) : null}
               {sendable && readingToCheck && !demoMode ? null : sendable ? (
                 <Button
@@ -1534,6 +1613,32 @@ export function Intelligence({
           </SheetContent>
         </Dialog>
       ) : null}
+    </div>
+  );
+}
+
+/**
+ * After "Keep my edit" and "That's everything": the owner's words stayed and
+ * only the figures moved. Says exactly which, and any line the new reply has
+ * that their edit does not ("Not in your edit: ..."), before they review it.
+ */
+function KeptEditNotice({ changes }: { changes: string[] }) {
+  const { figures, missing } = keptEditNotice(changes);
+  return (
+    <div className="callout bg-paper-2 text-ink" role="status">
+      <p className="text-sm font-medium">Your edit is kept.</p>
+      {figures.length ? (
+        <ul className="mt-1 space-y-0.5 text-sm tabular-nums text-ink">
+          {figures.map((c) => (
+            <li key={c}>{c}</li>
+          ))}
+        </ul>
+      ) : null}
+      {missing.map((line) => (
+        <p key={line} className="mt-1 text-sm text-ink">
+          Not in your edit: {line}
+        </p>
+      ))}
     </div>
   );
 }

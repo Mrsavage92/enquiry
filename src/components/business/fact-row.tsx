@@ -16,6 +16,7 @@ import {
 import { readBusinessDetails, type BusinessDetailsRead } from "@/domain/business-details-read";
 import { describeRule } from "@/domain/business-rule";
 import { describeDetail, noteFor, type AnswerDetail } from "@/domain/business-detail";
+import { bodyWithoutTitle } from "@/components/enquiry/card-cues";
 
 type Row = KnowledgeItem & { rulePayload?: unknown };
 
@@ -104,7 +105,11 @@ export function FactRow({
         <h2 className="font-medium leading-snug">{item.title}</h2>
         <Badge tone={tone}>{factStateWord(item.state)}</Badge>
       </div>
-      <p className="mt-1 text-sm leading-relaxed text-ink-2">{item.body}</p>
+      {/* The heading already names the service: "$35 per metre", not
+          "Fence painting: $35 per metre" under "Fence painting". */}
+      <p className="mt-1 text-sm leading-relaxed text-ink-2">
+        {bodyWithoutTitle(item.title, item.body)}
+      </p>
       <p className="mt-1.5 text-xs text-stone">
         {factSourceWords(item.source.label)}
         {since ? ` · ${since}` : ""}

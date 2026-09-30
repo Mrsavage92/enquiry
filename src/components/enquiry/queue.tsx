@@ -20,7 +20,8 @@ import {
 import { CommercialValueMark } from "@/components/ui/commercial-value";
 import { enquirySituation, queueSituationLabel } from "@/domain/situation";
 import { statusTone } from "@/domain/status-tone";
-import { jobDateCue, rowTimeCue, statusChip } from "@/domain/time-cues";
+import { rowTimeCue, statusChip } from "@/domain/time-cues";
+import { leadDateCue } from "./card-cues";
 import { channelLabel } from "@/domain/channel";
 import type { Enquiry, WorkspacePrefs } from "@/domain/types";
 import { usePrototype } from "@/store/prototype-store";
@@ -420,8 +421,7 @@ export function Queue({ activeId, phone = false }: { activeId?: string; phone?: 
                         <Badge tone={statusTone(e)}>{statusChip(e)}</Badge>
                       </div>
                       <p className="mt-1 truncate text-sm text-ink-2">
-                        {e.serviceLabel}
-                        {e.dateLabel ? ` · ${jobDateCue(e)}` : ""}
+                        {[e.serviceLabel, leadDateCue(e)].filter(Boolean).join(" · ")}
                       </p>
                       <div className="mt-2 flex items-baseline justify-between gap-2 text-xs text-stone-on-paper-2">
                         {situation?.kind === "evaluating" ? (

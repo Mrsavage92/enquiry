@@ -939,12 +939,18 @@ li:nth-child(3n + 3) .customer-avatar {
 .business-detail .eyebrow {
   font-size: 13px;
 }
+/* Sheets and dialogs are portalled outside .app-root, so they need the same
+   plain labels: no decorative dot before "Channel", "Message" or "Why". */
 .app-root .eyebrow::before,
-.app-root .eyebrow-decision::before {
+.app-root .eyebrow-decision::before,
+[role="dialog"] .eyebrow::before,
+[role="dialog"] .eyebrow-decision::before {
   display: none;
 }
 .app-root .eyebrow,
-.app-root .eyebrow-decision {
+.app-root .eyebrow-decision,
+[role="dialog"] .eyebrow,
+[role="dialog"] .eyebrow-decision {
   font-size: 12px;
 }
 .today-phone-tabs {

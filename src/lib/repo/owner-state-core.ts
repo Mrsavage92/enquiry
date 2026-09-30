@@ -1,5 +1,6 @@
 import type { getSql } from "@/lib/db";
 import { cleanPrefs, withDefaults } from "@/domain/workspace-prefs";
+import { hoursOf, recordHoursChange } from "./working-hours-core";
 import type { WorkspacePrefs } from "@/domain/types";
 import { requireBusinessAccess, requireEnquiryAccess } from "./tenancy.server";
 import { describeChange, editFigureChanges, type PricedLine } from "@/domain/edit-figures";
@@ -79,12 +80,20 @@ export async function saveWorkspacePrefsForUser(
   const rows = await sql<{ prefs: unknown }>`
     select prefs from workspace_prefs where business_id = ${businessId}
   `;
+  const previous = withDefaults(cleanPrefs(rows[0]?.prefs));
   const next = withDefaults({ ...cleanPrefs(rows[0]?.prefs), ...cleanPrefs(raw) });
   await sql`
     insert into workspace_prefs (business_id, prefs, updated_at)
     values (${businessId}, ${JSON.stringify(next)}::jsonb, now())
     on conflict (business_id) do update set prefs = excluded.prefs, updated_at = now()
   `;
+  // An hours change made in Settings is on the record like any other, so an
+  // older business-screen Undo can never walk back over it.
+  const from = hoursOf(previous);
+  const to = hoursOf(next);
+  if (from && to) {
+    await recordHoursChange(sql as never, { businessId, actor: userId, previous: from, next: to });
+  }
   return next;
 }
 

@@ -37,7 +37,8 @@ import {
   todayKey as todayKeyInZone,
   wallNow,
 } from "@/domain/format";
-import { byDueness, catchUpSince, jobDateCue, rowTimeCue, statusChip } from "@/domain/time-cues";
+import { byDueness, catchUpSince, rowTimeCue, statusChip } from "@/domain/time-cues";
+import { leadDateCue } from "./card-cues";
 import { statusTone } from "@/domain/status-tone";
 import type { Enquiry, WorkspacePrefs } from "@/domain/types";
 import { usePrototype } from "@/store/prototype-store";
@@ -69,7 +70,7 @@ function EnquiryRow({ enquiry, prefs }: { enquiry: Enquiry; prefs: WorkspacePref
           {/* The owner's next step leads, not the customer's message. */}
           <span className="today-row-next">{nextStepLabel(enquiry)}</span>
           <span className="today-row-meta">
-            {[enquiry.serviceLabel, jobDateCue(enquiry), quotedCue(enquiry)]
+            {[enquiry.serviceLabel, leadDateCue(enquiry), quotedCue(enquiry)]
               .filter(Boolean)
               .join(" · ")}
           </span>
@@ -119,7 +120,7 @@ function StartHere({ enquiry, prefs }: { enquiry: Enquiry; prefs: WorkspacePrefs
       </h2>
       <p className="today-start-meta">
         {/* The day they asked for is on the card: "Asked for Sat 3 Oct". */}
-        {[enquiry.serviceLabel, jobDateCue(enquiry), rowTimeCue(enquiry, prefs)]
+        {[enquiry.serviceLabel, leadDateCue(enquiry), rowTimeCue(enquiry, prefs)]
           .filter(Boolean)
           .join(" · ")}
       </p>
@@ -128,7 +129,13 @@ function StartHere({ enquiry, prefs }: { enquiry: Enquiry; prefs: WorkspacePrefs
           ? "Choose which reply to keep"
           : unfinished
             ? `Finish your reply to ${first}`
-            : nextStepLabel(enquiry)}
+            : pricing
+              ? // The button below says "Add your prices": the heading says why,
+                // so the card never repeats the same words twice.
+                setup?.kind === "add_prices"
+                ? "You need prices before I can quote"
+                : "This job needs a price before I can quote"
+              : nextStepLabel(enquiry)}
       </p>
       {pricing ? (
         // No prices yet: the one step that moves this enquiry is on the

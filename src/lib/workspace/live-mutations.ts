@@ -232,6 +232,7 @@ export function useFirstBetaActions() {
         audit: data.audit,
         drafts: data.drafts,
         staleDrafts: data.staleDrafts,
+        draftChanges: data.draftChanges,
         setupCallUrl: data.setupCallUrl,
         prefs: data.prefs,
       });
@@ -260,6 +261,18 @@ export function useFirstBetaActions() {
       const res = await saveBusinessRules({ data: { businessId, rules, details, said } });
       await refresh();
       return res;
+    },
+    /** Put back the working hours a business-screen save replaced, then reload. */
+    undoWorkingHours: async (businessId: string, eventId: string) => {
+      const { undoWorkingHours } = await import("@/lib/server/owner-state");
+      const res = await undoWorkingHours({ data: { businessId, eventId } });
+      await refresh();
+      return res;
+    },
+    /** The business's working hours as Settings holds them now (read-only). */
+    currentWorkingHours: async (businessId: string) => {
+      const { currentWorkingHours } = await import("@/lib/server/owner-state");
+      return currentWorkingHours({ data: { businessId } });
     },
     /** Take one business fact out of use; open enquiries are decided again without it. */
     retireFact: async (businessId: string, knowledgeId: string) => {

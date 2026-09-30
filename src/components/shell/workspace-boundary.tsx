@@ -75,6 +75,7 @@ function useWorkspacePhase(session: SessionPhase): {
           audit: data.audit,
           drafts: data.drafts,
           staleDrafts: data.staleDrafts,
+          draftChanges: data.draftChanges,
           setupCallUrl: data.setupCallUrl,
           prefs: data.prefs,
         });
@@ -159,6 +160,7 @@ function LocalWorkspaceSync({ children }: { children: ReactNode }) {
           audit: data.audit,
           drafts: data.drafts,
           staleDrafts: data.staleDrafts,
+          draftChanges: data.draftChanges,
           setupCallUrl: data.setupCallUrl,
           prefs: data.prefs,
         });
@@ -182,6 +184,7 @@ function LocalWorkspaceSync({ children }: { children: ReactNode }) {
           audit: data.audit,
           drafts: data.drafts,
           staleDrafts: data.staleDrafts,
+          draftChanges: data.draftChanges,
           setupCallUrl: data.setupCallUrl,
           prefs: data.prefs,
         });

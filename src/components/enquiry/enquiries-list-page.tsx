@@ -10,7 +10,8 @@ import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Segmented } from "@/components/ui/segmented";
 import { channelLabel } from "@/domain/channel";
-import { jobDateCue, rowTimeCue, statusChip } from "@/domain/time-cues";
+import { rowTimeCue, statusChip } from "@/domain/time-cues";
+import { leadDateCue } from "./card-cues";
 import { emptyTabMessage, filteredEnquiries, nextStepLabel, QUEUE_NAMES } from "@/domain/labels";
 import { statusTone } from "@/domain/status-tone";
 import { usePrototype, type QueueFilter } from "@/store/prototype-store";
@@ -176,7 +177,7 @@ export function EnquiriesListPage() {
                         {/* Labelled, because a bare date or "Not set" said
                             nothing about which date it was. */}
                         <span className="whitespace-nowrap">
-                          {jobDateCue(enquiry) || "No date given"}
+                          {leadDateCue(enquiry) || "No date given"}
                         </span>
                         {/* A typed-in enquiry has no channel worth a line. */}
                         {enquiry.source === "manual" ? null : (

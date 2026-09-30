@@ -7,7 +7,8 @@ import { SheetContent } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { nextNeedsYou, STATUS } from "@/domain/labels";
 import { LaterChoices } from "./later-choices";
-import { jobDateCue, parkedUntil } from "@/domain/time-cues";
+import { parkedUntil } from "@/domain/time-cues";
+import { leadDateCue, otherDateCues } from "./card-cues";
 import type { Enquiry } from "@/domain/types";
 import { toast } from "sonner";
 import { usePrototype } from "@/store/prototype-store";
@@ -35,10 +36,6 @@ export function PhoneDesk({ enquiry }: { enquiry: Enquiry }) {
   const demoMode = usePrototype((s) => s.demoMode);
   // Persisted write-through: a note about a customer must survive a reload.
   const enq = useLiveEnquiryMutations();
-  const inChat =
-    enquiry.state.lifecycle === "BOOKED" ||
-    (enquiry.state.decision === "WAITING_ON_CLIENT" &&
-      (enquiry.state.commercial === "QUOTED" || enquiry.state.commercial === "ESTIMATED"));
 
   const advance = () => {
     const { enquiries, businessFilter } = usePrototype.getState();
@@ -83,13 +80,16 @@ export function PhoneDesk({ enquiry }: { enquiry: Enquiry }) {
           <h1 className="break-words text-base font-semibold leading-tight">
             {enquiry.customerName}
           </h1>
+          {/* Waiting is said once, by the status block below; the header
+              keeps the job and its day. */}
           <p className="truncate text-2xs text-stone">
             {enquiry.state.lifecycle === "BOOKED"
               ? STATUS.booked
-              : inChat
-                ? STATUS.waiting
-                : [enquiry.serviceLabel, jobDateCue(enquiry)].filter(Boolean).join(" · ")}
+              : [enquiry.serviceLabel, leadDateCue(enquiry)].filter(Boolean).join(" · ")}
           </p>
+          {otherDateCues(enquiry).length ? (
+            <p className="truncate text-2xs text-stone">{otherDateCues(enquiry).join(" · ")}</p>
+          ) : null}
         </div>
         <button
           type="button"

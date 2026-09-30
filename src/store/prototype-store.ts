@@ -93,6 +93,11 @@ type PrototypeState = {
    * the new prepared reply until they keep it or drop it (intelligence.tsx).
    */
   staleDrafts: Record<string, string>;
+  /**
+   * enquiryId -> what an edit names that the quote now says differently
+   * ("Makeup trial $90 -> $95"), shown on the out-of-date edit card.
+   */
+  draftChanges: Record<string, string[]>;
   /** The setup-call booking link, only when the server has one configured. */
   setupCallUrl: string | null;
   teach: TeachDialog;
@@ -180,6 +185,7 @@ type Actions = {
     audit: AuditEvent[];
     drafts?: Record<string, string>;
     staleDrafts?: Record<string, string>;
+    draftChanges?: Record<string, string[]>;
     setupCallUrl?: string | null;
     prefs?: Record<string, WorkspacePrefs>;
   }) => void;
@@ -268,6 +274,7 @@ function sampleWorkspace(now = new Date()) {
     bookings: sample.bookings,
     drafts: Object.fromEntries(sample.enquiries.map((e) => [e.id, e.decision.draft.body])),
     staleDrafts: {},
+    draftChanges: {},
     setupCallUrl: null,
   };
 }
@@ -373,6 +380,7 @@ export const usePrototype = create<PrototypeState & Actions>()(
         audit,
         drafts,
         staleDrafts,
+        draftChanges,
         setupCallUrl,
         prefs,
       }) =>
@@ -384,6 +392,7 @@ export const usePrototype = create<PrototypeState & Actions>()(
           staleDrafts: Object.fromEntries(
             Object.entries(staleDrafts ?? {}).filter(([id]) => !unsavedDraftIds.has(id)),
           ),
+          draftChanges: draftChanges ?? {},
           // The server's saved replies win, except for text typed in this tab
           // that has not been confirmed saved yet - that is newer than anything
           // the server could hold. Ids that no longer exist are dropped.
@@ -485,6 +494,7 @@ export const usePrototype = create<PrototypeState & Actions>()(
           bookings: [],
           drafts: {},
           staleDrafts: {},
+          draftChanges: {},
           confirmSent: {},
           businessFilter: "all",
           lastArrivalId: null,
@@ -519,6 +529,7 @@ export const usePrototype = create<PrototypeState & Actions>()(
           bookings: [],
           drafts: {},
           staleDrafts: {},
+          draftChanges: {},
           confirmSent: {},
           prefs: {
             ...s.prefs,
