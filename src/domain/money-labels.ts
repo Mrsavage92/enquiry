@@ -89,6 +89,18 @@ export function standsAsQuoted(
   if (quote.totals.includes(amount)) return true;
   // A line's amount, or a rate with no line of its own: said as that line.
   const own = quote.lines.filter((l) => l.amountMinor === amount);
+  // A rate the owner's rule implies, said as a rate: "140 square metres at
+  // $30 each", "$45 an hour". Its own workings name it.
+  if (own.length === 0) {
+    const before = body.slice(Math.max(0, m.index - 6), m.index);
+    const after = body.slice(m.index + m.raw.length, m.index + m.raw.length + 12);
+    if (
+      /\bat\s*$/i.test(before) ||
+      /^\s*(?:each|per\b|an?\s+(?:hour|person|room)|\/)/i.test(after)
+    ) {
+      return true;
+    }
+  }
   const candidates = own.length > 0 ? own : quote.lines;
   const words = distinctive(quote.lines);
   const said = new Set(stemsOf(sentence));
