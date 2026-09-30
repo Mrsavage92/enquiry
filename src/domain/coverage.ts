@@ -1,7 +1,14 @@
 import type { BusinessDetail } from "./business-detail.ts";
 import { WEEKDAYS, closedRangeCovers, describeDetail, spokenMonthDay } from "./business-detail.ts";
 import { DECLINED, NOT_A_REQUEST, SERVICE_NOUNS } from "./extras.ts";
-import { distinctiveStems, mentionsAny, namesService, stem, stemsOf } from "./service-words.ts";
+import {
+  distinctiveStems,
+  mentionsAny,
+  namesService,
+  stem,
+  stemsOf,
+  withoutNegated,
+} from "./service-words.ts";
 import type { RuleCheck } from "./rule-checks.ts";
 
 /**
@@ -474,7 +481,12 @@ export function coverageFlags(input: {
   const notOffered = details
     .filter((f) => f.kind === "not_offered")
     .flatMap((f) => stemsOf(f.thing ?? ""));
-  const mentions = mentionFlags(input.message, input.covered, input.services).filter(
+  // "Nothing bridal": what they turned down is never "They mention bridal makeup".
+  const mentions = mentionFlags(
+    withoutNegated(input.message),
+    input.covered,
+    input.services,
+  ).filter(
     (f) => f.kind !== "mention" || !stemsOf(f.thing ?? "").some((s) => notOffered.includes(s)),
   );
   return [...mentions, ...details];

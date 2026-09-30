@@ -649,6 +649,16 @@ test("9 Steph: 'Nothing bridal, just glam' never asks about bridal makeup", asyn
   );
   const items = await ledger(pg, e.enquiryId);
   assert.ok(!items.some((i) => /bridal/i.test(i.text)), JSON.stringify(items));
+  // Nor is it a thing they "mention" on the quote's check.
+  const flags: string[] = [];
+  for (let i = 0; i < 6; i += 1) {
+    const s = (await row(pg, e.enquiryId)).decision_snapshot;
+    flags.push(...(s.coverage?.flagged ?? []).map((f) => f.text));
+    await settle(pg, e.enquiryId, {
+      answers: { people: "6", "ask:availability": "2026-11-07=later" },
+    });
+  }
+  assert.ok(!flags.some((f) => /bridal/i.test(f)), flags.join(" | "));
 });
 
 test("9: a day the owner adds is read on the server and said in the reply; another tenant cannot add one", async (t) => {
