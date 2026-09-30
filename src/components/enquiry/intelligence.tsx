@@ -117,8 +117,12 @@ export function Intelligence({
   const [noteOpen, setNoteOpen] = useState(false);
   // What "That's everything" came back with: the owner's kept edit and what
   // changed in it, or a note that something moved and needs another look.
-  const [coverageOutcome, setCoverageOutcome] = useState<CoverageOutcome | null>(null);
+  const [coverageStored, setCoverageOutcome] = useState<CoverageOutcome | null>(null);
   useEffect(() => setCoverageOutcome(null), [enquiry.id]);
+  // Only about the decision the confirmation left: once anything moves the
+  // revision on, the notice has gone out of date and is not shown.
+  const coverageOutcome =
+    coverageStored && coverageStored.revision === enquiry.decisionRevision ? coverageStored : null;
   const [declineOpen, setDeclineOpen] = useState(false);
   const [declining, setDeclining] = useState(false);
   const approve = usePrototype((s) => s.approve);
@@ -420,22 +424,18 @@ export function Intelligence({
   );
 
   // Waiting on their answer, on the phone: the status block above says it all,
-  // so no empty card around a lone control - just the way to record what
-  // happened next.
-  if (inline && compact && awaitingOutcome && !demoMode) {
-    return (
-      <div className="px-5 pb-4">
-        <WaitingDesk enquiry={enquiry} onDone={onDone} />
-      </div>
-    );
-  }
+  // so no card box around a lone control - the follow-up note, the situation
+  // and every dialog stay, only the frame goes.
+  const phoneWaiting = inline && compact && awaitingOutcome && !demoMode;
 
   return (
     <div
       className={cn(
         "flex flex-col bg-raised",
         inline
-          ? "inline-reply"
+          ? phoneWaiting
+            ? "phone-waiting"
+            : "inline-reply"
           : compact
             ? "min-h-0 flex-1 overflow-hidden"
             : "h-full min-h-0 overflow-hidden xl:border-l xl:border-line",
@@ -637,6 +637,13 @@ export function Intelligence({
                         >
                           Something changed - take another look.
                         </p>
+                      ) : null}
+                      {/* The kept edit's changes are said wherever the owner is:
+                          above Review reply when it is ready, here otherwise. */}
+                      {coverageOutcome?.editKept?.length && !(sendable && !replyOnHold) ? (
+                        <div className="mb-3">
+                          <KeptEditNotice changes={coverageOutcome.editKept} />
+                        </div>
                       ) : null}
                       {/* Above the verdict: the heading must stay the verdict's
                           next sibling, which the phone card styles as the step. */}
@@ -1105,7 +1112,8 @@ export function Intelligence({
       {quietFooter || (awaitingInformation && inline && !evaluating) ? null : (
         <div
           className={cn(
-            "shrink-0 border-t border-line bg-raised px-5 py-3",
+            "shrink-0 bg-raised px-5 py-3",
+            !phoneWaiting && "border-t border-line",
             compact && "pb-[max(0.75rem,var(--app-safe-bottom))]",
           )}
         >
@@ -1157,7 +1165,7 @@ export function Intelligence({
                   ) : null}
                 </div>
               ) : null}
-              {sendable && coverageOutcome?.editKept?.length ? (
+              {sendable && !replyOnHold && coverageOutcome?.editKept?.length ? (
                 <KeptEditNotice changes={coverageOutcome.editKept} />
               ) : null}
               {sendable && readingToCheck && !demoMode ? null : sendable ? (

@@ -4,6 +4,8 @@ import { useState, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
 import { useNarrow } from "@/lib/use-narrow";
 import { Button } from "./button";
+import { useReturnFocus } from "./return-focus";
+import { usePinnedFooter } from "./pinned-footer";
 import { SheetContent } from "./sheet";
 
 export const Dialog = DialogPrimitive.Root;
@@ -24,14 +26,17 @@ export function DialogContent({
   /** Pinned under the scrolling body, as on the phone sheet. */
   footer?: ReactNode;
 }) {
+  const focus = useReturnFocus(onOpenAutoFocus);
+  const { footerRef, pinned } = usePinnedFooter(Boolean(footer));
   return (
     <DialogPrimitive.Portal>
       <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-ink/40 data-[state=open]:animate-overlay-in data-[state=closed]:animate-overlay-out" />
       <DialogPrimitive.Content
-        onOpenAutoFocus={onOpenAutoFocus}
+        {...focus}
         className={cn(
           "fixed left-1/2 top-1/2 z-50 w-[min(92vw,32rem)] -translate-x-1/2 -translate-y-1/2 rounded-lg bg-raised p-5 shadow-float data-[state=open]:animate-dialog-in data-[state=closed]:animate-dialog-out",
           footer && "flex max-h-[90dvh] flex-col",
+          footer && !pinned && "overflow-y-auto",
           className,
         )}
       >
@@ -47,8 +52,17 @@ export function DialogContent({
         </div>
         {footer ? (
           <>
-            <div className="min-h-0 flex-1 overflow-y-auto">{children}</div>
-            <div className="-mx-5 -mb-5 mt-4 shrink-0 border-t border-line px-5 pb-5 pt-3">
+            <div className={pinned ? "min-h-24 flex-1 overflow-y-auto" : "flex-none"}>
+              {children}
+            </div>
+            <div
+              ref={footerRef}
+              data-pinned={pinned ? "true" : "false"}
+              className={cn(
+                "-mx-5 -mb-5 mt-4 shrink-0 px-5 pb-5 pt-3",
+                pinned && "border-t border-line",
+              )}
+            >
               {footer}
             </div>
           </>

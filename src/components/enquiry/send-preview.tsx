@@ -137,20 +137,6 @@ export function SendPreview({
         </span>
         {copyState === "copied" ? "Copied" : "Copy the message"}
       </Button>
-      <p
-        className={cn(
-          "reply-copy-feedback text-xs",
-          copyState === "failed" ? "text-warn" : "text-stone",
-        )}
-        role="status"
-        aria-live="polite"
-      >
-        {copyState === "copied"
-          ? "Copied to your clipboard. Nothing has been sent or recorded yet."
-          : copyState === "failed"
-            ? "Enquiry could not reach your clipboard. The message above is selected - copy it by hand. Nothing has been sent or recorded."
-            : "Copy the message, then send it from your own inbox or phone."}
-      </p>
 
       {/* Step two, and the only thing that records anything. */}
       {staleMessage && onConfirmStale ? (
@@ -238,6 +224,22 @@ export function SendPreview({
               </button>
             ) : null}
           </div>
+          {/* What copying did, in the body so the pinned bar holds only the
+              two buttons and never crowds out the message. */}
+          <p
+            className={cn(
+              "reply-copy-feedback text-xs",
+              copyState === "failed" ? "text-warn" : "text-stone",
+            )}
+            role="status"
+            aria-live="polite"
+          >
+            {copyState === "copied"
+              ? "Copied to your clipboard. Nothing has been sent or recorded yet."
+              : copyState === "failed"
+                ? "Enquiry could not reach your clipboard. The message above is selected - copy it by hand. Nothing has been sent or recorded."
+                : "Copy the message, then send it from your own inbox or phone."}
+          </p>
           {preview.amountLabel ? (
             <div>
               <p className="eyebrow">Amount</p>

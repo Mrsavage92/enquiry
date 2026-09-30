@@ -107,7 +107,13 @@ export function AskedList({
   const [all, setAll] = useState(false);
   const [saving, setSaving] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const items = enquiry.decision.asked ?? [];
+  // What still needs the owner comes first, so "To settle above" is always
+  // on screen; the ledger's own order otherwise.
+  const ledger = enquiry.decision.asked ?? [];
+  const items = [
+    ...ledger.filter((i) => i.status === "open"),
+    ...ledger.filter((i) => i.status !== "open"),
+  ];
   // The job alone is not a list: it only helps once there is something beside it.
   if (items.filter((i) => i.kind !== "service").length === 0) return null;
 
@@ -122,7 +128,8 @@ export function AskedList({
     priceLines,
   );
   const open = openAskedItems(items).length;
-  const shown = all ? items : items.slice(0, VISIBLE_ROWS);
+  // More open items than rows: every one is shown, never hidden behind "Show all".
+  const shown = all ? items : items.slice(0, Math.max(VISIBLE_ROWS, open));
 
   const choose = async (item: AskedItem, choice: Choice) => {
     const key = `${item.id}:${choice.value}`;
@@ -217,7 +224,7 @@ export function AskedList({
           );
         })}
       </ul>
-      {items.length > VISIBLE_ROWS ? (
+      {items.length > Math.max(VISIBLE_ROWS, open) ? (
         <button
           type="button"
           className="mt-1 inline-flex min-h-11 items-center text-sm font-medium text-mark-strong underline-offset-4 hover:underline"

@@ -16,7 +16,12 @@ import { AskedList } from "./asked-list";
 import { checkStep, openAskedItems } from "./card-cues";
 
 /** What "That's everything" came back with, for the card around it. */
-export type CoverageOutcome = { editKept?: string[]; recheck?: boolean };
+export type CoverageOutcome = {
+  editKept?: string[];
+  recheck?: boolean;
+  /** The decision revision the confirmation left: the notice is about this one only. */
+  revision: number;
+};
 
 /**
  * "What this price covers": every line (service x count = amount), anything
@@ -93,11 +98,11 @@ export function CoverageCheck({
       // Saved, but something moved underneath: the card says so and the
       // enquiry (already re-read) is looked at again, never a false "done".
       if (res.reason === "recheck") {
-        onConfirmed?.({ recheck: true });
+        onConfirmed?.({ recheck: true, editKept: res.editKept?.changes, revision: res.revision });
         return;
       }
       toast.success("Confirmed. The reply now says exactly what the price covers.");
-      onConfirmed?.({ editKept: res.editKept?.changes });
+      onConfirmed?.({ editKept: res.editKept?.changes, revision: res.revision });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not save that. Try again.");
     } finally {

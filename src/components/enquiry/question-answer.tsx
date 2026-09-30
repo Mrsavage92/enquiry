@@ -92,7 +92,9 @@ function ServiceAnswer(props: Props) {
       key="yes"
       value={QUESTION_ANSWER.yes}
       label={`Yes, I do ${question.thing}`}
-      primary={false}
+      // One filled button per card: No when their details already say no,
+      // otherwise the first answer.
+      primary={!readNo}
       props={props}
       done={`The reply says you can help with ${question.thing} and will come back with a price.`}
     />
