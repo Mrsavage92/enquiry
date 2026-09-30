@@ -856,6 +856,26 @@ export function composeReply(decision: Decision, opts: ReplyContext = {}): strin
     ].join("\n");
   }
 
+  // "How much for a clean?": which one, in the owner's own services.
+  if (decision.askService && !onHold) {
+    const { work, services } = decision.askService;
+    const which = work === "job" ? "job" : work;
+    const list = services.length ? ` I do ${joinLabels(services)}.` : "";
+    return [
+      greeting,
+      "",
+      hello,
+      "",
+      `Before I can give you a price, which ${which} are you after?${list}`,
+      "",
+      ...notesBlock(decision),
+      ...dateBlock,
+      "Once I have that I can send the price straight back.",
+      "",
+      signOff,
+    ].join("\n");
+  }
+
   // Nothing prices it yet, or the owner has not settled it. The draft opens
   // the conversation without committing the business to anything.
   return [

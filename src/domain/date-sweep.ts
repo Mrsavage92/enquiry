@@ -48,7 +48,16 @@ export const DATE_SWEEP_FIELD = "date_sweep";
 export const CLOSED_DAY_PREFIX = "closed_day:";
 /** The owner's word on a fragment Enquiry could not read: `date_check:27th or 28th`. */
 export const DATE_CHECK_PREFIX = "date_check:";
+/** A day the owner says they mentioned, typed in "They asked for more": `date_added:27 December`. */
+export const DATE_ADDED_PREFIX = "date_added:";
 export const CLOSED_DAY_CHOICE = { notAvailable: "not_available", available: "available" } as const;
+
+export function isDateAddedField(field: string): boolean {
+  return field.trim().toLowerCase().startsWith(DATE_ADDED_PREFIX);
+}
+export function dateAddedText(field: string): string {
+  return field.trim().slice(DATE_ADDED_PREFIX.length).trim();
+}
 export const DATE_CHECK_CHOICE = { confirm: "confirm", notADate: "not_a_date" } as const;
 
 export function isClosedDayField(field: string): boolean {

@@ -1324,8 +1324,8 @@ const NAME = String.raw`(${NAME_WORD}(?:\s+(?:&|and)\s+${NAME_WORD})?(?:\s+${NAM
 const PHONE = String.raw`\+?\d[\d\s()-]{6,}\d`;
 const EMAIL = String.raw`[\w.+-]+@[\w-]+(?:\.[\w-]+)+`;
 const CONTACT_TAIL = String.raw`(?:[\s,|]+(?:${PHONE}|${EMAIL}))*`;
-/** A kiss after a name: "Priya x", "Jo xx". */
-const KISS = String.raw`(?:\s+x{1,3})?`;
+/** A kiss after a name: "Priya x", "Jo xx", "Chloe xoxo". */
+const KISS = String.raw`(?:\s+(?:x{1,4}|(?:xo){1,3}x?))?`;
 /** A role or business after the name: "Priya Shah, Office Manager, Northside Dental". */
 const ROLE_TAIL = String.raw`(?:\s*,\s*[A-Z][A-Za-z&'.-]*(?:\s+[A-Za-z&'.-]+){0,4}){0,3}`;
 
@@ -1362,6 +1362,9 @@ const HERE_INTRO = new RegExp(String.raw`^${NAME}${KISS}\s+here\b`);
 /** A name line on its own, with an optional trailing company: "Mel Tran", "Priya x",
  * "Paul Nguyen, Nguyen Property Group". */
 const NAME_LINE = new RegExp(String.raw`^${NAME}${KISS}${ROLE_TAIL}\s*[.!]?${CONTACT_TAIL}\s*$`);
+
+/** "Dr", "Mrs", "Prof" before a signed name. */
+const HONORIFIC = /^(?:dr|mr|mrs|ms|miss|mx|prof)\.?\s+(?=[A-Z])/i;
 
 /** Job titles: "Office Manager" is who they are, not their name. */
 const TITLE_WORDS = new Set([
@@ -1646,7 +1649,8 @@ function nameFromSignOffLines(text: string, ctx: NameContext): string | null | u
     // A sign-off line settles it: whatever it gives (or does not) is final.
     const sign = { ...ctx, signOff: true };
     if (rest) return acceptName(NAME_LINE.exec(rest)?.[1], sign) ?? null;
-    const next = lines[i + 1];
+    // "Dr Elizabeth Carter-Wong": the title is not part of the name.
+    const next = lines[i + 1]?.replace(HONORIFIC, "");
     if (!next || i + 1 >= end) return null;
     const name = acceptName(NAME_LINE.exec(next)?.[1], sign);
     if (!name) return null;

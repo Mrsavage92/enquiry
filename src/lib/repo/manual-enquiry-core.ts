@@ -301,7 +301,7 @@ type ArrivalFact = {
 /** At most this many extras and questions a model may propose for one message. */
 const MAX_MODEL_ASKS = 3;
 /** Fields only the owner's own steps write; a model never proposes them. */
-const OWNER_ONLY_FIELDS = new Set(["coverage", "practice_price", "recurring"]);
+const OWNER_ONLY_FIELDS = new Set(["coverage", "practice_price", "recurring", "ask_service"]);
 
 /**
  * What a model reading may write. It may propose an extra ("extra:...") or a

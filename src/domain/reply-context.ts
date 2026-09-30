@@ -14,6 +14,8 @@ import {
   DATE_CHECK_CHOICE,
   DATE_CHECK_PREFIX,
   DATE_SWEEP_FIELD,
+  dateAddedText,
+  isDateAddedField,
   readSweep,
 } from "./date-sweep.ts";
 
@@ -322,5 +324,35 @@ export function replyContextFromFacts(
     asap: value === ASAP_VALUE,
   };
   const checks = sweptChecks(facts, reply);
-  return checks.length ? { ...reply, ...sweptReply(facts, checks) } : reply;
+  const swept = checks.length ? sweptReply(facts, checks) : {};
+  const added = addedDays(facts, reply.closed);
+  if (!checks.length && !added.closed.length && !added.confirm.length) return reply;
+  const closedDays = [...(swept.sweptClosed ?? []), ...added.closed];
+  const confirm = [...(swept.sweptUnread ?? []), ...added.confirm];
+  return {
+    ...reply,
+    ...swept,
+    ...(closedDays.length ? { sweptClosed: closedDays } : {}),
+    ...(confirm.length ? { sweptUnread: confirm } : {}),
+  };
+}
+
+/**
+ * Days the owner added in "They asked for more": a closed one is said as not
+ * available, any other as a day they'll confirm. Read when the owner typed it.
+ */
+export function addedDays(
+  facts: readonly ReplyFact[],
+  closed: ReplyContext["closed"],
+): { closed: { iso: string; span: string; say: boolean }[]; confirm: string[] } {
+  const out = { closed: [] as { iso: string; span: string; say: boolean }[], confirm: [] as string[] };
+  for (const f of facts) {
+    if (!isDateAddedField(f.field) || f.status !== "confirmed") continue;
+    const words = dateAddedText(f.field);
+    const sweep = readSweep(f.value);
+    const shut = sweep.days.filter((d) => !d.to && closedReason(d.iso, closed));
+    for (const d of shut) out.closed.push({ iso: d.iso, span: words, say: true });
+    if (shut.length < sweep.days.length && !out.confirm.includes(words)) out.confirm.push(words);
+  }
+  return out;
 }

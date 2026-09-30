@@ -1,4 +1,11 @@
-import { distinctiveStems, mentionsAny, serviceWords, stem, stemsOf } from "./service-words.ts";
+import {
+  distinctiveStems,
+  mentionsAny,
+  serviceWords,
+  stem,
+  stemsOf,
+  withoutNegated,
+} from "./service-words.ts";
 import { fitsTrade } from "./trades.ts";
 
 /**
@@ -425,10 +432,12 @@ function mentionAt(text: string, stems: readonly string[]): number {
  * `services` is every service the business prices or lists.
  */
 export function readExtraRequests(
-  text: string,
+  written: string,
   primary: string,
   services: readonly string[],
 ): ExtraRequest[] {
+  // "Nothing bridal": what they turned down is never an extra they asked for.
+  const text = withoutNegated(written);
   const main = primary.trim();
   if (!main || !text.trim()) return [];
   const mainKey = main.toLowerCase();

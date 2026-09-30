@@ -227,7 +227,33 @@ export type Decision = {
    * the owner settles it.
    */
   conflict?: string;
+  /**
+   * "How much for a clean?" with no service to price: the owner chose to ask
+   * them which job they need. The reply asks, naming these, and no price.
+   */
+  askService?: { work: string; services: string[] };
 };
+
+/** The owner's choice to ask a vague enquiry which job they need. */
+export const ASK_SERVICE_FIELD = "ask_service";
+
+/** "clean", "paint": the work word of a vague ask, and the owner's services for it. */
+function servicesToAsk(message: string, services: readonly string[]): Decision["askService"] {
+  const word = /\b(clean|paint|makeup|lawn|mow|wash|detail|groom|photo|tutor|lesson)\w*/i.exec(
+    message,
+  )?.[1];
+  const work = (word ?? "job").toLowerCase();
+  // "End of lease clean 2 bedroom" and "... 3 bedroom" are one kind of job to ask about.
+  const kinds = [
+    ...new Set(
+      services
+        .filter((s) => !word || s.toLowerCase().includes(work))
+        .map((s) => s.replace(/\s+\d+\s*(?:bed(?:room)?s?|br)\b.*$/i, "").trim())
+        .filter(Boolean),
+    ),
+  ].slice(0, 4);
+  return { work, services: kinds };
+}
 
 export type ClosedDay = {
   /** The days, yyyy-mm-dd, the owner doesn't work. */
@@ -380,6 +406,20 @@ function decideCore(
   const facts = (enquiry.facts ?? []) as DecideFact[];
   const serviceLabel = enquiry.serviceLabel ?? "";
   const primary = decidePrimary(rules, serviceLabel, facts);
+  // "How much for a clean?": the owner asks them which job, and nothing is priced.
+  const askService = facts.find(
+    (f) => f.field.trim().toLowerCase() === ASK_SERVICE_FIELD && f.status === "confirmed",
+  );
+  if (!serviceLabel.trim() && String(askService?.value ?? "") === "yes") {
+    return {
+      ...primary,
+      action: "REQUEST_INFORMATION",
+      explanation: "You chose to ask them which job they need. The reply asks and names no price.",
+      askService: servicesToAsk(enquiry.messageText ?? "", [
+        ...new Set([...rules.map((r) => r.service), ...(enquiry.services ?? [])]),
+      ]),
+    };
+  }
   const knownServices = [...new Set(rules.map((r) => r.service))];
   const decided = primary.price.kind === "EXACT" ? decideExtras(rules, primary, facts) : primary;
   // What the quote prices: never also a thing the reply comes back on.

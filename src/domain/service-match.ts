@@ -3,6 +3,7 @@ import { setupStep } from "./next-action.ts";
 import { serviceAuthority } from "./service-authority.ts";
 import type { Business, Enquiry } from "./types";
 import { fitsTrade } from "./trades.ts";
+import { withoutNegated } from "./service-words.ts";
 
 /**
  * Which of the business's own services a message clearly names, if any.
@@ -122,7 +123,9 @@ function firstMention(message: string, service: string): number {
   return at.length ? Math.min(...at) : Number.MAX_SAFE_INTEGER;
 }
 
-export function suggestService(message: string, services: readonly string[]): string | undefined {
+export function suggestService(written: string, services: readonly string[]): string | undefined {
+  // "Nothing bridal", "not the bride": never pre-picked from what they turned down.
+  const message = withoutNegated(written);
   const fromForm = formService(message, services);
   if (fromForm) return fromForm;
   const said = saidWeights(message);
@@ -163,7 +166,8 @@ export function isFeeOrMinimum(service: string): boolean {
  * The services a message most likely means, best first: how many of each
  * service's words the message uses; ties keep the business's own order.
  */
-export function rankServices(message: string, services: readonly string[]): string[] {
+export function rankServices(written: string, services: readonly string[]): string[] {
+  const message = withoutNegated(written);
   const said = saidWeights(message);
   return services
     .map((service, i) => {

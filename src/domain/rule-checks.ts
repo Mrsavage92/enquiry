@@ -392,7 +392,7 @@ export function frequencyWord(said: string): Discount["frequency"] | undefined {
  * line says so ("10% fortnightly discount on $160").
  */
 function applyDiscounts(ctx: Ctx, start: RuleLine[]): RuleLine[] {
-  let lines = applyConditionDiscounts(ctx, start);
+  let lines = applyOverDiscounts(ctx, applyConditionDiscounts(ctx, start));
   if (!ctx.recurring) return lines;
   const often = frequencyWord(ctx.recurring);
   for (const d of ctx.details) {
@@ -443,13 +443,66 @@ function applyDiscounts(ctx: Ctx, start: RuleLine[]): RuleLine[] {
 }
 
 /**
+ * "Jobs over $2000 get $100 off": asked about, one tap, only on a quote whose
+ * total is over the amount; taken off the biggest job line, never below $0.
+ */
+function applyOverDiscounts(ctx: Ctx, start: RuleLine[]): RuleLine[] {
+  let lines = start;
+  for (const d of ctx.details) {
+    if (d.kind !== "discount" || !d.over) continue;
+    const target = jobLines(lines).filter((l) => concerns(l, d.service));
+    if (target.length === 0) continue;
+    const base = sum(target);
+    if (base <= Math.round(d.over * 100)) continue;
+    const offMinor = d.amountOff
+      ? Math.round(d.amountOff * 100)
+      : base - target.reduce((s, l) => s + Math.round((l.amountMinor * (100 - d.percent)) / 100), 0);
+    const after = base - offMinor;
+    if (offMinor <= 0 || after <= 0) continue;
+    const off = d.amountOff ? formatMinorAud(offMinor) : `${d.percent}%`;
+    const over = formatMinorAud(Math.round(d.over * 100));
+    const check: RuleCheck = {
+      field: `${RULE_PREFIX}discount:over:${d.over}:${d.amountOff ?? d.percent}`,
+      kind: "discount",
+      text: `This job is over ${over} - your discount is ${off} off (${formatMinorAud(base)} becomes ${formatMinorAud(after)})`,
+      choices: [
+        [RULE_CHOICE.apply, `Take ${off} off (${formatMinorAud(after)})`],
+        [RULE_CHOICE.waive, "Doesn't apply"],
+      ],
+    };
+    lines = settle(
+      ctx,
+      check,
+      () => {
+        // A dollar amount comes off the biggest line; a percentage off each.
+        const biggest = [...target].sort((a, b) => b.amountMinor - a.amountMinor)[0]!;
+        return lines.map((l) => {
+          if (!target.includes(l)) return l;
+          const amountMinor = d.amountOff
+            ? l === biggest
+              ? l.amountMinor - offMinor
+              : l.amountMinor
+            : Math.round((l.amountMinor * (100 - d.percent)) / 100);
+          if (amountMinor === l.amountMinor) return l;
+          ctx.implied.push(l.amountMinor, amountMinor, l.amountMinor - amountMinor);
+          const note = `${off} off jobs over ${over}${d.amountOff ? "" : ` on ${formatMinorAud(l.amountMinor)}`}`;
+          return { ...l, amountMinor, detail: l.detail ? `${l.detail}, ${note}` : note };
+        });
+      },
+      lines,
+    );
+  }
+  return lines;
+}
+
+/**
  * "10% off for pensioners": taken off only when the owner says so, and only
  * asked about on a quote whose message mentions them or asks for a discount.
  */
 function applyConditionDiscounts(ctx: Ctx, start: RuleLine[]): RuleLine[] {
   let lines = start;
   for (const d of ctx.details) {
-    if (d.kind !== "discount" || d.frequency || !d.condition) continue;
+    if (d.kind !== "discount" || d.frequency || !d.condition || d.over) continue;
     const who = d.condition;
     // Who it is for, as whole words: "pensioners" is "pensioner(s)" or "pension";
     // "new customers" is never "new carpet".

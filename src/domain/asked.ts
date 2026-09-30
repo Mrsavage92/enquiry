@@ -8,7 +8,14 @@ import {
 import { ASK_CHOICE, askTopic, askWhen, availabilitySettled, isAskField } from "./customer-asks.ts";
 import { contextMentions, mentionWords } from "./date-roles.ts";
 import { COVERAGE_FIELD } from "./coverage.ts";
-import { isClosedDayField, isDateCheckField, sweptLabel } from "./date-sweep.ts";
+import {
+  dateAddedText,
+  isClosedDayField,
+  isDateAddedField,
+  isDateCheckField,
+  readSweep,
+  sweptLabel,
+} from "./date-sweep.ts";
 import { sweptAnswer, sweptChecks } from "./reply-context.ts";
 import type { ReplyContext } from "./compose-reply.ts";
 import { closedReason } from "./compose-reply.ts";
@@ -248,6 +255,18 @@ export function askedLedger(
         ...(m.role === "context" || m.to ? {} : closedOn([m.iso])),
       });
     }
+  }
+  // A day the owner added: theirs, said in the reply.
+  for (const f of facts) {
+    if (!isDateAddedField(f.field) || f.status !== "confirmed") continue;
+    const isos = readSweep(f.value).days.filter((d) => !d.to).map((d) => d.iso);
+    out.push({
+      id: f.field,
+      kind: "date",
+      text: dateAddedText(f.field),
+      status: "answered",
+      ...closedOn(isos),
+    });
   }
   // What only the date sweep caught: a closed day no other line says, a date
   // it could not read. Each one holds the reply until the owner settles it.
