@@ -9,8 +9,18 @@ export type VoiceProposal = {
   reason: string;
 };
 
-/** `scale` is the multiplier written after it: 1000 for "$2k", 1000000 for "$20m". */
-export type DollarMatch = { raw: string; amount: number; index: number; scale?: number };
+/**
+ * `scale` is the multiplier written after it: 1000 for "$2k", 1000000 for
+ * "$20m". `foreign` is money in another currency ("£500", "€500"): never the
+ * quote's own figure, whatever the number.
+ */
+export type DollarMatch = {
+  raw: string;
+  amount: number;
+  index: number;
+  scale?: number;
+  foreign?: true;
+};
 
 /**
  * Every way a message can name money: "$3,000", "$ 3000", "A$3000", "AU$3000",
@@ -24,14 +34,19 @@ const PREFIXED = new RegExp(
   String.raw`(?:\bAUD\s?\$|\bAU\$|\bA\$|\bUS\$|\bAUD\b|\bUSD\b|\$)\s?${AMOUNT}(\s?(?:k|thousand|m|mil|million|bn|b|billion)\b)?`,
   "gi",
 );
-/** "880 dollars", "880 AUD", "880AUD", "880$", "3k". */
+/** "£500", "€500", "GBP 500", "EUR 500": money, never in the quote's currency. */
+const FOREIGN = new RegExp(
+  String.raw`(?:£|€|\bGBP\s?|\bEUR\s?)\s?${AMOUNT}(\s?(?:k|thousand|m|mil|million|bn|b|billion)\b)?`,
+  "gi",
+);
+/** "880 dollars", "880 AUD", "880AUD", "880$", "3k", "2 thousand dollars". */
 const SUFFIXED = new RegExp(
-  String.raw`\b${AMOUNT}\s?(k\b|dollars?\b|bucks\b|aud\b|usd\b|\$)`,
+  String.raw`\b${AMOUNT}\s?(k\b|thousand\s+(?:dollars?|bucks|aud)\b|dollars?\b|bucks\b|aud\b|usd\b|\$)`,
   "gi",
 );
 /** "That comes to 880.": a bare number where a total is said is money. */
 const TOTAL_WORDS = new RegExp(
-  String.raw`\b(?:comes?\s+to|came\s+to|total(?:\s+(?:of|is))?|all\s+up|price\s+(?:is|of)|costs?(?:\s+is)?|quote\s+(?:is|of))\s*:?\s*${AMOUNT}\b(?!\s*(?:%|per\b|x\b|hours?|hrs?|rooms?|bed|bath|sq|m2|metres?|meters?|people|guests|doors?|windows?|days?|weeks?|visits?|items?|k\b|dollars?|bucks|aud|usd|\$))`,
+  String.raw`\b(?:comes?\s+to|came\s+to|total(?:\s+(?:of|is))?|all\s+up|price\s+(?:is|of)|costs?(?:\s+is)?|quote\s+(?:is|of))\s*:?\s*${AMOUNT}\b(\s?(?:thousand|million|mil|m|bn|billion)\b)?(?!\s*(?:%|per\b|x\b|hours?|hrs?|rooms?|bed|bath|sq|m2|metres?|meters?|people|guests|doors?|windows?|days?|weeks?|visits?|items?|k\b|thousand|million|mil\b|m\b|bn\b|billion|dollars?|bucks|aud|usd|\$))`,
   "gi",
 );
 /** "eight hundred and eighty dollars". */
@@ -50,8 +65,9 @@ const SCALES: Record<string, number> = {
   billion: 1e9,
 };
 
+/** "k", "million", "thousand dollars": the multiplier is the first word. */
 function scaleOf(suffix: string): number {
-  return SCALES[suffix.trim().toLowerCase()] ?? 1;
+  return SCALES[suffix.trim().toLowerCase().split(/\s+/)[0] ?? ""] ?? 1;
 }
 
 function numberFrom(whole: string, cents: string | undefined, suffix: string): number {
@@ -64,7 +80,7 @@ function numberFrom(whole: string, cents: string | undefined, suffix: string): n
 
 function hitsOf(text: string): Hit[] {
   const hits: Hit[] = [];
-  const push = (m: RegExpMatchArray, amount: number, suffix = "") => {
+  const push = (m: RegExpMatchArray, amount: number, suffix = "", foreign = false) => {
     const scale = scaleOf(suffix);
     hits.push({
       raw: m[0],
@@ -72,21 +88,27 @@ function hitsOf(text: string): Hit[] {
       index: m.index ?? 0,
       end: (m.index ?? 0) + m[0].length,
       ...(scale > 1 ? { scale } : {}),
+      ...(foreign ? { foreign: true as const } : {}),
     });
   };
   for (const m of text.matchAll(PREFIXED)) {
     push(m, numberFrom(m[1]!, m[2], m[3] ?? ""), m[3] ?? "");
+  }
+  for (const m of text.matchAll(FOREIGN)) {
+    push(m, numberFrom(m[1]!, m[2], m[3] ?? ""), m[3] ?? "", true);
   }
   for (const m of text.matchAll(SUFFIXED)) {
     push(m, numberFrom(m[1]!, m[2], m[3] ?? ""), m[3] ?? "");
   }
   for (const m of text.matchAll(TOTAL_WORDS)) {
     const at = m[0].search(/\d/);
+    const scale = scaleOf(m[3] ?? "");
     hits.push({
       raw: m[0].slice(at),
-      amount: numberFrom(m[1]!, m[2], ""),
+      amount: numberFrom(m[1]!, m[2], m[3] ?? ""),
       index: (m.index ?? 0) + at,
       end: (m.index ?? 0) + m[0].length,
+      ...(scale > 1 ? { scale } : {}),
     });
   }
   for (const m of text.matchAll(WRITTEN)) {
@@ -112,37 +134,62 @@ export function dollarMatches(text: string): DollarMatch[] {
     if (prev && h.index < prev.end) continue;
     out.push(h);
   }
-  return out.map(({ raw, amount, index, scale }) => ({
+  return out.map(({ raw, amount, index, scale, foreign }) => ({
     raw,
     amount,
     index,
     ...(scale ? { scale } : {}),
+    ...(foreign ? { foreign } : {}),
   }));
 }
 
-/** Said as a total: "comes to $2m", "total $1.5m", "that's $90 million all up". */
-const TOTAL_BEFORE =
-  /\b(?:comes?\s+to|came\s+to|total(?:\s+(?:of|is))?|price\s+(?:is|of)|costs?(?:\s+is)?|quote\s+(?:is|of)|that'?s|it'?s|will\s+be|would\s+be)\s*:?\s*$/i;
-const TOTAL_AFTER = /^\s*(?:all\s+up|in\s+total|total|for\s+(?:the|this|that)\s+(?:job|lot))\b/i;
-/** Insurance words right beside a figure: "$2k excess", "public liability of $20,000". */
-const COVER_AFTER =
-  /^\s*(?:of\s+)?(?:public\s+|product\s+)?(?:liability|cover|insurance|excess|indemnity)\b/i;
-const COVER_BEFORE =
-  /\b(?:liability|cover|insurance|insured|excess|indemnity)(?:\s+(?:of|up\s+to|to|for))?\s*:?\s*$/i;
+/**
+ * Said as a price: "comes to $2m", "Price: $5,000", "Quote: $2m", "that'll be
+ * $5m", "you'll pay $5m", "Wedding package - $5.5m", "Deposit: $1m", or any
+ * line item ("Pool cover: $1,200"). A figure here is always compared.
+ */
+const PRICE_BEFORE =
+  /(?:\b(?:comes?\s+to|came\s+to|total(?:\s+(?:of|is))?|price(?:\s+(?:is|of))?|costs?(?:\s+is)?|quote(?:\s+(?:is|of))?|that'?s|it'?s|will\s+be|would\s+be|you'?ll\s+pay|pay|that'?ll\s+be|package|deposit(?:\s+(?:is|of))?)\s*[:\-]?\s*|[:\-]\s*)$/i;
+const PRICE_AFTER = /^\s*(?:all\s+up|in\s+total|total|for\s+(?:the|this|that)\s+(?:job|lot))\b/i;
+/** Named insurance right after it: "$20m public liability", "$10m indemnity", "$20m insurance". */
+const INSURANCE_AFTER =
+  /^\s*(?:of\s+)?(?:(?:public|product)\s+liability|(?:professional\s+)?indemnity|insurance(?!\s+includ))\b/i;
+/** Named insurance right before it: "public liability insurance of $20,000,000". */
+const INSURANCE_BEFORE =
+  /\b(?:(?:public|product)\s+liability|(?:professional\s+)?indemnity|insurance)(?:\s+(?:cover(?:age)?\s+)?(?:of|up\s+to|to))?\s*$/i;
+/** "a $2k excess" / "an excess of $2,000", only in a sentence about a claim or a policy. */
+const EXCESS_AFTER = /^\s*excess\b/i;
+const EXCESS_BEFORE = /\bexcess\s+(?:of\s+)?$/i;
+const CLAIM_WORDS = /\b(?:claims?|insurance|insurer|policy|policies|liability)\b/i;
+
+/** The sentence around a position, to the nearest . ! ? or new line. */
+function sentenceAt(text: string, from: number, to: number): string {
+  const before = text.slice(0, from);
+  const start = Math.max(...[".", "!", "?", "\n"].map((b) => before.lastIndexOf(b))) + 1;
+  const rest = text.slice(to);
+  const stop = rest.search(/[.!?\n]/);
+  return text.slice(start, stop === -1 ? text.length : to + stop);
+}
 
 /**
- * A figure the owner wrote that is not a price for the job: an insurance cover
- * ("$20m public liability", "$90 million cover", "$1.5m") or an excess ("$2k
- * excess"). A figure in the millions is never what a job costs; an amount beside
- * an insurance word is about the insurance. Either one said as the total ("that
- * comes to $2m") is still a price, and the send check compares it.
+ * A figure the owner wrote about their insurance, not a price for the job:
+ * "$20m public liability", "public liability insurance of $20,000,000", or
+ * "a $2k excess" in a sentence about a claim or a policy. Nothing else: not a
+ * figure for being large, not bare "cover" ("Pool cover: $1,200", "$90 million
+ * cover"), and never one said as a price or a line item. Such a figure is left
+ * out only of the comparison with the quote - it still counts as money named,
+ * so a reply naming it still needs a confirmed quote whose total it states.
  */
 export function isNonPriceFigure(text: string, m: DollarMatch): boolean {
-  const before = text.slice(Math.max(0, m.index - 30), m.index);
+  if (m.foreign) return false;
+  const before = text.slice(Math.max(0, m.index - 40), m.index);
   const after = text.slice(m.index + m.raw.length, m.index + m.raw.length + 40);
-  if (TOTAL_BEFORE.test(before) || TOTAL_AFTER.test(after)) return false;
-  if ((m.scale ?? 1) >= 1e6) return true;
-  return COVER_AFTER.test(after) || COVER_BEFORE.test(before);
+  if (PRICE_BEFORE.test(before) || PRICE_AFTER.test(after)) return false;
+  if (INSURANCE_AFTER.test(after) || INSURANCE_BEFORE.test(before)) return true;
+  if (EXCESS_AFTER.test(after) || EXCESS_BEFORE.test(before)) {
+    return CLAIM_WORDS.test(sentenceAt(text, m.index, m.index + m.raw.length));
+  }
+  return false;
 }
 
 /**

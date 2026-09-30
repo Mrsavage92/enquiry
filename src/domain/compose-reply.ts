@@ -620,14 +620,9 @@ function priceBlock(decision: Decision): string[] {
   // will confirm it - never stated as a firm price.
   const about = decision.approximate ? "about " : "";
   const hedge = decision.approximate ? ", I'll confirm once I've seen the job" : "";
-  // Everything on the quote is for a wedding day the owner doesn't work: the
-  // price is theirs to know, never a total for a day that can't be booked.
-  const held = decision.closedDay?.held ?? [];
-  const onlyOnAnotherDay = held.length > 0 && !decision.closedDay?.bookable;
-  const when = onlyOnAnotherDay ? " on a day I'm available" : "";
   const head = recurring
-    ? `For ${covered}, that's ${about}${total} per visit${when}${hedge}`
-    : `For ${covered}, that comes to ${about}${total}${when}${hedge}`;
+    ? `For ${covered}, that's ${about}${total} per visit${hedge}`
+    : `For ${covered}, that comes to ${about}${total}${hedge}`;
   const body =
     lines.length > 1
       ? [`${head}:`, ...itemised(lines, currency)]
@@ -638,16 +633,16 @@ function priceBlock(decision: Decision): string[] {
   const left = decision.leftOut?.length
     ? [`I haven't included ${joinLabels(decision.leftOut.map(withArticle))} in this price.`]
     : [];
-  // The trial is priced; the wedding day's work is named with its own price
-  // and said plainly not to be in the total, because that day can't be done.
-  const notIncluded =
-    held.length > 0 && !onlyOnAnotherDay
-      ? [
-          `I haven't included ${held
-            .map((h) => `the ${h.label.toLowerCase()} (${formatMinor(h.amountMinor, currency)})`)
-            .join(" or ")}, as I'm not available on ${spokenDate(held[0]!.iso)}.`,
-        ]
-      : [];
+  // The trial is priced; the wedding day's work is named, with no figure: a
+  // price for a day that can't be booked only invites "an exception at $250".
+  const held = decision.closedDay?.held ?? [];
+  const notIncluded = held.length
+    ? [
+        `I haven't included ${held
+          .map((h) => `the ${h.label.toLowerCase()}${h.count ? ` for ${h.count}` : ""}`)
+          .join(" or ")}, as I'm not available on ${spokenDate(held[0]!.iso)}.`,
+      ]
+    : [];
   const after = [...firstVisit, ...left, ...notIncluded];
   return after.length ? [...body, "", ...after] : body;
 }
@@ -727,9 +722,29 @@ export function composeReply(decision: Decision, opts: ReplyContext = {}): strin
     return [greeting, "", hello, "", ...decision.declined, "", signOff].join("\n");
   }
   const coverageOpen = decision.coverage ? !decision.coverage.confirmed : false;
-  // Nothing priced goes in the reply while something they asked for is unsettled.
+  // Nothing priced goes in the reply while something they asked for is
+  // unsettled, or while two things the owner said disagree.
   const onHold =
-    Boolean(decision.questionPending) || coverageOpen || Boolean(decision.extraPending);
+    Boolean(decision.questionPending) ||
+    coverageOpen ||
+    Boolean(decision.extraPending) ||
+    Boolean(decision.conflict);
+
+  // Everything they asked for is on a wedding day the owner doesn't work: the
+  // reply says so and asks, and names no price at all.
+  if (decision.closedDay && !decision.closedDay.bookable && !onHold) {
+    return [
+      greeting,
+      "",
+      thanks,
+      "",
+      ...notesBlock(decision),
+      ...dateBlock,
+      closeFor(date.close),
+      "",
+      signOff,
+    ].join("\n");
+  }
 
   if (decision.price.kind === "EXACT" && !onHold) {
     return [

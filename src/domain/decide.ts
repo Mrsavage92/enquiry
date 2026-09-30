@@ -57,7 +57,8 @@ import {
   shortDay,
   topicWords,
 } from "./customer-asks.ts";
-import { closedReason } from "./compose-reply.ts";
+import { closedReason, spokenDate, type ReplyContext } from "./compose-reply.ts";
+import { planClosedDays, type ClosedDayPlan } from "./closed-day.ts";
 import { distinctiveStems, mentionsAny, namesService, stemsOf } from "./service-words.ts";
 import { sameCountWords } from "./quantity-reader.ts";
 import { applyHeadcount } from "./headcount.ts";
@@ -215,19 +216,24 @@ export type Decision = {
    */
   countPeers?: string[];
   /**
-   * A day they asked for is one the owner doesn't work. Set on a priced reply
-   * only (see `closed-day.ts`): lines for a wedding or a formal on that day are
-   * held out of the total and named as not included, and `bookable` says
-   * whether anything left on the quote can be done.
+   * A day they asked for is one the owner doesn't work (see `closed-day.ts`):
+   * work for a wedding or a formal on that day is held off the quote, which
+   * is priced again for what is left; `bookable` says whether anything can be.
    */
   closedDay?: ClosedDay;
+  /**
+   * Two things the owner said disagree and the reply would say both ("Sorry,
+   * I don't do trials" beside a priced makeup trial): nothing is sent until
+   * the owner settles it.
+   */
+  conflict?: string;
 };
 
 export type ClosedDay = {
   /** The days, yyyy-mm-dd, the owner doesn't work. */
   days: string[];
-  /** Lines held out of the total because their fixed day is closed. */
-  held: { label: string; amountMinor: number; iso: string }[];
+  /** Work held off the quote because its fixed day is closed: named, never priced. */
+  held: { label: string; iso: string; count?: string }[];
   /** Something on the quote can still be done (the trial), or the job can move. */
   bookable: boolean;
 };
@@ -320,6 +326,11 @@ export function decideEnquiry(
   enquiry: Pick<Enquiry, "serviceLabel" | "facts"> & {
     messageText?: string;
     services?: readonly string[];
+    /**
+     * The days as the reply reads them, with the owner's closed days: a
+     * wedding on a day the owner doesn't work is held off the quote.
+     */
+    reply?: ReplyContext;
   },
 ): Decision {
   const facts = (enquiry.facts ?? []) as DecideFact[];
@@ -357,6 +368,7 @@ function decideCore(
     messageText?: string;
     /** Every service the business prices or lists. */
     services?: readonly string[];
+    reply?: ReplyContext;
   },
 ): Decision {
   const rules = activeRules(business);
@@ -369,7 +381,7 @@ function decideCore(
   // What the quote prices: never also a thing the reply comes back on.
   const priced =
     decided.price.kind === "EXACT" ? [serviceLabel, ...linesOf(decided).map((l) => l.label)] : [];
-  const notes = replyNotesFrom(facts, details, priced);
+  const notes = replyNotesFrom(facts, details, priced, serviceLabel);
   const withNotes = notes.length ? { ...decided, replyNotes: notes } : decided;
   const pending = pendingQuestion(facts);
   const rule = pending?.readAs
@@ -401,8 +413,21 @@ function decideCore(
           details,
           message: enquiry.messageText ?? "",
           services: [...new Set([...knownServices, ...(enquiry.services ?? [])])],
+          reply: enquiry.reply,
         })
       : withNotes;
+  // "Sorry, I don't do trials" beside a priced makeup trial: the reply would
+  // say both, so nothing is sent until the owner settles which is true.
+  const conflict = noButPriced(facts, gated, serviceLabel);
+  if (conflict) {
+    return {
+      ...gated,
+      action: "ESCALATE_HUMAN",
+      explanation: conflict,
+      conflict,
+      knownServices,
+    };
+  }
   if (ask && (gated.price.kind === "EXACT" || gated.action === "DECLINE")) {
     return askOwner(gated, ask, knownServices);
   }
@@ -442,7 +467,9 @@ function countPeersOf(rules: readonly BusinessRule[], decided: Decision): string
  * each said to come with the price.
  */
 function laterLines(facts: ReadonlyArray<DecideFact>, decided: Decision): string[] {
-  if (decided.action !== "REQUEST_INFORMATION") return [];
+  // Asking whether a closed wedding day can move is not asking for a count:
+  // nothing is priced, so nothing "comes with the price".
+  if (decided.action !== "REQUEST_INFORMATION" || decided.closedDay) return [];
   const when = askWhen(facts);
   const out: string[] = [];
   const open = facts.filter((f) => isAskField(f.field) && !askSettled(f, when.isos));
@@ -681,32 +708,48 @@ function questionExplanation(q: QuestionPending): string {
 /** Work words every service shares: never enough to say two things are one. */
 const SHARED_WORK = new Set(["clean", "paint", "servi", "wash", "repai", "insta", "remov", "job"]);
 
+function ownWords(text: string): Set<string> {
+  return new Set(stemsOf(text).filter((s) => !SHARED_WORK.has(s)));
+}
+
+function sameWords(a: ReadonlySet<string>, b: ReadonlySet<string>): boolean {
+  return a.size > 0 && a.size === b.size && [...a].every((s) => b.has(s));
+}
+
 /**
- * Whether the quote already prices this thing: "trial" beside a "Makeup trial"
- * line. Every word of its own is one of the line's words.
+ * Whether the quote prices the very thing they asked about: its own words are
+ * exactly a priced line's own words ("oven clean" and "Oven clean"), or exactly
+ * what tells that line apart from the main job ("trial" beside "Makeup trial"
+ * on a bridal makeup quote). "The oven" is not "Oven racks", and "windows" is
+ * not "Window tracks": each has a word the other lacks.
  */
-function onTheQuote(thing: string, priced: readonly string[]): boolean {
-  const own = stemsOf(thing).filter((s) => !SHARED_WORK.has(s));
-  if (own.length === 0) return false;
+function onTheQuote(thing: string, priced: readonly string[], main: string): boolean {
+  const want = ownWords(thing);
+  const mainWords = ownWords(main);
   return priced.some((label) => {
-    const words = stemsOf(label);
-    return own.every((s) => words.includes(s));
+    const own = ownWords(label);
+    if (sameWords(want, own)) return true;
+    if (label.trim().toLowerCase() === main.trim().toLowerCase()) return false;
+    return sameWords(want, new Set([...own].filter((s) => !mainWords.has(s))));
   });
 }
 
 /**
  * Answered questions and things the owner will come back on, in the order
  * asked. A thing the quote prices is never also one the reply "will come back
- * to you" on: `priced` is every label on the quote, and a Yes or a come-back on
- * one of them says nothing more (the price paragraph names it).
+ * to you" on: a Yes or a come-back about a priced line says nothing more (the
+ * price paragraph names it). An extra left to come back on is by definition
+ * not on the quote, so only the very same label can be.
  */
 function replyNotesFrom(
   facts: ReadonlyArray<DecideFact>,
   details: readonly BusinessDetail[] = [],
   priced: readonly string[] = [],
+  main = "",
 ): string[] {
   const out: string[] = [];
   const when = askWhen(facts);
+  const labels = new Set(priced.map((l) => l.trim().toLowerCase()).filter(Boolean));
   for (const f of facts) {
     if (f.status !== "confirmed") continue;
     if (isAskField(f.field)) {
@@ -716,18 +759,41 @@ function replyNotesFrom(
     if (isQuestionField(f.field)) {
       const thing = questionThing(f.field);
       const answer = String(f.value);
-      if (answer !== QUESTION_ANSWER.no && onTheQuote(thing, priced)) continue;
+      if (answer !== QUESTION_ANSWER.no && onTheQuote(thing, priced, main)) continue;
       const line =
         answer === QUESTION_ANSWER.no ? noLine(thing, details) : questionReplyLine(thing, answer);
       if (line) out.push(line);
     }
     if (isExtraField(f.field) && String(f.value) === EXTRA_CHOICE.comeBack) {
       const label = extraLabel(f.field);
-      if (onTheQuote(label, priced)) continue;
+      if (labels.has(label.trim().toLowerCase())) continue;
       out.push(`I'll come back to you on the ${label.toLowerCase()}.`);
     }
   }
   return out;
+}
+
+/**
+ * The owner said No to "do you do trials?" and a makeup trial is on the quote:
+ * the sentence for the owner, or undefined when nothing disagrees.
+ */
+function noButPriced(
+  facts: ReadonlyArray<DecideFact>,
+  decided: Decision,
+  main: string,
+): string | undefined {
+  if (decided.price.kind !== "EXACT") return undefined;
+  const lines = linesOf(decided).filter((l) => !l.adjustment);
+  for (const f of facts) {
+    if (f.status !== "confirmed" || !isQuestionField(f.field)) continue;
+    if (String(f.value) !== QUESTION_ANSWER.no) continue;
+    const thing = questionThing(f.field);
+    const line = lines.find((l) => onTheQuote(thing, [l.label], main));
+    if (line) {
+      return `You said you don't do ${thing}, but ${line.label.toLowerCase()} is on this quote. Change your answer, or take it off the quote.`;
+    }
+  }
+  return undefined;
 }
 
 /** Every day asked about, read or confirmed, as yyyy-mm-dd: one, or each of two offered. */
@@ -818,6 +884,8 @@ type CoverageContext = {
   details: BusinessDetail[];
   message: string;
   services: string[];
+  /** The days as the reply reads them, with the owner's closed days. */
+  reply?: ReplyContext;
 };
 
 function linesOf(decided: Decision): QuoteLine[] {
@@ -899,8 +967,18 @@ function withRuledLines(
   };
 }
 
-function gateCoverage(decided: Decision, ctx: CoverageContext): Decision {
-  if (decided.price.kind !== "EXACT") return decided;
+function gateCoverage(start: Decision, ctx: CoverageContext): Decision {
+  if (start.price.kind !== "EXACT") return start;
+  // A wedding on a day the owner doesn't work: its work comes off the quote
+  // BEFORE the owner's rules run, so a minimum, a fee or a surcharge is worked
+  // out for the work that is left - never subtracted from a total after.
+  const plan = planClosedDays(linesOf(start), ctx.reply);
+  const services = linesOf(start).filter((l) => !l.adjustment);
+  if (plan && plan.held.length > 0 && plan.held.length === services.length) {
+    return nothingBookable(start, plan);
+  }
+  let decided = plan && plan.held.length > 0 ? withoutHeld(start, plan, ctx.rules) : start;
+  const held = plan?.held ?? [];
   // How often is a reading: shown as its own line to confirm, never assumed.
   const frequency = frequencyIn(ctx.message);
   const recurringAnswer = ctx.facts.find(
@@ -922,8 +1000,10 @@ function gateCoverage(decided: Decision, ctx: CoverageContext): Decision {
     details: ctx.details,
     lines: counted.lines,
     message: ctx.message,
-    jobDates: jobDatesOf(ctx.facts),
-    jobWeekdays: jobWeekdaysOf(ctx.facts),
+    // Only the days of the work left on the quote: the trial's Saturday, never
+    // the closed Sunday of the wedding it no longer prices.
+    jobDates: held.length ? plan!.workDays : jobDatesOf(ctx.facts),
+    jobWeekdays: held.length ? weekdaysOf(plan!.workDays) : jobWeekdaysOf(ctx.facts),
     facts: ctx.facts,
     ...(recurring ? { recurring: frequency ?? "regularly" } : {}),
   });
@@ -956,6 +1036,12 @@ function gateCoverage(decided: Decision, ctx: CoverageContext): Decision {
   }).map((f) => withOffer(f, ctx.rules, lines));
   flagged.push(
     ...ruled.infos.map((text) => ({ kind: "note" as const, text: `Your note: ${text}` })),
+    // The owner confirms exactly what is quoted: work held for a closed day is
+    // named here, and a change in what is held changes the key.
+    ...held.map((h) => ({
+      kind: "note" as const,
+      text: `Not included - closed day: ${h.label.toLowerCase()} (${spokenDate(h.iso) ?? h.iso})`,
+    })),
     // Shown as one of the owner's checks, one tap each way.
     ...counted.open.map((c) => ({
       kind: "rule" as const,
@@ -1018,12 +1104,82 @@ function gateCoverage(decided: Decision, ctx: CoverageContext): Decision {
       }
     : decided;
   const perVisit = recurring ? perVisitPrice(marked, coverageLines) : marked;
-  if (confirmed) return { ...perVisit, coverage };
+  const closedDay: ClosedDay | undefined = plan
+    ? { days: plan.days, held: plan.held, bookable: true }
+    : undefined;
+  const withClosed = closedDay ? { ...perVisit, closedDay } : perVisit;
+  if (confirmed) return { ...withClosed, coverage };
   return {
-    ...perVisit,
+    ...withClosed,
     action: "ESCALATE_HUMAN",
     explanation: "Check what this price covers before the reply names it.",
     coverage,
+  };
+}
+
+function weekdaysOf(isos: readonly string[]): number[] {
+  return [...new Set(isos.map((iso) => new Date(`${iso}T00:00:00`).getDay()))].sort(
+    (a, b) => a - b,
+  );
+}
+
+/**
+ * The quote with the held work taken off, priced as if only the rest had been
+ * asked for: the total, the lines and every amount they imply are the rest's
+ * own. The owner's rules run on it afterwards.
+ */
+function withoutHeld(decided: Decision, plan: ClosedDayPlan, rules: readonly BusinessRule[]): Decision {
+  if (decided.price.kind !== "EXACT") return decided;
+  const isHeld = (l: QuoteLine) => plan.held.some((h) => h.label === l.label);
+  const rest = linesOf(decided).filter((l) => !isHeld(l));
+  const ruleFor = (label: string) =>
+    rules.find((r) => r.service.trim().toLowerCase() === label.trim().toLowerCase());
+  const implied = rest.flatMap((l) => {
+    const rule = ruleFor(l.label);
+    return rule
+      ? impliedAmountsMinor({
+          kind: "EXACT",
+          amountMinor: l.amountMinor,
+          currency: "AUD",
+          rule,
+          workings: "",
+        })
+      : [l.amountMinor];
+  });
+  const total = rest.reduce((sum, l) => sum + l.amountMinor, 0);
+  const workings = rest
+    .map((l) => `${l.label}: ${formatMinorAud(l.amountMinor)}${l.detail ? ` (${l.detail})` : ""}.`)
+    .join(" ");
+  const { count: _count, ...price } = decided.price;
+  return {
+    ...decided,
+    price: {
+      ...price,
+      rule: ruleFor(rest[0]!.label) ?? decided.price.rule,
+      amountMinor: total,
+      workings,
+      lines: rest,
+      alsoImplied: [...new Set(implied)],
+    },
+    lines: rest,
+    explanation: workings,
+    roughCounts: decided.roughCounts?.filter((r) => !plan.held.some((h) => h.label === r.label)),
+  };
+}
+
+/**
+ * Everything they asked for is for a wedding day the owner doesn't work: no
+ * price is named or recordable, and the reply asks whether the date can move.
+ * The owner confirming a day themselves prices it as usual.
+ */
+function nothingBookable(decided: Decision, plan: ClosedDayPlan): Decision {
+  const day = spokenDate(plan.held[0]!.iso) ?? plan.held[0]!.iso;
+  return {
+    ...decided,
+    action: "REQUEST_INFORMATION",
+    explanation: `${day} is a day you don't work, and nothing else they asked for can be booked. The reply asks if the date can move and names no price.`,
+    coverage: undefined,
+    closedDay: { days: plan.days, held: plan.held, bookable: false },
   };
 }
 

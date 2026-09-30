@@ -87,12 +87,23 @@ export type PrepareReviewResult =
     };
 
 /**
- * The money a reply names that is about the job: every figure, less the ones
- * the owner typed themselves in an answer ("insured with $20m public
- * liability"), which are trusted as written and never read as a price, and
- * less an insurance figure written anywhere ("We carry $90 million cover",
- * "$2k excess"), read at its true value and never compared with the quote. A
- * figure said as the total is always compared.
+ * Every figure a reply names, less the ones the owner typed themselves in an
+ * answer ("insured with $20m public liability"), which are trusted as written.
+ * Any other readable figure is money named: it needs a confirmed quote behind
+ * it, even one that is about the owner's insurance.
+ */
+export function moneyFigures(body: string, ownerMinor: readonly number[] = []): number[] {
+  const own = new Set(ownerMinor);
+  return dollarMatches(body)
+    .map((m) => m.amount)
+    .filter((n) => !own.has(Math.round(n * 100)));
+}
+
+/**
+ * The money a reply names that is compared with the quote: every figure named,
+ * less a figure about the owner's insurance ("$20m public liability", "a $2k
+ * excess" on a claim), read at its true value. A figure said as a price or a
+ * line item is always compared.
  */
 export function priceFigures(body: string, ownerMinor: readonly number[] = []): number[] {
   const own = new Set(ownerMinor);
@@ -100,6 +111,13 @@ export function priceFigures(body: string, ownerMinor: readonly number[] = []): 
     .filter((m) => !isNonPriceFigure(body, m))
     .map((m) => m.amount)
     .filter((n) => !own.has(Math.round(n * 100)));
+}
+
+/** "£500", "€500": money in another currency is never the quote's own figure. */
+function foreignMoney(body: string): number[] {
+  return dollarMatches(body)
+    .filter((m) => m.foreign)
+    .map((m) => m.amount);
 }
 
 export function mismatchAmounts(
@@ -113,8 +131,9 @@ export function mismatchAmounts(
     ...impliedMinor,
     ...(expectedMinor !== null ? [expectedMinor] : []),
   ]);
+  const foreign = new Set(foreignMoney(body).map((n) => Math.round(n * 100)));
   const named = [...new Set(priceFigures(body, ownerMinor).map((n) => Math.round(n * 100)))].filter(
-    (n) => !allowed.has(n),
+    (n) => !allowed.has(n) || foreign.has(n),
   );
   return { named, expectedMinor };
 }
@@ -218,8 +237,11 @@ export function amountAgrees(
   impliedMinor: number[] = [],
   ownerMinor: number[] = [],
 ): boolean {
+  // Any readable figure is money named, including one about insurance: a
+  // reply with no quote behind it may not name money at all.
+  if (moneyFigures(body, ownerMinor).length === 0) return true;
+  if (foreignMoney(body).length > 0) return false;
   const named = priceFigures(body, ownerMinor);
-  if (named.length === 0) return true;
   if (!price) {
     // No structured amount at all, but the text names money. Nothing to agree
     // with, and recording it would create a quote-shaped message with no quote.
@@ -339,7 +361,7 @@ export async function prepareReviewedSendInTransaction(
   // covers, for this revision. Checked against the stored confirmation itself,
   // not only the snapshot, so a crafted body cannot name a total early.
   const ownerMinor = enq.owner_amounts ?? [];
-  if (priceFigures(input.body, ownerMinor).length > 0) {
+  if (moneyFigures(input.body, ownerMinor).length > 0) {
     const coverage = await coverageNow(sql, input.enquiryId);
     if (coverage === "unconfirmed") {
       return {

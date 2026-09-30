@@ -47,9 +47,9 @@ function sentenceCase(thing: string): string {
   return t ? `${t[0]!.toUpperCase()}${t.slice(1)}` : t;
 }
 
-/** The ledger's words for a "do you do X?": the thing they asked about. */
+/** The ledger's words for a "do you do X?": the thing they asked about, never blank. */
 export function questionLabel(field: string): string {
-  return sentenceCase(questionThing(field));
+  return sentenceCase(questionThing(field)) || "Question";
 }
 
 /**
@@ -60,16 +60,25 @@ export function questionLabel(field: string): string {
 const ANSWER_AS_TEXT = /^(?:yes|no)\s+-\s|^you'll come back to them on it$/i;
 
 /**
- * A stored ledger as the desk reads it: a "do you do X?" item whose text is the
- * owner's answer (stored before pass 10) reads as the thing they asked about.
+ * A stored ledger as the desk reads it, never throwing on what it finds: a
+ * "do you do X?" item whose text is the owner's answer (stored before pass 10)
+ * reads as the thing they asked about, and a stored "No - ..." is declined.
+ * Anything that is not a ledger reads as none.
  */
-export function readableAsked(items: readonly AskedItem[] | undefined): AskedItem[] | undefined {
-  if (!items) return items;
-  return items.map((i) =>
-    i.kind === "question" && ANSWER_AS_TEXT.test(i.text.trim())
-      ? { ...i, text: questionLabel(i.id) }
-      : i,
-  );
+export function readableAsked(items: unknown): AskedItem[] | undefined {
+  if (!Array.isArray(items)) return undefined;
+  return items
+    .filter((i): i is AskedItem => Boolean(i) && typeof i === "object")
+    .map((i) => {
+      const text = typeof i.text === "string" ? i.text : "";
+      const id = typeof i.id === "string" ? i.id : "";
+      if (i.kind !== "question") return { ...i, text };
+      if (!text.trim() || ANSWER_AS_TEXT.test(text.trim())) {
+        const declined = /^no\s+-\s/i.test(text.trim()) ? { declined: true as const } : {};
+        return { ...i, text: questionLabel(id), ...declined };
+      }
+      return { ...i, text };
+    });
 }
 
 type LedgerFact = {

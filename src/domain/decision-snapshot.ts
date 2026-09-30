@@ -4,7 +4,6 @@ import { questionStep } from "./customer-asks.ts";
 import { decidingPhrase, impliedAmountsMinor } from "./price-compiler.ts";
 import { countParts, isOwnerEstimate } from "./count-phrase.ts";
 import { datesOnCard } from "./date-roles.ts";
-import { holdClosedDays } from "./closed-day.ts";
 import type { ReplyContext } from "./compose-reply.ts";
 import type {
   CommercialState,
@@ -70,6 +69,8 @@ function recommendationLabel(decision: Decision): string {
   if (decision.extraPending) {
     return `Add or leave out ${decision.extraPending.label.toLowerCase()}`;
   }
+  if (decision.conflict) return "Settle what's on the quote";
+  if (decision.closedDay && !decision.closedDay.bookable) return "Ask if the date can move";
   if (decision.action === "SEND_QUOTE") return "Send the quote";
   if (decision.action === "DECLINE") return "Send the reply";
   if (decision.blocker?.inferred) return `Check ${decidingPhrase(decision.blocker.field)}`;
@@ -87,13 +88,8 @@ function recommendationLabel(decision: Decision): string {
   return "Your call on this one";
 }
 
-/**
- * How a live `Decision` reads in the desk's own vocabulary. A day they asked
- * for that the owner doesn't work is applied first, so the reply, the price the
- * send check holds it to and the verdict all say the same thing about it.
- */
-export function snapshotFromDecision(decided: Decision, who: ReplyContext = {}): DecisionSnapshot {
-  const decision = holdClosedDays(decided, who);
+/** How a live `Decision` reads in the desk's own vocabulary. */
+export function snapshotFromDecision(decision: Decision, who: ReplyContext = {}): DecisionSnapshot {
   const base = emptyDecisionSnapshot();
   const recommendation: Recommendation = {
     action: decision.action,
@@ -205,6 +201,9 @@ export function snapshotFromDecision(decided: Decision, who: ReplyContext = {}):
  */
 export function replyMayNameTotal(decision: Decision): boolean {
   if (decision.questionPending || decision.action === "DECLINE") return false;
+  // Two things the owner said disagree, or nothing asked for can be booked on
+  // the closed day: no total is authorised, so none can be recorded.
+  if (decision.conflict || (decision.closedDay && !decision.closedDay.bookable)) return false;
   return decision.coverage ? decision.coverage.confirmed : true;
 }
 

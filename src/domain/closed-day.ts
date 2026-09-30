@@ -1,28 +1,36 @@
-import type { ClosedDay, Decision, QuoteLine } from "./decide.ts";
-import { closedReason, spokenDate, type ReplyContext } from "./compose-reply.ts";
-import { formatMinorAud } from "./money-format.ts";
+import type { QuoteLine } from "./decide.ts";
+import { closedReason, type ReplyContext } from "./compose-reply.ts";
 import { stemsOf } from "./service-words.ts";
 
 /**
- * A day they asked for that the owner doesn't work, on a priced reply.
+ * A day they asked for that the owner doesn't work, on a priced quote.
  *
  * Chloe's wedding is Sunday 8 November and the owner doesn't work Sundays. The
  * reply said so, and in the same breath quoted the bridal makeup and the trial
- * as one total - a price for a day that cannot be booked, as if it could. Now:
+ * as one total - a price for a day that cannot be booked, as if it could. So:
  *
  *  - a wedding, a formal or any day that cannot move, on a closed day: the
- *    work for that day is held out of the total and named as not included. The
- *    trial on its own open day is still priced, so the reply is "Yes" for the
- *    trial and says plainly the wedding day can't be done;
- *  - when that work is everything on the quote, the price is said as the price
- *    on a day the owner is available, never as a bookable total, and nothing
- *    can be offered yet;
+ *    work for that day is held off the quote, and the rest (the trial on its
+ *    own open day) is priced again from the owner's rules - a minimum, a fee
+ *    or a surcharge is worked out for what is left, never subtracted after;
+ *  - when that work is everything they asked for, nothing is priced and the
+ *    reply only asks whether the date can move;
  *  - a job that can move (a clean asked for on a Sunday) keeps its price: the
  *    reply already offers another day, and only the asked day can't be done.
  *
  * Only a day read from their message counts: a day the owner confirmed, or an
- * availability question the owner answered, is the owner's own call.
+ * availability question the owner answered, is the owner's own call. This
+ * decides nothing about money itself; `decide.ts` re-prices from the plan.
  */
+
+export type ClosedDayPlan = {
+  /** Every asked day the owner doesn't work, yyyy-mm-dd. */
+  days: string[];
+  /** Work held off the quote: its fixed day is closed. Never a fee or a top-up. */
+  held: { label: string; iso: string; count?: string }[];
+  /** The days of the work left on the quote (the trial's), for day-based rules. */
+  workDays: string[];
+};
 
 /** The job's own day, when it is one the owner doesn't work. */
 function closedJobDay(who: ReplyContext): string | undefined {
@@ -35,8 +43,8 @@ function closedJobDay(who: ReplyContext): string | undefined {
   return iso && closedReason(iso, who.closed) ? iso : undefined;
 }
 
-/** Another day they asked for work on (the trial's): its own work, checked on its own. */
-function workDays(who: ReplyContext): { iso: string; what: string }[] {
+/** Other days they asked for work on (the trial's), each with what it is for. */
+function workDaysOf(who: ReplyContext): { iso: string; what: string }[] {
   return (who.otherDates ?? [])
     .filter((d) => !d.to && d.role !== "context" && d.role !== "event")
     .map((d) => ({ iso: d.iso, what: d.what?.trim() || (d.role === "trial" ? "trial" : "") }));
@@ -45,7 +53,7 @@ function workDays(who: ReplyContext): { iso: string; what: string }[] {
 /** A line that is for another day's work: "Makeup trial" beside the trial's day. */
 function ownDayOf(line: QuoteLine, who: ReplyContext): string | undefined {
   const words = stemsOf(line.label);
-  return workDays(who).find((d) => {
+  return workDaysOf(who).find((d) => {
     const what = stemsOf(d.what);
     return what.length > 0 && what.every((s) => words.includes(s));
   })?.iso;
@@ -56,72 +64,36 @@ function fixedDay(who: ReplyContext): boolean {
   return Boolean(who.fixedEvent) && who.fixedEvent !== "deadline";
 }
 
-function quoteLines(decision: Decision): QuoteLine[] {
-  if (decision.price.kind !== "EXACT") return [];
-  if (decision.lines?.length) return decision.lines;
-  return [
-    {
-      label: decision.price.rule.service,
-      amountMinor: decision.price.amountMinor,
-      ...(decision.price.count ? { count: decision.price.count } : {}),
-    },
-  ];
-}
-
 /**
- * The priced decision with the closed day applied: lines for a fixed day the
- * owner doesn't work held out of the total, and `closedDay` saying which days
- * and whether anything can be booked. Unchanged when no asked day is closed.
+ * Which asked days are closed, and which of the quote's service lines are for
+ * a fixed day that is. Undefined when every asked day is one the owner works.
+ * `lines` are the quote's service lines before the owner's rules add anything.
  */
-export function holdClosedDays(decision: Decision, who: ReplyContext): Decision {
-  if (decision.price.kind !== "EXACT" || decision.action !== "SEND_QUOTE") return decision;
-  const lines = quoteLines(decision);
+export function planClosedDays(
+  lines: readonly QuoteLine[],
+  who: ReplyContext | undefined,
+): ClosedDayPlan | undefined {
+  if (!who) return undefined;
   const main = closedJobDay(who);
-  const otherClosed = workDays(who)
+  const otherClosed = workDaysOf(who)
     .map((d) => d.iso)
     .filter((iso) => closedReason(iso, who.closed));
   const days = [...new Set([...(main ? [main] : []), ...otherClosed])];
-  if (days.length === 0) return decision;
+  if (days.length === 0) return undefined;
+  const services = lines.filter((l) => !l.adjustment);
   const held =
     main && fixedDay(who)
-      ? lines
+      ? services
           .filter((l) => !ownDayOf(l, who))
-          .map((l) => ({ label: l.label, amountMinor: l.amountMinor, iso: main }))
+          .map((l) => ({ label: l.label, iso: main, ...(l.count ? { count: l.count } : {}) }))
       : [];
-  if (held.length === 0 || held.length === lines.length) {
-    // Nothing held (the job can move), or everything is for the closed day:
-    // the price stands, said as the price on a day the owner is available.
-    const closedDay: ClosedDay = { days, held, bookable: held.length === 0 };
-    return { ...decision, closedDay };
-  }
-  const isHeld = (l: QuoteLine) => held.some((h) => h.label === l.label);
-  const rest = lines.filter((l) => !isHeld(l));
-  const recurring = Boolean(decision.coverage?.recurring);
-  const total = rest
-    .filter((l) => !(recurring && l.firstVisit))
-    .reduce((sum, l) => sum + l.amountMinor, 0);
-  const workings = rest
-    .map((l) => `${l.label}: ${formatMinorAud(l.amountMinor)}${l.detail ? ` (${l.detail})` : ""}.`)
-    .join(" ");
-  const day = spokenDate(held[0]!.iso) ?? held[0]!.iso;
-  const notIn = held.map((h) => h.label.toLowerCase()).join(" and ");
-  const price = decision.price;
-  return {
-    ...decision,
-    price: {
-      ...price,
-      amountMinor: total,
-      workings,
-      lines: rest,
-      // The held lines' own amounts may be named ("the bridal makeup ($250)"),
-      // never the old total that counted them.
-      alsoImplied: [
-        ...(price.alsoImplied ?? []).filter((n) => n !== price.amountMinor),
-        ...held.map((h) => h.amountMinor),
-      ],
-    },
-    lines: rest,
-    explanation: `${workings} Not in the total: ${notIn} - ${day} is a day you don't work.`,
-    closedDay: { days, held, bookable: true },
-  };
+  const workDays = [
+    ...new Set(
+      services
+        .filter((l) => !held.some((h) => h.label === l.label))
+        .map((l) => ownDayOf(l, who))
+        .filter((iso): iso is string => Boolean(iso)),
+    ),
+  ];
+  return { days, held, workDays };
 }

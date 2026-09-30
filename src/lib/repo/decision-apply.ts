@@ -181,6 +181,18 @@ function decideFrom(
   messageText = "",
   followUp = false,
 ): WorkedDecision {
+  // A name or day only read from their message is never stated as fact. The
+  // decision reads the days the same way, so a wedding on a day the owner
+  // doesn't work is priced the way the reply says it.
+  const who = replyContextFromFacts(facts, {
+    customerName: enquiry.customerName,
+    ownerFirstName: inputs.ownerFirstName,
+    serviceLabel: enquiry.serviceLabel,
+    closed: closedTimesOf(activeDetails({ knowledge: inputs.knowledge })),
+    surchargeDays: surchargeDaysOf(activeDetails({ knowledge: inputs.knowledge })),
+    followUp,
+    message: messageText,
+  });
   const decision = decideEnquiry(
     { knowledge: inputs.knowledge },
     {
@@ -188,21 +200,10 @@ function decideFrom(
       facts: facts.map((f) => ({ ...f, displayValue: f.display_value ?? undefined })) as never,
       messageText,
       services: inputs.services,
+      reply: who,
     },
   );
-  // A name or day only read from their message is never stated as fact.
-  const snapshot = snapshotFromDecision(
-    decision,
-    replyContextFromFacts(facts, {
-      customerName: enquiry.customerName,
-      ownerFirstName: inputs.ownerFirstName,
-      serviceLabel: enquiry.serviceLabel,
-      closed: closedTimesOf(activeDetails({ knowledge: inputs.knowledge })),
-      surchargeDays: surchargeDaysOf(activeDetails({ knowledge: inputs.knowledge })),
-      followUp,
-      message: messageText,
-    }),
-  );
+  const snapshot = snapshotFromDecision(decision, who);
   return { decision, snapshot, state: stateFromDecision(decision) };
 }
 
