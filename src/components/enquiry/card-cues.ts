@@ -1,5 +1,5 @@
 import { mentionWords, roleLabel, type DateMention } from "@/domain/date-roles";
-import { jobDateCue } from "@/domain/time-cues";
+import { jobDateCue, leadMention } from "@/domain/time-cues";
 import type { AskedItem, AskedStatus } from "@/domain/asked";
 import type { Enquiry } from "@/domain/types";
 
@@ -14,49 +14,67 @@ type Dated = Pick<Enquiry, "dateLabel" | "facts"> & {
   decision?: { dates?: readonly DateMention[] };
 };
 
-/** The day a row leads with: the job's own day, else the deadline, else the event. */
-const LEAD_ORDER: readonly DateMention["role"][] = ["job", "deadline", "event"];
-
-function leadMention(dates: readonly DateMention[]): DateMention | undefined {
-  for (const role of LEAD_ORDER) {
-    const hit = dates.find((d) => d.role === role);
-    if (hit) return hit;
-  }
-  return undefined;
-}
-
 function capital(text: string): string {
   return text ? `${text[0]!.toUpperCase()}${text.slice(1)}` : text;
 }
 
-function dateConfirmed(e: Pick<Enquiry, "facts">): boolean {
-  return (e.facts ?? []).some(
-    (f) => !f.superseded && f.field.trim().toLowerCase() === "date" && f.status === "confirmed",
+function dateFact(e: Pick<Enquiry, "facts">) {
+  return (e.facts ?? []).find(
+    (f) => !f.superseded && f.field.trim().toLowerCase() === "date" && String(f.value ?? "").trim(),
   );
+}
+
+/** A day that says what it is for: a trial, a deadline, an event, or a named day ("inspection"). */
+function hasRealRole(d: DateMention): boolean {
+  return d.role !== "context" || Boolean(d.what.trim());
+}
+
+/**
+ * The mention the card leads with, and whether it is the job's own day.
+ * When the job's day is a date fact that is not among the roled days (two
+ * days offered, a stretch), the stored cue leads and every roled day is
+ * secondary.
+ */
+function lead(e: Dated): { mention?: DateMention } {
+  const dates = e.decision?.dates ?? [];
+  const fact = dateFact(e);
+  if (fact) {
+    const value = String(fact.value);
+    const first = value.split(/\||\.\./)[0] ?? "";
+    const own = dates.find(
+      (d) => d.iso === first && !value.includes("|") && !d.to && d.role !== "trial",
+    );
+    return { mention: own };
+  }
+  return { mention: leadMention(dates) };
 }
 
 /**
  * "Job Fri 16 Oct", "Deadline Thu 29 Oct", "Wedding Sun 8 Nov". The job's own
- * day says "Job" once its role is known against another day they wrote (the
- * trial, the inspection) or the owner confirmed it; a lone day read from their
- * message keeps "Asked for Sat 3 Oct". Without a role, the stored cue as before.
+ * day says "Job" only once the owner confirmed it or another day beside it
+ * says what it is for (the trial, the inspection); a day read from their
+ * message keeps "Asked for Sat 3 Oct", and two offered days keep "Asked
+ * about: ...". Without a roled day, the stored cue as before.
  */
 export function leadDateCue(e: Dated): string {
   const dates = e.decision?.dates ?? [];
-  const lead = leadMention(dates);
-  if (!lead) return jobDateCue(e);
-  if (lead.role === "job") {
-    const known = dates.length > 1 || dateConfirmed(e);
-    return known ? `Job ${lead.label}` : jobDateCue(e) || `Asked for ${lead.label}`;
+  const { mention } = lead(e);
+  if (!mention) return jobDateCue(e);
+  if (mention.role === "job") {
+    const confirmed = dateFact(e)?.status === "confirmed";
+    const beside = dates.some((d) => d !== mention && hasRealRole(d));
+    return confirmed || beside
+      ? `Job ${mention.label}`
+      : jobDateCue(e) || `Asked for ${mention.label}`;
   }
-  return roleLabel(lead.role, lead.what, lead.label);
+  return roleLabel(mention.role, mention.what, mention.label);
 }
 
 /** Every other day they wrote, for small secondary text: "Trial Sat 24 Oct". */
 export function otherDateCues(e: Dated): string[] {
   const dates = e.decision?.dates ?? [];
-  const lead = leadMention(dates);
-  return dates.filter((d) => d !== lead).map((d) => capital(mentionWords(d)));
+  const { mention } = lead(e);
+  return dates.filter((d) => d !== mention).map((d) => capital(mentionWords(d)));
 }
 
 /**

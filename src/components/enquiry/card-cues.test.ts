@@ -9,6 +9,7 @@ import {
   otherDateCues,
 } from "./card-cues.ts";
 import type { DateMention } from "../../domain/date-roles.ts";
+import { askedDayIso, byDueness } from "../../domain/time-cues.ts";
 
 type Fact = { field: string; value: string; status: string; superseded?: boolean };
 
@@ -114,4 +115,43 @@ test("a price card says the service once", () => {
     "$35 per metre",
   );
   assert.equal(bodyWithoutTitle("Oven clean", "Minimum charge $600"), "Minimum charge $600");
+});
+
+test("two offered days lead as 'Asked about', with a wedding beside them as secondary", () => {
+  const e = card(
+    [day("2026-11-08", "event", "wedding", "Sun 8 Nov")],
+    [{ field: "date", value: "2026-09-26|2026-09-27", status: "inferred" }],
+    "Sat 26 or Sun 27 Sep",
+  );
+  assert.equal(leadDateCue(e), "Asked about: Sat 26 or Sun 27 Sep");
+  assert.deepEqual(otherDateCues(e), ["Wedding Sun 8 Nov"]);
+  assert.equal(askedDayIso(e), "2026-09-26", "sorted by the day the label names");
+});
+
+test("a deadline with no day of their own sorts by that deadline", () => {
+  const due = card([day("2026-10-29", "deadline", "", "Thu 29 Oct")]);
+  const later = card(
+    [],
+    [{ field: "date", value: "2026-11-20", status: "inferred" }],
+    "Fri 20 Nov",
+  );
+  assert.equal(askedDayIso(due), "2026-10-29");
+  const rows = [
+    { ...later, id: "later", conversation: [], receivedAt: "2026-09-30T00:00:00Z" },
+    { ...due, id: "due", conversation: [], receivedAt: "2026-09-30T00:00:00Z" },
+  ] as never[];
+  assert.deepEqual(
+    [...rows].sort(byDueness).map((r: { id: string }) => r.id),
+    ["due", "later"],
+  );
+});
+
+test("an inferred day beside a plain second day keeps 'Asked for'", () => {
+  const e = card(
+    [day("2026-10-16", "job", "", "Fri 16 Oct"), day("2026-10-20", "context", "", "Tue 20 Oct")],
+    [{ field: "date", value: "2026-10-16", status: "inferred" }],
+    "Fri 16 Oct",
+  );
+  assert.equal(leadDateCue(e), "Asked for Fri 16 Oct");
+  assert.deepEqual(otherDateCues(e), ["Tue 20 Oct"]);
 });
