@@ -63,7 +63,8 @@ export function PricingRules({
   const save = async () => {
     const parsedAmount = Number.parseFloat(amount);
     setError(null);
-    if (!service.trim()) return setError({ field: "service", text: "Name the service this prices." });
+    if (!service.trim())
+      return setError({ field: "service", text: "Name the service this prices." });
     if (!Number.isFinite(parsedAmount) || parsedAmount < 0) {
       return setError({ field: "amount", text: "Enter a real amount." });
     }
@@ -235,7 +236,9 @@ export function PricingRules({
                     inputMode="numeric"
                     value={minimumQuantity}
                     onChange={(e) => setMinimumQuantity(e.target.value)}
-                    placeholder={examples.price.minimum ? `e.g. ${examples.price.minimum}` : "Optional"}
+                    placeholder={
+                      examples.price.minimum ? `e.g. ${examples.price.minimum}` : "Optional"
+                    }
                   />
                 </label>
               </>

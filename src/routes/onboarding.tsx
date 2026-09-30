@@ -444,7 +444,10 @@ function Onboarding() {
                 Why?
               </summary>
               <div className="space-y-2 pb-2">
-                <p>Nothing is pre-loaded from another business. Enquiry prepares replies; you send them.</p>
+                <p>
+                  Nothing is pre-loaded from another business. Enquiry prepares replies; you send
+                  them.
+                </p>
                 <p>
                   Enquiry learns your prices and rules from what you confirm, and your voice from
                   replies you approve or edit - not from a quiz.
