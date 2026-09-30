@@ -1,6 +1,6 @@
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { X } from "lucide-react";
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
 import { useNarrow } from "@/lib/use-narrow";
 import { Button } from "./button";
@@ -47,6 +47,9 @@ export function DialogContent({
   );
 }
 
+const PHONE_MAX = 860;
+const PHONE_QUERY = `(max-width: ${PHONE_MAX}px)`;
+
 /**
  * One dialog pattern across the app: a bottom sheet on a phone (the same
  * component as the send preview), a centred modal on a wider screen.
@@ -60,7 +63,13 @@ export function ResponsiveDialogContent({
   title: string;
   onOpenAutoFocus?: (event: Event) => void;
 }) {
-  const phone = useNarrow(860);
+  // Read synchronously: the content only mounts in the browser, and starting
+  // from "not known yet" would swap the modal for the sheet after the first
+  // frame and throw away anything already typed.
+  const [initial] = useState(() =>
+    typeof window === "undefined" ? null : window.matchMedia(PHONE_QUERY).matches,
+  );
+  const phone = useNarrow(PHONE_MAX) ?? initial;
   return phone ? (
     <SheetContent {...props} />
   ) : (

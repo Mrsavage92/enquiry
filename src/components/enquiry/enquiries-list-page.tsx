@@ -180,7 +180,7 @@ export function EnquiriesListPage() {
                         </span>
                         {/* A typed-in enquiry has no channel worth a line. */}
                         {enquiry.source === "manual" ? null : (
-                          <span className="mt-1 block text-xs text-stone">
+                          <span className="enquiries-date-channel mt-1 block text-xs text-stone">
                             {/* On the phone the channel sits on the same line:
                                 the dot keeps the two from running together. */}
                             <span className="enquiries-date-sep" aria-hidden>

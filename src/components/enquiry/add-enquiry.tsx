@@ -115,12 +115,12 @@ export function AddEnquiry({
             aria-describedby={bodyError ? errorId : undefined}
             placeholder={`e.g. ${examples.message}`}
           />
-          {bodyError ? (
-            <span id={errorId} className="mt-1.5 block text-sm font-medium text-danger">
-              {bodyError}
-            </span>
-          ) : null}
         </label>
+        {bodyError ? (
+          <p id={errorId} className="-mt-1.5 text-sm font-medium text-danger">
+            {bodyError}
+          </p>
+        ) : null}
         <div className="grid gap-3 sm:grid-cols-2">
           <label className="block text-sm">
             <span className="mb-1.5 block text-stone">Their name</span>

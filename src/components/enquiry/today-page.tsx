@@ -301,7 +301,7 @@ function AddAnotherEnquiry() {
     <>
       <Button
         variant="secondary"
-        className="today-add-enquiry mt-4 min-h-11 w-full sm:w-auto"
+        className="today-add-enquiry min-h-11 w-full sm:w-auto"
         onClick={() => setOpen(true)}
       >
         <Plus size={16} aria-hidden /> Add an enquiry
@@ -493,14 +493,16 @@ export function TodayPage() {
                       <ChevronRight size={16} aria-hidden />
                     </Link>
                   ) : null}
-                  {demoMode ? null : <AddAnotherEnquiry />}
-                  <Link
-                    to="/enquiries"
-                    onClick={() => setQueueFilter("all")}
-                    className="ui-text-link"
-                  >
-                    View all enquiries <ArrowRight size={16} aria-hidden />
-                  </Link>
+                  <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2">
+                    {demoMode ? null : <AddAnotherEnquiry />}
+                    <Link
+                      to="/enquiries"
+                      onClick={() => setQueueFilter("all")}
+                      className="ui-text-link"
+                    >
+                      View all enquiries <ArrowRight size={16} aria-hidden />
+                    </Link>
+                  </div>
                 </section>
               )}
 

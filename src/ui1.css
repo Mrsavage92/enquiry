@@ -1576,7 +1576,7 @@ li:nth-child(3n + 3) .customer-avatar {
   .enquiries-list-row .enquiries-customer-service {
     display: block;
   }
-  .enquiries-date > span {
+  .enquiries-date > .enquiries-date-channel {
     display: inline;
     margin-left: 8px;
   }

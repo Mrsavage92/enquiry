@@ -548,7 +548,7 @@ export function BrainScreen() {
                 aria-describedby={tellError ? "tell-error" : undefined}
                 placeholder={
                   !demoMode
-                    ? `${trade.sentence}. ${trade.flatSentence}.`
+                    ? `e.g. ${trade.sentence}. ${trade.flatSentence}.`
                     : business.id === "northlight"
                       ? "Event coverage will be $200 an hour."
                       : business.id === "ridge"
