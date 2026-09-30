@@ -109,11 +109,15 @@ export function BrainScreen() {
   // Why the last save was refused ("Save up to 20 details at a time."), said
   // inside the preview beside the button, never in a toast that vanishes.
   const [saveError, setSaveError] = useState<string | null>(null);
-  const prefs = usePrototype((s) => s.prefs);
-  // After a save changed Settings hours: the change, with an Undo that stays
-  // until the owner dismisses it (a toast is gone before an owner looks up).
-  const [hoursSaved, setHoursSaved] = useState<string | null>(null);
+  // After a save changed Settings hours: the server's record of that change
+  // (its id is what Undo names) for the business it was made on, with an
+  // Undo that stays until the owner dismisses it.
+  const [hoursSaved, setHoursSaved] = useState<HoursSaved | null>(null);
+  const [hoursError, setHoursError] = useState<string | null>(null);
   const [undoingHours, setUndoingHours] = useState(false);
+  // The hours Settings holds now for this business, read from the server when
+  // a save would change them: the preview's "from" is never a stale snapshot.
+  const [hoursNow, setHoursNow] = useState<HoursNow | null>(null);
   const firstBeta = useFirstBetaActions();
   const search = useSearch({ strict: false }) as {
     section?: string;
@@ -137,6 +141,29 @@ export function BrainScreen() {
   // "glow" studio and render its Brain/trust state as this tenant's own.
   const id = filter === "all" ? businesses[0]?.id : filter;
   const business = businesses.find((b) => b.id === id) ?? businesses[0];
+  const businessId = business?.id;
+  // A notice about one business's hours never shows over another's.
+  useEffect(() => {
+    setHoursSaved((h) => (h && h.businessId !== businessId ? null : h));
+    setHoursError(null);
+  }, [businessId]);
+  const savingHours = livePrices?.details.find((d) => d.detail.kind === "working_hours");
+  useEffect(() => {
+    if (!savingHours || !businessId || demoMode) return;
+    let live = true;
+    setHoursNow(null);
+    firstBeta
+      .currentWorkingHours(businessId)
+      .then((h) => live && setHoursNow({ businessId, ...h }))
+      .catch((err: unknown) => {
+        if (!live) return;
+        setSaveError(err instanceof Error ? err.message : "Could not read your current hours.");
+      });
+    return () => {
+      live = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [savingHours, businessId, demoMode]);
   const trade = tradeExamples(business?.industry);
   const serviceCatalogue = visibleBusinessServices(business, query);
   // Undefined-safe rather than guarded here: the early return has to sit below
@@ -588,9 +615,14 @@ export function BrainScreen() {
           </form>
         )}
 
-        {hoursSaved ? (
+        {hoursSaved && hoursSaved.businessId === business.id ? (
           <div className="callout mt-3 bg-paper-2 text-ink" role="status">
-            <p className="text-sm font-medium">{hoursSaved}.</p>
+            <p className="text-sm font-medium">{hoursSaved.summary}.</p>
+            {hoursError ? (
+              <p className="mt-1 text-sm text-danger" role="alert">
+                {hoursError}
+              </p>
+            ) : null}
             <div className="mt-2 flex flex-wrap gap-2">
               <Button
                 size="sm"
@@ -599,18 +631,19 @@ export function BrainScreen() {
                 disabled={undoingHours}
                 onClick={() => {
                   setUndoingHours(true);
+                  setHoursError(null);
                   void firstBeta
-                    .undoWorkingHours(business.id)
+                    .undoWorkingHours(hoursSaved.businessId, hoursSaved.eventId)
                     .then((undo) => {
                       if (!undo.ok) {
-                        toast.error(undo.message);
+                        setHoursError(undo.message);
                         return;
                       }
                       setHoursSaved(null);
                       toast.success(`Undone. ${undo.summary}.`);
                     })
                     .catch((err: unknown) =>
-                      toast.error(
+                      setHoursError(
                         err instanceof Error ? err.message : "Could not undo the hours change.",
                       ),
                     )
@@ -623,7 +656,10 @@ export function BrainScreen() {
                 size="sm"
                 variant="ghost"
                 className="min-h-11"
-                onClick={() => setHoursSaved(null)}
+                onClick={() => {
+                  setHoursSaved(null);
+                  setHoursError(null);
+                }}
               >
                 Keep it
               </Button>
@@ -802,7 +838,9 @@ export function BrainScreen() {
                         // The one detail that changes Settings: said as the
                         // change it makes, so saving is the owner confirming it.
                         <p className="callout bg-paper-2 font-medium text-ink">
-                          {workingHoursChange(prefs, d.detail)}
+                          {hoursNow && hoursNow.businessId === business.id
+                            ? workingHoursChange(hoursNow, d.detail)
+                            : "Checking the hours Settings holds now…"}
                         </p>
                       ) : null}
                       <p className="font-medium">{describeDetail(d.detail)}</p>
@@ -876,14 +914,6 @@ export function BrainScreen() {
                     onClick={async () => {
                       setSavingPrices(true);
                       setSaveError(null);
-                      // The hours Settings held before this save, for the Undo.
-                      const hoursChange = livePrices.details.find(
-                        (d) => d.detail.kind === "working_hours",
-                      );
-                      const hoursLine =
-                        hoursChange?.detail.kind === "working_hours"
-                          ? workingHoursChange(prefs, hoursChange.detail)
-                          : null;
                       try {
                         // One call: every price and detail saves, or none does.
                         const services = activeRules(business).map((r) => r.service);
@@ -935,10 +965,16 @@ export function BrainScreen() {
                           setComposerOpen(false);
                         }
                         const count = res.saved + res.details;
-                        if (hoursLine && !hoursLine.startsWith("Settings hours stay")) {
-                          setHoursSaved(hoursLine);
-                          // Only the hours changed: the notice above says it all.
-                          if (res.saved === 0 && count === 1) return;
+                        // A save that changed the hours replaces the notice with
+                        // its own record; the same hours saved again changes
+                        // nothing and leaves the earlier notice and its Undo.
+                        if (res.hours) {
+                          setHoursError(null);
+                          setHoursSaved({ businessId: business.id, ...res.hours });
+                          if (count === 0) return;
+                        } else if (count === 0 && savingHours) {
+                          toast.success("Your hours were already these. Nothing changed.");
+                          return;
                         }
                         toast.success(
                           search.back && !pricedIt && search.service
@@ -1172,3 +1208,6 @@ function saveLabel(count: number): string {
   if (count === 0) return "Nothing to save";
   return count === 1 ? "Save this detail" : `Save these ${count} details`;
 }
+
+type HoursSaved = { businessId: string; eventId: string; summary: string };
+type HoursNow = { businessId: string; workingDays: string; hoursStart: string; hoursEnd: string };

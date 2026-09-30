@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { ForbiddenError } from "./tenancy.server.ts";
-import { undoWorkingHoursForUser } from "./owner-state-core.ts";
+import { saveWorkspacePrefsForUser } from "./owner-state-core.ts";
+import { readWorkingHoursForUser, undoWorkingHoursForUser } from "./working-hours-core.ts";
 import {
   WED_30_SEP,
   answer,
@@ -11,6 +12,7 @@ import {
   sqlFor,
   tell,
   tenant,
+  tx,
 } from "./pass8-db-helpers.ts";
 import { readBusinessDetails } from "../../domain/business-details-read.ts";
 import { lineChoicesFor } from "../../domain/line-choices.ts";
@@ -36,57 +38,127 @@ async function hours(pg: PGlite, businessId: string) {
 
 const PRICES = ["End of lease clean $380", "Oven degrease $60"].join("\n");
 
-test("the working hours Undo puts back the hours a save replaced; another tenant is refused and moves nothing", async (t) => {
+async function hoursEvents(pg: PGlite, businessId: string) {
+  return (
+    await pg.query<{ id: string }>(
+      `select id from audit_event where business_id = $1 and detail like '{"kind":"working_hours"%'`,
+      [businessId],
+    )
+  ).rows.length;
+}
+
+const undo = (pg: PGlite, userId: string, businessId: string, eventId: string) =>
+  undoWorkingHoursForUser(sqlFor(pg), (fn) => tx(pg, fn), userId, { businessId, eventId });
+
+async function saveHours(pg: PGlite, businessId: string, line: string, userId = "user-a") {
+  const res = await tell(pg, businessId, line, userId);
+  return res.hours;
+}
+
+test("hours Undo names its own save: it puts those hours back once; another tenant is Forbidden and nothing moves", async (t) => {
   const pg = await freshDb(t);
-  const sql = sqlFor(pg);
   const a = await tenant(pg, "user-a", "Shine Cleaning");
   const b = await tenant(pg, "user-b", "Other Cleaning");
-  await tell(pg, a.businessId, "Mon-Sat 7am-5pm");
-  await tell(pg, b.businessId, "Mon-Fri 9am-3pm", "user-b");
-  const savedA = await hours(pg, a.businessId);
-  assert.equal(savedA, "Monday to Saturday 07:00-17:00");
+  const changeA = await saveHours(pg, a.businessId, "Mon-Sat 7am-5pm");
+  await saveHours(pg, b.businessId, "Mon-Fri 9am-3pm", "user-b");
+  assert.ok(changeA?.eventId);
+  assert.equal(
+    changeA!.summary,
+    "Settings hours change from Monday to Friday 08:00-17:30 to Monday to Saturday 07:00-17:00",
+  );
   const savedB = await hours(pg, b.businessId);
+  const eventsA = await hoursEvents(pg, a.businessId);
 
-  // Another tenant, holding A's id: Forbidden, and neither business moves.
-  await assert.rejects(undoWorkingHoursForUser(sql, "user-b", a.businessId), ForbiddenError);
-  assert.equal(await hours(pg, a.businessId), savedA);
+  await assert.rejects(undo(pg, "user-b", a.businessId, changeA!.eventId), ForbiddenError);
+  await assert.rejects(readWorkingHoursForUser(sqlFor(pg), "user-b", a.businessId), ForbiddenError);
+  // B naming A's record against B's own business: not B's latest change.
+  const cross = await undo(pg, "user-b", b.businessId, changeA!.eventId);
+  assert.equal(cross.ok, false);
+  assert.equal(await hours(pg, a.businessId), "Monday to Saturday 07:00-17:00");
   assert.equal(await hours(pg, b.businessId), savedB);
+  assert.equal(await hoursEvents(pg, a.businessId), eventsA);
 
-  const undone = await undoWorkingHoursForUser(sql, "user-a", a.businessId);
-  assert.equal(undone.ok, true, JSON.stringify(undone));
+  const done = await undo(pg, "user-a", a.businessId, changeA!.eventId);
+  assert.equal(done.ok, true, JSON.stringify(done));
   assert.equal(await hours(pg, a.businessId), "Monday to Friday 08:00-17:30");
   assert.equal(await hours(pg, b.businessId), savedB);
-  if (undone.ok) {
-    assert.equal(
-      undone.summary,
-      "Settings hours change from Monday to Saturday 07:00-17:00 to Monday to Friday 08:00-17:30",
-    );
-  }
-  // The undo is on the record.
-  const audit = await pg.query<{ summary: string }>(
-    "select summary from audit_event where business_id = $1 and summary like 'Undone:%'",
-    [a.businessId],
-  );
-  assert.equal(audit.rows.length, 1);
-
-  // A second Undo never walks back further than the save it belongs to.
-  const again = await undoWorkingHoursForUser(sql, "user-a", a.businessId);
-  assert.equal(again.ok, false);
+  // A second Undo of the same save never walks back further.
+  assert.equal((await undo(pg, "user-a", a.businessId, changeA!.eventId)).ok, false);
   assert.equal(await hours(pg, a.businessId), "Monday to Friday 08:00-17:30");
 });
 
-test("the working hours Undo refuses once Settings has moved on since the save", async (t) => {
+test("saving the same hours again changes nothing and leaves the first change undoable", async (t) => {
+  const pg = await freshDb(t);
+  const a = await tenant(pg, "user-a", "Shine Cleaning");
+  const first = await saveHours(pg, a.businessId, "Mon-Sat 7am-5pm");
+  const events = await hoursEvents(pg, a.businessId);
+  const again = await saveHours(pg, a.businessId, "Mon-Sat 7am-5pm");
+  assert.equal(again, null);
+  assert.equal(await hoursEvents(pg, a.businessId), events, "a stay writes no record");
+  const done = await undo(pg, "user-a", a.businessId, first!.eventId);
+  assert.equal(done.ok, true, JSON.stringify(done));
+  assert.equal(await hours(pg, a.businessId), "Monday to Friday 08:00-17:30");
+});
+
+test("two hours lines in one save are refused and nothing is written", async (t) => {
+  const pg = await freshDb(t);
+  const a = await tenant(pg, "user-a", "Shine Cleaning");
+  await assert.rejects(
+    tell(pg, a.businessId, "Mon-Sat 7am-5pm\nMon-Fri 9am-3pm"),
+    /working hours once/,
+  );
+  assert.equal(await hours(pg, a.businessId), " -", "Settings never written");
+  assert.equal(await hoursEvents(pg, a.businessId), 0);
+});
+
+test("an Undo from an older tab, or after a change and a change back in Settings, is refused", async (t) => {
   const pg = await freshDb(t);
   const sql = sqlFor(pg);
   const a = await tenant(pg, "user-a", "Shine Cleaning");
-  await tell(pg, a.businessId, "Mon-Sat 7am-5pm");
-  await pg.query(
-    `update workspace_prefs set prefs = jsonb_set(prefs, '{hoursEnd}', '"16:00"') where business_id = $1`,
+  const tabOne = await saveHours(pg, a.businessId, "Mon-Sat 7am-5pm");
+  const tabTwo = await saveHours(pg, a.businessId, "Mon-Fri 9am-3pm");
+  assert.equal((await undo(pg, "user-a", a.businessId, tabOne!.eventId)).ok, false);
+  assert.equal(await hours(pg, a.businessId), "Monday to Friday 09:00-15:00");
+  // Settings changes the hours, then changes them back to what tab two wrote.
+  await saveWorkspacePrefsForUser(sql, "user-a", a.businessId, { hoursEnd: "16:00" });
+  await saveWorkspacePrefsForUser(sql, "user-a", a.businessId, { hoursEnd: "15:00" });
+  assert.equal(await hours(pg, a.businessId), "Monday to Friday 09:00-15:00");
+  assert.equal((await undo(pg, "user-a", a.businessId, tabTwo!.eventId)).ok, false);
+  assert.equal(await hours(pg, a.businessId), "Monday to Friday 09:00-15:00");
+});
+
+test("two Undos at once put the hours back exactly once", async (t) => {
+  const pg = await freshDb(t);
+  const a = await tenant(pg, "user-a", "Shine Cleaning");
+  const change = await saveHours(pg, a.businessId, "Mon-Sat 7am-5pm");
+  const results = await Promise.all([
+    undo(pg, "user-a", a.businessId, change!.eventId),
+    undo(pg, "user-a", a.businessId, change!.eventId),
+  ]);
+  assert.equal(results.filter((r) => r.ok).length, 1, JSON.stringify(results));
+  assert.equal(await hours(pg, a.businessId), "Monday to Friday 08:00-17:30");
+  const undone = await pg.query(
+    "select id from audit_event where business_id = $1 and summary like 'Undone:%'",
     [a.businessId],
   );
-  const res = await undoWorkingHoursForUser(sql, "user-a", a.businessId);
+  assert.equal(undone.rows.length, 1);
+});
+
+test("an unreadable hours record is refused, never read as nothing to undo", async (t) => {
+  const pg = await freshDb(t);
+  const a = await tenant(pg, "user-a", "Shine Cleaning");
+  await saveHours(pg, a.businessId, "Mon-Sat 7am-5pm");
+  const bad = await pg.query<{ id: string }>(
+    `insert into audit_event (business_id, actor, summary, detail, object_type)
+     values ($1, 'owner', 'Settings hours change', '{"kind":"working_hours",broken', 'brain')
+     returning id`,
+    [a.businessId],
+  );
+  const logged = t.mock.method(console, "error", () => {});
+  const res = await undo(pg, "user-a", a.businessId, bad.rows[0]!.id);
   assert.equal(res.ok, false);
-  assert.equal(await hours(pg, a.businessId), "Monday to Saturday 07:00-16:00");
+  assert.ok(logged.mock.callCount() >= 1);
+  assert.equal(await hours(pg, a.businessId), "Monday to Saturday 07:00-17:00");
 });
 
 test("'Add your $60 oven degrease' adds exactly the saved price and settles the mention", async (t) => {

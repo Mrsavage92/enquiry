@@ -646,6 +646,8 @@ export const saveBusinessRules = createServerFn({ method: "POST" })
       ok: true as const,
       saved: result.saved.filter((s) => s.outcome !== "duplicate").length,
       details: result.detailIds.length,
+      // The hours change this save made (its record id is what Undo names).
+      hours: result.hours,
       updatedEnquiries: result.updatedEnquiryIds.length,
     };
   });
