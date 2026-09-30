@@ -330,11 +330,11 @@ function Onboarding() {
                 required
               />
               <Field
-                label="Your first name"
+                label="Your first name, for sign-offs"
                 name="owner-first-name"
                 value={ownerFirstName}
                 onChange={setOwnerFirstName}
-                placeholder="e.g. Sam - used when Enquiry signs off"
+                placeholder="e.g. Sam"
                 autoComplete="given-name"
               />
               <Field
