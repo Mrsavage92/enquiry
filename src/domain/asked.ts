@@ -30,10 +30,56 @@ export type AskedItem = {
   /** The fact it is recorded against, or "service" / "date". */
   id: string;
   kind: "service" | "extra" | "question" | "ask" | "date";
-  /** Their words, or the thing's name: "is the price including paint?", "Oven clean". */
+  /**
+   * Their words, or the thing's name: "is the price including paint?", "Oven
+   * clean". A "do you do X?" is always the thing they asked about ("Exterior
+   * painting"), never the owner's answer.
+   */
   text: string;
   status: AskedStatus;
+  /** A "do you do X?" the owner answered No: answered, and the reply says so kindly. */
+  declined?: true;
 };
+
+/** "exterior painting" -> "Exterior painting". */
+function sentenceCase(thing: string): string {
+  const t = thing.trim();
+  return t ? `${t[0]!.toUpperCase()}${t.slice(1)}` : t;
+}
+
+/** The ledger's words for a "do you do X?": the thing they asked about, never blank. */
+export function questionLabel(field: string): string {
+  return sentenceCase(questionThing(field)) || "Question";
+}
+
+/**
+ * The owner's answer where the ledger's words belong: "Yes - you do this",
+ * "No - you don't do this", "You'll come back to them on it". An enquiry
+ * decided before pass 10 stored these as the item's text.
+ */
+const ANSWER_AS_TEXT = /^(?:yes|no)\s+-\s|^you'll come back to them on it$/i;
+
+/**
+ * A stored ledger as the desk reads it, never throwing on what it finds: a
+ * "do you do X?" item whose text is the owner's answer (stored before pass 10)
+ * reads as the thing they asked about, and a stored "No - ..." is declined.
+ * Anything that is not a ledger reads as none.
+ */
+export function readableAsked(items: unknown): AskedItem[] | undefined {
+  if (!Array.isArray(items)) return undefined;
+  return items
+    .filter((i): i is AskedItem => Boolean(i) && typeof i === "object")
+    .map((i) => {
+      const text = typeof i.text === "string" ? i.text : "";
+      const id = typeof i.id === "string" ? i.id : "";
+      if (i.kind !== "question") return { ...i, text };
+      if (!text.trim() || ANSWER_AS_TEXT.test(text.trim())) {
+        const declined = /^no\s+-\s/i.test(text.trim()) ? { declined: true as const } : {};
+        return { ...i, text: questionLabel(id), ...declined };
+      }
+      return { ...i, text };
+    });
+}
 
 type LedgerFact = {
   field: string;
@@ -130,12 +176,15 @@ export function askedLedger(
       out.push({
         id: f.field,
         kind: "question",
-        text: f.displayValue?.trim() || questionThing(f.field),
+        // The answered fact's display is the owner's answer ("No - you don't
+        // do this"), never what they asked: the ledger names the thing.
+        text: questionLabel(f.field),
         status: !settled
           ? "open"
           : String(f.value) === QUESTION_ANSWER.later
             ? "come_back"
             : "answered",
+        ...(settled && String(f.value) === QUESTION_ANSWER.no ? { declined: true as const } : {}),
       });
       continue;
     }

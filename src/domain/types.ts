@@ -431,8 +431,23 @@ export type DecisionSnapshot = {
    * only the structured total is allowed.
    */
   impliedAmountsMinor?: number[];
-  /** Money the owner typed in their own answers ("$20m public liability"): never a price. */
+  /**
+   * Stored before pass 10: money the owner typed in their answers, trusted by
+   * value. No longer read - a figure is trusted only inside its own sentence.
+   */
   ownerAmountsMinor?: number[];
+  /**
+   * The owner's own sentences that name money, as the reply carries them
+   * ("We have $20m public liability."): the send check trusts a figure only
+   * inside its own sentence, standing exactly as written.
+   */
+  ownerAnswerTexts?: string[];
+  /**
+   * Two things the owner said disagree ("You said you don't do trials, but a
+   * makeup trial is on this quote"): nothing is sent or confirmed until they
+   * settle it.
+   */
+  conflict?: string;
   /**
    * Something else the customer asked for that the owner has not settled:
    * add it (or a price for it), or leave it out and tell them. While this is
@@ -471,6 +486,13 @@ export type DecisionSnapshot = {
    * there are in all, so "Check 2 of 4" never restarts at 1.
    */
   checks?: { done: number; total: number };
+  /**
+   * A day they asked for is one the owner doesn't work, on a reply that is
+   * ready: which days, the work held out of the total for a wedding day that
+   * can't be done, and whether anything can be booked. The verdict reads it,
+   * so a Sunday wedding is never "Yes - reply ready" as if it could be done.
+   */
+  closedDay?: import("./decide.ts").ClosedDay;
 };
 
 export type WhyItem = {

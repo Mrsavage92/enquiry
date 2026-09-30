@@ -175,11 +175,18 @@ export function promiseVerdict(enquiry: Enquiry): { word: PromiseWord; line: str
   if (blocking && isOwnerEstimate(blocking.factField)) {
     return v(PROMISE_WORDS.notYet, "your estimate decides it");
   }
+  // A Sunday wedding the owner doesn't work, with nothing else they asked for
+  // to book: never "reply ready" as if it could be done.
+  const closed = enquiry.decision?.closedDay;
+  if (closed && !closed.bookable) return v(PROMISE_WORDS.notYet, "that day is a closed day");
   if (decision === "NEEDS_INFORMATION") return v(PROMISE_WORDS.notYet, "one detail decides it");
   const setup = setupStep(enquiry);
   if (isPricingStep(setup)) return v(PROMISE_WORDS.notYet, "your prices decide it");
   if (setup || needsOneDetail(enquiry)) return v(PROMISE_WORDS.notYet, "say which service");
   if (decision === "ACTION_READY") {
+    // With the trial priced beside a closed wedding day, the reply is ready
+    // and the verdict says the day can't be done - and says so of each day.
+    const closedDays = closed?.days.length ?? 0;
     // The reply asks about a day that has passed or does not match its weekday.
     const dateToCheck = (enquiry.facts ?? []).some(
       (f) =>
@@ -187,10 +194,21 @@ export function promiseVerdict(enquiry: Enquiry): { word: PromiseWord; line: str
         f.field.trim().toLowerCase() === "date" &&
         (f.status === "conflict" || f.status === "check_this"),
     );
-    return v(PROMISE_WORDS.yes, dateToCheck ? "reply ready, one date to check" : "reply ready");
+    const tail = [
+      "reply ready",
+      ...(closedDays > 0 ? [`${countWord(closedDays)} can't be done`] : []),
+      ...(dateToCheck ? ["one date to check"] : []),
+    ];
+    return v(PROMISE_WORDS.yes, tail.join(", "));
   }
   if (decision === "BOOKING_PENDING") return v(PROMISE_WORDS.yes, "confirm the booking");
   return v(PROMISE_WORDS.notYet, "your call");
+}
+
+/** "one date", "two dates", "3 dates". */
+function countWord(n: number): string {
+  const words = ["no", "one", "two", "three"];
+  return `${words[n] ?? String(n)} ${n === 1 ? "date" : "dates"}`;
 }
 
 /** Queue and tab names. "Needs you" is only ever the name of the queue, never a badge. */
@@ -231,6 +249,10 @@ export function derivedLabel(
     return STATUS.needsDetail;
   }
   if (state.decision === "NEEDS_HUMAN") return STATUS.yourCall;
+  // The same word as the verdict: a wedding on a day the owner doesn't work,
+  // with nothing else to book, is "Not yet" on the chip too.
+  const closed = enquiry?.decision?.closedDay;
+  if (state.decision === "ACTION_READY" && closed && !closed.bookable) return STATUS.needsDetail;
   if (state.decision === "ACTION_READY") return STATUS.replyReady;
   return STATUS.open;
 }

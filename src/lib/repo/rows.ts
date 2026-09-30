@@ -1,6 +1,7 @@
 import { normaliseTrustMode } from "@/domain/trust-mode";
 import { displayName, hasName } from "@/domain/customer-name";
 import { emptyDecisionSnapshot } from "@/domain/decision-snapshot";
+import { readableAsked } from "@/domain/asked";
 import type {
   ActionPolicy,
   AuditEvent,
@@ -440,9 +441,13 @@ export function toEnquiry(
   // Merged onto a structurally complete default rather than cast to one. The
   // cast compiled and then crashed the desk on the first enquiry a business
   // added by hand, which had no stored snapshot and so no `evaluators` array.
+  const stored = (r.decision_snapshot ?? {}) as Partial<DecisionSnapshot>;
   const snapshot: DecisionSnapshot = {
     ...emptyDecisionSnapshot(),
-    ...((r.decision_snapshot ?? {}) as Partial<DecisionSnapshot>),
+    ...stored,
+    // A ledger stored before pass 10 named an answered "do you do X?" by the
+    // owner's answer; it reads as the thing they asked about.
+    ...(stored.asked ? { asked: readableAsked(stored.asked) } : {}),
   };
   return {
     id: r.id,

@@ -44,7 +44,7 @@ import {
   questionReplyLine,
   questionThing,
 } from "./service-questions.ts";
-import { applyRules } from "./rule-checks.ts";
+import { RULE_CHOICE, RULE_PREFIX, applyRules } from "./rule-checks.ts";
 import { dollarAmounts } from "./voice-detect.ts";
 import {
   askReplyLines,
@@ -57,7 +57,8 @@ import {
   shortDay,
   topicWords,
 } from "./customer-asks.ts";
-import { closedReason } from "./compose-reply.ts";
+import { closedReason, spokenDate, type ReplyContext } from "./compose-reply.ts";
+import { planClosedDays, type ClosedDayPlan } from "./closed-day.ts";
 import { distinctiveStems, mentionsAny, namesService, stemsOf } from "./service-words.ts";
 import { sameCountWords } from "./quantity-reader.ts";
 import { applyHeadcount } from "./headcount.ts";
@@ -197,11 +198,11 @@ export type Decision = {
    */
   roughCounts?: { label: string; field: string; value: string }[];
   /**
-   * Money the owner typed in their own answers to the customer's questions or
-   * a referral note ("insured with $20m public liability", "a $50 deposit"):
-   * sent as written, and never mistaken for a price the send check compares.
+   * The owner's own sentences that name money, as the reply carries them: an
+   * answer they typed or saved ("We have $20m public liability.") or a
+   * referral note. A figure is trusted only inside its own sentence, as written.
    */
-  ownerAmountsMinor?: number[];
+  ownerAnswerTexts?: string[];
   /** Lines the reply must carry: answered questions, things to come back on. */
   replyNotes?: string[];
   /** Everything they asked for or about, and where each stands. */
@@ -214,6 +215,27 @@ export type Decision = {
    * message. A price per hour never takes a count of square metres.
    */
   countPeers?: string[];
+  /**
+   * A day they asked for is one the owner doesn't work (see `closed-day.ts`):
+   * work for a wedding or a formal on that day is held off the quote, which
+   * is priced again for what is left; `bookable` says whether anything can be.
+   */
+  closedDay?: ClosedDay;
+  /**
+   * Two things the owner said disagree and the reply would say both ("Sorry,
+   * I don't do trials" beside a priced makeup trial): nothing is sent until
+   * the owner settles it.
+   */
+  conflict?: string;
+};
+
+export type ClosedDay = {
+  /** The days, yyyy-mm-dd, the owner doesn't work. */
+  days: string[];
+  /** Work held off the quote because its fixed day is closed: named, never priced. */
+  held: { label: string; iso: string; count?: string }[];
+  /** Something on the quote can still be done (the trial), or the job can move. */
+  bookable: boolean;
 };
 
 /**
@@ -283,20 +305,24 @@ function inferredFor(
  *  - unpriceable -> a human judges it, and Enquiry says why rather than
  *                   inventing a number.
  */
-/** The amounts in the owner's own words that a reply will carry. */
-function ownerAmounts(lines: readonly string[]): number[] {
-  return [...new Set(lines.flatMap((l) => dollarAmounts(l).map((n) => Math.round(n * 100))))];
-}
-
-/** A decision with the owner's own amounts from the lines it carries. */
-function withOwnerAmounts(decided: Decision, facts: ReadonlyArray<DecideFact>): Decision {
-  // The owner's typed answers, and the kind no in their own words (a referral
-  // note they saved): both go into the reply exactly as they wrote them.
+/**
+ * A decision with the owner's own sentences the reply carries: their typed or
+ * saved answers, and the kind no in their own words (a referral note). Each is
+ * sent exactly as they wrote it, and the send check trusts a figure only
+ * inside its own sentence, standing as written - never the same number
+ * anywhere else in the reply.
+ */
+function withOwnerTexts(decided: Decision, facts: ReadonlyArray<DecideFact>): Decision {
   const owned = facts
-    .filter((f) => isAskField(f.field) && f.status === "confirmed")
-    .map((f) => String(f.value ?? ""));
-  const amounts = ownerAmounts([...owned, ...(decided.declined ?? [])]);
-  return amounts.length ? { ...decided, ownerAmountsMinor: amounts } : decided;
+    .filter(
+      (f) =>
+        isAskField(f.field) && f.status === "confirmed" && askTopic(f.field) !== "availability",
+    )
+    .flatMap((f) => askReplyLines(f.field, String(f.value ?? "")));
+  const texts = [...new Set([...owned, ...(decided.declined ?? [])])].filter(
+    (t) => dollarAmounts(t).length > 0,
+  );
+  return texts.length ? { ...decided, ownerAnswerTexts: texts } : decided;
 }
 
 export function decideEnquiry(
@@ -304,10 +330,15 @@ export function decideEnquiry(
   enquiry: Pick<Enquiry, "serviceLabel" | "facts"> & {
     messageText?: string;
     services?: readonly string[];
+    /**
+     * The days as the reply reads them, with the owner's closed days: a
+     * wedding on a day the owner doesn't work is held off the quote.
+     */
+    reply?: ReplyContext;
   },
 ): Decision {
   const facts = (enquiry.facts ?? []) as DecideFact[];
-  const decided = withOwnerAmounts(decideCore(business, enquiry), facts);
+  const decided = withOwnerTexts(decideCore(business, enquiry), facts);
   // Whatever step the decision stopped on, only services priced by the same
   // kind of count compete for a count in their message.
   const peers = countPeersOf(activeRules(business), decided);
@@ -341,6 +372,7 @@ function decideCore(
     messageText?: string;
     /** Every service the business prices or lists. */
     services?: readonly string[];
+    reply?: ReplyContext;
   },
 ): Decision {
   const rules = activeRules(business);
@@ -350,7 +382,10 @@ function decideCore(
   const primary = decidePrimary(rules, serviceLabel, facts);
   const knownServices = [...new Set(rules.map((r) => r.service))];
   const decided = primary.price.kind === "EXACT" ? decideExtras(rules, primary, facts) : primary;
-  const notes = replyNotesFrom(facts, details);
+  // What the quote prices: never also a thing the reply comes back on.
+  const priced =
+    decided.price.kind === "EXACT" ? [serviceLabel, ...linesOf(decided).map((l) => l.label)] : [];
+  const notes = replyNotesFrom(facts, details, priced, serviceLabel);
   const withNotes = notes.length ? { ...decided, replyNotes: notes } : decided;
   const pending = pendingQuestion(facts);
   const rule = pending?.readAs
@@ -382,8 +417,21 @@ function decideCore(
           details,
           message: enquiry.messageText ?? "",
           services: [...new Set([...knownServices, ...(enquiry.services ?? [])])],
+          reply: enquiry.reply,
         })
       : withNotes;
+  // "Sorry, I don't do trials" beside a priced makeup trial: the reply would
+  // say both, so nothing is sent until the owner settles which is true.
+  const conflict = noButPriced(facts, gated, serviceLabel);
+  if (conflict) {
+    return {
+      ...gated,
+      action: "ESCALATE_HUMAN",
+      explanation: conflict,
+      conflict,
+      knownServices,
+    };
+  }
   if (ask && (gated.price.kind === "EXACT" || gated.action === "DECLINE")) {
     return askOwner(gated, ask, knownServices);
   }
@@ -423,7 +471,9 @@ function countPeersOf(rules: readonly BusinessRule[], decided: Decision): string
  * each said to come with the price.
  */
 function laterLines(facts: ReadonlyArray<DecideFact>, decided: Decision): string[] {
-  if (decided.action !== "REQUEST_INFORMATION") return [];
+  // Asking whether a closed wedding day can move is not asking for a count:
+  // nothing is priced, so nothing "comes with the price".
+  if (decided.action !== "REQUEST_INFORMATION" || decided.closedDay) return [];
   const when = askWhen(facts);
   const out: string[] = [];
   const open = facts.filter((f) => isAskField(f.field) && !askSettled(f, when.isos));
@@ -659,13 +709,120 @@ function questionExplanation(q: QuestionPending): string {
   return `They asked if you do ${q.thing}. Say yes or no and the reply answers it.`;
 }
 
-/** Answered questions and things the owner will come back on, in the order asked. */
+/** Work words every service shares: never enough to say two things are one. */
+const SHARED_WORK = new Set(["clean", "paint", "servi", "wash", "repai", "insta", "remov", "job"]);
+
+function ownWords(text: string): Set<string> {
+  return new Set(stemsOf(text).filter((s) => !SHARED_WORK.has(s)));
+}
+
+function sameWords(a: ReadonlySet<string>, b: ReadonlySet<string>): boolean {
+  return a.size > 0 && a.size === b.size && [...a].every((s) => b.has(s));
+}
+
+/**
+ * Whether the quote prices the very thing they asked about: its own words are
+ * exactly a priced line's own words ("oven clean" and "Oven clean"), or exactly
+ * what tells that line apart from the main job ("trial" beside "Makeup trial"
+ * on a bridal makeup quote). "The oven" is not "Oven racks", and "windows" is
+ * not "Window tracks": each has a word the other lacks.
+ */
+function onTheQuote(thing: string, priced: readonly string[], main: string): boolean {
+  const want = ownWords(thing);
+  const mainWords = ownWords(main);
+  return priced.some((label) => {
+    const own = ownWords(label);
+    if (sameWords(want, own)) return true;
+    if (label.trim().toLowerCase() === main.trim().toLowerCase()) return false;
+    return sameWords(want, new Set([...own].filter((s) => !mainWords.has(s))));
+  });
+}
+
+/**
+ * The priced line that shares a word with what they asked about, when it is
+ * not plainly the same thing: "manicures" beside "Gel manicure", "carpets"
+ * beside "Carpet steam clean", "a trial run" beside "Makeup trial", "the oven"
+ * beside "Oven racks". A bare work word ("painting") counts on its own.
+ * Sending both a price and "I'll come back" (or "Sorry, I don't") about these
+ * could say two things about one, so the owner is asked - over-asking is
+ * safer than sending both.
+ */
+function sharesWords(thing: string, priced: readonly string[]): string | undefined {
+  const own = ownWords(thing);
+  const want = own.size > 0 ? own : new Set(stemsOf(thing));
+  if (want.size === 0) return undefined;
+  return priced.find((label) => stemsOf(label).some((s) => want.has(s)));
+}
+
+/** The owner's "same thing?" check for a question beside a priced line. */
+export function sameThingField(questionField: string): string {
+  return `${RULE_PREFIX}same:${questionThing(questionField).toLowerCase()}`;
+}
+
+/** "Yes - the quote covers it" (apply) or "No - it's something else" (waive), once answered. */
+function sameThingAnswer(
+  facts: ReadonlyArray<DecideFact>,
+  questionField: string,
+): string | undefined {
+  const field = sameThingField(questionField).toLowerCase();
+  const f = facts.find((x) => x.field.trim().toLowerCase() === field && x.status === "confirmed");
+  return f ? String(f.value) : undefined;
+}
+
+/**
+ * A Yes or a come-back on "do you do X?" beside a priced line that shares a
+ * word with X, still to be settled: one check each, the owner's one tap.
+ */
+function sameThingChecks(
+  facts: ReadonlyArray<DecideFact>,
+  priced: readonly string[],
+  main: string,
+): CoverageFlag[] {
+  const out: CoverageFlag[] = [];
+  for (const f of facts) {
+    if (f.status !== "confirmed" || !isQuestionField(f.field)) continue;
+    const answer = String(f.value);
+    if (answer !== QUESTION_ANSWER.yes && answer !== QUESTION_ANSWER.later) continue;
+    const thing = questionThing(f.field);
+    if (onTheQuote(thing, priced, main)) continue;
+    const label = sharesWords(thing, priced);
+    if (!label || sameThingAnswer(facts, f.field)) continue;
+    const field = sameThingField(f.field);
+    const text = `They asked about ${thing} - is that the ${label.toLowerCase()} on this quote?`;
+    out.push({
+      kind: "rule",
+      text,
+      thing: field,
+      check: {
+        field,
+        kind: "same",
+        text,
+        choices: [
+          [RULE_CHOICE.apply, `Yes - the ${label.toLowerCase()} covers it`],
+          [RULE_CHOICE.waive, `No - say I'll come back on ${thing}`],
+        ],
+      },
+    });
+  }
+  return out;
+}
+
+/**
+ * Answered questions and things the owner will come back on, in the order
+ * asked. A thing the quote prices is never also one the reply "will come back
+ * to you" on: a Yes or a come-back about a priced line says nothing more (the
+ * price paragraph names it). An extra left to come back on is by definition
+ * not on the quote, so only the very same label can be.
+ */
 function replyNotesFrom(
   facts: ReadonlyArray<DecideFact>,
   details: readonly BusinessDetail[] = [],
+  priced: readonly string[] = [],
+  main = "",
 ): string[] {
   const out: string[] = [];
   const when = askWhen(facts);
+  const labels = new Set(priced.map((l) => l.trim().toLowerCase()).filter(Boolean));
   for (const f of facts) {
     if (f.status !== "confirmed") continue;
     if (isAskField(f.field)) {
@@ -674,17 +831,52 @@ function replyNotesFrom(
     }
     if (isQuestionField(f.field)) {
       const thing = questionThing(f.field);
+      const answer = String(f.value);
+      if (answer !== QUESTION_ANSWER.no && onTheQuote(thing, priced, main)) continue;
+      // Beside a priced line that shares a word: said only once the owner
+      // says it is something else; "the quote covers it" says nothing more.
+      if (
+        answer !== QUESTION_ANSWER.no &&
+        sharesWords(thing, priced) &&
+        sameThingAnswer(facts, f.field) === RULE_CHOICE.apply
+      ) {
+        continue;
+      }
       const line =
-        String(f.value) === QUESTION_ANSWER.no
-          ? noLine(thing, details)
-          : questionReplyLine(thing, String(f.value));
+        answer === QUESTION_ANSWER.no ? noLine(thing, details) : questionReplyLine(thing, answer);
       if (line) out.push(line);
     }
     if (isExtraField(f.field) && String(f.value) === EXTRA_CHOICE.comeBack) {
-      out.push(`I'll come back to you on the ${extraLabel(f.field).toLowerCase()}.`);
+      const label = extraLabel(f.field);
+      if (labels.has(label.trim().toLowerCase())) continue;
+      out.push(`I'll come back to you on the ${label.toLowerCase()}.`);
     }
   }
   return out;
+}
+
+/**
+ * The owner said No to "do you do trials?" and a makeup trial is on the quote:
+ * the sentence for the owner, or undefined when nothing disagrees.
+ */
+function noButPriced(
+  facts: ReadonlyArray<DecideFact>,
+  decided: Decision,
+  main: string,
+): string | undefined {
+  if (decided.price.kind !== "EXACT") return undefined;
+  const lines = linesOf(decided).filter((l) => !l.adjustment);
+  for (const f of facts) {
+    if (f.status !== "confirmed" || !isQuestionField(f.field)) continue;
+    if (String(f.value) !== QUESTION_ANSWER.no) continue;
+    const thing = questionThing(f.field);
+    const labels = lines.map((l) => l.label);
+    const line = labels.find((l) => onTheQuote(thing, [l], main)) ?? sharesWords(thing, labels);
+    if (line) {
+      return `You said you don't do ${thing}, but ${line.toLowerCase()} is on this quote. Change your answer, or take it off the quote.`;
+    }
+  }
+  return undefined;
 }
 
 /** Every day asked about, read or confirmed, as yyyy-mm-dd: one, or each of two offered. */
@@ -775,6 +967,8 @@ type CoverageContext = {
   details: BusinessDetail[];
   message: string;
   services: string[];
+  /** The days as the reply reads them, with the owner's closed days. */
+  reply?: ReplyContext;
 };
 
 function linesOf(decided: Decision): QuoteLine[] {
@@ -856,8 +1050,18 @@ function withRuledLines(
   };
 }
 
-function gateCoverage(decided: Decision, ctx: CoverageContext): Decision {
-  if (decided.price.kind !== "EXACT") return decided;
+function gateCoverage(start: Decision, ctx: CoverageContext): Decision {
+  if (start.price.kind !== "EXACT") return start;
+  // A wedding on a day the owner doesn't work: its work comes off the quote
+  // BEFORE the owner's rules run, so a minimum, a fee or a surcharge is worked
+  // out for the work that is left - never subtracted from a total after.
+  const plan = planClosedDays(linesOf(start), ctx.reply);
+  const services = linesOf(start).filter((l) => !l.adjustment);
+  if (plan && plan.held.length > 0 && plan.held.length === services.length) {
+    return nothingBookable(start, plan, ctx);
+  }
+  let decided = plan && plan.held.length > 0 ? withoutHeld(start, plan, ctx.rules) : start;
+  const held = plan?.held ?? [];
   // How often is a reading: shown as its own line to confirm, never assumed.
   const frequency = frequencyIn(ctx.message);
   const recurringAnswer = ctx.facts.find(
@@ -879,8 +1083,10 @@ function gateCoverage(decided: Decision, ctx: CoverageContext): Decision {
     details: ctx.details,
     lines: counted.lines,
     message: ctx.message,
-    jobDates: jobDatesOf(ctx.facts),
-    jobWeekdays: jobWeekdaysOf(ctx.facts),
+    // Only the days of the work left on the quote: the trial's Saturday, never
+    // the closed Sunday of the wedding it no longer prices.
+    jobDates: held.length ? plan!.workDays : jobDatesOf(ctx.facts),
+    jobWeekdays: held.length ? weekdaysOf(plan!.workDays) : jobWeekdaysOf(ctx.facts),
     facts: ctx.facts,
     ...(recurring ? { recurring: frequency ?? "regularly" } : {}),
   });
@@ -895,15 +1101,7 @@ function gateCoverage(decided: Decision, ctx: CoverageContext): Decision {
     [...ruled.implied, ...counted.implied],
     [...ruled.declined, ...ruled.notes, ...counted.notes],
   );
-  const handled = ctx.facts
-    .filter((f) => isExtraField(f.field) && f.status === "confirmed")
-    .map((f) => extraLabel(f.field))
-    // A question they asked and the owner answered is settled, not a gap.
-    .concat(
-      ctx.facts
-        .filter((f) => isQuestionField(f.field) && f.status === "confirmed")
-        .map((f) => questionThing(f.field)),
-    );
+  const handled = handledOf(ctx.facts);
   const flagged = coverageFlags({
     message: ctx.message,
     covered: [ctx.serviceLabel, ...lines.map((l) => l.label), ...handled],
@@ -913,6 +1111,12 @@ function gateCoverage(decided: Decision, ctx: CoverageContext): Decision {
   }).map((f) => withOffer(f, ctx.rules, lines));
   flagged.push(
     ...ruled.infos.map((text) => ({ kind: "note" as const, text: `Your note: ${text}` })),
+    // The owner confirms exactly what is quoted: work held for a closed day is
+    // named here, and a change in what is held changes the key.
+    ...held.map((h) => ({
+      kind: "note" as const,
+      text: `Not included - closed day: ${h.label.toLowerCase()} (${spokenDate(h.iso) ?? h.iso})`,
+    })),
     // Shown as one of the owner's checks, one tap each way.
     ...counted.open.map((c) => ({
       kind: "rule" as const,
@@ -937,6 +1141,13 @@ function gateCoverage(decided: Decision, ctx: CoverageContext): Decision {
       thing: check.field,
       check,
     })),
+    // "Do you do the oven?" answered Yes beside priced oven racks: the same
+    // thing, or something to come back on? The owner says, one tap.
+    ...sameThingChecks(
+      ctx.facts,
+      [ctx.serviceLabel, ...lines.map((l) => l.label)],
+      ctx.serviceLabel,
+    ),
   );
   const firstVisit = (l: QuoteLine, i: number) =>
     i > 0 &&
@@ -975,13 +1186,138 @@ function gateCoverage(decided: Decision, ctx: CoverageContext): Decision {
       }
     : decided;
   const perVisit = recurring ? perVisitPrice(marked, coverageLines) : marked;
-  if (confirmed) return { ...perVisit, coverage };
+  const closedDay: ClosedDay | undefined = plan
+    ? { days: plan.days, held: plan.held, bookable: true }
+    : undefined;
+  const withClosed = closedDay ? { ...perVisit, closedDay } : perVisit;
+  if (confirmed) return { ...withClosed, coverage };
   return {
-    ...perVisit,
+    ...withClosed,
     action: "ESCALATE_HUMAN",
     explanation: "Check what this price covers before the reply names it.",
     coverage,
   };
+}
+
+function weekdaysOf(isos: readonly string[]): number[] {
+  return [...new Set(isos.map((iso) => new Date(`${iso}T00:00:00`).getDay()))].sort(
+    (a, b) => a - b,
+  );
+}
+
+/**
+ * The quote with the held work taken off, priced as if only the rest had been
+ * asked for: the total, the lines and every amount they imply are the rest's
+ * own. The owner's rules run on it afterwards.
+ */
+function withoutHeld(
+  decided: Decision,
+  plan: ClosedDayPlan,
+  rules: readonly BusinessRule[],
+): Decision {
+  if (decided.price.kind !== "EXACT") return decided;
+  const isHeld = (l: QuoteLine) => plan.held.some((h) => h.label === l.label);
+  const rest = linesOf(decided).filter((l) => !isHeld(l));
+  const ruleFor = (label: string) =>
+    rules.find((r) => r.service.trim().toLowerCase() === label.trim().toLowerCase());
+  const implied = rest.flatMap((l) => {
+    const rule = ruleFor(l.label);
+    return rule
+      ? impliedAmountsMinor({
+          kind: "EXACT",
+          amountMinor: l.amountMinor,
+          currency: "AUD",
+          rule,
+          workings: "",
+        })
+      : [l.amountMinor];
+  });
+  const total = rest.reduce((sum, l) => sum + l.amountMinor, 0);
+  const workings = rest
+    .map((l) => `${l.label}: ${formatMinorAud(l.amountMinor)}${l.detail ? ` (${l.detail})` : ""}.`)
+    .join(" ");
+  const { count: _count, ...price } = decided.price;
+  return {
+    ...decided,
+    price: {
+      ...price,
+      // The rule the price is read from is always one of the lines left, never
+      // the held line's: its rate must not become an amount a reply may name.
+      rule: rest.map((l) => ruleFor(l.label)).find(Boolean) ?? {
+        kind: "fixed_price",
+        service: rest[0]!.label,
+        amount: total / 100,
+        currency: "AUD",
+      },
+      amountMinor: total,
+      workings,
+      lines: rest,
+      alsoImplied: [...new Set(implied)],
+    },
+    lines: rest,
+    explanation: workings,
+    roughCounts: decided.roughCounts?.filter((r) => !plan.held.some((h) => h.label === r.label)),
+  };
+}
+
+/**
+ * Everything they asked for is for a wedding day the owner doesn't work: no
+ * price is named or recordable, and the reply asks whether the date can move.
+ * The owner confirming a day themselves prices it as usual.
+ */
+function nothingBookable(decided: Decision, plan: ClosedDayPlan, ctx: CoverageContext): Decision {
+  const day = spokenDate(plan.held[0]!.iso) ?? plan.held[0]!.iso;
+  const closedDay: ClosedDay = { days: plan.days, held: plan.held, bookable: false };
+  // Something else they mention may be bookable ("trial on 24 October" with a
+  // saved makeup trial price): the owner settles each one first, so the
+  // trial is never lost behind the closed wedding day.
+  const open = coverageFlags({
+    message: ctx.message,
+    covered: [ctx.serviceLabel, ...plan.held.map((h) => h.label), ...handledOf(ctx.facts)],
+    services: ctx.services,
+    details: ctx.details,
+    jobDates: allDatesOf(ctx.facts),
+  })
+    .map((f) => withOffer(f, ctx.rules, []))
+    .filter((f) => Boolean(f.thing));
+  if (open.length > 0) {
+    const key = coverageKey({
+      serviceLabel: ctx.serviceLabel,
+      lines: [],
+      flagged: open,
+      facts: ctx.facts.map((f) => ({
+        field: f.field,
+        value: String(f.value ?? ""),
+        status: f.status,
+      })),
+    });
+    return {
+      ...decided,
+      action: "ESCALATE_HUMAN",
+      explanation: `${day} is a day you don't work. Check what else they asked for first.`,
+      coverage: { key, confirmed: false, lines: [], flagged: open, recurring: false },
+      closedDay,
+    };
+  }
+  return {
+    ...decided,
+    action: "REQUEST_INFORMATION",
+    explanation: `${day} is a day you don't work, and nothing else they asked for can be booked. The reply asks if the date can move and names no price.`,
+    coverage: undefined,
+    closedDay,
+  };
+}
+
+/** Extras and questions the owner already settled: never a gap in what is covered. */
+function handledOf(facts: ReadonlyArray<DecideFact>): string[] {
+  return facts
+    .filter((f) => isExtraField(f.field) && f.status === "confirmed")
+    .map((f) => extraLabel(f.field))
+    .concat(
+      facts
+        .filter((f) => isQuestionField(f.field) && f.status === "confirmed")
+        .map((f) => questionThing(f.field)),
+    );
 }
 
 /**

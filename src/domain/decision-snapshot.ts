@@ -61,6 +61,7 @@ export const SETUP_REASON = {
 
 function recommendationLabel(decision: Decision): string {
   if (decision.questionPending) return questionStep(decision.questionPending).step;
+  if (decision.conflict) return "Settle what's on the quote";
   if (decision.coverage && !decision.coverage.confirmed)
     return "Check it covers everything they asked for";
   if (decision.extraPending?.kind === "no_price") {
@@ -69,6 +70,7 @@ function recommendationLabel(decision: Decision): string {
   if (decision.extraPending) {
     return `Add or leave out ${decision.extraPending.label.toLowerCase()}`;
   }
+  if (decision.closedDay && !decision.closedDay.bookable) return "Ask if the date can move";
   if (decision.action === "SEND_QUOTE") return "Send the quote";
   if (decision.action === "DECLINE") return "Send the reply";
   if (decision.blocker?.inferred) return `Check ${decidingPhrase(decision.blocker.field)}`;
@@ -123,6 +125,7 @@ export function snapshotFromDecision(decision: Decision, who: ReplyContext = {})
     ...(dates.length ? { dates } : {}),
     ...(decision.asked?.length ? { asked: decision.asked } : {}),
     ...(decision.checks ? { checks: decision.checks } : {}),
+    ...(decision.closedDay ? { closedDay: decision.closedDay } : {}),
     // Worked out from prices the owner confirmed, so the badge that says
     // "Low" would be telling them to doubt their own price list.
     confidence: decision.action === "ESCALATE_HUMAN" ? base.confidence : "High",
@@ -181,9 +184,9 @@ export function snapshotFromDecision(decision: Decision, who: ReplyContext = {})
     // What the reviewed message is allowed to say about money. Stored with the
     // decision because it is derived from the rule that produced the price, not
     // from the text of any particular draft.
-    ...(decision.ownerAmountsMinor?.length
-      ? { ownerAmountsMinor: decision.ownerAmountsMinor }
-      : {}),
+    ...(decision.ownerAnswerTexts?.length ? { ownerAnswerTexts: decision.ownerAnswerTexts } : {}),
+    // Two things the owner said disagree: the desk shows it so they can settle it.
+    ...(decision.conflict ? { conflict: decision.conflict } : {}),
     impliedAmountsMinor:
       decision.extraPending || !replyMayNameTotal(decision)
         ? []
@@ -198,6 +201,9 @@ export function snapshotFromDecision(decision: Decision, who: ReplyContext = {})
  */
 export function replyMayNameTotal(decision: Decision): boolean {
   if (decision.questionPending || decision.action === "DECLINE") return false;
+  // Two things the owner said disagree, or nothing asked for can be booked on
+  // the closed day: no total is authorised, so none can be recorded.
+  if (decision.conflict || (decision.closedDay && !decision.closedDay.bookable)) return false;
   return decision.coverage ? decision.coverage.confirmed : true;
 }
 

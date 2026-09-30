@@ -142,12 +142,38 @@ export async function insertManualEnquiry(
   if (!input.customerEmail.trim() && basics.contact.email) {
     facts.push(readFact("email", basics.contact.email, basics.contact.email, basics.contact.email));
   }
+  // The days as the reply reads them: a wedding on a day the owner doesn't
+  // work is priced (or not) from these, the same way the reply says them.
+  const who = () =>
+    replyContextFromFacts(
+      facts.map((f) => ({
+        field: f.field,
+        value: f.value,
+        status: f.status,
+        date_asked: f.provenance.asked as boolean | undefined,
+        date_span: (f.provenance.span as string | undefined) ?? null,
+        date_issue: f.provenance.issue,
+        date_role: (f.provenance.role as string | undefined) ?? null,
+        date_what: (f.provenance.what as string | undefined) ?? null,
+        display_value: f.displayValue,
+      })),
+      {
+        customerName,
+        ownerFirstName: owner?.owner_first_name ?? undefined,
+        serviceLabel: input.serviceLabel,
+        closed: closedTimesOf(activeDetails(business)),
+        surchargeDays: surchargeDaysOf(activeDetails(business)),
+        followUp: isFollowUp([input.body]),
+        message: input.body,
+      },
+    );
   const decide = () =>
     decideEnquiry(business, {
       serviceLabel: input.serviceLabel,
       facts: facts.map((f) => ({ ...f })) as never,
       messageText: input.body,
       services,
+      reply: who(),
     });
   let decision = decide();
   // The count the price needs, when the message already gives it: read now,
@@ -172,31 +198,7 @@ export async function insertManualEnquiry(
 
   // The reply only states what the owner typed or confirmed: a read name
   // waits for their tap, and a read day is quoted in the customer's words.
-  const snapshot = snapshotFromDecision(
-    decision,
-    replyContextFromFacts(
-      facts.map((f) => ({
-        field: f.field,
-        value: f.value,
-        status: f.status,
-        date_asked: f.provenance.asked as boolean | undefined,
-        date_span: (f.provenance.span as string | undefined) ?? null,
-        date_issue: f.provenance.issue,
-        date_role: (f.provenance.role as string | undefined) ?? null,
-        date_what: (f.provenance.what as string | undefined) ?? null,
-        display_value: f.displayValue,
-      })),
-      {
-        customerName,
-        ownerFirstName: owner?.owner_first_name ?? undefined,
-        serviceLabel: input.serviceLabel,
-        closed: closedTimesOf(activeDetails(business)),
-        surchargeDays: surchargeDaysOf(activeDetails(business)),
-        followUp: isFollowUp([input.body]),
-        message: input.body,
-      },
-    ),
-  );
+  const snapshot = snapshotFromDecision(decision, who());
   const state = stateFromDecision(decision);
   const dateLabel =
     (basics.jobDate

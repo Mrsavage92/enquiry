@@ -6,6 +6,7 @@ import { confirmCoverageForUser } from "./coverage-core.ts";
 import { saveReplyDraftForUser } from "./owner-state-core.ts";
 import { saveBusinessDetailsForUser } from "./business-rule-core.ts";
 import { readBusinessDetails } from "../../domain/business-details-read.ts";
+import { INSURANCE_AS_ANSWER } from "./reviewed-send-core.ts";
 import {
   answer,
   enquiry,
@@ -303,13 +304,24 @@ test("M1: a kept edit whose figures move is on the record, with what it said bef
     "select body from reply_draft where enquiry_id = $1",
     [e.enquiryId],
   );
-  // The owner's "$90 million cover" is theirs; the send gate reads it as an
-  // amount of its own, so the reply that goes out is the kept edit without it.
+  // Pass 10 (second review of PR #79): "$90 million" is read at its true
+  // value, and a cover figure the owner edits in is refused whatever it is
+  // called - it goes out only as the owner's saved answer, where Enquiry can
+  // check it. The reply that goes out is the kept edit without it.
+  const keptBody = draft.rows[0]!.body;
+  for (const edit of [
+    keptBody,
+    keptBody.replace("$90 million cover", "$90 million public liability"),
+  ]) {
+    const refused = await sendAs(pg, a.businessId, e.enquiryId, edit);
+    assert.equal(!refused.ok && refused.reason, "amount_mismatch", edit);
+    assert.equal(!refused.ok && refused.message, INSURANCE_AS_ANSWER, edit);
+  }
   const sent = await sendAs(
     pg,
     a.businessId,
     e.enquiryId,
-    draft.rows[0]!.body.replace(" We carry $90 million cover.", ""),
+    keptBody.replace(" We carry $90 million cover.", ""),
   );
   assert.equal(sent.ok, true, JSON.stringify(sent));
 });

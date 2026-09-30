@@ -305,8 +305,12 @@ test("3 Priya and Chloe: a wedding or a formal on a closed day is never moved to
     "Hi lovely! Getting married 19 Dec 💍 need bridal makeup for me. xx Priya",
     "Bridal makeup",
   );
-  assert.equal((await confirmCoverage(pg, "user-a", priya.enquiryId)).ok, true);
+  // Pass 10: the wedding is all she asked for and its day is closed, so
+  // nothing is priced and there is no "That's everything" to tap: the reply
+  // only asks whether the date can move (was: confirm a $180 total for it).
   const p = await row(pg, priya.enquiryId);
+  assert.equal(p.decision_snapshot.coverage, undefined);
+  assert.doesNotMatch(p.decision_snapshot.draft.body, /\$/);
   assert.equal(p.customer_name, "Priya");
   assert.match(
     p.decision_snapshot.draft.body,

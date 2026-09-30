@@ -95,7 +95,17 @@ test("1a/7 Chloe: a Sunday wedding is said plainly, the trial gets its own line,
   await settle(pg, e.enquiryId, { checks: [[/makeup trial price is per booking/, "waive"]] });
   const { body, sent, snapshot } = await send(pg, a.businessId, e.enquiryId);
   assert.equal(sent.ok, true, JSON.stringify(sent));
-  assert.equal(snapshot.price?.amountMinor, 81000, body);
+  // Pass 10: the wedding day is one the owner doesn't work, so the bridal
+  // makeup is never in a total as if it could be booked (was $810). The trial,
+  // on its own open day, is priced again on its own; the wedding's work is
+  // named with its count and no figure (review of PR #79).
+  assert.equal(snapshot.price?.amountMinor, 9000, body);
+  assert.match(body, /For the makeup trial, that comes to \$90\./);
+  assert.match(
+    body,
+    /I haven't included the bridal makeup for 4 people, as I'm not available on Sunday 8 November\./,
+  );
+  assert.doesNotMatch(body, /\$720|\$810/);
   assert.match(body, /I'm not available on Sunday 8 November/);
   assert.match(
     body,

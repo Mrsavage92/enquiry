@@ -1,7 +1,14 @@
 import { createHash } from "node:crypto";
 import type { Sql } from "../db.ts";
 import type { Channel, DecisionPrice, EvaluatorResult } from "../../domain/types.ts";
-import { dollarAmounts, unreadableMoney } from "../../domain/voice-detect.ts";
+import {
+  INSURANCE_WORDS,
+  dollarMatches,
+  sentenceAt,
+  unreadableMoney,
+  type DollarMatch,
+} from "../../domain/voice-detect.ts";
+import { standsAsQuoted, type QuoteLineAmount } from "../../domain/money-labels.ts";
 import { formatMinorAud } from "../../domain/money-format.ts";
 import { COVERAGE_FIELD } from "../../domain/coverage.ts";
 import { isClosed, lockEnquiry } from "./decision-apply.ts";
@@ -86,44 +93,137 @@ export type PrepareReviewResult =
       amounts?: { named: number[]; expectedMinor: number | null };
     };
 
-/** The figures in the text (in minor units) that the decision does not imply. */
 /**
- * The money a reply names that is about the job: every figure, less the ones
- * the owner typed themselves in an answer ("insured with $20m public
- * liability"), which are trusted as written and never read as a price.
+ * The money a reply names, less the figures inside a sentence that is the
+ * owner's own answer, inserted verbatim ("We have $20m public liability.").
+ * Only that sentence's own figures are trusted, and only where the sentence
+ * stands exactly as the owner wrote it: the same number anywhere else, or in a
+ * sentence they edited, is money like any other.
  */
-export function priceFigures(body: string, ownerMinor: readonly number[] = []): number[] {
-  const own = new Set(ownerMinor);
-  return dollarAmounts(body).filter((n) => !own.has(Math.round(n * 100)));
+export function moneyOutsideAnswers(
+  body: string,
+  ownerTexts: readonly string[] = [],
+): DollarMatch[] {
+  const spans: { from: number; to: number; own: Set<number> }[] = [];
+  for (const raw of ownerTexts) {
+    const text = raw.trim();
+    if (!text) continue;
+    const own = new Set(dollarMatches(text).map((m) => Math.round(m.amount * 100)));
+    for (let at = body.indexOf(text); at !== -1; at = body.indexOf(text, at + 1)) {
+      spans.push({ from: at, to: at + text.length, own });
+    }
+  }
+  return dollarMatches(body).filter(
+    (m) =>
+      !spans.some(
+        (s) =>
+          m.index >= s.from &&
+          m.index + m.raw.length <= s.to &&
+          s.own.has(Math.round(m.amount * 100)),
+      ),
+  );
+}
+
+/** Every figure a reply names outside the owner's own answer sentences. */
+export function moneyFigures(body: string, ownerTexts: readonly string[] = []): number[] {
+  return moneyOutsideAnswers(body, ownerTexts).map((m) => m.amount);
+}
+
+type MoneyCheck = {
+  ok: boolean;
+  /** Figures the decision does not allow, in minor units. */
+  named: number[];
+  expectedMinor: number | null;
+  /** A refused figure sits in a sentence about insurance. */
+  insurance: boolean;
+  /** A figure is in another currency. */
+  foreign: boolean;
+};
+
+/**
+ * The one rule for money in a reply. A figure is allowed only when it is an
+ * amount of the quote (its total, its lines, the owner's rule amounts it
+ * implies) or it sits inside the owner's own answer sentence, as written. No
+ * word beside a figure ("insurance", "cover", "excess") makes it anything but
+ * money: a cover figure goes in a saved answer, where it is the owner's.
+ */
+/**
+ * What the reply is checked against beyond the amounts: the app's own prepared
+ * reply and the quote's lines, so a line's amount is allowed only where it is
+ * said as that line (see `money-labels.ts`).
+ */
+export type QuoteContext = { draft: string; lines: readonly QuoteLineAmount[] };
+
+function checkMoney(
+  body: string,
+  price: DecisionPrice | null,
+  impliedMinor: readonly number[] = [],
+  ownerTexts: readonly string[] = [],
+  quote?: QuoteContext,
+): MoneyCheck {
+  const expectedMinor = price?.kind === "EXACT" ? price.amountMinor : null;
+  const free = moneyOutsideAnswers(body, ownerTexts);
+  const none = { ok: true, named: [], expectedMinor, insurance: false, foreign: false };
+  // A message that names no money of its own is left alone: the structured
+  // quote carries the figure, and an owner may write a covering note.
+  if (free.length === 0) return none;
+  const required = !price
+    ? []
+    : price.kind === "EXACT"
+      ? [price.amountMinor]
+      : [price.minMinor, price.maxMinor];
+  const allowed = new Set<number>([...required, ...impliedMinor]);
+  const minor = (m: DollarMatch) => Math.round(m.amount * 100);
+  // No quote: any money at all is refused. A foreign amount never matches.
+  const refused = free.filter(
+    (m) =>
+      !price ||
+      m.foreign ||
+      !allowed.has(minor(m)) ||
+      (quote !== undefined && !standsAsQuoted(body, m, minor(m), { totals: required, ...quote })),
+  );
+  const stated = new Set(free.filter((m) => !m.foreign).map(minor));
+  const missingTotal = Boolean(price) && !required.every((r) => stated.has(r));
+  const insurance = refused.some((m) =>
+    INSURANCE_WORDS.test(sentenceAt(body, m.index, m.index + m.raw.length)),
+  );
+  return {
+    ok: refused.length === 0 && !missingTotal,
+    named: [...new Set(refused.map(minor))],
+    expectedMinor,
+    insurance,
+    foreign: refused.some((m) => m.foreign),
+  };
 }
 
 export function mismatchAmounts(
   body: string,
   price: DecisionPrice | null,
   impliedMinor: number[] = [],
-  ownerMinor: number[] = [],
+  ownerTexts: readonly string[] = [],
+  quote?: QuoteContext,
 ): { named: number[]; expectedMinor: number | null } {
-  const expectedMinor = price?.kind === "EXACT" ? price.amountMinor : null;
-  const allowed = new Set<number>([
-    ...impliedMinor,
-    ...(expectedMinor !== null ? [expectedMinor] : []),
-  ]);
-  const named = [...new Set(priceFigures(body, ownerMinor).map((n) => Math.round(n * 100)))].filter(
-    (n) => !allowed.has(n),
-  );
+  const { named, expectedMinor } = checkMoney(body, price, impliedMinor, ownerTexts, quote);
   return { named, expectedMinor };
 }
+
+/** The message that says a cover figure belongs in a saved answer. */
+export const INSURANCE_AS_ANSWER =
+  "Write insurance cover as a saved answer so Enquiry can check it.";
 
 /** "Your reply says $880, but the quote Enquiry worked out is $760." */
 export function mismatchMessage(
   body: string,
   price: DecisionPrice | null,
   impliedMinor: number[] = [],
-  ownerMinor: number[] = [],
+  ownerTexts: readonly string[] = [],
+  quote?: QuoteContext,
 ): string {
-  const { named, expectedMinor } = mismatchAmounts(body, price, impliedMinor, ownerMinor);
-  const total = expectedMinor !== null ? formatMinorAud(expectedMinor) : null;
-  const says = named.map((n) => formatMinorAud(n)).join(" and ");
+  const check = checkMoney(body, price, impliedMinor, ownerTexts, quote);
+  if (check.insurance) return INSURANCE_AS_ANSWER;
+  if (check.foreign) return "Write amounts in Australian dollars so Enquiry can check them.";
+  const total = check.expectedMinor !== null ? formatMinorAud(check.expectedMinor) : null;
+  const says = check.named.map((n) => formatMinorAud(n)).join(" and ");
   if (!total) {
     return "Your reply names an amount, but Enquiry has no price on file for this enquiry yet. Take the amount out, or add the price first.";
   }
@@ -211,22 +311,10 @@ export function amountAgrees(
   body: string,
   price: DecisionPrice | null,
   impliedMinor: number[] = [],
-  ownerMinor: number[] = [],
+  ownerTexts: readonly string[] = [],
+  quote?: QuoteContext,
 ): boolean {
-  const named = priceFigures(body, ownerMinor);
-  if (named.length === 0) return true;
-  if (!price) {
-    // No structured amount at all, but the text names money. Nothing to agree
-    // with, and recording it would create a quote-shaped message with no quote.
-    return false;
-  }
-  // The amounts that must appear, and the wider set that may.
-  const required = price.kind === "EXACT" ? [price.amountMinor] : [price.minMinor, price.maxMinor];
-  const allowed = new Set<number>([...required, ...impliedMinor]);
-
-  if (!named.every((n) => allowed.has(Math.round(n * 100)))) return false;
-  const namedMinor = new Set(named.map((n) => Math.round(n * 100)));
-  return required.every((r) => namedMinor.has(r));
+  return checkMoney(body, price, impliedMinor, ownerTexts, quote).ok;
 }
 
 /**
@@ -265,7 +353,8 @@ type SnapshotRow = {
   reason: string | null;
   price: DecisionPrice | null;
   implied_amounts: number[] | null;
-  owner_amounts: number[] | null;
+  owner_texts: string[] | null;
+  draft_body: string | null;
   evaluators: EvaluatorResult[] | null;
   missing: { factField?: string; inferred?: unknown }[] | null;
   engine_version: string;
@@ -310,7 +399,8 @@ export async function prepareReviewedSendInTransaction(
       decision_snapshot -> 'recommendation' ->> 'reason' as reason,
       decision_snapshot -> 'price' as price,
       decision_snapshot -> 'impliedAmountsMinor' as implied_amounts,
-      decision_snapshot -> 'ownerAmountsMinor' as owner_amounts,
+      decision_snapshot -> 'ownerAnswerTexts' as owner_texts,
+      decision_snapshot -> 'draft' ->> 'body' as draft_body,
       decision_snapshot -> 'evaluators' as evaluators,
       decision_snapshot -> 'missing' as missing,
       engine_version
@@ -333,8 +423,10 @@ export async function prepareReviewedSendInTransaction(
   // A reply may state a price only once the owner has confirmed what it
   // covers, for this revision. Checked against the stored confirmation itself,
   // not only the snapshot, so a crafted body cannot name a total early.
-  const ownerMinor = enq.owner_amounts ?? [];
-  if (priceFigures(input.body, ownerMinor).length > 0) {
+  // Only the owner's own answer sentences, as written, carry figures of their
+  // own; a snapshot from before these were recorded trusts none.
+  const ownerTexts = Array.isArray(enq.owner_texts) ? enq.owner_texts : [];
+  if (moneyFigures(input.body, ownerTexts).length > 0) {
     const coverage = await coverageNow(sql, input.enquiryId);
     if (coverage === "unconfirmed") {
       return {
@@ -392,12 +484,24 @@ export async function prepareReviewedSendInTransaction(
   }
 
   const price = enq.price ?? null;
-  if (!amountAgrees(input.body, price, enq.implied_amounts ?? [], ownerMinor)) {
+  // A line's amount only where it is said as that line: in the prepared
+  // reply's own sentence, or beside a word of that line's own name.
+  const quote: QuoteContext = {
+    draft: enq.draft_body ?? "",
+    lines:
+      price?.kind === "EXACT" && price.lines?.length
+        ? price.lines
+        : price?.kind === "EXACT"
+          ? [{ label: enq.service_label ?? "", amountMinor: price.amountMinor }]
+          : [],
+  };
+  const implied = enq.implied_amounts ?? [];
+  if (!amountAgrees(input.body, price, implied, ownerTexts, quote)) {
     return {
       ok: false,
       reason: "amount_mismatch",
-      message: mismatchMessage(input.body, price, enq.implied_amounts ?? [], ownerMinor),
-      amounts: mismatchAmounts(input.body, price, enq.implied_amounts ?? [], ownerMinor),
+      message: mismatchMessage(input.body, price, implied, ownerTexts, quote),
+      amounts: mismatchAmounts(input.body, price, implied, ownerTexts, quote),
     };
   }
 

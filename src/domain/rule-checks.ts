@@ -48,7 +48,8 @@ export type RuleLine = {
 
 export type RuleCheck = {
   field: string;
-  kind: "minimum" | "surcharge" | "fee" | "eligibility" | "discount" | "headcount";
+  /** `same`: "is the thing they asked about the priced line?" (see decide.ts). */
+  kind: "minimum" | "surcharge" | "fee" | "eligibility" | "discount" | "headcount" | "same";
   /** One short sentence for the owner. */
   text: string;
   /** [value, button label] pairs, the rule's own way first. */

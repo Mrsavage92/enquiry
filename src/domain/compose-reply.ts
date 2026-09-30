@@ -633,7 +633,17 @@ function priceBlock(decision: Decision): string[] {
   const left = decision.leftOut?.length
     ? [`I haven't included ${joinLabels(decision.leftOut.map(withArticle))} in this price.`]
     : [];
-  const after = [...firstVisit, ...left];
+  // The trial is priced; the wedding day's work is named, with no figure: a
+  // price for a day that can't be booked only invites "an exception at $250".
+  const held = decision.closedDay?.held ?? [];
+  const notIncluded = held.length
+    ? [
+        `I haven't included ${held
+          .map((h) => `the ${h.label.toLowerCase()}${h.count ? ` for ${h.count}` : ""}`)
+          .join(" or ")}, as I'm not available on ${spokenDate(held[0]!.iso)}.`,
+      ]
+    : [];
+  const after = [...firstVisit, ...left, ...notIncluded];
   return after.length ? [...body, "", ...after] : body;
 }
 
@@ -712,9 +722,29 @@ export function composeReply(decision: Decision, opts: ReplyContext = {}): strin
     return [greeting, "", hello, "", ...decision.declined, "", signOff].join("\n");
   }
   const coverageOpen = decision.coverage ? !decision.coverage.confirmed : false;
-  // Nothing priced goes in the reply while something they asked for is unsettled.
+  // Nothing priced goes in the reply while something they asked for is
+  // unsettled, or while two things the owner said disagree.
   const onHold =
-    Boolean(decision.questionPending) || coverageOpen || Boolean(decision.extraPending);
+    Boolean(decision.questionPending) ||
+    coverageOpen ||
+    Boolean(decision.extraPending) ||
+    Boolean(decision.conflict);
+
+  // Everything they asked for is on a wedding day the owner doesn't work: the
+  // reply says so and asks, and names no price at all.
+  if (decision.closedDay && !decision.closedDay.bookable && !onHold) {
+    return [
+      greeting,
+      "",
+      thanks,
+      "",
+      ...notesBlock(decision),
+      ...dateBlock,
+      closeFor(date.close),
+      "",
+      signOff,
+    ].join("\n");
+  }
 
   if (decision.price.kind === "EXACT" && !onHold) {
     return [

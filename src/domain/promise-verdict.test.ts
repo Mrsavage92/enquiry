@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { decideConfirmed } from "./coverage-testing.ts";
 import { test } from "node:test";
 import { ENQUIRIES } from "../fixtures/enquiries.ts";
-import { PROMISE_WORDS, promiseVerdict } from "./labels.ts";
+import { PROMISE_WORDS, STATUS, derivedLabel, promiseVerdict } from "./labels.ts";
 import { snapshotFromDecision } from "./decision-snapshot.ts";
 import type { CompositeState, Enquiry } from "./types.ts";
 
@@ -88,6 +88,60 @@ test("a priced reply is Yes, a missing detail is Not yet, prices to add is Not y
   assert.equal(promiseVerdict(inferred).line, "Not yet - check one detail they gave");
   const noPrices = live([], "NEEDS_HUMAN", { knowledge: [] });
   assert.equal(promiseVerdict(noPrices).line, "Not yet - your prices decide it");
+});
+
+test("a closed wedding day is never 'Yes - reply ready': Not yet with nothing to book, Yes with a tail when part is", () => {
+  const ready = live([{ field: "bedrooms", value: "2", status: "confirmed" }], "ACTION_READY");
+  const withClosed = (closedDay: NonNullable<Enquiry["decision"]["closedDay"]>): Enquiry => ({
+    ...ready,
+    decision: { ...ready.decision, closedDay },
+  });
+  const wedding = { label: "Bridal makeup", iso: "2026-11-08" };
+  const nothing = withClosed({ days: ["2026-11-08"], held: [wedding], bookable: false });
+  assert.equal(promiseVerdict(nothing).line, "Not yet - that day is a closed day");
+  assert.equal(derivedLabel(nothing.state, nothing), STATUS.needsDetail);
+  const trial = withClosed({ days: ["2026-11-08"], held: [wedding], bookable: true });
+  assert.equal(promiseVerdict(trial).line, "Yes - reply ready, one date can't be done");
+  assert.equal(derivedLabel(trial.state, trial), STATUS.replyReady);
+  const movable = withClosed({ days: ["2026-10-18"], held: [], bookable: true });
+  assert.equal(promiseVerdict(movable).line, "Yes - reply ready, one date can't be done");
+  // Two closed days are two dates, and a date to check is still said beside them.
+  const two = withClosed({ days: ["2026-10-18", "2026-10-25"], held: [], bookable: true });
+  assert.equal(promiseVerdict(two).line, "Yes - reply ready, two dates can't be done");
+  const checked = {
+    ...two,
+    facts: [
+      { id: "d", field: "date", label: "date", value: "2026-10-18", status: "check_this" },
+    ] as Enquiry["facts"],
+  };
+  assert.equal(
+    promiseVerdict(checked).line,
+    "Yes - reply ready, two dates can't be done, one date to check",
+  );
+  // With nothing bookable the reply only asks about the date: Not yet, even
+  // though that reply can be sent.
+  const asking = {
+    ...nothing,
+    state: { ...nothing.state, decision: "NEEDS_INFORMATION" as const },
+  };
+  assert.equal(promiseVerdict(asking).line, "Not yet - that day is a closed day");
+  assert.equal(derivedLabel(asking.state, asking), STATUS.needsDetail);
+  // Every lifecycle and decision state still maps to one of the three words.
+  for (const e of [nothing, trial, movable, two, checked]) {
+    for (const lifecycle of LIFECYCLES) {
+      for (const decision of DECISIONS) {
+        const verdict = promiseVerdict({ ...e, state: { ...e.state, lifecycle, decision } });
+        assert.ok(WORDS.has(verdict.word), `${lifecycle}/${decision}: ${verdict.word}`);
+        assert.ok(verdict.line.startsWith(`${verdict.word} - `), verdict.line);
+        assert.ok(verdict.line.length > `${verdict.word} - `.length, verdict.line);
+      }
+    }
+  }
+  // Booked, closed and declined are unchanged by it.
+  assert.equal(
+    promiseVerdict({ ...nothing, state: { ...nothing.state, lifecycle: "BOOKED" } }).line,
+    "Yes - booked",
+  );
 });
 
 test("a declined or out-of-scope enquiry is No", () => {
