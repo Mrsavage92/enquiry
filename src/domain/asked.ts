@@ -9,6 +9,7 @@ import { ASK_CHOICE, askTopic, askWhen, availabilitySettled, isAskField } from "
 import { contextMentions, mentionWords } from "./date-roles.ts";
 import { COVERAGE_FIELD } from "./coverage.ts";
 import {
+  CLOSED_DAY_CHOICE,
   dateAddedText,
   isClosedDayField,
   isDateAddedField,
@@ -274,7 +275,10 @@ export function askedLedger(
   // it could not read. Each one holds the reply until the owner settles it.
   if (reply) {
     for (const c of sweptChecks(facts as never, reply)) {
-      const answered = Boolean(sweptAnswer(facts as never, c));
+      const answer = sweptAnswer(facts as never, c);
+      const answered = Boolean(answer);
+      // Said as not available: the ledger says so, never "Answered".
+      const notAvailable = c.kind === "closed" && answer === CLOSED_DAY_CHOICE.notAvailable;
       out.push({
         id: c.field,
         kind: "date",
@@ -285,6 +289,7 @@ export function askedLedger(
               ? `Part of ${c.span} is in your closed dates`
               : `A day they mention is ${reply.closed?.days.includes(new Date(`${c.iso}T00:00:00`).getDay()) ? "one you don't work" : "in your closed dates"}: ${sweptLabel(c.iso)}`,
         status: answered ? "answered" : "open",
+        ...(notAvailable ? { closed: true as const } : {}),
       });
     }
   }

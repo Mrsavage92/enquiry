@@ -91,6 +91,7 @@ export function SendPreview({
   const [copyState, setCopyState] = useState<SendPreviewCopyState>("idle");
   const [showAll, setShowAll] = useState(false);
   const bodyRef = useRef<HTMLDivElement>(null);
+  const refusedRef = useRef<HTMLDivElement>(null);
   // The message grows to fit so the sign-off is never hidden in an inner
   // scroll; only a really long one is cut short, with "Show all" under it.
   const long =
@@ -206,13 +207,16 @@ export function SendPreview({
         footer={actionBar}
         onOpenAutoFocus={(event) => {
           event.preventDefault();
-          bodyRef.current?.focus();
+          // A refused reply opens on why, never scrolled past it to the text.
+          (blockedReason ? refusedRef.current : bodyRef.current)?.focus();
         }}
       >
         <div className="space-y-4">
           {/* Why it can't go, first: never under a message that looks ready. */}
           {blockedReason ? (
             <div
+              ref={refusedRef}
+              tabIndex={-1}
               className="callout bg-danger-bg text-danger"
               role="alert"
               data-testid="send-refused"

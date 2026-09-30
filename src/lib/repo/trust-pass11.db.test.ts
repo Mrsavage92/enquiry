@@ -5,6 +5,8 @@ import { ForbiddenError, requireEnquiryAccess } from "./tenancy.server.ts";
 import { confirmReviewedSendInTransaction } from "./sent-reply-core.ts";
 import { prepareReviewedSendInTransaction } from "./reviewed-send-core.ts";
 import { FORBIDDEN_PROMISES } from "../../domain/edit-warnings.ts";
+import { toEnquiry, type EnquiryRow } from "./rows.ts";
+import { promiseVerdict } from "../../domain/labels.ts";
 import {
   WED_30_SEP,
   answer,
@@ -276,6 +278,15 @@ test("3 Jase: '27th or 28th' beside 28/12 is read, and both days are in the clos
   );
   assert.equal(surcharge.rows.length, 0);
   assert.equal(sent.ok && sent.amountMinor, 44_000);
+  // Settled as not available, each day reads "Not available" and the verdict says so.
+  const days = (await ledger(pg, e.enquiryId)).filter((i) => i.id.startsWith("closed_day:"));
+  assert.deepEqual(
+    days.map((d) => d.closed),
+    [true, true],
+  );
+  const r = await pg.query<EnquiryRow>("select * from enquiry where id = $1", [e.enquiryId]);
+  const enq = toEnquiry(r.rows[0]!, { facts: [], conversation: [], quotes: [] });
+  assert.equal(promiseVerdict(enq).line, "Yes - reply ready, two dates can't be done");
 });
 
 test("3 Ahmed: 'lease ends Sunday 27 December ... the 26th or 27th' is never 'I'll work around that'", async (t) => {
