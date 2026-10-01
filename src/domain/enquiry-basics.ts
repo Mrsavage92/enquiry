@@ -1,5 +1,6 @@
 import { format } from "date-fns";
 import { enAU } from "date-fns/locale";
+import { readWeekdayWord } from "./date-sweep.ts";
 import { wallNow } from "./format";
 
 /**
@@ -538,13 +539,10 @@ type Resolved =
 /** "Sat 3rd": the next Saturday the 3rd, within about two months, or nothing. */
 function resolveMonthless(hit: DateHit, today: Date): Resolved {
   const start = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-  // A weekday alone: the next one after today.
+  // A weekday alone: the next one after today (date-sweep.ts readWeekdayWord).
   if (hit.day === 0) {
-    const ahead = (hit.weekday! - start.getDay() + 7) % 7 || 7;
-    return {
-      kind: "date",
-      date: new Date(start.getFullYear(), start.getMonth(), start.getDate() + ahead),
-    };
+    const read = readWeekdayWord("bare", hit.weekday!, start);
+    if ("date" in read) return { kind: "date", date: read.date };
   }
   for (let i = 0; i <= 62; i += 1) {
     const d = new Date(start.getFullYear(), start.getMonth(), start.getDate() + i);
@@ -931,16 +929,16 @@ function readThisNext(
   const first = weekdayIndex(m[1]!);
   if (first === undefined) return undefined;
   const start = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-  // "this Thursday" is the coming one; "next Thursday" is the one after it
-  // (on Wednesday 30 September: Thursday 1 and Thursday 8 October). The same
-  // rule the date sweep uses (date-sweep.ts).
-  // Said on that very weekday, "next Thursday" is a week today, not a fortnight.
-  const toFirst = (first - start.getDay() + 7) % 7;
-  const ahead = /^next\b/i.test(m[0]) ? toFirst + 7 : toFirst || 7;
-  const a = new Date(start.getFullYear(), start.getMonth(), start.getDate() + ahead);
+  // One reading of weekday words, shared with the date sweep (date-sweep.ts).
+  const lead = /^(this|next|coming)\b/i.exec(m[0])![1]!.toLowerCase() as "this" | "next" | "coming";
+  const read = readWeekdayWord(lead, first, start);
+  const at: Taken = [index, index + m[0].length];
+  // "next Thursday" said on a Wednesday: either Thursday. No day is guessed;
+  // the sweep asks the owner which, in their words.
+  if (!("date" in read)) return { at };
+  const a = read.date;
   const span = m[0].replace(/\s+/g, " ").trim();
   const asked = asksAboutDate(text, index);
-  const at: Taken = [index, index + m[0].length];
   const second = m[2] ? weekdayIndex(m[2]) : undefined;
   if (second === undefined) return { one: readOf(a, span, asked), at };
   const gap = (second - first + 7) % 7 || 7;

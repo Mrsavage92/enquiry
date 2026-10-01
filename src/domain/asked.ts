@@ -284,7 +284,11 @@ export function askedLedger(
         kind: "date",
         text:
           c.kind === "unread"
-            ? `Enquiry could not read a date in: "${c.words}"`
+            ? c.corrupt
+              ? "Enquiry could not re-check the dates in this message: check them against your closed dates"
+              : c.either
+                ? `"${c.words}" could mean ${sweptLabel(c.either[0])} or ${sweptLabel(c.either[1])}: check which day they mean`
+                : `Enquiry could not read a date in: "${c.words}"`
             : c.week
               ? `Part of ${c.span} is in your closed dates`
               : `A day they mention is ${reply.closed?.days.includes(new Date(`${c.iso}T00:00:00`).getDay()) ? "one you don't work" : "in your closed dates"}: ${sweptLabel(c.iso)}`,

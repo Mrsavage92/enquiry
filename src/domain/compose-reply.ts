@@ -352,7 +352,11 @@ function sweptTalk(opts: ReplyContext): DateTalk {
   }
   if ((opts.sweptClosed ?? []).some((d) => !d.say)) close = worst(close, "unconfirmed");
   for (const words of opts.sweptUnread ?? []) {
-    lines.push(`You mentioned ${spokenSpan(words)} - I'll confirm which day works.`);
+    lines.push(
+      words
+        ? `You mentioned ${spokenSpan(words)} - I'll confirm which day works.`
+        : "I'll confirm which day works.",
+    );
     close = worst(close, "unconfirmed");
   }
   return { lines, close };

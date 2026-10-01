@@ -315,7 +315,7 @@ test("3: the owner can say they do that day - the reply then only says they'll c
   assert.match(body, /You mentioned 27th or 28th - I'll confirm which day works\./);
 });
 
-test("3 Dr Carter-Wong: 'next Thursday' on Wednesday 30 September is Thursday 8 October", async (t) => {
+test("3 Dr Carter-Wong: 'next Thursday' on Wednesday 30 September is asked about, never guessed", async (t) => {
   const { pg, a } = await setup(t);
   const e = await enquiry(
     pg,
@@ -323,7 +323,20 @@ test("3 Dr Carter-Wong: 'next Thursday' on Wednesday 30 September is Thursday 8 
     "Hi, could you do a regular clean? Would you be free next Thursday? Thanks, Liz",
     "Regular house clean",
   );
-  assert.equal((await row(pg, e.enquiryId)).date_label, "Thu 8 Oct");
+  // Tomorrow or a week tomorrow: no day is picked for them.
+  assert.equal((await row(pg, e.enquiryId)).date_label, null);
+  const item = (await ledger(pg, e.enquiryId)).find((i) => i.id.startsWith("date_check:"));
+  assert.equal(
+    item?.text,
+    '"next Thursday" could mean Thu 1 Oct or Thu 8 Oct: check which day they mean',
+  );
+  await settle(pg, e.enquiryId, { answers: { "number of hours": "3" } });
+  await settleDays(pg, e.enquiryId);
+  await settle(pg, e.enquiryId, { answers: { "number of hours": "3" } });
+  const { body, sent } = await send(pg, a.businessId, e.enquiryId);
+  assert.equal(sent.ok, true, JSON.stringify(sent));
+  assert.match(body, /You mentioned next Thursday - I'll confirm which day works\./);
+  assert.doesNotMatch(body, /1 October|8 October|15 October/);
   const f = await enquiry(
     pg,
     a.businessId,

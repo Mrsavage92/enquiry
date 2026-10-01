@@ -15,11 +15,11 @@ import { wallNow } from "./format.ts";
  * day is always caught, and a fragment it cannot read is said, never skipped.
  *
  * Rules, stated once:
- *  - "this Thursday" / "coming Thursday" is the next Thursday after today;
- *    "next Thursday" is the Thursday of next week (on Wednesday 30 September
- *    2026, Thursday 1 October and Thursday 8 October; said on Thursday 1
- *    October, "next Thursday" is Thursday 8 October).
- *  - A bare weekday ("Sunday") is the next one after today.
+ *  - Weekday words are read once, by readWeekdayWord (below), which the date
+ *    reader uses too: "this Thursday" is today on a Thursday; "next Thursday"
+ *    is Thursday of next week (Monday-start), and when Thursday is still to
+ *    come this week it is either day, so the owner is asked; a bare weekday
+ *    is the next one after today.
  *  - "27th" with no month takes the month of the nearest date written with
  *    one ("settlement 28/12 ... 27th or 28th" is 27 December); with no month
  *    anywhere, the next time that day comes round. A fragment that still
@@ -41,7 +41,14 @@ export type SweptDay = {
   to?: string;
 };
 
-export type DateSweep = { days: SweptDay[]; unread: string[] };
+export type DateSweep = {
+  days: SweptDay[];
+  unread: string[];
+  /** Their words that could be either of two days ("next Thursday" on a Wednesday). */
+  either?: Record<string, [string, string]>;
+  /** The stored sweep could not be read back: every day needs checking. */
+  corrupt?: true;
+};
 
 /** The fact the sweep is kept in, read at arrival against the arrival clock. */
 export const DATE_SWEEP_FIELD = "date_sweep";
@@ -179,6 +186,8 @@ type Token = {
   until?: Date;
   /** Resolved day, or undefined when it could not be read. */
   date?: Date;
+  /** The two days their words could be. */
+  either?: [Date, Date];
   /** For an ordinal: the day of the month waiting on a month. */
   day?: number;
   past?: boolean;
@@ -228,6 +237,37 @@ function plusDays(d: Date, n: number): Date {
 /** The next given weekday after today (1 to 7 days on). */
 function upcoming(weekday: number, today: Date): Date {
   return plusDays(today, (weekday - today.getDay() + 7) % 7 || 7);
+}
+
+/** Monday 0 to Sunday 6: where a day sits in a Monday-start week. */
+function inWeek(weekday: number): number {
+  return (weekday + 6) % 7;
+}
+
+/** A weekday word read as a day, or the two days it could be. */
+export type WeekdayRead = { date: Date } | { either: [Date, Date] };
+
+/**
+ * The one reading of a weekday word, used by the date reader and the sweep.
+ * `today` is the wall-clock day (midnight); `weekday` is 0 Sunday to 6 Saturday.
+ *  - "this Thursday": this Thursday, today when said on a Thursday.
+ *  - "coming Thursday" and a bare "Thursday": the next one after today
+ *    (a bare weekday never means today; that is "today").
+ *  - "next Thursday": Thursday of next week, in a Monday-start week. When
+ *    Thursday is still to come this week (said on a Wednesday), it could be
+ *    tomorrow or a week tomorrow: both are returned, never one guessed.
+ */
+export function readWeekdayWord(
+  lead: "this" | "coming" | "next" | "bare",
+  weekday: number,
+  today: Date,
+): WeekdayRead {
+  const toNext = (weekday - today.getDay() + 7) % 7;
+  if (lead === "this") return { date: plusDays(today, toNext) };
+  if (lead === "next" && inWeek(weekday) > inWeek(today.getDay())) {
+    return { either: [plusDays(today, toNext), plusDays(today, toNext + 7)] };
+  }
+  return { date: upcoming(weekday, today) };
 }
 
 function covered(tokens: readonly Token[], index: number, length: number): boolean {
@@ -281,12 +321,14 @@ function collect(text: string, today: Date): Token[] {
   for (const m of text.matchAll(THIS_NEXT)) {
     const weekday = weekdayIndex(m[2]!);
     if (weekday === -1) continue;
-    // "next Thursday" is the Thursday of next week: a week today when said on a Thursday.
-    const date =
-      m[1]!.toLowerCase() === "next"
-        ? plusDays(today, ((weekday - today.getDay() + 7) % 7) + 7)
-        : upcoming(weekday, today);
-    add({ index: m.index ?? 0, length: m[0].length, kind: "weekday", date });
+    const read = readWeekdayWord(m[1]!.toLowerCase() as "this" | "coming" | "next", weekday, today);
+    // "next Thursday" said on a Wednesday: tomorrow or a week tomorrow, never guessed.
+    add({
+      index: m.index ?? 0,
+      length: m[0].length,
+      kind: "weekday",
+      ...("date" in read ? { date: read.date } : { either: read.either }),
+    });
   }
   for (const m of text.matchAll(WEEKDAY_ORDINAL)) {
     const weekday = weekdayIndex(m[1]!);
@@ -321,7 +363,7 @@ function collect(text: string, today: Date): Token[] {
       index: m.index ?? 0,
       length: m[0].length,
       kind: "weekday",
-      date: upcoming(weekday, today),
+      date: (readWeekdayWord("bare", weekday, today) as { date: Date }).date,
     });
   }
   return tokens.sort((a, b) => a.index - b.index);
@@ -414,12 +456,15 @@ export function sweepDates(
   const tokens = withMonths(collect(text, today), today);
   const days: SweptDay[] = [];
   const unread: string[] = [];
+  const either: Record<string, [string, string]> = {};
   const seen = new Map<string, number>();
   for (const run of runs(text, tokens)) {
     const span = spanOf(text, run);
     if (run.some((t) => !t.date)) {
       // A day Enquiry cannot place is said to the owner, never guessed.
       if (!unread.includes(span)) unread.push(span);
+      const two = run.length === 1 ? run[0]!.either : undefined;
+      if (two) either[span] = [isoOf(two[0]), isoOf(two[1])];
       continue;
     }
     for (const t of run) {
@@ -448,7 +493,11 @@ export function sweepDates(
       }
     }
   }
-  return { days: [...days].sort((a, b) => a.iso.localeCompare(b.iso)), unread };
+  return {
+    days: [...days].sort((a, b) => a.iso.localeCompare(b.iso)),
+    unread,
+    ...(Object.keys(either).length ? { either } : {}),
+  };
 }
 
 /** "Sun 27 Dec". */
@@ -462,19 +511,37 @@ export function sweepValue(sweep: DateSweep): string {
   return JSON.stringify(sweep);
 }
 
-/** A stored sweep, or an empty one for anything unreadable. */
+const ISO = /^\d{4}-\d{2}-\d{2}$/;
+
+/**
+ * A stored sweep read back. One that cannot be read fails closed: it comes
+ * back `corrupt`, so the owner is asked to check the dates and the reply is
+ * held, never sent as if no day had been mentioned.
+ */
 export function readSweep(value: unknown): DateSweep {
   const raw = typeof value === "string" ? safeParse(value) : value;
-  if (!raw || typeof raw !== "object") return { days: [], unread: [] };
-  const r = raw as Partial<DateSweep>;
-  const days = Array.isArray(r.days)
-    ? r.days.filter(
-        (d): d is SweptDay =>
-          Boolean(d) && typeof d.iso === "string" && /^\d{4}-\d{2}-\d{2}$/.test(d.iso),
-      )
-    : [];
-  const unread = Array.isArray(r.unread) ? r.unread.filter((u) => typeof u === "string") : [];
-  return { days: [...days].sort((a, b) => a.iso.localeCompare(b.iso)), unread };
+  const r = (raw && typeof raw === "object" ? raw : {}) as Partial<DateSweep>;
+  if (!Array.isArray(r.days) || !Array.isArray(r.unread)) {
+    if (typeof window === "undefined") {
+      console.error("[date-sweep] unreadable stored sweep", String(value).slice(0, 120));
+    }
+    return { days: [], unread: [], corrupt: true };
+  }
+  const days = r.days.filter(
+    (d): d is SweptDay => Boolean(d) && typeof d.iso === "string" && ISO.test(d.iso),
+  );
+  const unread = r.unread.filter((u): u is string => typeof u === "string");
+  const either: Record<string, [string, string]> = {};
+  for (const [words, isos] of Object.entries(r.either ?? {})) {
+    if (Array.isArray(isos) && isos.length === 2 && isos.every((x) => ISO.test(String(x)))) {
+      either[words] = [String(isos[0]), String(isos[1])];
+    }
+  }
+  return {
+    days: [...days].sort((a, b) => a.iso.localeCompare(b.iso)),
+    unread,
+    ...(Object.keys(either).length ? { either } : {}),
+  };
 }
 
 function safeParse(text: string): unknown {

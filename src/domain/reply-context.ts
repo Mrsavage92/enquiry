@@ -118,7 +118,18 @@ export type SweptCheck =
       /** For a week: its last day. */
       to?: string;
     }
-  | { kind: "unread"; field: string; words: string };
+  | {
+      kind: "unread";
+      field: string;
+      words: string;
+      /** The two days their words could be ("next Thursday" said on a Wednesday). */
+      either?: [string, string];
+      /** The stored sweep could not be read back: the owner checks every date. */
+      corrupt?: true;
+    };
+
+/** The check raised when a stored sweep cannot be read back. */
+export const SWEEP_UNREADABLE_FIELD = `${DATE_CHECK_PREFIX}dates in this message`;
 
 /**
  * What the date sweep adds for the owner: every closed day it read that the
@@ -175,7 +186,16 @@ export function sweptChecks(
     });
   }
   for (const words of sweep.unread) {
-    out.push({ kind: "unread", field: `${DATE_CHECK_PREFIX}${words.toLowerCase()}`, words });
+    const either = sweep.either?.[words];
+    out.push({
+      kind: "unread",
+      field: `${DATE_CHECK_PREFIX}${words.toLowerCase()}`,
+      words,
+      ...(either ? { either } : {}),
+    });
+  }
+  if (sweep.corrupt) {
+    out.push({ kind: "unread", field: SWEEP_UNREADABLE_FIELD, words: "", corrupt: true });
   }
   return out;
 }
@@ -228,6 +248,11 @@ function sweptReply(
       }
       const say = !c.week && (answer === CLOSED_DAY_CHOICE.notAvailable || (!answer && !c.context));
       closed.push({ iso: c.iso, span: c.span, say });
+      continue;
+    }
+    // An unreadable stored sweep holds the reply; it never puts their words in it.
+    if (c.corrupt) {
+      if (answer === DATE_CHECK_CHOICE.confirm && !unread.includes("")) unread.push("");
       continue;
     }
     if (answer !== DATE_CHECK_CHOICE.notADate) unread.push(c.words);
@@ -381,6 +406,7 @@ export function addedDays(
     if (!isDateAddedField(f.field) || f.status !== "confirmed") continue;
     const words = dateAddedText(f.field);
     const sweep = readSweep(f.value);
+    if (sweep.corrupt && !out.confirm.includes(words)) out.confirm.push(words);
     const shut = sweep.days.filter((d) => !d.to && closedReason(d.iso, closed));
     for (const d of shut) out.closed.push({ iso: d.iso, span: words, say: true });
     if (shut.length < sweep.days.length && !out.confirm.includes(words)) out.confirm.push(words);
