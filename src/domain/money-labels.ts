@@ -45,6 +45,9 @@ function distinctive(lines: readonly QuoteLineAmount[]): Map<string, Set<string>
   );
 }
 
+/** Words that say a figure is the amount taken off: a discount line's own. */
+const DISCOUNT_WORDS = new Set(stemsOf("discount discounted off less minus saving"));
+
 /** Every sentence of a text, as `sentenceAt` cuts them, trimmed. */
 function sentencesOf(text: string): Set<string> {
   return new Set(
@@ -87,8 +90,9 @@ export function standsAsQuoted(
   const governed = [...near].some((s) => GOVERNING.has(s) && !labelWords.has(s));
   if (governed) return false;
   if (quote.totals.includes(amount)) return true;
-  // A line's amount, or a rate with no line of its own: said as that line.
-  const own = quote.lines.filter((l) => l.amountMinor === amount);
+  // A line's amount, or a rate with no line of its own: said as that line. A
+  // discount line ("$300 off jobs over $600: -$300") is its amount off.
+  const own = quote.lines.filter((l) => Math.abs(l.amountMinor) === amount);
   // A rate the owner's rule implies, said as a rate: "140 square metres at
   // $30 each", "$45 an hour". Its own workings name it.
   if (own.length === 0) {
@@ -104,5 +108,9 @@ export function standsAsQuoted(
   const candidates = own.length > 0 ? own : quote.lines;
   const words = distinctive(quote.lines);
   const said = new Set(stemsOf(sentence));
-  return candidates.some((l) => [...(words.get(l.label) ?? [])].some((s) => said.has(s)));
+  return candidates.some(
+    (l) =>
+      [...(words.get(l.label) ?? [])].some((s) => said.has(s)) ||
+      (own.includes(l) && l.amountMinor < 0 && [...said].some((s) => DISCOUNT_WORDS.has(s))),
+  );
 }

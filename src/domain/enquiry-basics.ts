@@ -684,8 +684,15 @@ function contextOf(before: string, after: string): string | undefined {
   if (!ahead) return undefined;
   if (CONTEXT_IS_THE_JOB.test(head.slice(ahead.index + ahead[0].length))) return undefined;
   if (BEFORE_CONTEXT.test(head.slice(0, ahead.index))) return undefined;
+  // "done on the 30th Dec, keys back 31st": the keys have a day of their own.
+  const beyond = after.slice(ahead.index + ahead[0].length);
+  if (/[,;]/.test(head.slice(0, ahead.index)) && OWN_DAY_AFTER.test(beyond)) return undefined;
   return ahead[1]!.toLowerCase();
 }
+
+/** A day written after a context word, in its own clause: that word's day. */
+const OWN_DAY_AFTER =
+  /^\s*(?:\w+\s+){0,3}?(?:on\s+)?(?:the\s+)?(?:\d{1,2}(?:st|nd|rd|th)?\b|\d{1,2}\/\d{1,2}|(?:mon|tue|wed|thu|fri|sat|sun)[a-z]*\b|tomorrow\b)/i;
 
 /** "before inspection sat", "before the settlement on Friday": the context day after a job day. */
 const FOLLOWING_CONTEXT = new RegExp(

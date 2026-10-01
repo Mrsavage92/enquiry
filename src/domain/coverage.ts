@@ -138,7 +138,7 @@ export function coverageConfirmed(facts: readonly KeyFact[], key: string): boole
  * "we clean regularly ourselves" and "an ongoing issue with mould" are not.
  */
 const FREQUENCY =
-  /\b(?:every\s+(?:other\s+)?(?:\d+\s+|two\s+|three\s+|four\s+)?(?:week|fortnight|month)s?|weekly|fortnightly|monthly|once\s+a\s+(?:week|fortnight|month)|each\s+(?:week|fortnight|month))\b/i;
+  /\b(?:every\s+(?:other\s+|second\s+|2nd\s+)?(?:\d+\s+|two\s+|three\s+|four\s+)?(?:week|fortnight|month)s?|weekly|fortnightly|monthly|(?:once|twice|two\s+times|2\s+times|2x)\s+(?:a|per|each)\s+(?:week|fortnight|month)|each\s+(?:week|fortnight|month))\b/i;
 
 export function frequencyIn(message: string): string | undefined {
   return FREQUENCY.exec(message)?.[0]?.toLowerCase();

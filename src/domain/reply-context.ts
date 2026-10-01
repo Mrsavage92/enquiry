@@ -159,7 +159,7 @@ export function sweptChecks(
     if (d.to) {
       // A week always holds a day off; only closed dates inside it count.
       const hit = (ctx.closed?.ranges ?? []).some((r) =>
-        weekIsos(d.iso, d.to!).some((iso) => closedRangeCovers(iso, r)),
+        stretchIsos(d.iso, d.to!).some((iso) => closedRangeCovers(iso, r)),
       );
       if (hit) {
         out.push({
@@ -200,10 +200,11 @@ export function sweptChecks(
   return out;
 }
 
-function weekIsos(from: string, to: string): string[] {
+/** Every day of a week or a stretch they named, first to last (at most 62 days). */
+function stretchIsos(from: string, to: string): string[] {
   const out: string[] = [];
   const [y, m, d] = from.split("-").map(Number) as [number, number, number];
-  for (let i = 0; i < 7; i += 1) {
+  for (let i = 0; i <= 62; i += 1) {
     const day = new Date(y, m - 1, d + i);
     const iso = `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, "0")}-${String(day.getDate()).padStart(2, "0")}`;
     if (iso > to) break;
@@ -238,7 +239,7 @@ function sweptReply(
       }
       // A week the owner says so of: the closed days in it are named.
       if (c.week && c.to && answer === CLOSED_DAY_CHOICE.notAvailable) {
-        for (const iso of weekIsos(c.iso, c.to)) {
+        for (const iso of stretchIsos(c.iso, c.to)) {
           // A week always holds a day off: only its closed dates are named.
           if ((closedTimes?.ranges ?? []).some((r) => closedRangeCovers(iso, r))) {
             closed.push({ iso, span: c.span, say: true });

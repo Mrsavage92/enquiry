@@ -85,6 +85,50 @@ const WRITTEN = new RegExp(
 const SLANG =
   /\bhalf\s+a\s+(grand|mil(?:l(?:ion)?)?)\b|\b(?:a|one)\s+grand\b(?!\s+(?:total|opening|final|piano|tour|view|old|scale|house|entrance|prize|job))|\b(\d+(?:\.\d+)?)\s?(mil|mill)\b(?!\w)/gi;
 
+/**
+ * A figure said in words or half in words: "550", "5 hundred", "five hundred
+ * and fifty", "five fifty" (the way a price is said aloud: $550).
+ */
+const FIGURE = String.raw`(?:\d{1,3}(?:,\d{3})+|\d+)(?:\s+hundred(?:\s+and)?(?:\s+\d{1,2})?)?(?![\d.,]\d)|${NUMBER_PHRASE}`;
+
+/** The value of a FIGURE, or null. */
+export function figureValue(raw: string): number | null {
+  const text = raw.trim().toLowerCase();
+  const digits = /^(\d{1,3}(?:,\d{3})+|\d+)(?:\s+hundred(?:\s+and)?(?:\s+(\d{1,2}))?)?$/.exec(text);
+  if (digits) {
+    const base = Number(digits[1]!.replace(/,/g, ""));
+    return /hundred/.test(text) ? base * 100 + Number(digits[2] ?? 0) : base;
+  }
+  const n = wordsToNumber(text);
+  if (n !== null) return n;
+  // "five fifty", "twelve ninety-five": hundreds then the rest, said aloud.
+  const words = text.replace(/-/g, " ").split(/\s+/);
+  for (let cut = 1; cut < words.length; cut += 1) {
+    const hundreds = wordsToNumber(words.slice(0, cut).join(" "));
+    const rest = wordsToNumber(words.slice(cut).join(" "));
+    if (hundreds && hundreds < 100 && rest !== null && rest >= 10 && rest < 100) {
+      return hundreds * 100 + rest;
+    }
+  }
+  return null;
+}
+
+/** What makes a figure money when it has no "$": said as a price, or taken off. */
+const SAID_AS_PRICE = new RegExp(
+  String.raw`\b(?:make\s+it|call\s+it|let'?s\s+(?:say|call\s+it|make\s+it)|say|comes?\s+to|that'?ll\s+be|it'?ll\s+be|total\s+of)\s+(?:(?:about|around|roughly|just)\s+)?(${FIGURE})(?=\s*(?:[.,!?;]|$|all\s+up|in\s+total|total|for\s+(?:the|you|everything|it|that|both|all)|if\s|cash|then|and\s+(?:I|we)))`,
+  "gi",
+);
+const TAKEN_OFF = new RegExp(
+  String.raw`\b(?:knock|knocking|take|taking|drop|dropping|shave|shaving|chop|chopping|discount)\s+(?:(?:it|that|the\s+price)\s+)?(?:down\s+)?(?:by\s+)?(${FIGURE})\s+off\b`,
+  "gi",
+);
+const WORDS_ALL_UP = new RegExp(
+  String.raw`(?<![\d$])\b(${NUMBER_PHRASE})\s+(?:all\s+up|in\s+total|total)\b`,
+  "gi",
+);
+/** A figure under $10 said this way is a count ("say two"), never money. */
+const LEAST_SAID_MONEY = 10;
+
 type Hit = DollarMatch & { end: number };
 
 const SCALES: Record<string, number> = {
@@ -149,6 +193,16 @@ function hitsOf(text: string): Hit[] {
     const word = m[2]!.toLowerCase();
     const foreign = /^(?:euros?|pounds?)$/.test(word);
     if (n !== null && n > 0) push(m[0], m.index ?? 0, word === "grand" ? n * 1000 : n, "", foreign);
+  }
+  // "Call it 550.", "Make it 5 hundred.", "I'll knock fifty off.", "five
+  // fifty all up": a price said without a "$" is still a price.
+  for (const re of [SAID_AS_PRICE, TAKEN_OFF, WORDS_ALL_UP]) {
+    for (const m of text.matchAll(re)) {
+      const n = figureValue(m[1]!);
+      if (n === null || n < LEAST_SAID_MONEY) continue;
+      const at = (m.index ?? 0) + m[0].indexOf(m[1]!);
+      push(m[1]!, at, n);
+    }
   }
   // "half a grand", "a grand", "20 mil": money said the way people say it.
   for (const m of text.matchAll(SLANG)) {

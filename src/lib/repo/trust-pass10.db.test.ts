@@ -459,27 +459,23 @@ test("round 2 (M1/M2): a cover figure goes out as the owner's own answer, as wri
   );
   // Edited, the sentence is no longer the owner's answer; the same $20m
   // anywhere else is a figure like any other (review M2).
+  const COVER =
+    "Your saved insurance answer says $20,000,000. Use that figure, or change your saved answer first.";
   for (const [edited, message] of [
-    [body.replace("cover $20m.", "cover $25m."), INSURANCE_AS_ANSWER],
+    [body.replace("cover $20m.", "cover $25m."), COVER],
     [`${body}\n\nBridal makeup plus travel, all up $20m.`, null],
+    // Pass 12: the owner used the saved figure; the clause that prices it is the problem.
     [
       body.replace(
         "We have public liability cover $20m.",
         "We're insured for $20m, and the total is $20m.",
       ),
-      INSURANCE_AS_ANSWER,
+      '"the total is $20m" says your insurance figure is a price. The quote Enquiry worked out is $90: take that out, or use the prepared total.',
     ],
   ] as const) {
     const res = await sendAs(pg, a.businessId, e.enquiryId, edited);
     assert.equal(!res.ok && res.reason, "amount_mismatch", edited);
-    // Pass 11: with a saved cover answer, the refusal names its figure.
-    if (message) {
-      assert.equal(
-        !res.ok && res.message,
-        "Your saved insurance answer says $20,000,000. Use that figure, or change your saved answer first.",
-        edited,
-      );
-    }
+    if (message) assert.equal(!res.ok && res.message, message, edited);
   }
   // The owner answers again in other words: those words carry the figure now.
   await answer(pg, "user-a", e.enquiryId, "ask:insurance", "We're insured for $20m.");

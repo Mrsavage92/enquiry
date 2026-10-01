@@ -125,12 +125,12 @@ const MONTH_DAY = new RegExp(
 );
 const NUMERIC = /\b(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?\b/g;
 const WEEKDAY_ORDINAL = new RegExp(
-  String.raw`\b${WEEKDAY}\.?,?\s+(?:the\s+)?(\d{1,2})(?:st|nd|rd|th)?\b(?!\s*(?:\/|of\b|${MONTH}))`,
+  String.raw`\b${WEEKDAY},?\s+(?:the\s+)?(\d{1,2})(?:st|nd|rd|th)?\b(?!\s*(?:\/|of\b|${MONTH}))`,
   "gi",
 );
 const ORDINAL = /\b(\d{1,2})(st|nd|rd|th)\b/gi;
 /** A weekday written just before a day and month: "Sunday 18 October", "Fri the 16th Oct". */
-const WEEKDAY_LEAD = new RegExp(String.raw`\b${WEEKDAY}\.?,?\s+(?:the\s+)?$`, "i");
+const WEEKDAY_LEAD = new RegExp(String.raw`\b${WEEKDAY},?\s+(?:the\s+)?$`, "i");
 const THIS_NEXT = new RegExp(
   String.raw`\b(this|coming|next)\s+${WEEKDAY}\b(?![,.]?\s+(?:the\s+)?\d)`,
   "gi",
@@ -140,6 +140,21 @@ const WINDOW = new RegExp(
   String.raw`\b(?:(?:between|from)\s+(?:the\s+)?(\d{1,2})(?:st|nd|rd|th)?\s*(?:and|to|-|–|until|till)\s*|(\d{1,2})(?:st|nd|rd|th)?\s*(?:-|–)\s*)(?:the\s+)?(\d{1,2})(?:st|nd|rd|th)?\s+(?:of\s+)?${MONTH}\b`,
   "gi",
 );
+/** "28 December to 3 January": every day of it, across the month. */
+const FULL_RANGE = new RegExp(
+  String.raw`\b(\d{1,2})(?:st|nd|rd|th)?\s+(?:of\s+)?${MONTH}\s*(?:to|-|–|until|till|through|thru)\s*(?:the\s+)?(\d{1,2})(?:st|nd|rd|th)?\s+(?:of\s+)?${MONTH}\b`,
+  "gi",
+);
+/** The days people name rather than number. Month is 0-based. */
+const NAMED_DAYS: [RegExp, number, number][] = [
+  [/\b(?:christmas|xmas)\s+eve\b/gi, 11, 24],
+  [/\b(?:christmas|xmas)\s+day\b/gi, 11, 25],
+  [/\bboxing\s+day\b/gi, 11, 26],
+  [/\bnew\s+year'?s\s+eve\b|\bNYE\b/gi, 11, 31],
+  [/\bnew\s+year'?s\s+day\b|\bNYD\b/gi, 0, 1],
+];
+/** A stretch longer than this is never walked day by day: its ends are read. */
+const LONGEST_RANGE_DAYS = 62;
 const BARE_WEEKDAY = new RegExp(
   String.raw`\b${FULL_WEEKDAY}\b(?!s\b)(?![,.]?\s+(?:the\s+)?\d)(?!\s*(?:to|-|–|through|thru|till|until|or|\/)\s*${WEEKDAY})`,
   "gi",
@@ -157,8 +172,16 @@ const WEEK_OF =
 
 /** "Unit 5/12", "5/12 Park Rd", "3/4 of the lawn", "24/7": never a date. */
 const UNIT_BEFORE = /\b(?:unit|u|apt|apartment|flat|lot|shop|suite|villa|townhouse|no\.?)\s*$/i;
+/** "Ref INV 12/03", "order #12/03", "job no. 5/12": a reference, never a day. */
+const REFERENCE_BEFORE =
+  /(?:\b(?:ref(?:erence)?|inv(?:oice)?|order|po|job\s+(?:no\.?|number)|quote\s+(?:no\.?|number)|account|acct|invoice\s+(?:no\.?|number))\.?|#)\s*[:#]?\s*(?:[a-z]{1,4}\s*[-:#]?\s*)?$/i;
 const STREET_AFTER =
   /^\s+(?:[A-Z][a-z]+\s+){1,3}(?:st|street|rd|road|ave|avenue|dr|drive|cres|crescent|ct|court|pl|place|pde|parade|tce|terrace|hwy|highway|way|lane|ln|cl|close|blvd|boulevard|gr|grove)\b/;
+/** "5/12 smith st": a street typed in lower case, by its plainest endings only. */
+const STREET_AFTER_LOWER =
+  /^\s+(?:[a-z]+\s+){1,3}(?:st|street|rd|road|ave|avenue|dr|drive|cres|crescent|pde|parade|tce|terrace|hwy|highway|ln|blvd|boulevard)\b\.?(?!\s*[a-z])/i;
+/** "at 10/11 am": a time, never a day. */
+const TIME_AFTER = /^\s*(?:am|pm|a\.m\.?|p\.m\.?|o'?clock|ish)\b/i;
 const FRACTION_AFTER =
   /^\s*(?:of|day|days|hr|hrs|hour|hours|tank|cup|inch|mm|cm|kg|litres?|price|off|full|size|done)\b/i;
 /** "my daughter's 18th", "2nd coat", "3rd floor": an ordinal that is not a day. */
@@ -230,6 +253,10 @@ function resolveDayMonth(
   return { date: new Date(y + 1, month, day) };
 }
 
+function dayGap(from: Date, to: Date): number {
+  return Math.round((to.getTime() - from.getTime()) / 86_400_000);
+}
+
 function plusDays(d: Date, n: number): Date {
   return new Date(d.getFullYear(), d.getMonth(), d.getDate() + n);
 }
@@ -280,15 +307,45 @@ function collect(text: string, today: Date): Token[] {
     if (!covered(tokens, t.index, t.length)) tokens.push(t);
   };
   // Longest, most certain shapes first; a later match inside one is the same day.
+  for (const m of text.matchAll(FULL_RANGE)) {
+    const fromMonth = monthIndex(m[2]!);
+    const toMonth = monthIndex(m[4]!);
+    if (fromMonth === undefined || toMonth === undefined) continue;
+    const to = resolveDayMonth(Number(m[3]), toMonth, undefined, today);
+    if (!to.date || to.past) continue;
+    // "28 December to 3 January": the start is the one before the end.
+    let y = to.date.getFullYear();
+    if (fromMonth > toMonth) y -= 1;
+    if (!valid(y, fromMonth, Number(m[1]))) continue;
+    const from = new Date(y, fromMonth, Number(m[1]));
+    if (from > to.date || dayGap(from, to.date) > LONGEST_RANGE_DAYS) continue;
+    add({ index: m.index ?? 0, length: m[0].length, kind: "window", date: from, until: to.date });
+  }
   for (const m of text.matchAll(WINDOW)) {
     const month = monthIndex(m[4]!);
     if (month === undefined) continue;
     const to = resolveDayMonth(Number(m[3]), month, undefined, today);
     const fromDay = Number(m[1] ?? m[2]);
-    if (!to.date || to.past || !valid(to.date.getFullYear(), month, fromDay)) continue;
-    const from = new Date(to.date.getFullYear(), month, fromDay);
-    if (from > to.date) continue;
+    if (!to.date || to.past) continue;
+    // "28-3 Jan": a stretch from 28 December, never 3 January alone.
+    const sameMonth = valid(to.date.getFullYear(), month, fromDay)
+      ? new Date(to.date.getFullYear(), month, fromDay)
+      : undefined;
+    const from =
+      sameMonth && sameMonth <= to.date
+        ? sameMonth
+        : valid(to.date.getFullYear(), month - 1, fromDay) || month === 0
+          ? new Date(to.date.getFullYear(), month - 1, fromDay)
+          : undefined;
+    if (!from || from.getDate() !== fromDay || from > to.date) continue;
+    if (dayGap(from, to.date) > LONGEST_RANGE_DAYS) continue;
     add({ index: m.index ?? 0, length: m[0].length, kind: "window", date: from, until: to.date });
+  }
+  for (const [re, month, day] of NAMED_DAYS) {
+    for (const m of text.matchAll(re)) {
+      const r = resolveDayMonth(day, month, undefined, today);
+      add({ index: m.index ?? 0, length: m[0].length, kind: "full", ...r });
+    }
   }
   for (const m of text.matchAll(DAY_MONTH)) {
     const month = monthIndex(m[2]!);
@@ -309,11 +366,20 @@ function collect(text: string, today: Date): Token[] {
     const index = m.index ?? 0;
     if (m[0] === "24/7") continue;
     const after = text.slice(index + m[0].length);
-    if (UNIT_BEFORE.test(text.slice(0, index)) || STREET_AFTER.test(after)) continue;
+    const before = text.slice(0, index);
+    if (UNIT_BEFORE.test(before) || REFERENCE_BEFORE.test(before)) continue;
+    if (STREET_AFTER.test(after) || STREET_AFTER_LOWER.test(after) || TIME_AFTER.test(after)) {
+      continue;
+    }
     if (!m[3] && FRACTION_AFTER.test(after)) continue;
     const day = Number(m[1]);
     const month = Number(m[2]) - 1;
-    // "50/50", "12/13": not a day and month at all.
+    // "12/25" could be a day written month first: said to the owner, never guessed.
+    if (day >= 1 && day <= 12 && month >= 12 && month <= 30) {
+      add({ index, length: m[0].length, kind: "numeric" });
+      continue;
+    }
+    // "50/50": not a day and month at all.
     if (day < 1 || day > 31 || month < 0 || month > 11) continue;
     const r = resolveDayMonth(day, month, m[3] ? Number(m[3]) : undefined, today);
     add({ index, length: m[0].length, kind: "numeric", ...r });

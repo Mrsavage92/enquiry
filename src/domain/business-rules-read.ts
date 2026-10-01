@@ -274,7 +274,7 @@ const FREQUENCY_WORDS: [RegExp, "weekly" | "fortnightly" | "monthly" | "regular"
  * discount for a big job, offered with one tap when a quote's total is over.
  */
 const OVER_DISCOUNT =
-  /^\s*(?:all\s+)?(?:jobs?|quotes?|bookings?|orders?|work|anything)\s+(?:over|above|more\s+than|of\s+more\s+than|worth\s+more\s+than)\s+\$\s?(\d[\d,]*(?:\.\d{1,2})?)\s+(?:get|gets|receive|save|have|attract)\s+(?:a\s+)?(?:(\d{1,2}(?:\.\d+)?)\s?%|\$\s?(\d[\d,]*(?:\.\d{1,2})?))\s+(?:off|discount)\b\.?\s*$/i;
+  /^\s*(?:all\s+)?(?:jobs?|quotes?|bookings?|orders?|work|anything)\s+(?:over|above|more\s+than|of\s+more\s+than|worth\s+more\s+than)\s+\$\s?(\d[\d,]*(?:\.\d{1,2})?)\s+(?:get|gets|receive|save|have|attract)\s+(?:a\s+)?(?:(\d{1,3}(?:\.\d+)?)\s?%|\$\s?(\d[\d,]*(?:\.\d{1,2})?))\s+(?:off|discount)\b\.?\s*$/i;
 
 function readOverDiscount(line: string): RuleLineRead | null {
   const m = OVER_DISCOUNT.exec(line);
@@ -283,6 +283,29 @@ function readOverDiscount(line: string): RuleLineRead | null {
   const percent = m[2] ? Number(m[2]) : 0;
   const amountOff = m[3] ? Number(m[3].replace(/,/g, "")) : 0;
   const text = line.trim().replace(/[.;]+$/, "");
+  // The checks a money rule has: nothing taken off, all of it, or more than
+  // the job could cost is never saved as a discount.
+  if (!(over > 0)) {
+    return {
+      details: [],
+      refuse: "It doesn't say a job size above $0. Write it like: Jobs over $2000 get $100 off.",
+    };
+  }
+  if (m[2] && (percent <= 0 || percent >= 100)) {
+    return {
+      details: [],
+      refuse: `A discount of ${percent}% ${percent <= 0 ? "takes nothing off" : "takes the whole price off"}. Write a percentage between 1 and 99.`,
+    };
+  }
+  if (m[3] && (amountOff <= 0 || amountOff >= over)) {
+    return {
+      details: [],
+      refuse:
+        amountOff <= 0
+          ? "A discount of $0 takes nothing off. Write the amount it takes off."
+          : `$${amountOf(m[3])} off a job over $${amountOf(m[1]!)} could bring a price to $0 or less. Make the amount off less than $${amountOf(m[1]!)}.`,
+    };
+  }
   return {
     details: [
       {

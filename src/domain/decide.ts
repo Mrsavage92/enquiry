@@ -974,7 +974,11 @@ function jobWeekdaysOf(
       if (open(iso) === iso) out.add(day.getDay());
     }
   } else if (/^\d{4}-\d{2}-\d{2}/.test(value)) {
-    for (const iso of jobDatesOf(facts)) addIso(iso);
+    // "Sat 10 or Sun 11" with Sundays off: the job can only be the Saturday,
+    // never the Monday a closed option would otherwise move to.
+    const isos = jobDatesOf(facts);
+    const openOnes = isos.filter((iso) => open(iso) === iso);
+    for (const iso of openOnes.length ? openOnes : isos) addIso(iso);
   } else if (date) {
     weekdaysSaid(String(date.displayValue ?? ""))
       .filter((d) => !closedDays.includes(d))

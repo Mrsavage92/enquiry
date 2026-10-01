@@ -294,7 +294,11 @@ test("9: a 'jobs over' discount is one tap, only on a quote over the amount", ()
   const applied = run(288_000, [
     { field: big.open[0]!.field, value: "apply", status: "confirmed" },
   ]);
-  assert.equal(applied.lines[0]?.amountMinor, 278_000);
+  // The job line stands; the discount is its own line.
+  assert.deepEqual(applied.lines, [
+    { label: "Interior painting", amountMinor: 288_000 },
+    { label: "$100 off jobs over $2,000", amountMinor: -10_000, adjustment: true },
+  ]);
 });
 
 test("9: 'Nothing bridal' and 'not the bride' never pre-pick bridal makeup", () => {

@@ -444,7 +444,8 @@ function applyDiscounts(ctx: Ctx, start: RuleLine[]): RuleLine[] {
 
 /**
  * "Jobs over $2000 get $100 off": asked about, one tap, only on a quote whose
- * total is over the amount; taken off the biggest job line, never below $0.
+ * total is over the amount. The discount is a line of its own ("$100 off jobs
+ * over $2,000: -$100"); no job line is changed, and nothing comes to $0 or less.
  */
 function applyOverDiscounts(ctx: Ctx, start: RuleLine[]): RuleLine[] {
   let lines = start;
@@ -475,27 +476,11 @@ function applyOverDiscounts(ctx: Ctx, start: RuleLine[]): RuleLine[] {
       ctx,
       check,
       () => {
-        // A dollar amount comes off the biggest line; a percentage off each.
-        const biggest = [...target].sort((a, b) => b.amountMinor - a.amountMinor)[0]!;
-        return lines.map((l) => {
-          if (!target.includes(l)) return l;
-          const amountMinor = d.amountOff
-            ? l === biggest
-              ? l.amountMinor - offMinor
-              : l.amountMinor
-            : Math.round((l.amountMinor * (100 - d.percent)) / 100);
-          if (amountMinor === l.amountMinor) return l;
-          // The threshold is said beside the line ("$100 off jobs over $2,000"):
-          // an amount of the owner's rule, never a price the send check refuses.
-          ctx.implied.push(
-            l.amountMinor,
-            amountMinor,
-            l.amountMinor - amountMinor,
-            Math.round(d.over! * 100),
-          );
-          const note = `${off} off jobs over ${over}${d.amountOff ? "" : ` on ${formatMinorAud(l.amountMinor)}`}`;
-          return { ...l, amountMinor, detail: l.detail ? `${l.detail}, ${note}` : note };
-        });
+        // The amount off and the threshold are said in the discount's own
+        // line: amounts of the owner's rule, never prices the send check refuses.
+        ctx.implied.push(offMinor, Math.round(d.over! * 100), base, after);
+        const label = `${off} off jobs over ${over}`;
+        return [...lines, { label, amountMinor: -offMinor, adjustment: true }];
       },
       lines,
     );

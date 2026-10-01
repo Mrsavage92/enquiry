@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { SheetContent } from "@/components/ui/sheet";
 import type { SendPreviewData } from "@/domain/send-preview";
+import { warningsKey } from "@/domain/edit-warnings";
 import { cn } from "@/lib/utils";
 import { Check, Copy, ClipboardCheck } from "lucide-react";
 import { Link } from "@tanstack/react-router";
@@ -57,9 +58,11 @@ export function SendPreview({
   onCopy: () => Promise<SendPreviewCopyState>;
   /**
    * The owner attesting they sent it themselves. The ONLY thing that records.
-   * `acknowledgedWarnings` is the owner's "Send anyway" over what to check.
+   * `acknowledgedWarnings` is the owner's "Send anyway" over what to check:
+   * the key of the list they saw (`warningsKey`), so a list that grew since
+   * is refused and shown again.
    */
-  onConfirm: (opts?: { acknowledgedWarnings?: boolean }) => void;
+  onConfirm: (opts?: { acknowledgedWarnings?: string }) => void;
   pending: boolean;
   compact?: boolean;
   /** Demo attestations are simulated, and are labelled as such. */
@@ -68,8 +71,11 @@ export function SendPreview({
   blockedReason?: string | null;
   /** The review was prepared against an older decision. */
   staleMessage?: string | null;
-  /** Record the older approved message the owner says they already sent. */
-  onConfirmStale?: () => void;
+  /**
+   * Record the older approved message the owner says they already sent. What
+   * to check is checked here too, with the same key.
+   */
+  onConfirmStale?: (opts?: { acknowledgedWarnings?: string }) => void;
   /**
    * The reply names a different amount to the quote. Never a dead end: put
    * the prepared total back, or add the line the difference is for.
@@ -85,8 +91,12 @@ export function SendPreview({
    */
   warnings?: string[];
 }) {
-  const [checked, setChecked] = useState(false);
+  // "Send anyway" is for the list on screen: a different list asks again.
+  const key = warningsKey(warnings);
+  const [checkedKey, setCheckedKey] = useState<string | null>(null);
+  const checked = warnings.length > 0 && checkedKey === key;
   const toCheck = !blockedReason && warnings.length > 0 && !checked;
+  const ack = checked ? { acknowledgedWarnings: key } : undefined;
   const [addingLine, setAddingLine] = useState(false);
   const [copyState, setCopyState] = useState<SendPreviewCopyState>("idle");
   const [showAll, setShowAll] = useState(false);
@@ -106,7 +116,7 @@ export function SendPreview({
     if (open) {
       setCopyState("idle");
       setShowAll(false);
-      setChecked(false);
+      setCheckedKey(null);
     }
   }, [open]);
 
@@ -143,9 +153,9 @@ export function SendPreview({
             size="sm"
             className="min-h-11 shrink-0"
             disabled={pending}
-            onClick={() => setChecked(true)}
+            onClick={() => setCheckedKey(key)}
           >
-            Send anyway
+            {staleMessage ? "I've checked these" : "Send anyway"}
           </Button>
         </div>
       ) : null}
@@ -179,8 +189,8 @@ export function SendPreview({
         <Button
           variant="secondary"
           className="h-auto min-h-12 w-full whitespace-normal py-2"
-          disabled={pending}
-          onClick={onConfirmStale}
+          disabled={pending || toCheck}
+          onClick={() => onConfirmStale(ack)}
         >
           {pending ? "Recording…" : "I already sent that older message"}
         </Button>
@@ -189,7 +199,7 @@ export function SendPreview({
           variant={copied ? "primary" : "secondary"}
           className="h-auto min-h-12 w-full whitespace-normal py-2"
           disabled={pending || Boolean(blockedReason) || toCheck}
-          onClick={() => onConfirm(checked ? { acknowledgedWarnings: true } : undefined)}
+          onClick={() => onConfirm(ack)}
         >
           <ClipboardCheck size={18} aria-hidden />
           {pending

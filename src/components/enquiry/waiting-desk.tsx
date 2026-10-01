@@ -100,7 +100,7 @@ export function WaitingDesk({ enquiry, onDone }: { enquiry: Enquiry; onDone?: ()
     }
   };
 
-  const confirmExternalSend = async (staleAttestation = false, acknowledgedWarnings = false) => {
+  const confirmExternalSend = async (staleAttestation = false, acknowledgedWarnings?: string) => {
     if (demoMode) {
       approve(enquiry.id);
       toastUndo("Recorded as sent (demo). Nothing left this browser.");
@@ -116,7 +116,7 @@ export function WaitingDesk({ enquiry, onDone }: { enquiry: Enquiry; onDone?: ()
     try {
       const res = await firstBeta.recordSent(enquiry.id, reviewedSendId, {
         staleAttestation,
-        acknowledgedWarnings,
+        ...(acknowledgedWarnings ? { acknowledgedWarnings } : {}),
       });
       if (!res.ok) {
         if (res.reason === "stale") setReviewStale(res.message);
@@ -368,8 +368,8 @@ export function WaitingDesk({ enquiry, onDone }: { enquiry: Enquiry; onDone?: ()
         warnings={reviewWarnings}
         staleMessage={reviewStale}
         onCopy={copyFollowUp}
-        onConfirm={(opts) => void confirmExternalSend(false, Boolean(opts?.acknowledgedWarnings))}
-        onConfirmStale={() => void confirmExternalSend(true)}
+        onConfirm={(opts) => void confirmExternalSend(false, opts?.acknowledgedWarnings)}
+        onConfirmStale={(opts) => void confirmExternalSend(true, opts?.acknowledgedWarnings)}
       />
     </div>
   );

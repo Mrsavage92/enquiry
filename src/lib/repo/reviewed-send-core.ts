@@ -148,6 +148,8 @@ type MoneyCheck = {
   insurance: boolean;
   /** A figure is in another currency. */
   foreign: boolean;
+  /** Each refused figure where it stands. */
+  refused: { index: number; raw: string; minor: number }[];
 };
 
 /**
@@ -173,7 +175,14 @@ function checkMoney(
 ): MoneyCheck {
   const expectedMinor = price?.kind === "EXACT" ? price.amountMinor : null;
   const free = moneyOutsideAnswers(body, ownerTexts);
-  const none = { ok: true, named: [], expectedMinor, insurance: false, foreign: false };
+  const none = {
+    ok: true,
+    named: [],
+    expectedMinor,
+    insurance: false,
+    foreign: false,
+    refused: [],
+  };
   // A message that names no money of its own is left alone: the structured
   // quote carries the figure, and an owner may write a covering note.
   if (free.length === 0) return none;
@@ -203,7 +212,27 @@ function checkMoney(
     expectedMinor,
     insurance,
     foreign: refused.some((m) => m.foreign),
+    refused: refused.map((m) => ({ index: m.index, raw: m.raw, minor: minor(m) })),
   };
+}
+
+/** The clause around a figure: "the total is $20m" in "We're insured for $20m, and the total is $20m." */
+function clauseAt(body: string, index: number, length: number): string {
+  const sentence = sentenceAt(body, index, index + length);
+  const at = body.lastIndexOf(sentence, index);
+  const from = at === -1 ? 0 : index - at;
+  const head = sentence.slice(0, from);
+  const cut = Math.max(
+    head.lastIndexOf(","),
+    head.lastIndexOf(";"),
+    head.search(/\band\s+(?!.*\band\b)/),
+  );
+  const tail = sentence.slice(from + length);
+  const stop = tail.search(/[,;]|\band\b/);
+  return sentence
+    .slice(cut === -1 ? 0 : cut + 1, stop === -1 ? sentence.length : from + length + stop)
+    .replace(/^\s*(?:and|but)\s+/i, "")
+    .trim();
 }
 
 export function mismatchAmounts(
@@ -288,6 +317,20 @@ export function mismatchMessage(
   saved: readonly SavedAnswer[] = [],
 ): string {
   const check = checkMoney(body, price, impliedMinor, ownerTexts, quote);
+  // The saved cover figure said as a price ("the total is $20m"): the clause
+  // that prices it is the problem, never the cover figure itself.
+  const cover = new Set(
+    saved
+      .filter((a) => a.topic === "insurance")
+      .flatMap((a) => dollarMatches(a.text).map((m) => Math.round(m.amount * 100))),
+  );
+  const priced = check.refused
+    .filter((m) => cover.has(m.minor))
+    .map((m) => clauseAt(body, m.index, m.raw.length))
+    .find((clause) => PRICE_WORDS.test(clause) && !INSURANCE_WORDS.test(clause));
+  if (priced && check.expectedMinor !== null) {
+    return `"${priced}" says your insurance figure is a price. The quote Enquiry worked out is ${formatMinorAud(check.expectedMinor)}: take that out, or use the prepared total.`;
+  }
   if (check.insurance) return insuranceMessage(saved);
   if (check.foreign) return "Write amounts in Australian dollars so Enquiry can check them.";
   const total = check.expectedMinor !== null ? formatMinorAud(check.expectedMinor) : null;
@@ -603,7 +646,7 @@ export async function prepareReviewedSendInTransaction(
     insert into reviewed_send
       (enquiry_id, business_id, reviewed_by, decision_revision, action, channel,
        recipient, body, body_hash, price_kind, amount_minor, range_min_minor,
-       range_max_minor, currency, service_label, reason, evaluators, engine_version)
+       range_max_minor, currency, service_label, reason, evaluators, engine_version, draft_body)
     values (
       ${input.enquiryId}, ${input.businessId}, ${input.userId}, ${locked.decisionRevision},
       ${action}, ${input.channel}, ${recipient}, ${body}, ${hash},
@@ -614,7 +657,7 @@ export async function prepareReviewedSendInTransaction(
       ${price?.currency ?? null},
       ${enq.service_label ?? ""}, ${enq.reason ?? ""},
       ${enq.evaluators ? JSON.stringify(enq.evaluators) : null}::jsonb,
-      ${enq.engine_version ?? "0"}
+      ${enq.engine_version ?? "0"}, ${enq.draft_body ?? ""}
     )
     on conflict (enquiry_id, body_hash)
       do update set
@@ -631,7 +674,8 @@ export async function prepareReviewedSendInTransaction(
         service_label = case when reviewed_send.consumed_at is null then excluded.service_label else reviewed_send.service_label end,
         reason = case when reviewed_send.consumed_at is null then excluded.reason else reviewed_send.reason end,
         evaluators = case when reviewed_send.consumed_at is null then excluded.evaluators else reviewed_send.evaluators end,
-        engine_version = case when reviewed_send.consumed_at is null then excluded.engine_version else reviewed_send.engine_version end
+        engine_version = case when reviewed_send.consumed_at is null then excluded.engine_version else reviewed_send.engine_version end,
+        draft_body = case when reviewed_send.consumed_at is null then excluded.draft_body else reviewed_send.draft_body end
     returning id, consumed_at, decision_revision, amount_minor, currency
   `;
   if (!row) throw new Error("Could not prepare that send for review.");

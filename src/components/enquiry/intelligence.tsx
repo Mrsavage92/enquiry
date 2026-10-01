@@ -349,7 +349,7 @@ export function Intelligence({
    * copying, not opening this dialog, not closing it. Enquiry did not deliver
    * the message and does not claim to have.
    */
-  const confirmExternalSend = async (staleAttestation = false, acknowledgedWarnings = false) => {
+  const confirmExternalSend = async (staleAttestation = false, acknowledgedWarnings?: string) => {
     if (demoMode) {
       approve(enquiry.id);
       toastUndo("Recorded as sent (demo). Nothing left this browser.");
@@ -368,7 +368,7 @@ export function Intelligence({
     try {
       const res = await firstBeta.recordSent(enquiry.id, reviewedSendId, {
         staleAttestation,
-        acknowledgedWarnings,
+        ...(acknowledgedWarnings ? { acknowledgedWarnings } : {}),
       });
       if (!res.ok) {
         if (res.reason === "stale") setReviewStale(res.message);
@@ -1521,12 +1521,12 @@ export function Intelligence({
         }
         onCopy={copyDraft}
         onConfirm={(opts) => {
-          void confirmExternalSend(false, Boolean(opts?.acknowledgedWarnings)).then(() => {
+          void confirmExternalSend(false, opts?.acknowledgedWarnings).then(() => {
             if (!compact) onDone?.();
           });
         }}
-        onConfirmStale={() => {
-          void confirmExternalSend(true).then(() => {
+        onConfirmStale={(opts) => {
+          void confirmExternalSend(true, opts?.acknowledgedWarnings).then(() => {
             if (!compact) onDone?.();
           });
         }}

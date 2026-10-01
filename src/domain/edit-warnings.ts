@@ -15,17 +15,44 @@ import { sweepDates } from "./date-sweep.ts";
 
 type Check = { re: RegExp; why: string };
 
+/** "I'm free", "we're definitely available": the owner's own availability. */
+const SELF_FREE = String.raw`(?:I'?m|I\s+am|we'?re|we\s+are)\s+(?:\w+ly\s+)?`;
+/** "I'm free", "we're not free": about the owner, never a price. */
+const SELF_NOT_PRICE = String.raw`(?:I'?m|I\s+am|we'?re|we\s+are)\s+(?:\w+ly\s+|not\s+)?`;
+
 const CHECKS: Check[] = [
   {
-    re: /\b\d{1,2}(?:\.\d+)?\s?%\s*(?:off|discount)\b|\b(?:discount(?:ed)?|mates?\s+rates?)\b/i,
+    re: /\b\d{1,2}(?:\.\d+)?\s?%\s*(?:off|discount)\b|\b(?:discount(?:ed)?|mates?\s+rates?)\b|\bhalf\s+(?:price|off)\b|\bwaiv(?:e|ed|ing)\b/i,
     why: "a discount the quote does not include",
   },
   {
-    re: /\bfor\s+free\b|\bfree\s+of\s+charge\b|\bat\s+no\s+(?:extra\s+)?(?:charge|cost)\b|\bno\s+charge\b|\bthrow(?:n|ing)?\s+(?:it\s+|that\s+|them\s+|(?:the|a|an|your)\s+\w+(?:\s+\w+)?\s+)?in\b|\bon\s+the\s+house\b|\bcomplimentary\b|(?<!feel\s)(?<!be\s)(?<!are\s)\bfree\b(?!\s+(?:to|on|that|this|then|day|days|time|slot|for\s+a))/i,
+    re: new RegExp(
+      String.raw`\bfor\s+free\b|\bfree\s+of\s+charge\b|\b(?:at\s+)?no\s+(?:extra\s+|additional\s+)?(?:charge|cost)\b|\bthrow(?:n|ing)?\s+(?:it\s+|that\s+|them\s+|(?:the|a|an|your)\s+\w+(?:\s+\w+)?\s+)?in\b|\bon\s+the\s+house\b|\bcomplimentary\b|(?<!feel\s)(?<!be\s)(?<!${SELF_NOT_PRICE})\bfree\b(?!\s+(?:to\b|on\b|that\b|this\b|then\b|day|days|time|slot|for\s+a|quotes?\b|estimates?\b|measure\b|inspection\b|parking\b))`,
+      "i",
+    ),
     why: "something at no charge that the quote does not include",
   },
   {
-    re: /\byou(?:'re|\s+are)\s+(?:all\s+)?(?:booked|locked|pencilled|penciled|confirmed)\b|\bI(?:'ve|\s+have)\s+(?:booked|pencilled|penciled|locked)\s+you\b|\bI\s+can\s+(?:come|do\s+(?:it|that|the\s+job|you|this))\b|\bI'?ll\s+(?:be\s+there|see\s+you|fit\s+you\s+in)\b|\bsee\s+you\s+(?:on|then|at)\b|\bno\s+problem\b/i,
+    re: new RegExp(
+      [
+        String.raw`\byou(?:'re|\s+are)\s+(?:all\s+)?(?:booked|locked|pencilled|penciled|confirmed)\b`,
+        String.raw`\b(?:I|we)(?:'ve|\s+have)\s+(?:booked|pencilled|penciled|locked)\s+(?:you|it|that|this)\b`,
+        String.raw`\b(?:I|we)\s+can\s+(?:also\s+|definitely\s+|easily\s+)?(?:come|do)\b`,
+        String.raw`\bhappy\s+to\s+(?:do|come|fit|book)\b`,
+        String.raw`\b(?:I|we)(?:'ll|\s+will)\s+(?:be\s+there|see\s+you|fit\s+you\s+in)\b`,
+        String.raw`\bsee\s+you\s+(?:on|then|at|there|soon|\w+day)\b`,
+        String.raw`\bno\s+problem\b`,
+        String.raw`\b(?:that'?s|it'?s|that\s+is|it\s+is|all)\s+(?:locked|booked|confirmed)\b`,
+        String.raw`\block(?:ed)?\s+(?:it|that|you|this)\s+in\b|\blocked\s+in\b`,
+        String.raw`^\s*(?:booked|confirmed)\b`,
+        String.raw`\bconfirmed\s+for\b`,
+        String.raw`\bguarantee[ds]?\b`,
+        String.raw`\b${SELF_FREE}(?:free|available)\b(?!\s+to\b)`,
+        String.raw`\b(?:mon|tues|wednes|thurs|fri|satur|sun)day\s+(?:works|is\s+(?:fine|good|great|perfect)|suits)\b`,
+        String.raw`\b(?:that|the)\s+(?:day|date|time)\s+(?:works|suits|is\s+(?:fine|good|great|perfect))\b`,
+      ].join("|"),
+      "i",
+    ),
     why: "a booking promise - nothing has checked your calendar",
   },
   {
@@ -77,6 +104,22 @@ export function ownerEditWarnings(
     }
   }
   return out;
+}
+
+/**
+ * The key of a warnings list as the owner saw it: the server records a send
+ * over warnings only when the owner's "Send anyway" carries the key of the
+ * list it works out itself. A list that grew after it was shown is refused.
+ */
+export function warningsKey(warnings: readonly string[]): string {
+  // FNV-1a over the list, so the browser and the server agree with no crypto.
+  let hash = 0x811c9dc5;
+  const text = JSON.stringify(warnings);
+  for (let i = 0; i < text.length; i += 1) {
+    hash ^= text.charCodeAt(i);
+    hash = Math.imul(hash, 0x01000193) >>> 0;
+  }
+  return `${warnings.length}:${hash.toString(16).padStart(8, "0")}`;
 }
 
 /** App-authored promises of availability: never in a composed reply. */

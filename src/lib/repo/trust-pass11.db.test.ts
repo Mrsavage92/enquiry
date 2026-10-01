@@ -4,7 +4,7 @@ import type { PGlite } from "@electric-sql/pglite";
 import { ForbiddenError, requireEnquiryAccess } from "./tenancy.server.ts";
 import { confirmReviewedSendInTransaction } from "./sent-reply-core.ts";
 import { prepareReviewedSendInTransaction } from "./reviewed-send-core.ts";
-import { FORBIDDEN_PROMISES } from "../../domain/edit-warnings.ts";
+import { FORBIDDEN_PROMISES, warningsKey } from "../../domain/edit-warnings.ts";
 import { toEnquiry, type EnquiryRow } from "./rows.ts";
 import { promiseVerdict } from "../../domain/labels.ts";
 import {
@@ -585,7 +585,7 @@ test("7: promises the owner writes are listed to check; sending anyway is one ta
       enquiryId: e.enquiryId,
       businessId: a.businessId,
       userId: "user-a",
-      acknowledgedWarnings: true,
+      acknowledgedWarnings: warningsKey(prepared.warnings),
       now: WED_30_SEP,
     }),
   );
