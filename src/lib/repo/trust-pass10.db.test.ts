@@ -5,7 +5,6 @@ import { ForbiddenError, requireEnquiryAccess } from "./tenancy.server.ts";
 import { confirmCoverageForUser } from "./coverage-core.ts";
 import { toEnquiry, type EnquiryRow } from "./rows.ts";
 import { promiseVerdict } from "../../domain/labels.ts";
-import { INSURANCE_AS_ANSWER } from "./reviewed-send-core.ts";
 import {
   WED_30_SEP,
   answer,

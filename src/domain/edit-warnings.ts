@@ -37,7 +37,7 @@ const CHECKS: Check[] = [
       [
         String.raw`\byou(?:'re|\s+are)\s+(?:all\s+)?(?:booked|locked|pencilled|penciled|confirmed)\b`,
         String.raw`\b(?:I|we)(?:'ve|\s+have)\s+(?:booked|pencilled|penciled|locked)\s+(?:you|it|that|this)\b`,
-        String.raw`\b(?:I|we)\s+can\s+(?:also\s+|definitely\s+|easily\s+)?(?:come|do)\b`,
+        String.raw`\b(?:I|we)\s+can\s+(?:also\s+|definitely\s+|easily\s+)?(?:come|do)\b(?!\s+(?:\d+(?:\.\d+)?\s?%|\$|it\s+for\b|that\s+for\b|a\s+(?:discount|deal|better\s+price)))`,
         String.raw`\bhappy\s+to\s+(?:do|come|fit|book)\b`,
         String.raw`\b(?:I|we)(?:'ll|\s+will)\s+(?:be\s+there|see\s+you|fit\s+you\s+in)\b`,
         String.raw`\bsee\s+you\s+(?:on|then|at|there|soon|\w+day)\b`,
