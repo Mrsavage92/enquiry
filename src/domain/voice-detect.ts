@@ -77,6 +77,65 @@ const WRITTEN = new RegExp(
   "gi",
 );
 
+/**
+ * "half a grand" ($500), "half a mil", "a grand" ($1,000), "20 mil" and
+ * "1.5 mill" ($20,000,000, $1,500,000). "A grand total" and "a grand
+ * opening" are words, not money.
+ */
+const SLANG =
+  /\bhalf\s+a\s+(grand|mil(?:l(?:ion)?)?)\b|\b(?:a|one)\s+grand\b(?!\s+(?:total|opening|final|piano|tour|view|old|scale|house|entrance|prize|job))|\b(\d+(?:\.\d+)?)\s?(mil|mill)\b(?!\w)/gi;
+
+/**
+ * A figure said in words or half in words: "550", "5 hundred", "five hundred
+ * and fifty", "five fifty" (the way a price is said aloud: $550).
+ */
+const FIGURE = String.raw`(?:\d{1,3}(?:,\d{3})+|\d+)(?:\s+hundred(?:\s+and)?(?:\s+\d{1,2})?)?(?![\d.,]\d)|${NUMBER_PHRASE}`;
+
+/** The value of a FIGURE, or null. */
+export function figureValue(raw: string): number | null {
+  const text = raw.trim().toLowerCase();
+  const digits = /^(\d{1,3}(?:,\d{3})+|\d+)(?:\s+hundred(?:\s+and)?(?:\s+(\d{1,2}))?)?$/.exec(text);
+  if (digits) {
+    const base = Number(digits[1]!.replace(/,/g, ""));
+    return /hundred/.test(text) ? base * 100 + Number(digits[2] ?? 0) : base;
+  }
+  const n = wordsToNumber(text);
+  if (n !== null) return n;
+  // "five fifty", "twelve ninety-five": hundreds then the rest, said aloud.
+  const words = text.replace(/-/g, " ").split(/\s+/);
+  for (let cut = 1; cut < words.length; cut += 1) {
+    const hundreds = wordsToNumber(words.slice(0, cut).join(" "));
+    const rest = wordsToNumber(words.slice(cut).join(" "));
+    if (hundreds && hundreds < 100 && rest !== null && rest >= 10 && rest < 100) {
+      return hundreds * 100 + rest;
+    }
+  }
+  return null;
+}
+
+/** What makes a figure money when it has no "$": said as a price, or taken off. */
+const SAID_AS_PRICE = new RegExp(
+  String.raw`\b(?:make\s+it|call\s+it|let'?s\s+(?:say|call\s+it|make\s+it)|say|comes?\s+to|that'?ll\s+be|it'?ll\s+be|total\s+of)\s+(?:(?:about|around|roughly|just)\s+)?(${FIGURE})(?=\s*(?:[.,!?;]|$|all\s+up|in\s+total|total|for\s+(?:the|you|everything|it|that|both|all)|if\s|cash|then|and\s+(?:I|we)))`,
+  "gi",
+);
+const TAKEN_OFF = new RegExp(
+  String.raw`\b(?:knock|knocking|take|taking|drop|dropping|shave|shaving|chop|chopping|discount)\s+(?:(?:it|that|the\s+price)\s+)?(?:down\s+)?(?:by\s+)?(${FIGURE})\s+off\b`,
+  "gi",
+);
+const WORDS_ALL_UP = new RegExp(
+  String.raw`(?<![\d$])\b(${NUMBER_PHRASE})\s+(?:all\s+up|in\s+total|total)\b`,
+  "gi",
+);
+/** A figure under $10 said this way is a count ("say two"), never money. */
+const LEAST_SAID_MONEY = 10;
+/**
+ * A bare "say" is "for example" ("If there are more windows, say 15, I'll
+ * adjust"): its number is money only in a sentence about money.
+ */
+const BARE_SAY = /^say\b/i;
+const MONEY_WORDS =
+  /\b(?:price[sd]?|prices|costs?|total|quote[sd]?|charge[sd]?|pay|paid|cash|dollars?|bucks|discount(?:ed)?|off|cheaper|less|deal|for\s+(?:the\s+lot|everything|both))\b/i;
+
 type Hit = DollarMatch & { end: number };
 
 const SCALES: Record<string, number> = {
@@ -141,6 +200,26 @@ function hitsOf(text: string): Hit[] {
     const word = m[2]!.toLowerCase();
     const foreign = /^(?:euros?|pounds?)$/.test(word);
     if (n !== null && n > 0) push(m[0], m.index ?? 0, word === "grand" ? n * 1000 : n, "", foreign);
+  }
+  // "Call it 550.", "Make it 5 hundred.", "I'll knock fifty off.", "five
+  // fifty all up": a price said without a "$" is still a price.
+  for (const re of [SAID_AS_PRICE, TAKEN_OFF, WORDS_ALL_UP]) {
+    for (const m of text.matchAll(re)) {
+      const n = figureValue(m[1]!);
+      if (n === null || n < LEAST_SAID_MONEY) continue;
+      const at = (m.index ?? 0) + m[0].indexOf(m[1]!);
+      if (BARE_SAY.test(m[0]) && !MONEY_WORDS.test(sentenceAt(text, at, at + m[1]!.length))) {
+        continue;
+      }
+      push(m[1]!, at, n);
+    }
+  }
+  // "half a grand", "a grand", "20 mil": money said the way people say it.
+  for (const m of text.matchAll(SLANG)) {
+    const unit = (m[1] ?? m[3] ?? "grand").toLowerCase();
+    const scale = unit.startsWith("grand") ? 1e3 : 1e6;
+    const amount = m[1] ? scale / 2 : m[2] ? Number(m[2]) * scale : scale;
+    push(m[0], m.index ?? 0, amount, scale === 1e3 ? "grand" : "mil");
   }
   return hits;
 }
@@ -358,6 +437,21 @@ function greetingTemplate(
   return null;
 }
 
+/**
+ * A greeting with the customer's name, or the stand-in used before the name
+ * was known, read as the same greeting: "Hi there," and "Hi Mel," differ only
+ * because a name was confirmed, which is not the owner changing their voice.
+ */
+function greetingKey(line: string, firstName: string): string {
+  const escaped = firstName.trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const withName = escaped ? line.replace(new RegExp(`\\b${escaped}\\b`, "gi"), "{name}") : line;
+  return withName
+    .replace(/\bthere\b/gi, "{name}")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
+}
+
 export function detectVoiceEdit(
   original: string,
   edited: string,
@@ -376,7 +470,7 @@ export function detectVoiceEdit(
   let from = "";
   let to = "";
 
-  if (origG !== newG) {
+  if (origG !== newG && greetingKey(origG, firstName) !== greetingKey(newG, firstName)) {
     const parsed = greetingTemplate(newG, firstName);
     if (parsed && parsed.greeting !== voice.greeting) {
       patch.greeting = parsed.greeting;

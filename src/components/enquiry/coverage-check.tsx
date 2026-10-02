@@ -5,6 +5,7 @@ import { useFirstBetaActions } from "@/lib/workspace/live-mutations";
 import { formatMinorAud } from "@/domain/money-format";
 import { describeRule } from "@/domain/business-rule";
 import { EXTRA_CHOICE, extraField } from "@/domain/extras";
+import { DATE_ADDED_PREFIX } from "@/domain/date-sweep";
 import { activeRules } from "@/domain/decide";
 import { lineChoicesFor } from "@/domain/line-choices";
 import type { Business, Enquiry } from "@/domain/types";
@@ -45,6 +46,7 @@ export function CoverageCheck({
   const [saving, setSaving] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [other, setOther] = useState("");
+  const [day, setDay] = useState("");
   if (!coverage || coverage.confirmed) return null;
 
   const firstVisit = coverage.lines.filter((l) => l.firstVisit);
@@ -55,7 +57,7 @@ export function CoverageCheck({
   // "That's everything" over either, so the button waits for both.
   const openAsked = openAskedItems(enquiry.decision.asked).length;
   const unsettled = unsettledFlags(coverage.flagged).length + openAsked;
-  const step = checkStep(enquiry.decision.checks);
+  const step = checkStep(enquiry.decision.checks, enquiry.id);
   // What needs a tap comes first; what is only for reading goes under the
   // buttons, so "That's everything" stays on the first screen.
   const toSettle = coverage.flagged.filter((f) => f.thing);
@@ -70,15 +72,17 @@ export function CoverageCheck({
     coverage.lines.map((l) => l.label),
   );
 
-  const run = async (key: string, job: () => Promise<unknown>, done: string) => {
+  const run = async (key: string, job: () => Promise<unknown>, done: string): Promise<boolean> => {
     setSaving(key);
     setError(null);
     try {
       await job();
       toast.dismiss();
       toast.success(done);
+      return true;
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not save that. Try again.");
+      return false;
     } finally {
       setSaving(null);
     }
@@ -118,6 +122,18 @@ export function CoverageCheck({
       () => actions.answerFact(enquiry.id, extraField(thing.toLowerCase()), EXTRA_CHOICE.comeBack),
       `The reply says you'll come back to them on the ${thing.toLowerCase()}.`,
     );
+  };
+
+  const addDay = () => {
+    const words = day.trim();
+    if (!words) return setError("Write the day they mentioned.");
+    void run(
+      "day",
+      () => actions.answerFact(enquiry.id, `${DATE_ADDED_PREFIX}${words}`, "added"),
+      "Added. The reply says the day, and says so if it's one you don't work.",
+    ).then((ok) => {
+      if (ok) setDay("");
+    });
   };
 
   return (
@@ -285,6 +301,26 @@ export function CoverageCheck({
           <p className="text-sm text-ink-2">
             The reply never names a price for it: it says you'll come back to them.
           </p>
+          <label className="block text-sm">
+            <span className="mb-1.5 block font-medium text-ink">A day they mentioned</span>
+            <input
+              className="field w-full"
+              value={day}
+              placeholder="e.g. Sunday 27 December"
+              onChange={(e) => setDay(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") addDay();
+              }}
+            />
+          </label>
+          <Button
+            variant="secondary"
+            className="min-h-11"
+            disabled={saving !== null}
+            onClick={addDay}
+          >
+            {saving === "day" ? "Saving…" : "Add the day"}
+          </Button>
         </div>
       ) : null}
       {error ? (

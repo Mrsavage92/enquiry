@@ -114,3 +114,24 @@ export function namesService(text: string, service: string): boolean {
   const said = new Set(stemsOf(text));
   return need.every((s) => said.has(s));
 }
+
+/** "Nothing bridal", "not the bride", "no bridesmaids": what they say they don't want. */
+const NEGATED_THING = /\b(?:nothing|not|no|non)[- ]+(?:the\s+|a\s+|an\s+|any\s+)?([a-z]{3,})\b/gi;
+
+/**
+ * The message with what they turned down taken out, so it never names a
+ * service: "Nothing bridal, just glam" is not a bridal booking, and "not the
+ * bride, i'm a bridesmaid" drops "bride" and "bridal" but keeps "bridesmaid".
+ */
+export function withoutNegated(text: string): string {
+  const negated = [...text.matchAll(NEGATED_THING)].map((m) => m[1]!.toLowerCase());
+  if (negated.length === 0) return text;
+  const out = text.replace(NEGATED_THING, " ");
+  return out.replace(/[A-Za-z]+/g, (w) => {
+    const x = w.toLowerCase();
+    const gone = negated.some(
+      (n) => x === n || (x.startsWith(n.slice(0, -1)) && x.length <= n.length + 2),
+    );
+    return gone ? " " : w;
+  });
+}

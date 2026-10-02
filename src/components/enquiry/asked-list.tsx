@@ -7,13 +7,19 @@ import { useFirstBetaActions } from "@/lib/workspace/live-mutations";
 import { EXTRA_CHOICE } from "@/domain/extras";
 import { QUESTION_ANSWER, questionThing } from "@/domain/service-questions";
 import { ASK_CHOICE, askTopic } from "@/domain/customer-asks";
+import {
+  CLOSED_DAY_CHOICE,
+  DATE_CHECK_CHOICE,
+  isClosedDayField,
+  isDateCheckField,
+} from "@/domain/date-sweep";
 import { activeRules } from "@/domain/decide";
 import { lineChoicesFor } from "@/domain/line-choices";
 import { describeRule } from "@/domain/business-rule";
 import type { AskedItem } from "@/domain/asked";
 import type { Business, Enquiry } from "@/domain/types";
 import { cn } from "@/lib/utils";
-import { ASKED_CHIP, leadDateCue, openAskedItems } from "./card-cues";
+import { ASKED_CHIP, CLOSED_CHIP, leadDateCue, openAskedItems } from "./card-cues";
 
 /** Rows shown before "Show all": enough for a normal enquiry, short enough to scan. */
 const VISIBLE_ROWS = 6;
@@ -59,6 +65,34 @@ function choicesFor(item: AskedItem, priced: string | null): Choice[] {
         value: QUESTION_ANSWER.later,
         label: "Come back to them",
         done: "The reply says you'll come back to them on it.",
+      },
+    ];
+  }
+  if (isClosedDayField(item.id)) {
+    return [
+      {
+        value: CLOSED_DAY_CHOICE.notAvailable,
+        label: "Tell them I'm not available",
+        done: "The reply says you're not available that day.",
+      },
+      {
+        value: CLOSED_DAY_CHOICE.available,
+        label: "I can do that day",
+        done: "The reply says you'll confirm which day works.",
+      },
+    ];
+  }
+  if (isDateCheckField(item.id)) {
+    return [
+      {
+        value: DATE_CHECK_CHOICE.confirm,
+        label: "Tell them I'll confirm the day",
+        done: "The reply says you'll confirm which day works.",
+      },
+      {
+        value: DATE_CHECK_CHOICE.notADate,
+        label: "It's not a date",
+        done: "Nothing about it goes in the reply.",
       },
     ];
   }
@@ -155,7 +189,8 @@ export function AskedList({
       </div>
       <ul className="mt-2 divide-y divide-line rounded-md border border-line-strong">
         {shown.map((item) => {
-          const chip = ASKED_CHIP[item.status];
+          // A day they wrote that the owner doesn't work is never "Answered".
+          const chip = item.closed ? CLOSED_CHIP : ASKED_CHIP[item.status];
           const priced = saved.find((c) => c.field === item.id);
           const choices = choicesFor(
             item,

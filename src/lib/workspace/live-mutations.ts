@@ -350,11 +350,18 @@ export function useFirstBetaActions() {
     recordSent: async (
       enquiryId: string,
       reviewedSendId: string,
-      opts?: { staleAttestation?: boolean },
+      opts?: { staleAttestation?: boolean; acknowledgedWarnings?: string },
     ) => {
       const { recordSentReply } = await import("@/lib/server/enquiry-actions");
       const res = await recordSentReply({
-        data: { enquiryId, reviewedSendId, staleAttestation: opts?.staleAttestation ?? false },
+        data: {
+          enquiryId,
+          reviewedSendId,
+          staleAttestation: opts?.staleAttestation ?? false,
+          ...(opts?.acknowledgedWarnings
+            ? { acknowledgedWarnings: opts.acknowledgedWarnings }
+            : {}),
+        },
       });
       await refresh();
       return res;

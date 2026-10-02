@@ -337,6 +337,18 @@ export function compilePrice(
   }
 
   const quantity = read.quantity;
+  // "5 or more: $130 per person" says nothing about 3 people: never priced
+  // as if it did.
+  if (rule.atLeast && quantity < rule.atLeast) {
+    return {
+      kind: "UNRESOLVED_QUANTITY",
+      field: rule.quantityField,
+      value: String(quantity),
+      problem: "malformed",
+      reason: `${rule.service} is priced for ${rule.atLeast} or more ${pluraliseUnit(rule.unit, rule.atLeast)}, and this is ${count(quantity)}. Quote this one yourself.`,
+      rule,
+    };
+  }
   if (rule.base) return tieredPrice(rule, rule.base, quantity, priced);
   // The minimum is a floor on what is billed, not a rejection of the enquiry.
   const billable = rule.minimumQuantity ? Math.max(quantity, rule.minimumQuantity) : quantity;

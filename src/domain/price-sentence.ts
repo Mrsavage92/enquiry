@@ -314,9 +314,36 @@ const COUNTED_UNITS = new Set([
   "child",
 ]);
 
+/** "Wedding party of 5 or more: $130 per person", "Groups of 5+ $130 pp". */
+const GROUP_PRICE =
+  /^(.+?)\s+(?:of|for)\s+(\d{1,3})\s*(?:or\s+more|\+|and\s+(?:over|up|above)|or\s+over)\s*(?:people|guests|persons|ppl)?\s*[:\-–=]?\s*\$\s?(\d[\d,]*(?:\.\d{1,2})?)\s*(?:per|a|each|\/)\s*(?:person|head|guest)\b\.?\s*$|^(.+?)\s+(?:of|for)\s+(\d{1,3})\s*(?:or\s+more|\+|and\s+(?:over|up|above)|or\s+over)\s*(?:people|guests|persons|ppl)?\s*[:\-–=]?\s*\$\s?(\d[\d,]*(?:\.\d{1,2})?)\s*pp\b\.?\s*$/i;
+
+/** A price per person that holds from a group size: one rule, never refused as a choice. */
+function readGroupLine(line: string): ReadPrice | UnreadLine | null {
+  const m = GROUP_PRICE.exec(line);
+  if (!m) return null;
+  const service = cleanService(m[1] ?? m[4] ?? "");
+  const atLeast = Number(m[2] ?? m[5]);
+  const amount = Number((m[3] ?? m[6] ?? "").replace(/,/g, ""));
+  if (!service) return { line, reason: "It does not say which service the price is for." };
+  const parsed = parseBusinessRule({
+    kind: "per_unit",
+    service,
+    amount,
+    currency: "AUD",
+    unit: "person",
+    quantityField: quantityFieldFor("person"),
+    atLeast,
+  });
+  if (!parsed.ok) return { line, reason: parsed.reason };
+  return { line, rule: parsed.rule };
+}
+
 export function readPriceLine(original: string): ReadPrice | UnreadLine {
   const tiered = readTieredLine(dollarsWritten(original));
   if (tiered) return { ...tiered, line: original };
+  const group = readGroupLine(dollarsWritten(original));
+  if (group) return { ...group, line: original };
   const line = dollarsWritten(original).replace(ADD_ON_TAIL, "");
   const condition = CONDITIONAL.exec(line);
   if (condition && AMOUNT.test(line)) {
@@ -402,7 +429,10 @@ function readSetPrice(line: string): ReadPrice | UnreadLine {
   if (!amountMatch) return { line, reason: "There is no dollar amount in it." };
   const amount = Number(amountMatch[1]!.replace(/,/g, ""));
   const before = line.slice(0, amountMatch.index);
-  let after = line.slice(amountMatch.index + amountMatch[0].length);
+  // "$280 flat", "$280 fixed": said as one set price, not a condition.
+  let after = line
+    .slice(amountMatch.index + amountMatch[0].length)
+    .replace(/^\s*(?:flat(?:\s+(?:rate|fee|price))?|fixed(?:\s+price)?)\b\.?/i, "");
 
   const lead = eachBefore(before);
   // "$190 per bedroom for end of lease clean" names the service after the price.

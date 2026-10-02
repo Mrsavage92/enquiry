@@ -1,5 +1,6 @@
 import { format } from "date-fns";
 import { enAU } from "date-fns/locale";
+import { COUNT_AFTER, DAY_OF_WEEKDAY, WEEKDAY_TO_DAY, readWeekdayWord } from "./date-sweep.ts";
 import { wallNow } from "./format";
 
 /**
@@ -294,7 +295,7 @@ const WEEKDAY_WORD = String.raw`(mon(?:day)?|tue(?:s(?:day)?)?|wed(?:nesday)?|th
 
 /** "Sat 3rd", "Saturday the 3rd": a weekday and a day, no month. */
 const WEEKDAY_DAY = new RegExp(
-  String.raw`\b${WEEKDAY_WORD}\.?,?\s+(?:the\s+)?(\d{1,2})(?:st|nd|rd|th)?\b(?!\s*(?:\/|of\b|-|jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec|am\b|pm\b|:|\.\d|hours?|hrs?|bed|room|window|door|sq|m2|metre|meter|people|guests))`,
+  String.raw`\b${WEEKDAY_WORD}\.?${WEEKDAY_TO_DAY}(\d{1,2})(?:st|nd|rd|th)?\b(?!\s*(?:\/|of\b|-|jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec|am\b|pm\b|:|\.\d|hours?|hrs?|bed|room|window|door|sq|m2|metre|meter|people|guests))(?!${COUNT_AFTER})`,
   "gi",
 );
 
@@ -312,8 +313,10 @@ const CONTEXT_WORDS =
  * "Can you come Sunday?": a weekday written out in full with no date is the
  * next one. Full names only - "sat" and "sun" are also words.
  */
-const WEEKDAY_ALONE =
-  /\b(?:this\s+|next\s+)?(monday|tuesday|wednesday|thursday|friday|saturday|sunday)(s?)\b(?![,.]?\s+(?:the\s+)?\d)(?!\s+(?:morning|arvo|afternoon|night|evening)s?\b)/gi;
+const WEEKDAY_ALONE = new RegExp(
+  String.raw`\b(?:this\s+|next\s+)?(monday|tuesday|wednesday|thursday|friday|saturday|sunday)(s?)\b(?!\.?${DAY_OF_WEEKDAY})(?!\s+(?:morning|arvo|afternoon|night|evening)s?\b)`,
+  "gi",
+);
 
 const WEEKDAY_STEM = String.raw`(?:mon|tue|wed|thu|fri|sat|sun)[a-z]*`;
 
@@ -324,8 +327,10 @@ const WEEKDAY_RANGE = new RegExp(
 );
 
 /** "Thursday or Friday": either day of the week, a preference and not a date. */
-const WEEKDAY_PAIR =
-  /\b(monday|tuesday|wednesday|thursday|friday|saturday|sunday)s?\s*(?:or|\/)\s*(monday|tuesday|wednesday|thursday|friday|saturday|sunday)s?\b(?![,.]?\s+(?:the\s+)?\d)/gi;
+const WEEKDAY_PAIR = new RegExp(
+  String.raw`\b(monday|tuesday|wednesday|thursday|friday|saturday|sunday)s?\s*(?:or|\/)\s*(monday|tuesday|wednesday|thursday|friday|saturday|sunday)s?\b(?!\.?${DAY_OF_WEEKDAY})`,
+  "gi",
+);
 
 /** "I work from home Monday", "I'm home Tuesday": their own week, not the job. */
 const OWN_SCHEDULE =
@@ -538,13 +543,10 @@ type Resolved =
 /** "Sat 3rd": the next Saturday the 3rd, within about two months, or nothing. */
 function resolveMonthless(hit: DateHit, today: Date): Resolved {
   const start = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-  // A weekday alone: the next one after today.
+  // A weekday alone: the next one after today (date-sweep.ts readWeekdayWord).
   if (hit.day === 0) {
-    const ahead = (hit.weekday! - start.getDay() + 7) % 7 || 7;
-    return {
-      kind: "date",
-      date: new Date(start.getFullYear(), start.getMonth(), start.getDate() + ahead),
-    };
+    const read = readWeekdayWord("bare", hit.weekday!, start);
+    if ("date" in read) return { kind: "date", date: read.date };
   }
   for (let i = 0; i <= 62; i += 1) {
     const d = new Date(start.getFullYear(), start.getMonth(), start.getDate() + i);
@@ -686,8 +688,15 @@ function contextOf(before: string, after: string): string | undefined {
   if (!ahead) return undefined;
   if (CONTEXT_IS_THE_JOB.test(head.slice(ahead.index + ahead[0].length))) return undefined;
   if (BEFORE_CONTEXT.test(head.slice(0, ahead.index))) return undefined;
+  // "done on the 30th Dec, keys back 31st": the keys have a day of their own.
+  const beyond = after.slice(ahead.index + ahead[0].length);
+  if (/[,;]/.test(head.slice(0, ahead.index)) && OWN_DAY_AFTER.test(beyond)) return undefined;
   return ahead[1]!.toLowerCase();
 }
+
+/** A day written after a context word, in its own clause: that word's day. */
+const OWN_DAY_AFTER =
+  /^\s*(?:\w+\s+){0,3}?(?:on\s+)?(?:the\s+)?(?:\d{1,2}(?:st|nd|rd|th)?\b|\d{1,2}\/\d{1,2}|(?:mon|tue|wed|thu|fri|sat|sun)[a-z]*\b|tomorrow\b)/i;
 
 /** "before inspection sat", "before the settlement on Friday": the context day after a job day. */
 const FOLLOWING_CONTEXT = new RegExp(
@@ -827,7 +836,7 @@ const WINDOW_TWO_MONTHS = new RegExp(
 );
 /** "except Friday", "not weekends", "no Sundays": a weekday ruled out with no date. */
 const EXCEPT_DAYS = new RegExp(
-  String.raw`\b(?:except|excluding|other than|apart from|but not|not|no)\s+(?:on\s+)?(?:(?:a|the)\s+)?(weekends?|${WEEKDAY_WORD})s?\b(?![,.]?\s+(?:the\s+)?\d)`,
+  String.raw`\b(?:except|excluding|other than|apart from|but not|not|no)\s+(?:on\s+)?(?:(?:a|the)\s+)?(weekends?|${WEEKDAY_WORD})s?\b(?!\.?${DAY_OF_WEEKDAY})`,
   "gi",
 );
 const WEEKDAY_SHORT = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -913,7 +922,7 @@ function readWindow(
 
 /** "this sat or sun", "next tues", "this Saturday or Sunday": the coming days, as dates. */
 const THIS_NEXT = new RegExp(
-  String.raw`\b(?:this|next|coming)\s+${WEEKDAY_WORD}\b(?:\s*(?:or|\/|&)\s*(?:(?:this|next)\s+)?${WEEKDAY_WORD}\b)?(?![,.]?\s+(?:the\s+)?\d)(?!\s+(?:morning|arvo|afternoon|night|evening)s?\b)`,
+  String.raw`\b(?:this|next|coming)\s+${WEEKDAY_WORD}\b(?:\s*(?:or|\/|&)\s*(?:(?:this|next)\s+)?${WEEKDAY_WORD}\b)?(?!\.?${DAY_OF_WEEKDAY})(?!\s+(?:morning|arvo|afternoon|night|evening)s?\b)`,
   "i",
 );
 
@@ -931,11 +940,16 @@ function readThisNext(
   const first = weekdayIndex(m[1]!);
   if (first === undefined) return undefined;
   const start = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-  const ahead = (first - start.getDay() + 7) % 7 || 7;
-  const a = new Date(start.getFullYear(), start.getMonth(), start.getDate() + ahead);
+  // One reading of weekday words, shared with the date sweep (date-sweep.ts).
+  const lead = /^(this|next|coming)\b/i.exec(m[0])![1]!.toLowerCase() as "this" | "next" | "coming";
+  const read = readWeekdayWord(lead, first, start);
+  const at: Taken = [index, index + m[0].length];
+  // "next Thursday" said on a Wednesday: either Thursday. No day is guessed;
+  // the sweep asks the owner which, in their words.
+  if (!("date" in read)) return { at };
+  const a = read.date;
   const span = m[0].replace(/\s+/g, " ").trim();
   const asked = asksAboutDate(text, index);
-  const at: Taken = [index, index + m[0].length];
   const second = m[2] ? weekdayIndex(m[2]) : undefined;
   if (second === undefined) return { one: readOf(a, span, asked), at };
   const gap = (second - first + 7) % 7 || 7;
@@ -1076,6 +1090,15 @@ export function readDates(
     }
     // "away until 3 October": a boundary, not the day they want.
     if (boundary && /\b(?:away|not|busy|unavailable)\b|n't\b/i.test(before)) continue;
+    // "the week of 9 Nov": a week, quoted back in their words, never the 9th alone.
+    const weekOf = WEEK_OF_BEFORE.exec(before);
+    if (weekOf && resolved.kind === "date") {
+      const the = /\bthe\s+$/i.test(before.slice(0, weekOf.index)) ? "the " : "";
+      reading.approx ??= {
+        span: `${the}${weekOf[0].trim()} ${written}`.replace(/\s+/g, " "),
+      };
+      continue;
+    }
     // "we move out Mon 5 Oct", "inspection on the 7th": about something else.
     const context = contextOf(before, after);
     if (context && resolved.kind === "date") {
@@ -1207,7 +1230,7 @@ export function readDates(
   }
   if (!reading.jobDate && !reading.options && !reading.window && !reading.issue) {
     const approx = approxAsk(text);
-    if (approx) reading.approx = approx;
+    if (approx) reading.approx ??= approx;
   }
   if (exceptDays.length) reading.exceptDays = exceptDays;
   // A date problem makes the day doubtful; the owner settles it rather than
@@ -1311,8 +1334,8 @@ const NAME = String.raw`(${NAME_WORD}(?:\s+(?:&|and)\s+${NAME_WORD})?(?:\s+${NAM
 const PHONE = String.raw`\+?\d[\d\s()-]{6,}\d`;
 const EMAIL = String.raw`[\w.+-]+@[\w-]+(?:\.[\w-]+)+`;
 const CONTACT_TAIL = String.raw`(?:[\s,|]+(?:${PHONE}|${EMAIL}))*`;
-/** A kiss after a name: "Priya x", "Jo xx". */
-const KISS = String.raw`(?:\s+x{1,3})?`;
+/** A kiss after a name: "Priya x", "Jo xx", "Chloe xoxo". */
+const KISS = String.raw`(?:\s+(?:x{1,4}|(?:xo){1,3}x?))?`;
 /** A role or business after the name: "Priya Shah, Office Manager, Northside Dental". */
 const ROLE_TAIL = String.raw`(?:\s*,\s*[A-Z][A-Za-z&'.-]*(?:\s+[A-Za-z&'.-]+){0,4}){0,3}`;
 
@@ -1349,6 +1372,9 @@ const HERE_INTRO = new RegExp(String.raw`^${NAME}${KISS}\s+here\b`);
 /** A name line on its own, with an optional trailing company: "Mel Tran", "Priya x",
  * "Paul Nguyen, Nguyen Property Group". */
 const NAME_LINE = new RegExp(String.raw`^${NAME}${KISS}${ROLE_TAIL}\s*[.!]?${CONTACT_TAIL}\s*$`);
+
+/** "Dr", "Mrs", "Prof" before a signed name. */
+const HONORIFIC = /^(?:dr|mr|mrs|ms|miss|mx|prof)\.?\s+(?=[A-Z])/i;
 
 /** Job titles: "Office Manager" is who they are, not their name. */
 const TITLE_WORDS = new Set([
@@ -1633,7 +1659,8 @@ function nameFromSignOffLines(text: string, ctx: NameContext): string | null | u
     // A sign-off line settles it: whatever it gives (or does not) is final.
     const sign = { ...ctx, signOff: true };
     if (rest) return acceptName(NAME_LINE.exec(rest)?.[1], sign) ?? null;
-    const next = lines[i + 1];
+    // "Dr Elizabeth Carter-Wong": the title is not part of the name.
+    const next = lines[i + 1]?.replace(HONORIFIC, "");
     if (!next || i + 1 >= end) return null;
     const name = acceptName(NAME_LINE.exec(next)?.[1], sign);
     if (!name) return null;

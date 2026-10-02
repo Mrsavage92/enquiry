@@ -1,4 +1,11 @@
-import { distinctiveStems, mentionsAny, serviceWords, stem, stemsOf } from "./service-words.ts";
+import {
+  distinctiveStems,
+  mentionsAny,
+  serviceWords,
+  stem,
+  stemsOf,
+  withoutNegated,
+} from "./service-words.ts";
 import { fitsTrade } from "./trades.ts";
 
 /**
@@ -81,7 +88,44 @@ export const NOT_A_REQUEST =
 
 // "+ oven + windows" is a list of things asked for, the same as "plus".
 const CONNECTOR =
-  /(?:\+|\b(?:plus|as well as|along with|and also|also\s+(?:clean|need|want|get|include|add|quote(?:\s+for)?)|(?:can|could)\s+(?:you|u)\s+(?:also\s+)?(?:add|include|throw\s+in)))\s*(?:(?:the|a|an|my|our|your|some)\s+)?([a-z][a-z'-]*(?:\s+[a-z][a-z'-]*){0,2})/gi;
+  /(?:\+|\b(?:plus|as well as|along with|and also|also\s+(?:clean|need|want|get|include|add|like|love|quote(?:\s+for)?)|(?:would|we'?d|i'?d)\s+also\s+like|also(?=,?\s+(?:the|a|an|my|our|some)\b),?|(?:can|could)\s+(?:you|u)\s+(?:also\s+)?(?:add|include|throw\s+in)))\s*(?:(?:the|a|an|my|our|your|some)\s+)?([a-z][a-z'-]*(?:\s+[a-z][a-z'-]*){0,2})/gi;
+
+/** Words that describe, never the thing itself: "also a big thank you". */
+const NOT_A_THING = new Set([
+  "big",
+  "small",
+  "quick",
+  "huge",
+  "little",
+  "good",
+  "great",
+  "nice",
+  "lovely",
+  "happy",
+  "keen",
+  "new",
+  "old",
+  "same",
+  "other",
+  "question",
+  "thank",
+  "thanks",
+  "morning",
+  "mornings",
+  "afternoon",
+  "arvo",
+  "evening",
+  "night",
+  "weekend",
+  "possible",
+  "monday",
+  "tuesday",
+  "wednesday",
+  "thursday",
+  "friday",
+  "saturday",
+  "sunday",
+]);
 
 /** "the deck, which needs staining": the work named for the thing itself. */
 const NEAR_ACTIVITY =
@@ -105,7 +149,7 @@ const ACTIVITY_NOUN: Record<string, string> = {
  * is not a thing to price.
  */
 const EXTRA_END =
-  /^\s*(?:$|[.,!?;\n()+]|please\b|pls\b|too\b|as well\b|thanks?\b|thx\b|cheers\b|if (?:you|u) can\b)/i;
+  /^\s*(?:$|[.,!?;\n()+]|please\b|pls\b|too\b|as well\b|thanks?\b|thx\b|cheers\b|if (?:you|u) can\b|(?:in|for|on)\s+(?:the|my|our|a)\s+[a-z]+(?:\s+[a-z]+)?\s*(?:$|[.,!?;\n]))/i;
 
 /**
  * Things a customer asks to have done on top of the main job. A phrase that
@@ -388,10 +432,14 @@ function mentionAt(text: string, stems: readonly string[]): number {
  * `services` is every service the business prices or lists.
  */
 export function readExtraRequests(
-  text: string,
+  written: string,
   primary: string,
   services: readonly string[],
 ): ExtraRequest[] {
+  // "Nothing bridal": what they turned down is never an extra they asked for.
+  const text = written;
+  // "Nothing bridal": what they turned down never names a service they asked for.
+  const plain = withoutNegated(written);
   const main = primary.trim();
   if (!main || !text.trim()) return [];
   const mainKey = main.toLowerCase();
@@ -400,7 +448,7 @@ export function readExtraRequests(
   ];
   const out: ExtraRequest[] = [];
   const seen = new Set<string>();
-  const said = new Set(stemsOf(text));
+  const said = new Set(stemsOf(plain));
 
   // 0. A form's own list: "Extras: Oven, Carpets (2 rooms)". Each item is a
   // thing they asked for, matched to a saved service by a word of its own.
@@ -430,13 +478,26 @@ export function readExtraRequests(
     // asks for the painting service "Ceilings".
     if (!fitsTrade(service, text)) continue;
     const need = [...new Set(stemsOf(service))];
+    const loose = looselyNamed(service, main, text);
+    if (loose !== undefined && !need.every((s) => said.has(s))) {
+      if (DECLINED.test(loose) || NOT_A_REQUEST.test(loose)) continue;
+      seen.add(service.toLowerCase());
+      out.push({ label: service, service, span: loose });
+      continue;
+    }
     if (need.length === 0 || !need.every((s) => said.has(s))) continue;
     const own = distinctiveStems(service, [main]);
-    if (own.length === 0 || !mentionsAny(text, own)) continue;
+    if (own.length === 0 || !mentionsAny(plain, own)) continue;
     // Quote the sentence that names it by its own word ("18 windows"), never
     // one that only shares the work word ("the dog hair cleaned off").
     const telling = own.filter((s) => !WORK_STEMS.has(s));
-    const at = mentionAt(text, telling.length && mentionsAny(text, telling) ? telling : own);
+    // The sentence naming it by all its own words ("Also a feature wall in
+    // the bedroom"), before one that only shares a word ("the walls").
+    const named = telling.length > 1 ? namedAt(text, telling) : -1;
+    const at =
+      named >= 0
+        ? named
+        : mentionAt(text, telling.length && mentionsAny(text, telling) ? telling : own);
     const clause = sentenceAround(text, at);
     const sentence = wholeSentence(text, at);
     if (DECLINED.test(sentence) || NOT_A_REQUEST.test(sentence)) continue;
@@ -479,18 +540,78 @@ export function readExtraRequests(
       }
       continue;
     }
-    // Only something a business does: never "the kids" or "Saturday morning".
+    // Anything else they ask for by name is an item the owner settles, even
+    // with no saved price ("Also a feature wall in the bedroom"). Never a
+    // word that only describes ("also a big thank you").
     const head = words[words.length - 1]!;
-    if (!SERVICE_NOUNS.has(head) && !SERVICE_NOUNS.has(thing)) continue;
+    if (NOT_A_THING.has(head) || /ly$/.test(head) || head.length < 3) continue;
+    // A thing no business noun names needs more than one word, or a plain
+    // "also a ..." before it: "as well as possible" is not something to price.
+    const known = SERVICE_NOUNS.has(head) || SERVICE_NOUNS.has(thing);
+    if (!known && words.length < 2 && !/^also\b/i.test(m[0].trim())) continue;
+    // "plus a carpet steam clean. Do you do carpets?": their own question
+    // already asks about it, so it is settled there, never twice.
+    if (!known && askedAbout(text).some((w) => words.some((x) => stem(x) === stem(w)))) continue;
     const near = NEAR_ACTIVITY.exec(afterPhrase)?.[1]?.toLowerCase();
     const label = near
       ? `${thing} ${ACTIVITY_NOUN[near]}`
-      : activity && !/ing$|s$/.test(head)
+      : activity && !/ing$|s$/.test(head) && !WORK_STEMS.has(stem(head))
         ? `${thing} ${activity}`
         : thing;
     if (seen.has(label)) continue;
     seen.add(label);
     out.push({ label, span: m[0].trim() });
   }
+
   return out;
+}
+
+/** Where the first sentence holding every one of these stems starts, or -1. */
+function namedAt(text: string, stems: readonly string[]): number {
+  let start = 0;
+  for (const part of text.split(/(?<=[.!?\n])/)) {
+    const said = new Set(stemsOf(part));
+    if (stems.every((s) => said.has(s))) return start + (part.length - part.trimStart().length);
+    start += part.length;
+  }
+  return -1;
+}
+
+/** The words of their "do you do X?" questions. */
+function askedAbout(text: string): string[] {
+  const out: string[] = [];
+  for (const m of text.matchAll(
+    /\b(?:do|would|could|can|will)\s+(?:you|u|ya)\s+(?:guys\s+)?(?:also\s+)?(?:do|offer|provide)\s+([^?.!\n]+)\?/gi,
+  )) {
+    out.push(...(m[1]!.toLowerCase().match(/[a-z]{3,}/g) ?? []));
+  }
+  return out;
+}
+
+/**
+ * A saved service named loosely: "a regular clean" for "Regular house clean".
+ * Every word that tells it apart but one is written, beside its own work word
+ * in the same clause.
+ */
+function looselyNamed(service: string, main: string, text: string): string | undefined {
+  const own = distinctiveStems(service, [main]);
+  const telling = own.filter((s) => !WORK_STEMS.has(s) && !/^\d/.test(s));
+  const work = stemsOf(service).filter((s) => WORK_STEMS.has(s));
+  if (telling.length < 2 || work.length === 0) return undefined;
+  for (const clause of text.split(/[.!?\n,;]/)) {
+    // "no carpet steam clean needed" turns it down: never read loosely as asked.
+    if (DECLINED.test(clause) || NOT_A_REQUEST.test(clause)) continue;
+    const said = new Set(stemsOf(withoutNegated(clause)));
+    const hits = telling.filter((s) => said.has(s));
+    if (hits.length === 0 || hits.length < telling.length - 1) continue;
+    // Said as one thing: "a regular clean", never "we clean regularly".
+    const words = clause.toLowerCase().match(/[a-z]+/g) ?? [];
+    const together = words.some(
+      (w, i) =>
+        telling.includes(stem(w)) &&
+        words.slice(i + 1, i + 3).some((next) => work.includes(stem(next))),
+    );
+    if (together) return clause.trim();
+  }
+  return undefined;
 }
