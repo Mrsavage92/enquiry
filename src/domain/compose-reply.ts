@@ -8,6 +8,7 @@ import { SERVICE_NOUNS } from "./extras.ts";
 import { closedRangeCovers, closedRangeReason, type ClosedRange } from "./business-detail.ts";
 import type { DateRole } from "./enquiry-basics.ts";
 import type { DateMention } from "./date-roles.ts";
+import { greetedFirst, greetingLine } from "./greeting.ts";
 
 export { humanField, howMany };
 
@@ -667,7 +668,7 @@ function priceLines(decision: Decision): QuoteLine[] {
  * that had dropped the deck staining. A recurring job is "per visit", with
  * anything for the first visit only said separately.
  */
-function priceBlock(decision: Decision): string[] {
+export function priceBlock(decision: Decision): string[] {
   if (decision.price.kind !== "EXACT") return [];
   const currency = decision.price.currency;
   const all = priceLines(decision);
@@ -772,10 +773,7 @@ function closeFor(close: DateClose | undefined): string {
  * asked is unanswered, the reply names no price at all.
  */
 export function composeReply(decision: Decision, opts: ReplyContext = {}): string {
-  // "Margaret & Tony Russo" is greeted as "Margaret & Tony"; one name by its first word.
-  const who = (opts.customerName ?? "").trim();
-  const first = /^(\S+\s+(?:&|and)\s+\S+)/.exec(who)?.[1] ?? who.split(/\s+/)[0] ?? "";
-  const greeting = first ? `Hi ${first},` : "Hi there,";
+  const greeting = greetingLine(greetedFirst(opts.customerName ?? ""));
   const date = dateTalk(opts);
   const dateBlock = date.lines.length ? [...date.lines, ""] : [];
   const signOff = opts.ownerFirstName?.trim() ? `Thanks,\n${opts.ownerFirstName.trim()}` : "Thanks";

@@ -4,6 +4,8 @@ import { channelLabel } from "../../domain/channel.ts";
 import { isClosed } from "./decision-apply.ts";
 import { ownerEditWarnings, warningsKey } from "../../domain/edit-warnings.ts";
 import { businessFacts } from "./reviewed-send-core.ts";
+import { confirmCoverageInTransaction } from "./coverage-core.ts";
+import { confirmGreetedName } from "./greeting-core.ts";
 
 /**
  * Recording a real send, as pure SQL logic - deliberately separate from
@@ -167,6 +169,7 @@ type ReviewedSendRow = {
   consumed_at: string | null;
   consumed_message_id: string | null;
   draft_body: string | null;
+  coverage_key: string | null;
 };
 
 const asNumber = (v: string | number | null): number | null =>
@@ -295,6 +298,34 @@ export async function confirmReviewedSendInTransaction(
       message: "Check what you wrote before you send it.",
       warnings,
     };
+  }
+
+  // A reply that named its total before "That's everything" (the coverage tap
+  // folded into Copy, doc 51 decision 1): the owner sending it is what confirms
+  // the coverage, for exactly the key the reply was prepared against, here and
+  // never earlier. The confirmation moves the decision on by that one act, so
+  // the artefact follows it; anything else that moved makes it a refusal.
+  if (reviewed.coverage_key && !stale && !closed) {
+    const covered = await confirmCoverageInTransaction(sql, {
+      enquiryId: input.enquiryId,
+      businessId: input.businessId,
+      key: reviewed.coverage_key,
+      revision: currentRevision,
+      actor: input.userId,
+    });
+    if (!covered.ok || !covered.confirmed) {
+      return {
+        ok: false,
+        reason: "stale",
+        message:
+          "What the price covers changed since you copied this. Copy the reply again - or, if you already sent that older message, say so and Enquiry will record it as it was.",
+        reviewedRevision,
+        currentRevision,
+      };
+    }
+    await sql`
+      update reviewed_send set decision_revision = ${covered.revision} where id = ${reviewed.id}
+    `;
   }
 
   // Claim it. `consumed_at is null` in the same statement as the write is what
@@ -433,6 +464,11 @@ export async function confirmReviewedSendInTransaction(
       `;
     }
   }
+
+  // The greeting used the name read from their message: the owner attested a
+  // text that contains it, so the reading is now theirs. Confirmed before the
+  // revision below is read, so the send's Undo still lines up.
+  await confirmGreetedName(sql, input.enquiryId, reviewed.body);
 
   // The revision this send left the enquiry at. Undo is only honest while the
   // enquiry is still exactly here: a decline, an answered fact or a newer

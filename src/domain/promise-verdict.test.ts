@@ -90,7 +90,7 @@ test("a priced reply is Yes, a missing detail is Not yet, prices to add is Not y
   assert.equal(promiseVerdict(noPrices).line, "Not yet - your prices decide it");
 });
 
-test("a closed wedding day is never 'Yes - reply ready': Not yet with nothing to book, Yes with a tail when part is", () => {
+test("a closed wedding day is never 'Yes - reply ready' with nothing to book; the date tails live on the settled line", () => {
   const ready = live([{ field: "bedrooms", value: "2", status: "confirmed" }], "ACTION_READY");
   const withClosed = (closedDay: NonNullable<Enquiry["decision"]["closedDay"]>): Enquiry => ({
     ...ready,
@@ -100,24 +100,19 @@ test("a closed wedding day is never 'Yes - reply ready': Not yet with nothing to
   const nothing = withClosed({ days: ["2026-11-08"], held: [wedding], bookable: false });
   assert.equal(promiseVerdict(nothing).line, "Not yet - that day is a closed day");
   assert.equal(derivedLabel(nothing.state, nothing), STATUS.needsDetail);
+  // Doc 50 section 5: the verdict says the reply is ready, once; the days that
+  // can't be done and a date to check are on the settled line instead.
   const trial = withClosed({ days: ["2026-11-08"], held: [wedding], bookable: true });
-  assert.equal(promiseVerdict(trial).line, "Yes - reply ready, one date can't be done");
+  assert.equal(promiseVerdict(trial).line, "Yes - reply ready");
   assert.equal(derivedLabel(trial.state, trial), STATUS.replyReady);
-  const movable = withClosed({ days: ["2026-10-18"], held: [], bookable: true });
-  assert.equal(promiseVerdict(movable).line, "Yes - reply ready, one date can't be done");
-  // Two closed days are two dates, and a date to check is still said beside them.
   const two = withClosed({ days: ["2026-10-18", "2026-10-25"], held: [], bookable: true });
-  assert.equal(promiseVerdict(two).line, "Yes - reply ready, two dates can't be done");
   const checked = {
     ...two,
     facts: [
       { id: "d", field: "date", label: "date", value: "2026-10-18", status: "check_this" },
     ] as Enquiry["facts"],
   };
-  assert.equal(
-    promiseVerdict(checked).line,
-    "Yes - reply ready, two dates can't be done, one date to check",
-  );
+  assert.equal(promiseVerdict(checked).line, "Yes - reply ready");
   // With nothing bookable the reply only asks about the date: Not yet, even
   // though that reply can be sent.
   const asking = {
@@ -126,8 +121,7 @@ test("a closed wedding day is never 'Yes - reply ready': Not yet with nothing to
   };
   assert.equal(promiseVerdict(asking).line, "Not yet - that day is a closed day");
   assert.equal(derivedLabel(asking.state, asking), STATUS.needsDetail);
-  // Every lifecycle and decision state still maps to one of the three words.
-  for (const e of [nothing, trial, movable, two, checked]) {
+  for (const e of [nothing, trial, two, checked]) {
     for (const lifecycle of LIFECYCLES) {
       for (const decision of DECISIONS) {
         const verdict = promiseVerdict({ ...e, state: { ...e.state, lifecycle, decision } });
@@ -137,11 +131,28 @@ test("a closed wedding day is never 'Yes - reply ready': Not yet with nothing to
       }
     }
   }
-  // Booked, closed and declined are unchanged by it.
   assert.equal(
     promiseVerdict({ ...nothing, state: { ...nothing.state, lifecycle: "BOOKED" } }).line,
     "Yes - booked",
   );
+});
+
+test("truth fix: never 'Yes - reply ready' over a quote reply that names no price or asks which day suits", () => {
+  const ready = live([{ field: "bedrooms", value: "2", status: "confirmed" }], "ACTION_READY");
+  const withBody = (body: string): Enquiry => ({
+    ...ready,
+    decision: { ...ready.decision, draft: { ...ready.decision.draft, body } },
+  });
+  const unpriced = withBody(
+    "Hi there,\n\nThanks for getting in touch.\n\nLet me know what date suits and I'll confirm.\n\nThanks",
+  );
+  assert.equal(promiseVerdict(unpriced).line, "Not yet - one date to settle");
+  assert.equal(derivedLabel(unpriced.state, unpriced), STATUS.needsDetail);
+  const priced = withBody(
+    "Hi there,\n\nFor the end of lease clean, that comes to $380.\n\nLet me know what date suits and I'll confirm.\n\nThanks",
+  );
+  assert.equal(promiseVerdict(priced).line, "Yes - reply ready");
+  assert.equal(derivedLabel(priced.state, priced), STATUS.replyReady);
 });
 
 test("a declined or out-of-scope enquiry is No", () => {

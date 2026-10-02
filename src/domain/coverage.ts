@@ -32,7 +32,7 @@ import type { RuleCheck } from "./rule-checks.ts";
 
 export const COVERAGE_FIELD = "coverage";
 
-const NOT_IN_KEY = new Set([COVERAGE_FIELD, "name", "phone", "email"]);
+const NOT_IN_KEY = new Set([COVERAGE_FIELD, "name", "phone", "email", "greeting"]);
 
 export type CoverageLine = {
   label: string;
@@ -498,7 +498,9 @@ export function coverageFlags(input: {
  */
 export function isInternalFact(field: string): boolean {
   const f = field.trim().toLowerCase();
-  return f === COVERAGE_FIELD || f === "practice_price" || f === "date_sweep";
+  return (
+    f === COVERAGE_FIELD || f === "practice_price" || f === "date_sweep" || f === "greeting"
+  );
 }
 
 /** Flags the owner has to settle one by one before the price can be confirmed. */

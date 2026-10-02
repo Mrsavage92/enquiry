@@ -3,6 +3,7 @@ import type { DateIssue } from "./enquiry-basics.ts";
 import type { DateClose } from "./compose-reply.ts";
 import type { DateRole } from "./enquiry-basics.ts";
 import { ASK_AVAILABILITY, availabilitySettled, parseAvailability } from "./customer-asks.ts";
+import { GREETING_CHOICE, GREETING_FIELD, nameSignals } from "./greeting.ts";
 import { fixedEventNear } from "./fixed-event.ts";
 import { contextMentions } from "./date-roles.ts";
 import { echoable } from "./enquiry-basics.ts";
@@ -99,11 +100,23 @@ export function isFollowUp(inbound: readonly string[], hasOutbound = false): boo
   return inbound.some((t) => FOLLOW_UP.test(t));
 }
 
-/** The greeting name: only a name the owner typed or confirmed. */
-export function greetingName(customerName: string, facts: readonly ReplyFact[]): string {
+/**
+ * The greeting name. A name the owner typed or confirmed; a name read from
+ * their message only when a second signal agrees with it (doc 51 decision 2);
+ * and the owner's own choice on this enquiry over either.
+ */
+export function greetingName(
+  customerName: string,
+  facts: readonly ReplyFact[],
+  message = "",
+): string {
+  const choice = facts.find((f) => field(f) === GREETING_FIELD && f.status === "confirmed");
+  if (choice?.value === GREETING_CHOICE.there) return "";
   const read = facts.find((f) => field(f) === "name");
-  if (read && read.status !== "confirmed") return "";
-  return customerName;
+  if (!read || read.status === "confirmed") return customerName;
+  if (choice?.value === GREETING_CHOICE.name) return customerName;
+  const emails = facts.filter((f) => field(f) === "email").map((f) => String(f.value ?? ""));
+  return nameSignals(customerName, { emails, message }).length > 0 ? customerName : "";
 }
 
 /** A swept day the owner has to settle: closed, and no other line of the reply says so. */
@@ -332,7 +345,7 @@ export function replyContextFromFacts(
   const preference = facts.find((f) => field(f) === DAY_PREFERENCE_FIELD);
   const options = value.split("|").filter((d) => ISO_DAY.test(d));
   const reply: ReplyContext = {
-    customerName: greetingName(base.customerName, facts),
+    customerName: greetingName(base.customerName, facts, base.message),
     ownerFirstName: base.ownerFirstName,
     serviceLabel: base.serviceLabel,
     // Every day they wrote in words that name it gets a true sentence, asked

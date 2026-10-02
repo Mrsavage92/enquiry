@@ -11,6 +11,8 @@ import { decidingPhrase } from "./price-compiler.ts";
 import { firstName } from "./customer-name.ts";
 import { countParts, isOwnerEstimate } from "./count-phrase.ts";
 import { questionStep } from "./customer-asks.ts";
+import { dollarMatches } from "./voice-detect.ts";
+import { CLOSE_CLOSED_DAY } from "./compose-reply.ts";
 
 /**
  * The one place a fact's status becomes reader-facing text.
@@ -114,6 +116,8 @@ export const STATUS = {
   yourCall: "Your call",
   // The same words as the verdict, so the chip and the card never disagree.
   replyReady: "Yes - reply ready",
+  // A kind no, ready to send: the chip says No, as the verdict does.
+  declineReady: "No - reply ready",
   waiting: "Waiting",
   followUp: "Follow up",
   // The action that parks an enquiry. Its chip says when it comes back.
@@ -170,6 +174,11 @@ export function promiseVerdict(enquiry: Enquiry): { word: PromiseWord; line: str
   const extra = enquiry.decision?.extraPending;
   if (extra) return v(PROMISE_WORDS.notYet, `they also asked for ${extra.label.toLowerCase()}`);
   if (coverageToCheck(enquiry)) return v(PROMISE_WORDS.notYet, "check what the price covers");
+  // The coverage tap folded into Copy: the reply already says what the price
+  // covers and names the total, and recording it is the confirmation.
+  if (enquiry.decision?.fold && enquiry.decision.coverage && !enquiry.decision.coverage.confirmed) {
+    return readyVerdict(enquiry);
+  }
   const blocking = enquiry.decision?.missing?.find((m) => m.blocking);
   if (blocking?.inferred) return v(PROMISE_WORDS.notYet, "check one detail they gave");
   if (blocking && isOwnerEstimate(blocking.factField)) {
@@ -183,34 +192,35 @@ export function promiseVerdict(enquiry: Enquiry): { word: PromiseWord; line: str
   const setup = setupStep(enquiry);
   if (isPricingStep(setup)) return v(PROMISE_WORDS.notYet, "your prices decide it");
   if (setup || needsOneDetail(enquiry)) return v(PROMISE_WORDS.notYet, "say which service");
-  if (decision === "ACTION_READY") {
-    // With the trial priced beside a closed wedding day, the reply is ready
-    // and the verdict says the day can't be done - and says so of each day.
-    // Days the ledger marks "Not available" count too ("27th or 28th").
-    const ledgerClosed = (enquiry.decision?.asked ?? []).filter((i) => i.closed).length;
-    const closedDays = Math.max(closed?.days.length ?? 0, ledgerClosed);
-    // The reply asks about a day that has passed or does not match its weekday.
-    const dateToCheck = (enquiry.facts ?? []).some(
-      (f) =>
-        !f.superseded &&
-        f.field.trim().toLowerCase() === "date" &&
-        (f.status === "conflict" || f.status === "check_this"),
-    );
-    const tail = [
-      "reply ready",
-      ...(closedDays > 0 ? [`${countWord(closedDays)} can't be done`] : []),
-      ...(dateToCheck ? ["one date to check"] : []),
-    ];
-    return v(PROMISE_WORDS.yes, tail.join(", "));
-  }
+  // The days that can't be done and a date to check are said on the settled
+  // line, where the owner can see and change them, not in the verdict.
+  if (decision === "ACTION_READY") return readyVerdict(enquiry);
   if (decision === "BOOKING_PENDING") return v(PROMISE_WORDS.yes, "confirm the booking");
   return v(PROMISE_WORDS.notYet, "your call");
 }
 
-/** "one date", "two dates", "3 dates". */
-function countWord(n: number): string {
-  const words = ["no", "one", "two", "three"];
-  return `${words[n] ?? String(n)} ${n === 1 ? "date" : "dates"}`;
+/** The reply the owner is shown: the folded one when the coverage tap is folded into Copy. */
+export function preparedBody(enquiry: Pick<Enquiry, "decision">): string {
+  const d = enquiry.decision;
+  if (d?.fold && d.coverage && !d.coverage.confirmed) return d.fold.body;
+  return d?.draft?.body ?? "";
+}
+
+/**
+ * "Yes - reply ready", but only when that is true of the reply itself: a
+ * priced reply that names no price, or one that asks which day suits without
+ * a price, is not ready to promise anything yet.
+ */
+function readyVerdict(enquiry: Enquiry): { word: PromiseWord; line: string } {
+  const body = preparedBody(enquiry);
+  const priced = dollarMatches(body).some((m) => !m.foreign);
+  const asksDay = body.includes(CLOSE_CLOSED_DAY) || /\bwhich day suits\b/i.test(body);
+  const action = enquiry.decision?.recommendation?.action;
+  const quote = action === "SEND_QUOTE" || action === "SEND_ESTIMATE";
+  if (!priced && (asksDay || quote)) {
+    return { word: PROMISE_WORDS.notYet, line: `${PROMISE_WORDS.notYet} - one date to settle` };
+  }
+  return { word: PROMISE_WORDS.yes, line: `${PROMISE_WORDS.yes} - reply ready` };
 }
 
 /** Queue and tab names. "Needs you" is only ever the name of the queue, never a badge. */
@@ -239,6 +249,12 @@ export function derivedLabel(
   if (state.decision === "NEEDS_INFORMATION") return STATUS.needsDetail;
   if (state.decision === "BOOKING_PENDING") return STATUS.bookingToConfirm;
   if (state.decision === "WAITING_ON_CLIENT") return STATUS.waiting;
+  // The coverage tap folded into Copy: ready, as the verdict says.
+  if (enquiry && preparedBody(enquiry) !== (enquiry.decision?.draft?.body ?? "")) {
+    return promiseVerdict(enquiry).word === PROMISE_WORDS.yes
+      ? STATUS.replyReady
+      : STATUS.needsDetail;
+  }
   // The chip agrees with the next step: an enquiry waiting on the owner's
   // prices says so, rather than "Your call" beside "Add your prices".
   if (enquiry && isPricingStep(setupStep({ state, decision: enquiry.decision }))) {
@@ -255,6 +271,15 @@ export function derivedLabel(
   // with nothing else to book, is "Not yet" on the chip too.
   const closed = enquiry?.decision?.closedDay;
   if (state.decision === "ACTION_READY" && closed && !closed.bookable) return STATUS.needsDetail;
+  if (state.decision === "ACTION_READY" && enquiry?.decision?.recommendation?.action === "DECLINE") {
+    return STATUS.declineReady;
+  }
+  // The chip says what the verdict says: never Yes over a reply that is not.
+  if (state.decision === "ACTION_READY" && enquiry) {
+    return promiseVerdict(enquiry).word === PROMISE_WORDS.yes
+      ? STATUS.replyReady
+      : STATUS.needsDetail;
+  }
   if (state.decision === "ACTION_READY") return STATUS.replyReady;
   return STATUS.open;
 }
@@ -262,7 +287,7 @@ export function derivedLabel(
 /** A priced enquiry whose coverage the owner has not confirmed yet. */
 export function coverageToCheck(enquiry: Pick<Enquiry, "decision">): boolean {
   const c = enquiry.decision?.coverage;
-  if (c) return !c.confirmed;
+  if (c) return !c.confirmed && !enquiry.decision.fold;
   return (enquiry.decision?.recommendation?.reasonCodes ?? []).includes("CONFIRM_COVERAGE");
 }
 
