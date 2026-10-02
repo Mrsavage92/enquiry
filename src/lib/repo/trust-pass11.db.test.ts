@@ -7,6 +7,7 @@ import { prepareReviewedSendInTransaction } from "./reviewed-send-core.ts";
 import { FORBIDDEN_PROMISES, warningsKey } from "../../domain/edit-warnings.ts";
 import { toEnquiry, type EnquiryRow } from "./rows.ts";
 import { promiseVerdict } from "../../domain/labels.ts";
+import { settledLine } from "../../domain/send-flow.ts";
 import {
   WED_30_SEP,
   answer,
@@ -286,7 +287,10 @@ test("3 Jase: '27th or 28th' beside 28/12 is read, and both days are in the clos
   );
   const r = await pg.query<EnquiryRow>("select * from enquiry where id = $1", [e.enquiryId]);
   const enq = toEnquiry(r.rows[0]!, { facts: [], conversation: [], quotes: [] });
-  assert.equal(promiseVerdict(enq).line, "Yes - reply ready, two dates can't be done");
+  // Doc 50 section 5: the verdict is said once; both days are on the settled line.
+  assert.equal(promiseVerdict(enq).line, "Yes - reply ready");
+  const not = settledLine(enq, enq.decision.draft.body).parts.filter((p) => p.startsWith("not "));
+  assert.equal(not.length, 2, JSON.stringify(not));
 });
 
 test("3 Ahmed: 'lease ends Sunday 27 December ... the 26th or 27th' is never 'I'll work around that'", async (t) => {

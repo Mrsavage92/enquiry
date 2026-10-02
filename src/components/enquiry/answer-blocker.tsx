@@ -1,5 +1,5 @@
 import { useEffect, useId, useState } from "react";
-import { toast } from "sonner";
+import { useDone } from "./done-notice";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { factStatusLabel, factStatusTone, fieldLabel } from "@/domain/labels";
@@ -44,6 +44,8 @@ export function AnswerBlocker({
   enquiry,
   folded = false,
   summary,
+  startClosed = false,
+  asQuestion = false,
 }: {
   enquiry: Enquiry;
   /**
@@ -54,8 +56,16 @@ export function AnswerBlocker({
   folded?: boolean;
   /** The folded control's own words, e.g. "Tom answered? Enter the bedrooms". */
   summary?: string;
+  /**
+   * The folded field starts closed: on the laser screen the reply that asks
+   * them is the step, and typing the answer is the way round it.
+   */
+  startClosed?: boolean;
+  /** The owner's own estimate as the one question on screen: its Confirm is the filled button. */
+  asQuestion?: boolean;
 }) {
   const actions = useFirstBetaActions();
+  const say = useDone();
   const missing = enquiry.decision?.missing?.find((m) => m.blocking);
   const inferred = missing ? findInferredFact(enquiry, missing.factField) : undefined;
   const [value, setValue] = useState(inferred?.value ?? "");
@@ -111,10 +121,8 @@ export function AnswerBlocker({
           : null;
       const outcome = priced ? `${priced} The reply is ready to check.` : res.explanation;
       setError(null);
-      // Any earlier error toast is about an answer that is now settled.
-      toast.dismiss();
       setResult(`Saved ${missing.label.toLowerCase()}: ${answered}. ${outcome}`);
-      toast.success(outcome);
+      say(outcome);
       setValue("");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not save that. Try again.");
@@ -188,7 +196,7 @@ export function AnswerBlocker({
       </label>
       <Button
         className="min-h-11"
-        variant={folded ? "secondary" : "primary"}
+        variant={folded && !asQuestion ? "secondary" : "primary"}
         disabled={saving}
         onClick={() => void submit()}
       >
@@ -228,7 +236,7 @@ export function AnswerBlocker({
           </p>
         ) : null}
         {/* Open from the start: typing the answer they gave by phone is one step. */}
-        <details open>
+        <details open={!startClosed}>
           <summary className="inline-flex min-h-11 cursor-pointer items-center text-sm font-medium text-mark-strong">
             {summary ?? `Already know ${decidingPhrase(missing.label)}? Enter it here`}
           </summary>

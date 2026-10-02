@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { toast } from "sonner";
+import { useDone } from "./done-notice";
 import { Check, ChevronDown } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -137,6 +137,7 @@ export function AskedList({
   business: Business | undefined;
 }) {
   const actions = useFirstBetaActions();
+  const say = useDone();
   const [openId, setOpenId] = useState<string | null>(null);
   const [all, setAll] = useState(false);
   const [saving, setSaving] = useState<string | null>(null);
@@ -172,8 +173,7 @@ export function AskedList({
     try {
       await actions.answerFact(enquiry.id, item.id, choice.value);
       setOpenId(null);
-      toast.dismiss();
-      toast.success(choice.done);
+      say(choice.done);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not save that. Try again.");
     } finally {

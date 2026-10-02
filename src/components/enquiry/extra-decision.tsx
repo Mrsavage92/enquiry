@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { toast } from "sonner";
+import { useDone } from "./done-notice";
 import { Button } from "@/components/ui/button";
 import { useFirstBetaActions } from "@/lib/workspace/live-mutations";
 import { EXTRA_CHOICE } from "@/domain/extras";
@@ -18,6 +18,7 @@ import type { Enquiry } from "@/domain/types";
 export function ExtraDecision({ enquiry }: { enquiry: Enquiry }) {
   const extra = enquiry.decision.extraPending;
   const actions = useFirstBetaActions();
+  const say = useDone();
   const [saving, setSaving] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   if (!extra) return null;
@@ -27,8 +28,7 @@ export function ExtraDecision({ enquiry }: { enquiry: Enquiry }) {
     setError(null);
     try {
       await actions.answerFact(enquiry.id, extra.field, choice);
-      toast.dismiss();
-      toast.success(
+      say(
         choice === EXTRA_CHOICE.include
           ? `Added ${extra.label.toLowerCase()} to the quote.`
           : choice === EXTRA_CHOICE.notAsked
