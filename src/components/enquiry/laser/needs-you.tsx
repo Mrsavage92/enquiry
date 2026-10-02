@@ -18,6 +18,7 @@ import { AskedList } from "../asked-list";
 import { DateNotes } from "../date-notes";
 import { checkStep, otherDateCues } from "../card-cues";
 import { useDone } from "../done-notice";
+import type { CoverageNote } from "./notices";
 
 /**
  * Slot B: the single unsettled thing, as one question with its buttons, or,
@@ -31,6 +32,7 @@ export function NeedsYou({
   next,
   body,
   staleEdit,
+  onCoverage,
 }: {
   enquiry: Enquiry;
   business: Business | undefined;
@@ -38,6 +40,8 @@ export function NeedsYou({
   body: string;
   /** The stale-edit choice, rendered by the screen that owns both versions. */
   staleEdit: ReactNode;
+  /** What "That's everything" came back with: a kept edit, or a note to look again. */
+  onCoverage: (note: CoverageNote) => void;
 }) {
   if (next.kind === "reading") {
     return <p className="laser-quiet">This takes a few seconds.</p>;
@@ -78,7 +82,11 @@ export function NeedsYou({
       ) : null}
       {next.decision.startsWith("question_") ? <QuestionAnswer enquiry={enquiry} /> : null}
       {next.decision === "extra" ? <ExtraStep enquiry={enquiry} /> : null}
-      {coverage ? <CoverageCheck enquiry={enquiry} business={business} /> : null}
+      {coverage ? <CoverageCheck
+          enquiry={enquiry}
+          business={business}
+          onConfirmed={(o) => onCoverage({ editKept: o.editKept, recheck: o.recheck })}
+        /> : null}
       {next.decision === "reading" ? <AnswerBlocker enquiry={enquiry} folded /> : null}
       {next.decision === "estimate" ? <AnswerBlocker enquiry={enquiry} folded asQuestion /> : null}
     </section>
