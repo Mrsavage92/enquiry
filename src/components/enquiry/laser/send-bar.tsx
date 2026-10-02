@@ -265,6 +265,8 @@ export function SendBar({
   const clearCopied = (enquiryId: string) =>
     import("@/lib/server/laser-actions")
       .then(({ clearReplyCopied }) => clearReplyCopied({ data: { enquiryId } }))
+      // Re-read so a later visit does not ask "Sent it?" about a copy already answered.
+      .then(() => actions.refresh())
       .catch(() => undefined);
 
   const live = (
@@ -349,7 +351,11 @@ export function SendBar({
               disabled={guarded || phase.kind === "recording"}
               onClick={() => void record(copyPhase)}
             >
-              {phase.kind === "recording" ? "Recording..." : "Yes, I sent it"}
+              {phase.kind === "recording"
+                ? "Recording..."
+                : demo
+                  ? "Yes, I sent it (demo)"
+                  : "Yes, I sent it"}
             </Button>
           )}
           <Button className="laser-bar-button" variant="secondary" onClick={notYet}>
