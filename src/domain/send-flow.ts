@@ -171,7 +171,8 @@ export function settledLine(
   parts: string[];
 } {
   const items = enquiry.decision.asked ?? [];
-  const settled = items.filter((i) => i.status !== "open");
+  // The job itself is not a decision the owner settled.
+  const settled = items.filter((i) => i.status !== "open" && i.kind !== "service");
   const parts: string[] = [];
   for (const item of settled) {
     const text = item.text.trim();

@@ -160,7 +160,7 @@ export function LaserDesk({
             startOpen={!compact || (next.kind === "decide" && next.decision === "coverage")}
           />
           {waiting ? (
-            <WaitingView enquiry={enquiry} onDone={onDone} />
+            <WaitingView enquiry={enquiry} onDone={onDone} justRecorded={Boolean(recorded)} />
           ) : (
             <NeedsYou
               enquiry={enquiry}

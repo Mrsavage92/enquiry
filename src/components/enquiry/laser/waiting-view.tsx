@@ -9,14 +9,22 @@ import { isWaitingForInformation, isWaitingOnCustomer } from "../reply-presentat
  * what for, what you sent (first three lines, the rest in place), the lasting
  * Undo, and the waiting actions, unchanged.
  */
-export function WaitingView({ enquiry, onDone }: { enquiry: Enquiry; onDone?: () => void }) {
+export function WaitingView({
+  enquiry,
+  onDone,
+  justRecorded,
+}: {
+  enquiry: Enquiry;
+  onDone?: () => void;
+  justRecorded: boolean;
+}) {
   const [all, setAll] = useState(false);
   const sent = [...enquiry.conversation].reverse().find((m) => m.direction === "outbound");
   const lines = sent?.body.trim().split("\n") ?? [];
   const waiting = isWaitingOnCustomer(enquiry);
   return (
     <section className="laser-waiting" aria-label="Waiting on the customer">
-      {waiting ? <WaitingSummary enquiry={enquiry} /> : null}
+      {waiting ? <WaitingSummary enquiry={enquiry} undoElsewhere={justRecorded} /> : null}
       {sent ? (
         <div className="laser-sent">
           <p className="laser-reply-label">

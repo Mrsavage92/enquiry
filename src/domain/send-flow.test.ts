@@ -118,7 +118,7 @@ test("the settled line names every promise and refusal after the count", () => {
     enquiry,
     "Just let me know if you'd like to go ahead and I'll confirm the day.",
   );
-  assert.equal(line.count, 4);
+  assert.equal(line.count, 3, "the job itself is not counted");
   assert.deepEqual(line.parts, ["back on ceilings", "not Sat 14 Nov", "no deck", "day to confirm"]);
 });
 
