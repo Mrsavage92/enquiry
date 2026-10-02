@@ -135,6 +135,9 @@ export function SendBar({
       window.removeEventListener("blur", onBlur);
       window.removeEventListener("focus", onFocus);
     };
+    // Keyed on the copy itself (id and time), not the phase object, which
+    // changes on every step of the same copy (recording, a refusal).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [copyPhase?.id, copyPhase?.at]);
 
   // Yes is visibly disabled for the first 600ms after it appears.

@@ -1,0 +1,456 @@
+/*
+  The laser-focus enquiry screen (research doc 50). UI1 tokens only: white
+  working surfaces, lavender for the one question, violet marks. One scroller
+  per screen; the summary sticks to its top and the action bar to its bottom,
+  and the scroller's padding keeps a focused control clear of both (WCAG 2.4.11).
+*/
+.laser-scroll {
+  padding: 0;
+  scroll-padding-top: 128px;
+  scroll-padding-bottom: 168px;
+  background: var(--color-raised);
+}
+.laser-desk {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+}
+.laser-spacer {
+  flex: 1 1 auto;
+}
+
+/* A: who, what, when, the verdict once */
+.laser-summary {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  align-items: flex-start;
+  gap: 4px;
+  padding: max(6px, var(--app-safe-top, 0px)) 4px 10px;
+  background: var(--color-raised);
+  border-bottom: 1px solid var(--color-line);
+}
+.laser-summary-text {
+  min-width: 0;
+  flex: 1;
+  padding-top: 6px;
+}
+.laser-summary-name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.laser-summary h1 {
+  font-size: 20px;
+  line-height: 24px;
+  font-weight: 600;
+  color: var(--color-ink);
+  overflow-wrap: anywhere;
+}
+.laser-summary-line {
+  margin-top: 2px;
+  font-size: 14px;
+  line-height: 18px;
+  color: var(--color-ink-2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.laser-verdict {
+  margin-top: 4px;
+  font-size: 16px;
+  line-height: 20px;
+  font-weight: 600;
+}
+.laser-verdict[data-tone="ok"] {
+  color: var(--color-ok);
+}
+.laser-verdict[data-tone="warn"] {
+  color: var(--color-warn);
+}
+.laser-verdict[data-tone="danger"] {
+  color: var(--color-danger);
+}
+.laser-icon-button {
+  display: inline-grid;
+  place-items: center;
+  flex: 0 0 44px;
+  width: 44px;
+  height: 44px;
+  border-radius: 8px;
+  color: var(--color-ink-2);
+}
+.laser-icon-button:hover {
+  background: var(--color-paper-2);
+  color: var(--color-ink);
+}
+.laser-icon-button[aria-pressed="true"] {
+  color: var(--color-mark-strong);
+}
+
+/* The column every slot sits in */
+.laser-column {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  max-width: 720px;
+  margin-inline: auto;
+  padding: 12px 16px 16px;
+}
+
+/* M: their message */
+.laser-message {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+.laser-message-toggle {
+  display: flex;
+  width: 100%;
+  min-height: 44px;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: var(--color-paper);
+  text-align: left;
+  color: var(--color-ink);
+}
+.laser-message-text {
+  flex: 1;
+  min-width: 0;
+  font-size: 15px;
+  line-height: 22px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.laser-message-text[data-clamp="2"] {
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+}
+.laser-message-text[data-clamp="8"] {
+  -webkit-line-clamp: 8;
+  line-clamp: 8;
+}
+.laser-message-text[data-clamp="none"] {
+  display: block;
+}
+.laser-note {
+  margin-top: 6px;
+  font-size: 14px;
+  line-height: 20px;
+  color: var(--color-ink-2);
+}
+.laser-chevron {
+  flex: 0 0 18px;
+  margin-top: 2px;
+  color: var(--color-ink-2);
+  transition: rotate 150ms var(--ease-out);
+}
+.laser-chevron[data-open] {
+  rotate: 180deg;
+}
+
+/* B: the one question */
+.laser-step {
+  padding: 14px 16px 16px;
+  border-radius: 12px;
+  background: var(--color-reply);
+  color: var(--color-ink);
+}
+.laser-step-heading {
+  font-size: 16px;
+  line-height: 22px;
+  font-weight: 600;
+  color: var(--color-ink);
+}
+.laser-step-heading:focus-visible,
+.laser-reply-label:focus-visible,
+#laser-sent-ask:focus-visible {
+  outline: 2px solid var(--color-mark);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+.laser-settled-toggle {
+  display: flex;
+  width: 100%;
+  min-height: 44px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  text-align: left;
+  font-size: 14px;
+  line-height: 20px;
+  color: var(--color-ink-2);
+}
+.laser-settled-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-bottom: 8px;
+}
+.laser-quiet {
+  font-size: 14px;
+  line-height: 20px;
+  color: var(--color-ink-2);
+}
+
+/* Inline text links: 44px tall, never a third button */
+.laser-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  min-width: 24px;
+  padding-inline: 2px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--color-mark-strong);
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+.laser-link:disabled {
+  color: var(--color-ink-2);
+}
+.laser-copy-again {
+  margin-left: 8px;
+  vertical-align: middle;
+}
+
+/* R: the reply, whole */
+.laser-greeting {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  column-gap: 8px;
+  min-height: 44px;
+  font-size: 14px;
+  color: var(--color-ink-2);
+}
+.laser-reply-label {
+  font-size: 14px;
+  line-height: 20px;
+  color: var(--color-stone);
+  margin-bottom: 6px;
+}
+.laser-reply-box {
+  position: relative;
+  border: 1px solid var(--color-line-control);
+  border-radius: 8px;
+  background: var(--color-raised);
+}
+.laser-reply[data-focused] .laser-reply-box {
+  outline: 2px solid var(--color-mark);
+  outline-offset: 2px;
+}
+.laser-reply-text,
+.laser-reply-read {
+  display: block;
+  width: 100%;
+  padding: 12px 14px;
+  font-family: var(--font-sans);
+  font-size: 16px;
+  line-height: 26px;
+  color: var(--color-ink);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  letter-spacing: normal;
+}
+.laser-reply-text {
+  field-sizing: content;
+  min-height: calc(4 * 26px + 24px);
+  resize: none;
+  border: 0;
+  outline: none;
+  overflow: hidden;
+  background: transparent;
+}
+.laser-reply:not([data-focused]) .laser-reply-text {
+  opacity: 0;
+}
+.laser-reply-read {
+  position: absolute;
+  inset: 0;
+  cursor: text;
+  user-select: text;
+}
+.laser-reply-read mark {
+  color: var(--color-ink);
+  background: transparent;
+}
+.laser-reply-read mark.laser-amount {
+  font-weight: 600;
+}
+.laser-reply-read mark.laser-fresh {
+  background: var(--color-warn-bg);
+  border-radius: 3px;
+  transition: background-color 600ms var(--ease-out);
+}
+
+/* D: notices under the reply */
+.laser-notices {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+}
+.laser-notices > .callout {
+  width: 100%;
+}
+
+/* E: the send line and the one action */
+.laser-bar {
+  position: sticky;
+  bottom: 0;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 16px max(12px, env(safe-area-inset-bottom));
+  background: var(--color-raised);
+  border-top: 1px solid var(--color-line);
+}
+.laser-bar > * {
+  width: 100%;
+  max-width: 688px;
+  margin-inline: auto;
+}
+.laser-bar[data-hidden] {
+  display: none;
+}
+.laser-bar[data-unstuck] {
+  position: static;
+}
+.laser-bar-line {
+  font-size: 14px;
+  line-height: 18px;
+  color: var(--color-ink-2);
+}
+.laser-bar-line[data-tone="warn"] {
+  color: var(--color-warn);
+}
+.laser-send-line .laser-amount-text {
+  color: var(--color-ink);
+}
+.laser-send-line .laser-amount-text[data-tone="strong"] {
+  font-weight: 600;
+}
+.laser-send-line .laser-amount-text[data-tone="warn"] {
+  color: var(--color-warn);
+}
+.laser-checking {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.laser-spin {
+  animation: laser-spin 900ms linear infinite;
+}
+@keyframes laser-spin {
+  to {
+    rotate: 360deg;
+  }
+}
+.laser-bar-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.laser-bar-button {
+  flex: 1 1 0;
+  min-height: 56px;
+  height: auto;
+  font-size: 16px;
+  white-space: normal;
+  padding-block: 8px;
+}
+.laser-hint {
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--color-stone);
+}
+.laser-review {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 12px;
+  border: 1px solid var(--color-line-control);
+  border-radius: 8px;
+  font-size: 14px;
+  line-height: 20px;
+  color: var(--color-ink);
+}
+.laser-review-key {
+  color: var(--color-ink-2);
+  margin-right: 6px;
+}
+.laser-voice {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Stale edit: one version at a time */
+.laser-toggle {
+  display: inline-flex;
+  border: 1px solid var(--color-line-control);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.laser-toggle-option {
+  min-height: 44px;
+  padding-inline: 14px;
+  font-size: 14px;
+  color: var(--color-ink);
+  background: var(--color-raised);
+}
+.laser-toggle-option[aria-checked="true"] {
+  background: var(--color-mark);
+  color: var(--color-mark-fg);
+}
+
+/* Waiting */
+.laser-waiting {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.laser-sent-text {
+  font-size: 15px;
+  line-height: 22px;
+  color: var(--color-ink);
+  white-space: pre-wrap;
+}
+
+.laser-icon-button:focus-visible,
+.laser-link:focus-visible,
+.laser-message-toggle:focus-visible,
+.laser-settled-toggle:focus-visible,
+.laser-toggle-option:focus-visible {
+  outline: 2px solid var(--color-mark);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .laser-spin {
+    animation: none;
+  }
+  .laser-chevron,
+  .laser-reply-read mark.laser-fresh {
+    transition: none;
+  }
+}
+
+/* Desktop: the aside is closed by default; the column is centred */
+.enquiry-work-grid[data-aside="closed"] {
+  grid-template-columns: minmax(0, 1fr);
+}
+@media (min-width: 861px) {
+  .laser-summary {
+    padding: 14px 16px 12px;
+  }
+}

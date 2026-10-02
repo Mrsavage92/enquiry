@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState, type RefObject } from "react";
-import { dollarMatches } from "@/domain/voice-detect";
+import { segmentsOf } from "@/domain/laser-view";
 import { cn } from "@/lib/utils";
 
 /**
@@ -12,32 +12,6 @@ import { cn } from "@/lib/utils";
  * the read view puts the caret at the tapped point. Nothing opens an editor,
  * and nothing scrolls inside the box: it grows with the text.
  */
-
-type Segment = { text: string; kind: "plain" | "amount" | "fresh" };
-
-/** Split the reply into plain text, amounts and freshly changed lines, in order. */
-export function segmentsOf(text: string, fresh: readonly string[]): Segment[] {
-  const marks: { from: number; to: number; kind: Segment["kind"] }[] = [];
-  for (const line of fresh) {
-    const at = line.trim() ? text.indexOf(line) : -1;
-    if (at >= 0) marks.push({ from: at, to: at + line.length, kind: "fresh" });
-  }
-  for (const m of dollarMatches(text)) {
-    const inside = marks.some((k) => m.index >= k.from && m.index < k.to);
-    if (!inside) marks.push({ from: m.index, to: m.index + m.raw.length, kind: "amount" });
-  }
-  marks.sort((a, b) => a.from - b.from);
-  const out: Segment[] = [];
-  let at = 0;
-  for (const mark of marks) {
-    if (mark.from < at) continue;
-    if (mark.from > at) out.push({ text: text.slice(at, mark.from), kind: "plain" });
-    out.push({ text: text.slice(mark.from, mark.to), kind: mark.kind });
-    at = mark.to;
-  }
-  if (at < text.length) out.push({ text: text.slice(at), kind: "plain" });
-  return out;
-}
 
 /** The text offset under a point in the read view, for the caret. */
 function offsetAt(root: HTMLElement, x: number, y: number): number | null {

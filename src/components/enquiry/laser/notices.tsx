@@ -4,23 +4,7 @@ import type { Business, Enquiry } from "@/domain/types";
 import { integrationForChannel, replyChannel } from "@/domain/channel";
 import { usePrototype } from "@/store/prototype-store";
 import { keptEditNotice } from "../card-cues";
-
-/** The safeguards the inline card showed, in the owner's words (all but the action-class line). */
-const GATE_WORDS: Record<string, string> = {
-  "PricingResult ERROR": "Pricing could not be verified",
-  "Conflicting authoritative rules": "Your confirmed prices disagree",
-  "Risk class PROHIBITED_AUTO": "This requires your personal review",
-  "Public surface - needs your permission": "Public replies require your review",
-  "Material service mapping below safe threshold":
-    "The requested service is not clear enough to quote",
-  "Follow-up action class is Ask every time": "Follow-ups require your approval",
-};
-
-export function riskLines(enquiry: Enquiry): string[] {
-  return enquiry.decision.failedGates
-    .filter((gate) => !/^Action class .* is set to /i.test(gate))
-    .map((gate) => GATE_WORDS[gate] ?? gate);
-}
+import { riskLines } from "@/domain/laser-view";
 
 export type CoverageNote = { editKept?: string[]; recheck?: boolean };
 

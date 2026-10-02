@@ -82,11 +82,13 @@ export function NeedsYou({
       ) : null}
       {next.decision.startsWith("question_") ? <QuestionAnswer enquiry={enquiry} /> : null}
       {next.decision === "extra" ? <ExtraStep enquiry={enquiry} /> : null}
-      {coverage ? <CoverageCheck
+      {coverage ? (
+        <CoverageCheck
           enquiry={enquiry}
           business={business}
           onConfirmed={(o) => onCoverage({ editKept: o.editKept, recheck: o.recheck })}
-        /> : null}
+        />
+      ) : null}
       {next.decision === "reading" ? <AnswerBlocker enquiry={enquiry} folded /> : null}
       {next.decision === "estimate" ? <AnswerBlocker enquiry={enquiry} folded asQuestion /> : null}
     </section>

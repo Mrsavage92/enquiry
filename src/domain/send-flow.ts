@@ -1,6 +1,5 @@
 import type { Enquiry } from "./types.ts";
-import { replyChannel, channelLabel } from "./channel.ts";
-import { contactReadFrom } from "./send-preview.ts";
+import { previewFor } from "./send-preview.ts";
 import { formatMinorAud } from "./money-format.ts";
 import { CLOSE_UNCONFIRMED_DAY } from "./compose-reply.ts";
 
@@ -131,16 +130,8 @@ export function sendLine(
   } | null,
   quote: boolean,
 ): SendLine {
-  const channel = replyChannel(enquiry);
-  const onFile =
-    channel === "email"
-      ? enquiry.customerEmail
-      : channel === "sms"
-        ? (enquiry.customerPhone ?? "")
-        : channel === "instagram" || channel === "facebook"
-          ? (enquiry.customerHandle ?? "")
-          : enquiry.customerEmail || enquiry.customerPhone || enquiry.customerHandle || "";
-  const read = onFile ? undefined : contactReadFrom(enquiry);
+  // The same recipient rule as the server's (`previewFor` mirrors `resolveToAddr`).
+  const facts = previewFor({ enquiry, draft: "", decision: enquiry.decision });
   const amount = !quote
     ? null
     : !check
@@ -160,9 +151,9 @@ export function sendLine(
               }
             : null;
   return {
-    recipient: onFile || read || "",
-    fromMessage: !onFile && Boolean(read),
-    channel: channelLabel(channel),
+    recipient: facts.recipient || facts.recipientRead || "",
+    fromMessage: !facts.recipient && Boolean(facts.recipientRead),
+    channel: facts.channelLabel,
     amount,
   };
 }
