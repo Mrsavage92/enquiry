@@ -128,6 +128,13 @@ const WORDS_ALL_UP = new RegExp(
 );
 /** A figure under $10 said this way is a count ("say two"), never money. */
 const LEAST_SAID_MONEY = 10;
+/**
+ * A bare "say" is "for example" ("If there are more windows, say 15, I'll
+ * adjust"): its number is money only in a sentence about money.
+ */
+const BARE_SAY = /^say\b/i;
+const MONEY_WORDS =
+  /\b(?:price[sd]?|prices|costs?|total|quote[sd]?|charge[sd]?|pay|paid|cash|dollars?|bucks|discount(?:ed)?|off|cheaper|less|deal|for\s+(?:the\s+lot|everything|both))\b/i;
 
 type Hit = DollarMatch & { end: number };
 
@@ -201,6 +208,9 @@ function hitsOf(text: string): Hit[] {
       const n = figureValue(m[1]!);
       if (n === null || n < LEAST_SAID_MONEY) continue;
       const at = (m.index ?? 0) + m[0].indexOf(m[1]!);
+      if (BARE_SAY.test(m[0]) && !MONEY_WORDS.test(sentenceAt(text, at, at + m[1]!.length))) {
+        continue;
+      }
       push(m[1]!, at, n);
     }
   }

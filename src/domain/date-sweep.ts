@@ -124,15 +124,28 @@ const MONTH_DAY = new RegExp(
   "gi",
 );
 const NUMERIC = /\b(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?\b/g;
+/**
+ * A count or a time after a weekday ("Monday 4 hours", "Friday 3 bedroom",
+ * "Saturday 10am"): never the day of the month.
+ */
+export const COUNT_AFTER = String.raw`\s*-?\s*(?:hours?|hrs?|h\b|mins?|minutes?|rooms?|bed|bath|br\b|bd\b|window|door|sq|m2|metre|meter|people|persons?|ppl|guests|kids|adults|stor(?:ey|y|ies|eys)\b|levels?|floors?|weeks?|days?|nights?|items?|loads?|x\b|am\b|pm\b|a\.m|p\.m|o'?clock|[:.]\d)`;
+/**
+ * Between a weekday and its day of the month: "Monday 3", "Monday the 3rd",
+ * "Monday, the 3rd", "Monday, 3rd". Never a bare number after a comma
+ * ("If not Monday, 3 hour clean"): that is a new thought, not a date.
+ */
+export const WEEKDAY_TO_DAY = String.raw`(?:,?\s+the\s+|\s+|,\s*(?=\d{1,2}(?:st|nd|rd|th)\b))`;
+/** A weekday's own day of the month just after it, for a lookahead. */
+export const DAY_OF_WEEKDAY = String.raw`${WEEKDAY_TO_DAY}\d{1,2}(?:st|nd|rd|th)?\b(?!${COUNT_AFTER})`;
 const WEEKDAY_ORDINAL = new RegExp(
-  String.raw`\b${WEEKDAY},?\s+(?:the\s+)?(\d{1,2})(?:st|nd|rd|th)?\b(?!\s*(?:\/|of\b|${MONTH}))`,
+  String.raw`\b${WEEKDAY}${WEEKDAY_TO_DAY}(\d{1,2})(?:st|nd|rd|th)?\b(?!\s*(?:\/|of\b|${MONTH}))(?!${COUNT_AFTER})`,
   "gi",
 );
 const ORDINAL = /\b(\d{1,2})(st|nd|rd|th)\b/gi;
 /** A weekday written just before a day and month: "Sunday 18 October", "Fri the 16th Oct". */
 const WEEKDAY_LEAD = new RegExp(String.raw`\b${WEEKDAY},?\s+(?:the\s+)?$`, "i");
 const THIS_NEXT = new RegExp(
-  String.raw`\b(this|coming|next)\s+${WEEKDAY}\b(?![,.]?\s+(?:the\s+)?\d)`,
+  String.raw`\b(this|coming|next)\s+${WEEKDAY}\b(?!${DAY_OF_WEEKDAY})`,
   "gi",
 );
 /** "between 12 and 16 October", "12-16 October": a stretch, never its last day alone. */
@@ -143,6 +156,19 @@ const WINDOW = new RegExp(
 /** "28 December to 3 January": every day of it, across the month. */
 const FULL_RANGE = new RegExp(
   String.raw`\b(\d{1,2})(?:st|nd|rd|th)?\s+(?:of\s+)?${MONTH}\s*(?:to|-|–|until|till|through|thru)\s*(?:the\s+)?(\d{1,2})(?:st|nd|rd|th)?\s+(?:of\s+)?${MONTH}\b`,
+  "gi",
+);
+/** "Dec 28 to Jan 3": the same stretch, month first. */
+const MONTH_FIRST_RANGE = new RegExp(
+  String.raw`\b${MONTH}\s+(\d{1,2})(?:st|nd|rd|th)?\s*(?:to|-|–|until|till|through|thru)\s*(?:the\s+)?${MONTH}\s+(\d{1,2})(?:st|nd|rd|th)?\b`,
+  "gi",
+);
+/**
+ * "Dec 20 to 28", "Dec 20-28", "between Dec 20 and 28": a stretch inside one
+ * month, month first. "and" only after "between": "Dec 20 and 28" is two days.
+ */
+const MONTH_FIRST_WINDOW = new RegExp(
+  String.raw`\b(between\s+(?:the\s+)?)?${MONTH}\s+(\d{1,2})(?:st|nd|rd|th)?\s*(?:to|-|–|until|till|through|thru|(and))\s*(?:the\s+)?(\d{1,2})(?:st|nd|rd|th)?\b(?!\s*(?:\/|${MONTH}|[:.]\d))(?!${COUNT_AFTER})`,
   "gi",
 );
 /** The days people name rather than number. Month is 0-based. */
@@ -156,7 +182,7 @@ const NAMED_DAYS: [RegExp, number, number][] = [
 /** A stretch longer than this is never walked day by day: its ends are read. */
 const LONGEST_RANGE_DAYS = 62;
 const BARE_WEEKDAY = new RegExp(
-  String.raw`\b${FULL_WEEKDAY}\b(?!s\b)(?![,.]?\s+(?:the\s+)?\d)(?!\s*(?:to|-|–|through|thru|till|until|or|\/)\s*${WEEKDAY})`,
+  String.raw`\b${FULL_WEEKDAY}\b(?!s\b)(?!${DAY_OF_WEEKDAY})(?!\s*(?:to|-|–|through|thru|till|until|or|\/)\s*${WEEKDAY})`,
   "gi",
 );
 /** "Monday to Friday", "Thursday or Friday": part of a stretch or a preference. */
@@ -306,20 +332,45 @@ function collect(text: string, today: Date): Token[] {
   const add = (t: Token) => {
     if (!covered(tokens, t.index, t.length)) tokens.push(t);
   };
+  // "28 December to 3 January", "Dec 28 to Jan 3": the start is the one before the end.
+  const stretch = (
+    at: number,
+    length: number,
+    fromDay: number,
+    fromMonth: number,
+    toDay: number,
+    toMonth: number,
+  ) => {
+    const to = resolveDayMonth(toDay, toMonth, undefined, today);
+    if (!to.date || to.past) return;
+    let y = to.date.getFullYear();
+    if (fromMonth > toMonth) y -= 1;
+    if (!valid(y, fromMonth, fromDay)) return;
+    const from = new Date(y, fromMonth, fromDay);
+    if (from > to.date || dayGap(from, to.date) > LONGEST_RANGE_DAYS) return;
+    add({ index: at, length, kind: "window", date: from, until: to.date });
+  };
   // Longest, most certain shapes first; a later match inside one is the same day.
   for (const m of text.matchAll(FULL_RANGE)) {
     const fromMonth = monthIndex(m[2]!);
     const toMonth = monthIndex(m[4]!);
     if (fromMonth === undefined || toMonth === undefined) continue;
-    const to = resolveDayMonth(Number(m[3]), toMonth, undefined, today);
-    if (!to.date || to.past) continue;
-    // "28 December to 3 January": the start is the one before the end.
-    let y = to.date.getFullYear();
-    if (fromMonth > toMonth) y -= 1;
-    if (!valid(y, fromMonth, Number(m[1]))) continue;
-    const from = new Date(y, fromMonth, Number(m[1]));
-    if (from > to.date || dayGap(from, to.date) > LONGEST_RANGE_DAYS) continue;
-    add({ index: m.index ?? 0, length: m[0].length, kind: "window", date: from, until: to.date });
+    stretch(m.index ?? 0, m[0].length, Number(m[1]), fromMonth, Number(m[3]), toMonth);
+  }
+  for (const m of text.matchAll(MONTH_FIRST_RANGE)) {
+    const fromMonth = monthIndex(m[1]!);
+    const toMonth = monthIndex(m[3]!);
+    if (fromMonth === undefined || toMonth === undefined) continue;
+    stretch(m.index ?? 0, m[0].length, Number(m[2]), fromMonth, Number(m[4]), toMonth);
+  }
+  for (const m of text.matchAll(MONTH_FIRST_WINDOW)) {
+    const month = monthIndex(m[2]!);
+    if (month === undefined || (m[4] && !m[1])) continue;
+    const fromDay = Number(m[3]);
+    const toDay = Number(m[5]);
+    // "Dec 28-3" is no stretch inside December: its ends are read on their own.
+    if (fromDay >= toDay) continue;
+    stretch(m.index ?? 0, m[0].length, fromDay, month, toDay, month);
   }
   for (const m of text.matchAll(WINDOW)) {
     const month = monthIndex(m[4]!);

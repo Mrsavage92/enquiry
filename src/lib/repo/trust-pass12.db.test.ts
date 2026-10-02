@@ -561,3 +561,185 @@ test("LOW: a stored sweep that cannot be read holds the reply as dates to check"
   );
   assert.deepEqual(await row(pg, e.enquiryId), before);
 });
+
+// ---------------------------------------------------------------------------
+// Round 2 of the PR #80 review, through the send path
+// ---------------------------------------------------------------------------
+
+test("N1: the 'jobs over' threshold and the subtotal never stand as a line's price", async (t) => {
+  const { pg, a } = await setup(t, BIG_OFF);
+  const e = await enquiry(
+    pg,
+    a.businessId,
+    "Hi, can you quote an oven clean, a fridge clean and the inside windows? Thanks, Jo",
+    "Oven clean",
+  );
+  const { body, sent } = await settleAndSend(pg, a.businessId, e.enquiryId, {}, [
+    [/over \$600/, "apply"],
+  ]);
+  assert.equal(sent.ok, true, JSON.stringify(sent));
+  const add = (said: string) => body.replace("\n\nThanks,", `\n\n${said}\n\nThanks,`);
+  for (const [name, edited] of [
+    ["oven line at the threshold", body.replace("- Oven clean: $250", "- Oven clean: $600")],
+    ["oven line at the subtotal", body.replace("- Oven clean: $250", "- Oven clean: $750")],
+    ["the threshold as the oven's usual price", add("Oven clean is usually $600.")],
+    ["the subtotal as the fridge's price", add("Fridge clean alone would be $750.")],
+    ["the threshold said as a rate", add("Oven clean at $600.")],
+  ] as const) {
+    const res = await sendAs(pg, a.businessId, e.enquiryId, edited);
+    assert.equal(!res.ok && res.reason, "amount_mismatch", `${name}: ${JSON.stringify(res)}`);
+  }
+  // In their own words, the threshold, the amount off and the subtotal stand.
+  for (const said of [
+    "Subtotal $750, less $300 for jobs over $600.",
+    "That's $750 before the discount.",
+  ]) {
+    const res = await sendAs(pg, a.businessId, e.enquiryId, add(said));
+    assert.equal(res.ok, true, `${said}: ${JSON.stringify(res)}`);
+  }
+  const own = body.replace("- $300 off jobs over $600: -$300", "- Less $300 for jobs over $600");
+  assert.equal((await sendAs(pg, a.businessId, e.enquiryId, own)).ok, true);
+});
+
+test("N4: 'If not Monday, 3 hour clean' and 'Monday 4 hours' never put 'Monday, 3' or 'Monday 4' in the reply", async (t) => {
+  const { pg, a } = await setup(t);
+  const comma = await enquiry(
+    pg,
+    a.businessId,
+    "Hi, is Saturday ok? If not Monday, 3 hour clean. Thanks, Bo",
+    "Regular house clean",
+  );
+  const items = await ledger(pg, comma.enquiryId);
+  assert.ok(!items.some((i) => /Monday, 3/.test(i.text)), JSON.stringify(items));
+  const first = await settleAndSend(pg, a.businessId, comma.enquiryId, {
+    "ask:availability": "2026-10-03=later",
+  });
+  assert.equal(first.sent.ok, true, JSON.stringify(first.sent));
+  assert.doesNotMatch(first.body, /Monday, 3/);
+  assert.doesNotMatch(first.body, /You mentioned Monday/);
+
+  const hours = await enquiry(
+    pg,
+    a.businessId,
+    "Hi, regular clean Monday 4 hours please. Thanks, Bo",
+    "Regular house clean",
+  );
+  assert.equal((await row(pg, hours.enquiryId)).date_label, "Mon 5 Oct");
+  const second = await settleAndSend(pg, a.businessId, hours.enquiryId, {
+    "number of hours": "4",
+  });
+  assert.equal(second.sent.ok, true, JSON.stringify(second.sent));
+  assert.doesNotMatch(second.body, /Monday 4/);
+  assert.match(second.body, /Monday 5 October/);
+  // A Monday is no weekend: the weekend rate is never mentioned.
+  assert.doesNotMatch(second.body, /weekends are 20% more/);
+});
+
+const NEW_YEAR = ["Oven clean $60", "Closed 29 December to 2 January"].join("\n");
+
+test("N6: 'Dec 28 to Jan 3' is held and checked day by day, exactly like '28 December to 3 January'", async (t) => {
+  const { pg, a } = await setup(t, NEW_YEAR);
+  for (const [range, spoken] of [
+    ["28 December to 3 January", "28 December to 3 January"],
+    ["Dec 28 to Jan 3", "December 28 to January 3"],
+  ] as const) {
+    const e = await enquiry(
+      pg,
+      a.businessId,
+      `Hi, oven clean please, any day ${range} works. Thanks, Al`,
+      "Oven clean",
+    );
+    const open = (await ledger(pg, e.enquiryId)).filter((i) => i.status === "open");
+    assert.ok(
+      open.some((i) => i.text === `Part of ${range} is in your closed dates`),
+      `${range}: ${JSON.stringify(open)}`,
+    );
+    await settle(pg, e.enquiryId);
+    // Held until the owner says whether they can do the closed days.
+    await assert.rejects(send(pg, a.businessId, e.enquiryId), /Settle what they asked first/);
+    const { body, sent } = await settleAndSend(pg, a.businessId, e.enquiryId);
+    assert.equal(sent.ok, true, JSON.stringify(sent));
+    assert.ok(
+      body.includes(
+        `You mentioned ${spoken} - I'm sorry, I'm not available on Tuesday 29 December, Wednesday 30 December, Thursday 31 December, Friday 1 January or Saturday 2 January.`,
+      ),
+      body,
+    );
+  }
+});
+
+test("REG: 'If there are more windows, say 15, I'll adjust.' is no price", async (t) => {
+  const { pg, a } = await setup(t, BIG_OFF);
+  const e = await enquiry(
+    pg,
+    a.businessId,
+    "Hi, can you quote an oven clean, a fridge clean and the inside windows? Thanks, Jo",
+    "Oven clean",
+  );
+  const { body, sent } = await settleAndSend(pg, a.businessId, e.enquiryId, {}, [
+    [/over \$600/, "apply"],
+  ]);
+  assert.equal(sent.ok, true, JSON.stringify(sent));
+  const add = (said: string) => body.replace("\n\nThanks,", `\n\n${said}\n\nThanks,`);
+  const res = await sendAs(
+    pg,
+    a.businessId,
+    e.enquiryId,
+    add("If there are more windows, say 15, I'll adjust."),
+  );
+  assert.equal(res.ok, true, JSON.stringify(res));
+  // Said as a price, it is still refused.
+  const priced = await sendAs(pg, a.businessId, e.enquiryId, add("Say 400 for the lot."));
+  assert.equal(!priced.ok && priced.reason, "amount_mismatch");
+});
+
+test("REG: 'next Sunday' on a Saturday with Sundays off is a day they don't work, never an either-day ask", async (t) => {
+  const { pg, a } = await setup(t);
+  const e = await enquiry(
+    pg,
+    a.businessId,
+    "Hi, oven clean please, next Sunday? Thanks, Al",
+    "Oven clean",
+    at("2026-10-03"),
+  );
+  const items = await ledger(pg, e.enquiryId);
+  assert.ok(!items.some((i) => i.id.startsWith("date_check:")), JSON.stringify(items));
+  const closed = items.find((i) => i.id.startsWith("closed_day:"));
+  assert.equal(closed?.status, "open", JSON.stringify(items));
+  assert.equal(
+    closed?.text,
+    '"next Sunday" could mean Sun 4 Oct or Sun 11 Oct - a day you don\'t work',
+  );
+  await settle(pg, e.enquiryId);
+  await assert.rejects(send(pg, a.businessId, e.enquiryId), /Settle what they asked first/);
+  const { body, sent } = await settleAndSend(pg, a.businessId, e.enquiryId);
+  assert.equal(sent.ok, true, JSON.stringify(sent));
+  assert.match(body, /You mentioned next Sunday - I don't work Sundays\./);
+  assert.doesNotMatch(body, /which day works/);
+  assert.doesNotMatch(body, /weekends are 20% more/);
+  // When the two days differ in whether they can be worked, the owner is still asked.
+  const thu = await enquiry(
+    pg,
+    a.businessId,
+    "Hi, oven clean please, free next Thursday? Thanks, Al",
+    "Oven clean",
+  );
+  const asked = await ledger(pg, thu.enquiryId);
+  assert.ok(
+    asked.some((i) => i.id === "date_check:next thursday"),
+    JSON.stringify(asked),
+  );
+});
+
+test("OPS: reviewed_send has row level security on, like every other table", async (t) => {
+  const pg = await freshDb(t);
+  const r = await pg.query<{ relname: string; relrowsecurity: boolean }>(
+    "select c.relname, c.relrowsecurity from pg_class c join pg_namespace n on n.oid = c.relnamespace where n.nspname = 'public' and c.relkind = 'r' order by c.relname",
+  );
+  const sends = r.rows.find((x) => x.relname === "reviewed_send");
+  assert.equal(sends?.relrowsecurity, true);
+  assert.deepEqual(
+    r.rows.filter((x) => !x.relrowsecurity).map((x) => x.relname),
+    [],
+  );
+});

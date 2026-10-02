@@ -90,7 +90,7 @@ export type ReplyContext = {
    * doesn't work and that no other line says: a day they need is said as not
    * available (`say`); a day about something else only once the owner says so.
    */
-  sweptClosed?: { iso: string; span: string; say: boolean }[];
+  sweptClosed?: { iso: string; span: string; say: boolean; reason?: string }[];
   /** Date-like words Enquiry could not read that the owner said to confirm. */
   sweptUnread?: string[];
   /** A swept day or fragment the owner has not settled: the close never says "go ahead". */
@@ -339,7 +339,15 @@ function sweptTalk(opts: ReplyContext): DateTalk {
   const say = (opts.sweptClosed ?? []).filter((d) => d.say);
   const spans = [...new Set(say.map((d) => d.span))];
   for (const span of spans) {
-    const isos = say.filter((d) => d.span === span).map((d) => d.iso);
+    const same = say.filter((d) => d.span === span);
+    const isos = same.map((d) => d.iso);
+    // "next Sunday", whichever Sunday they mean: said by why, never by a day.
+    const reason = same[0]?.reason;
+    if (reason && same.every((d) => d.reason === reason)) {
+      lines.push(`You mentioned ${spokenSpan(span)} - ${reason}.`);
+      close = "closed";
+      continue;
+    }
     // Their week is already said above ("You mentioned the week of ..."): not twice.
     const saidAbove =
       spokenSpan(opts.approxSpan ?? "").toLowerCase() === spokenSpan(span).toLowerCase();

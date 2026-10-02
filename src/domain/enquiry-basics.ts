@@ -1,6 +1,6 @@
 import { format } from "date-fns";
 import { enAU } from "date-fns/locale";
-import { readWeekdayWord } from "./date-sweep.ts";
+import { COUNT_AFTER, DAY_OF_WEEKDAY, WEEKDAY_TO_DAY, readWeekdayWord } from "./date-sweep.ts";
 import { wallNow } from "./format";
 
 /**
@@ -295,7 +295,7 @@ const WEEKDAY_WORD = String.raw`(mon(?:day)?|tue(?:s(?:day)?)?|wed(?:nesday)?|th
 
 /** "Sat 3rd", "Saturday the 3rd": a weekday and a day, no month. */
 const WEEKDAY_DAY = new RegExp(
-  String.raw`\b${WEEKDAY_WORD}\.?,?\s+(?:the\s+)?(\d{1,2})(?:st|nd|rd|th)?\b(?!\s*(?:\/|of\b|-|jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec|am\b|pm\b|:|\.\d|hours?|hrs?|bed|room|window|door|sq|m2|metre|meter|people|guests))`,
+  String.raw`\b${WEEKDAY_WORD}\.?${WEEKDAY_TO_DAY}(\d{1,2})(?:st|nd|rd|th)?\b(?!\s*(?:\/|of\b|-|jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec|am\b|pm\b|:|\.\d|hours?|hrs?|bed|room|window|door|sq|m2|metre|meter|people|guests))(?!${COUNT_AFTER})`,
   "gi",
 );
 
@@ -313,8 +313,10 @@ const CONTEXT_WORDS =
  * "Can you come Sunday?": a weekday written out in full with no date is the
  * next one. Full names only - "sat" and "sun" are also words.
  */
-const WEEKDAY_ALONE =
-  /\b(?:this\s+|next\s+)?(monday|tuesday|wednesday|thursday|friday|saturday|sunday)(s?)\b(?![,.]?\s+(?:the\s+)?\d)(?!\s+(?:morning|arvo|afternoon|night|evening)s?\b)/gi;
+const WEEKDAY_ALONE = new RegExp(
+  String.raw`\b(?:this\s+|next\s+)?(monday|tuesday|wednesday|thursday|friday|saturday|sunday)(s?)\b(?!\.?${DAY_OF_WEEKDAY})(?!\s+(?:morning|arvo|afternoon|night|evening)s?\b)`,
+  "gi",
+);
 
 const WEEKDAY_STEM = String.raw`(?:mon|tue|wed|thu|fri|sat|sun)[a-z]*`;
 
@@ -325,8 +327,10 @@ const WEEKDAY_RANGE = new RegExp(
 );
 
 /** "Thursday or Friday": either day of the week, a preference and not a date. */
-const WEEKDAY_PAIR =
-  /\b(monday|tuesday|wednesday|thursday|friday|saturday|sunday)s?\s*(?:or|\/)\s*(monday|tuesday|wednesday|thursday|friday|saturday|sunday)s?\b(?![,.]?\s+(?:the\s+)?\d)/gi;
+const WEEKDAY_PAIR = new RegExp(
+  String.raw`\b(monday|tuesday|wednesday|thursday|friday|saturday|sunday)s?\s*(?:or|\/)\s*(monday|tuesday|wednesday|thursday|friday|saturday|sunday)s?\b(?!\.?${DAY_OF_WEEKDAY})`,
+  "gi",
+);
 
 /** "I work from home Monday", "I'm home Tuesday": their own week, not the job. */
 const OWN_SCHEDULE =
@@ -832,7 +836,7 @@ const WINDOW_TWO_MONTHS = new RegExp(
 );
 /** "except Friday", "not weekends", "no Sundays": a weekday ruled out with no date. */
 const EXCEPT_DAYS = new RegExp(
-  String.raw`\b(?:except|excluding|other than|apart from|but not|not|no)\s+(?:on\s+)?(?:(?:a|the)\s+)?(weekends?|${WEEKDAY_WORD})s?\b(?![,.]?\s+(?:the\s+)?\d)`,
+  String.raw`\b(?:except|excluding|other than|apart from|but not|not|no)\s+(?:on\s+)?(?:(?:a|the)\s+)?(weekends?|${WEEKDAY_WORD})s?\b(?!\.?${DAY_OF_WEEKDAY})`,
   "gi",
 );
 const WEEKDAY_SHORT = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -918,7 +922,7 @@ function readWindow(
 
 /** "this sat or sun", "next tues", "this Saturday or Sunday": the coming days, as dates. */
 const THIS_NEXT = new RegExp(
-  String.raw`\b(?:this|next|coming)\s+${WEEKDAY_WORD}\b(?:\s*(?:or|\/|&)\s*(?:(?:this|next)\s+)?${WEEKDAY_WORD}\b)?(?![,.]?\s+(?:the\s+)?\d)(?!\s+(?:morning|arvo|afternoon|night|evening)s?\b)`,
+  String.raw`\b(?:this|next|coming)\s+${WEEKDAY_WORD}\b(?:\s*(?:or|\/|&)\s*(?:(?:this|next)\s+)?${WEEKDAY_WORD}\b)?(?!\.?${DAY_OF_WEEKDAY})(?!\s+(?:morning|arvo|afternoon|night|evening)s?\b)`,
   "i",
 );
 

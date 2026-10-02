@@ -244,3 +244,85 @@ test("ALSO: the keys' day is their own, and 'every second week' / 'twice a month
   assert.equal(frequencyWord("every second week"), "fortnightly");
   assert.equal(frequencyIn("twice a month please"), "twice a month");
 });
+
+// ---------------------------------------------------------------------------
+// Round 2 of the PR #80 review
+// ---------------------------------------------------------------------------
+
+test("N4: a count after a weekday, or a bare number after a comma, is never its day of the month", () => {
+  const read = (msg: string) => {
+    const sweep = sweepDates(msg, WED);
+    const basics = readEnquiryBasics(msg, WED);
+    return {
+      days: sweep.days.map((d) => `${d.iso} ${d.span}`),
+      unread: sweep.unread,
+      job: basics.jobDate ? `${basics.jobDate.iso} ${basics.jobDate.span}` : "",
+    };
+  };
+  // Monday is ruled out ("If not"): nothing about it, and never "Monday, 3".
+  assert.deepEqual(read("Hi, is Saturday ok? If not Monday, 3 hour clean."), {
+    days: ["2026-10-03 Saturday"],
+    unread: [],
+    job: "2026-10-03 Saturday",
+  });
+  // "Monday 4 hours": the Monday, with four hours of work.
+  for (const msg of [
+    "regular clean Monday 4 hours please",
+    "Can you do Monday, 3 hours",
+    "Monday 3-hour clean please",
+    "Monday 2 bedroom unit",
+  ]) {
+    assert.deepEqual(
+      read(msg),
+      { days: ["2026-10-05 Monday"], unread: [], job: "2026-10-05 Monday" },
+      msg,
+    );
+  }
+  // Still a day of the month: a number of its own, or an ordinal after a comma.
+  assert.deepEqual(read("Monday 5th please").days, ["2026-10-05 Monday 5th"]);
+  assert.deepEqual(read("Monday the 5th please").days, ["2026-10-05 Monday the 5th"]);
+  assert.deepEqual(read("Monday, the 5th please").days, ["2026-10-05 Monday, the 5th"]);
+  assert.deepEqual(read("Monday 5 works").days, ["2026-10-05 Monday 5"]);
+  assert.deepEqual(read("next Thursday, 8th please").days, ["2026-10-08 Thursday, 8th"]);
+});
+
+test("N6: a month-first stretch is every day of it, like the day-first one", () => {
+  const days = (s: string) => sweepDates(s, WED).days.map((d) => [d.iso, d.to ?? ""]);
+  const across = [["2026-12-28", "2027-01-03"]];
+  assert.deepEqual(days("any day 28 December to 3 January works"), across);
+  assert.deepEqual(days("any day Dec 28 to Jan 3 works"), across);
+  assert.deepEqual(days("December 28th through January 3rd"), across);
+  assert.deepEqual(days("Dec 28 - Jan 3"), across);
+  // Inside one month.
+  assert.deepEqual(days("any day Dec 20 to 28"), [["2026-12-20", "2026-12-28"]]);
+  assert.deepEqual(days("Dec 20-28 please"), [["2026-12-20", "2026-12-28"]]);
+  assert.deepEqual(days("between Dec 20 and 28"), [["2026-12-20", "2026-12-28"]]);
+  // "and" without "between" is two days, never a stretch.
+  assert.ok(!days("Dec 20 and 28").some(([, to]) => to));
+});
+
+test("REG: a bare number with no $ and no money words is never money", () => {
+  const read = (s: string) => dollarMatches(s).map((m) => m.amount);
+  assert.deepEqual(read("If there are more windows, say 15, I'll adjust."), []);
+  assert.deepEqual(read("Say 12."), []);
+  assert.deepEqual(read("say 20 windows or so"), []);
+  // Said as a price, it is still money.
+  assert.deepEqual(read("Say 550 for the lot."), [550]);
+  assert.deepEqual(read("Let's say five hundred and fifty."), [550]);
+  assert.deepEqual(read("Call it 550."), [550]);
+});
+
+test("LOW: a 'jobs over' percentage under 1% or over 99% is refused, as the refusal says", () => {
+  for (const [line, why] of [
+    ["Jobs over $500 get 0.5% off", "A discount of 0.5% is less than 1% off."],
+    ["Jobs over $500 get 99.5% off", "A discount of 99.5% is more than 99% off."],
+  ] as const) {
+    const read = readBusinessDetails(line, WED);
+    assert.deepEqual(read.details, [], line);
+    assert.equal(read.unread.length, 1, line);
+    assert.equal(read.unread[0]?.reason, `${why} Write a percentage between 1 and 99.`, line);
+  }
+  // The ends of the bound stand.
+  assert.equal(readBusinessDetails("Jobs over $500 get 1% off", WED).details.length, 1);
+  assert.equal(readBusinessDetails("Jobs over $500 get 99% off", WED).details.length, 1);
+});

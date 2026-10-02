@@ -117,6 +117,11 @@ export type SweptCheck =
       week: boolean;
       /** For a week: its last day. */
       to?: string;
+      /**
+       * "next Sunday" said on a Saturday, with Sundays off: whichever day
+       * they mean is closed, so it is a closed day, never a question of which.
+       */
+      either?: [string, string];
     }
   | {
       kind: "unread";
@@ -187,6 +192,21 @@ export function sweptChecks(
   }
   for (const words of sweep.unread) {
     const either = sweep.either?.[words];
+    // Which of the two days they mean only matters when one could be worked.
+    if (either && either.every((iso) => closedReason(iso, ctx.closed))) {
+      // Already asked about as a closed day of its own ("next Sunday, the 4th").
+      if (out.some((c) => c.field === `${CLOSED_DAY_PREFIX}${either[0]}`)) continue;
+      out.push({
+        kind: "closed",
+        field: `${CLOSED_DAY_PREFIX}${either[0]}`,
+        iso: either[0],
+        span: words,
+        context: false,
+        week: false,
+        either,
+      });
+      continue;
+    }
     out.push({
       kind: "unread",
       field: `${DATE_CHECK_PREFIX}${words.toLowerCase()}`,
@@ -248,6 +268,16 @@ function sweptReply(
         continue;
       }
       const say = !c.week && (answer === CLOSED_DAY_CHOICE.notAvailable || (!answer && !c.context));
+      if (c.either) {
+        // Either day is closed: said by why ("I don't work Sundays") when the
+        // reason is the same for both, never by a day they may not mean.
+        const reasons = new Set(c.either.map((iso) => closedReason(iso, closedTimes)));
+        const reason = reasons.size === 1 ? [...reasons][0] : null;
+        for (const iso of c.either) {
+          closed.push({ iso, span: c.span, say, ...(reason ? { reason } : {}) });
+        }
+        continue;
+      }
       closed.push({ iso: c.iso, span: c.span, say });
       continue;
     }
