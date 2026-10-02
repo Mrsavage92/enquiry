@@ -48,11 +48,16 @@ export function foldable(decision: Decision): boolean {
   return coverage.flagged.every((f) => DESCRIPTIVE_FLAGS.has(f.kind) && !f.thing);
 }
 
-/** The scope lines of a priced reply: the total's sentence, its lines, what is left out. */
+/** A note that defers or excludes something they asked for: part of what the price leaves out. */
+const LEAVES_OUT = /\bcome back to you on\b|\bhaven't included\b|\bdon't do\b|\bnot included\b/i;
+
+/**
+ * The scope lines of a priced reply: the total's sentence, its lines, what is
+ * left out, and every note that says something they asked for is not in it.
+ */
 export function scopeLines(decision: Decision): string[] {
-  return priceBlock(decision)
-    .map((l) => l.trim())
-    .filter(Boolean);
+  const notes = (decision.replyNotes ?? []).filter((n) => LEAVES_OUT.test(n));
+  return [...priceBlock(decision), ...notes].map((l) => l.trim()).filter(Boolean);
 }
 
 /** The fold for this decision, or nothing when the owner's own tap is still needed. */

@@ -175,8 +175,7 @@ async function decide(
     }
     case "choose_service":
     case "confirm_service": {
-      const label =
-        opts.service ?? d.provisionalPrice?.service ?? d.conflicts[0] ?? e.serviceLabel;
+      const label = opts.service ?? d.provisionalPrice?.service ?? d.conflicts[0] ?? e.serviceLabel;
       assert.ok(label, "a service to name");
       await confirmService(pg, e.id, label);
       return `This is ${label}`;
