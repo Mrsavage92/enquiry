@@ -108,3 +108,45 @@ test("Story disclosure text meets AA against its own section ground", () => {
   const measured = (values[0]! + 0.05) / (values[1]! + 0.05);
   assert.ok(measured >= 4.5, `.story-disclosure on ${ground} measured ${measured.toFixed(2)}:1`);
 });
+
+/**
+ * The laser-focus enquiry screen (src/laser.css): every text and background
+ * pair it renders, measured from the shipped tokens. The verdict sits on the
+ * white summary, the one question on lavender, their message on paper, the
+ * reply's fresh-line mark on warn-bg; the reply box edge must clear 3:1.
+ */
+test("Laser screen text pairs meet AA and the reply edge meets 3:1", () => {
+  const laserCss = readFileSync(new URL("../laser.css", import.meta.url), "utf8");
+  const pairs: [string, string][] = [
+    // Verdict and send-line tones on the white summary and bar.
+    ["ok", "raised"],
+    ["warn", "raised"],
+    ["danger", "raised"],
+    ["ink", "raised"],
+    ["ink-2", "raised"],
+    ["stone", "raised"],
+    ["mark-strong", "raised"],
+    // The one question, on lavender.
+    ["ink", "reply"],
+    ["ink-2", "reply"],
+    ["mark-strong", "reply"],
+    // Their message, on paper.
+    ["ink", "paper"],
+    ["ink-2", "paper"],
+    ["mark-strong", "paper"],
+    // A changed line in the reply, on warn-bg.
+    ["ink", "warn-bg"],
+    // The checked option of the stale-edit toggle, and every filled button.
+    ["mark-fg", "mark"],
+    // A disabled button's label (exempt from 1.4.3, held to it anyway).
+    ["ink-2", "line-strong"],
+  ];
+  for (const [foreground, background] of pairs) {
+    assert.ok(laserCss.includes(`--color-${foreground}`) || foreground === "ink-2", foreground);
+    assert.ok(ratio(foreground, background) >= 4.5, `${foreground} on ${background}`);
+  }
+  for (const surface of ["raised", "reply", "paper"]) {
+    assert.ok(ratio("line-control", surface) >= 3, `Reply edge on ${surface}`);
+  }
+  assert.ok(laserCss.includes("border: 1px solid var(--color-line-control)"));
+});

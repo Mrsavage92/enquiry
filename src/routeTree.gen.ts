@@ -38,6 +38,7 @@ import { Route as AppUsageRouteImport } from './routes/_app/usage'
 import { Route as ApiStripeWebhookRouteImport } from './routes/api/stripe-webhook'
 import { Route as AuthCompleteRouteImport } from './routes/auth.complete'
 import { Route as BookBookingIdRouteImport } from './routes/book/$bookingId'
+import { Route as DevClipboardTestRouteImport } from './routes/dev.clipboard-test'
 import { Route as QEnquiryIdRouteImport } from './routes/q/$enquiryId'
 import { Route as AppEnquiriesIndexRouteImport } from './routes/_app/enquiries/index'
 import { Route as AppEnquiriesEnquiryIdRouteImport } from './routes/_app/enquiries/$enquiryId'
@@ -190,6 +191,11 @@ const BookBookingIdRoute = BookBookingIdRouteImport.update({
   path: '/book/$bookingId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const DevClipboardTestRoute = DevClipboardTestRouteImport.update({
+  id: '/dev/clipboard-test',
+  path: '/dev/clipboard-test',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const QEnquiryIdRoute = QEnquiryIdRouteImport.update({
   id: '/q/$enquiryId',
   path: '/q/$enquiryId',
@@ -255,6 +261,7 @@ export interface FileRoutesByFullPath {
   '/api/stripe-webhook': typeof ApiStripeWebhookRoute
   '/auth/complete': typeof AuthCompleteRoute
   '/book/$bookingId': typeof BookBookingIdRoute
+  '/dev/clipboard-test': typeof DevClipboardTestRoute
   '/q/$enquiryId': typeof QEnquiryIdRoute
   '/enquiries/$enquiryId': typeof AppEnquiriesEnquiryIdRoute
   '/trust/access': typeof AppTrustAccessRoute
@@ -290,6 +297,7 @@ export interface FileRoutesByTo {
   '/api/stripe-webhook': typeof ApiStripeWebhookRoute
   '/auth/complete': typeof AuthCompleteRoute
   '/book/$bookingId': typeof BookBookingIdRoute
+  '/dev/clipboard-test': typeof DevClipboardTestRoute
   '/q/$enquiryId': typeof QEnquiryIdRoute
   '/enquiries/$enquiryId': typeof AppEnquiriesEnquiryIdRoute
   '/trust/access': typeof AppTrustAccessRoute
@@ -329,6 +337,7 @@ export interface FileRoutesById {
   '/api/stripe-webhook': typeof ApiStripeWebhookRoute
   '/auth/complete': typeof AuthCompleteRoute
   '/book/$bookingId': typeof BookBookingIdRoute
+  '/dev/clipboard-test': typeof DevClipboardTestRoute
   '/q/$enquiryId': typeof QEnquiryIdRoute
   '/_app/enquiries/$enquiryId': typeof AppEnquiriesEnquiryIdRoute
   '/_app/trust/access': typeof AppTrustAccessRoute
@@ -368,6 +377,7 @@ export interface FileRouteTypes {
     | '/api/stripe-webhook'
     | '/auth/complete'
     | '/book/$bookingId'
+    | '/dev/clipboard-test'
     | '/q/$enquiryId'
     | '/enquiries/$enquiryId'
     | '/trust/access'
@@ -403,6 +413,7 @@ export interface FileRouteTypes {
     | '/api/stripe-webhook'
     | '/auth/complete'
     | '/book/$bookingId'
+    | '/dev/clipboard-test'
     | '/q/$enquiryId'
     | '/enquiries/$enquiryId'
     | '/trust/access'
@@ -441,6 +452,7 @@ export interface FileRouteTypes {
     | '/api/stripe-webhook'
     | '/auth/complete'
     | '/book/$bookingId'
+    | '/dev/clipboard-test'
     | '/q/$enquiryId'
     | '/_app/enquiries/$enquiryId'
     | '/_app/trust/access'
@@ -467,6 +479,7 @@ export interface RootRouteChildren {
   ApiStripeWebhookRoute: typeof ApiStripeWebhookRoute
   AuthCompleteRoute: typeof AuthCompleteRoute
   BookBookingIdRoute: typeof BookBookingIdRoute
+  DevClipboardTestRoute: typeof DevClipboardTestRoute
   QEnquiryIdRoute: typeof QEnquiryIdRoute
 }
 
@@ -675,6 +688,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof BookBookingIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/dev/clipboard-test': {
+      id: '/dev/clipboard-test'
+      path: '/dev/clipboard-test'
+      fullPath: '/dev/clipboard-test'
+      preLoaderRoute: typeof DevClipboardTestRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/q/$enquiryId': {
       id: '/q/$enquiryId'
       path: '/q/$enquiryId'
@@ -809,6 +829,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiStripeWebhookRoute: ApiStripeWebhookRoute,
   AuthCompleteRoute: AuthCompleteRoute,
   BookBookingIdRoute: BookBookingIdRoute,
+  DevClipboardTestRoute: DevClipboardTestRoute,
   QEnquiryIdRoute: QEnquiryIdRoute,
 }
 export const routeTree = rootRouteImport
