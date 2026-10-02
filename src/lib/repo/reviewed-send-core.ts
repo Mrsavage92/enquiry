@@ -222,17 +222,11 @@ function clauseAt(body: string, index: number, length: number): string {
   const at = body.lastIndexOf(sentence, index);
   const from = at === -1 ? 0 : index - at;
   const head = sentence.slice(0, from);
-  const cut = Math.max(
-    head.lastIndexOf(","),
-    head.lastIndexOf(";"),
-    head.search(/\band\s+(?!.*\band\b)/),
-  );
+  const last = [...head.matchAll(/[,;]|\b(?:and|but)\b/gi)].at(-1);
+  const start = last ? last.index + last[0].length : 0;
   const tail = sentence.slice(from + length);
-  const stop = tail.search(/[,;]|\band\b/);
-  return sentence
-    .slice(cut === -1 ? 0 : cut + 1, stop === -1 ? sentence.length : from + length + stop)
-    .replace(/^\s*(?:and|but)\s+/i, "")
-    .trim();
+  const stop = tail.search(/[,;]|\b(?:and|but)\b/i);
+  return sentence.slice(start, stop === -1 ? sentence.length : from + length + stop).trim();
 }
 
 export function mismatchAmounts(
