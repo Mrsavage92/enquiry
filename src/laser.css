@@ -450,7 +450,8 @@
   grid-template-columns: minmax(0, 1fr);
 }
 @media (min-width: 861px) {
+  /* The summary lines up with the centred column below it. */
   .laser-summary {
-    padding: 14px 16px 12px;
+    padding: 14px max(16px, calc((100% - 752px) / 2)) 12px;
   }
 }
