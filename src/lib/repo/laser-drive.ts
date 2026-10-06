@@ -110,6 +110,8 @@ async function decide(
       const value =
         typed(q.field) ?? (q.readAs === "no" ? QUESTION_ANSWER.no : QUESTION_ANSWER.yes);
       await answer(pg, "user-a", e.id, q.field, value);
+      if (value === QUESTION_ANSWER.no) return `No, I don't do ${q.thing}`;
+      if (value === QUESTION_ANSWER.yes) return `Yes, I do ${q.thing}`;
       return next.primary ?? value;
     }
     case "question_availability": {

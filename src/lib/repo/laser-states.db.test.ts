@@ -268,3 +268,47 @@ test("send refused: a changed total is refused before the tap; the fix brings Co
   assert.equal(r.steps[0]?.tap, "Use the prepared total");
   assert.match(r.body, /\$95/);
 });
+
+const PAINTER = [
+  "Bedroom repaint $450 per room",
+  "Hallway $380",
+  "Ceilings $150 per room",
+  "Exterior repaint $5500",
+];
+
+test("B1 decline: 'No, I don't do roof restoration' ends in a kind no, never 'which job are you after?'", async (t) => {
+  const { pg, a } = await shop(t, "painting", PAINTER);
+  const r = await run(
+    pg,
+    a.businessId,
+    "G'day, do you do roof restoration? Need the tiles redone before Christmas. Bob",
+    "",
+    { answers: { "question:roof restoration": "no" } },
+  );
+  check(t, "decline roof restoration", r, {
+    verdict: "Not yet - they asked if you do roof restoration",
+    primary: "Yes, I do roof restoration",
+    taps: 4,
+    decisions: 1,
+  });
+  assert.equal(r.steps[0]?.tap, "No, I don't do roof restoration");
+  assert.match(r.body, /Sorry, I don't do roof restoration\./);
+  assert.doesNotMatch(r.body, /which job|Let me check the details/i);
+  assert.ok(r.steps.some((s) => s.tap.endsWith("(opens the review panel)")));
+});
+
+test("B1 decline beside priced work: the No stays in the reply and the hallway keeps its price", async (t) => {
+  const { pg, a } = await shop(t, "painting", PAINTER);
+  const r = await run(
+    pg,
+    a.businessId,
+    "Hi, do you do roof restoration? Also need the hallway painted. Bob",
+    "Hallway",
+    { answers: { "question:roof restoration": "no" } },
+  );
+  t.diagnostic(r.body);
+  assert.match(r.body, /Sorry, I don't do roof restoration\./);
+  assert.match(r.body, /\$380/);
+  assert.doesNotMatch(r.body, /which job/i);
+  assert.equal(r.taps, r.decisions + 2);
+});

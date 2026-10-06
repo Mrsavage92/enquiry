@@ -599,9 +599,13 @@ export function noLine(thing: string, details: readonly BusinessDetail[]): strin
 /** Hello, thanks and a name: never content of their own. */
 const PLEASANTRY =
   /^(?:hi|hello|hey|g'?day|morning|thanks|thank you|thx|cheers|regards|kind regards|ta)\b/i;
-/** Words that ask for more than the question: "also", "if so", "as well", "quote". */
-const ASKS_MORE =
-  /\b(?:also|as well|if so|too|quote|price|cost|can you|could you|would you|do you|please|pls|need|needs|want|keen|after|looking|book)\b/i;
+/**
+ * Words that ask for something beside the question: "also", "as well", "too",
+ * "plus". Words that only say more about the thing itself ("Need the tiles
+ * redone before Christmas", "can you quote?") are not: once the owner says
+ * they don't do it, a "which job?" about it would ignore their No.
+ */
+const ASKS_MORE = /\b(?:also|as well|too|plus|another|other)\b/i;
 /** Filler that says nothing more: "Just the front fence and the eaves." is three things about it. */
 const FILLER = new Set(["just", "the", "a", "an", "and", "only", "my", "our", "of", "its", "it's"]);
 
@@ -649,7 +653,7 @@ function onlyTheQuestions(
     if (/^[A-Z][a-z]+(?:\s+[A-Z][a-z]+)?$/.test(words)) continue;
     if (ASKS_MORE.test(words) || mentionsAny(words, serviceStems)) return false;
     const meaningful = words.split(/\s+/).filter((w) => !FILLER.has(w.toLowerCase()));
-    if (meaningful.length > 6) return false;
+    if (meaningful.length > 12) return false;
   }
   return true;
 }
