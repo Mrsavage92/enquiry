@@ -5,7 +5,6 @@ import { ForbiddenError, requireEnquiryAccess } from "./tenancy.server.ts";
 import { confirmCoverageForUser } from "./coverage-core.ts";
 import { toEnquiry, type EnquiryRow } from "./rows.ts";
 import { promiseVerdict } from "../../domain/labels.ts";
-import { INSURANCE_AS_ANSWER } from "./reviewed-send-core.ts";
 import {
   WED_30_SEP,
   answer,
@@ -459,15 +458,18 @@ test("round 2 (M1/M2): a cover figure goes out as the owner's own answer, as wri
   );
   // Edited, the sentence is no longer the owner's answer; the same $20m
   // anywhere else is a figure like any other (review M2).
+  const COVER =
+    "Your saved insurance answer says $20,000,000. Use that figure, or change your saved answer first.";
   for (const [edited, message] of [
-    [body.replace("cover $20m.", "cover $25m."), INSURANCE_AS_ANSWER],
+    [body.replace("cover $20m.", "cover $25m."), COVER],
     [`${body}\n\nBridal makeup plus travel, all up $20m.`, null],
+    // Pass 12: the owner used the saved figure; the clause that prices it is the problem.
     [
       body.replace(
         "We have public liability cover $20m.",
         "We're insured for $20m, and the total is $20m.",
       ),
-      INSURANCE_AS_ANSWER,
+      '"the total is $20m" says your insurance figure is a price. The quote Enquiry worked out is $90: take that out, or use the prepared total.',
     ],
   ] as const) {
     const res = await sendAs(pg, a.businessId, e.enquiryId, edited);

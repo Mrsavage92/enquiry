@@ -2,6 +2,8 @@ import type { Sql } from "../db.ts";
 import type { Channel, EvaluatorResult, LineItem } from "../../domain/types.ts";
 import { channelLabel } from "../../domain/channel.ts";
 import { isClosed } from "./decision-apply.ts";
+import { ownerEditWarnings, warningsKey } from "../../domain/edit-warnings.ts";
+import { businessFacts } from "./reviewed-send-core.ts";
 
 /**
  * Recording a real send, as pure SQL logic - deliberately separate from
@@ -44,14 +46,24 @@ export type ConfirmReviewedSendInput = {
    * without advancing the newer decision. Absent, a stale artefact is refused.
    */
   staleAttestation?: boolean;
+  /**
+   * The owner tapped "Send anyway" over the "Check this before you send"
+   * list: the `warningsKey` of the list they saw. Without it, or with the key
+   * of a different list, a reply with something to check is not recorded.
+   */
+  acknowledgedWarnings?: string;
+  /** The clock the owner's days are read against; injected in tests. */
+  now?: Date;
 };
 
 export type ConfirmReviewedSendResult =
   | { ok: true; duplicate: boolean; stale: boolean; messageId: string | null }
   | {
       ok: false;
-      reason: "missing" | "stale" | "closed";
+      reason: "missing" | "stale" | "closed" | "warnings";
       message: string;
+      /** For `warnings`: what to check before sending. */
+      warnings?: string[];
       /** The revision the artefact was prepared against, and the current one. */
       reviewedRevision?: number;
       currentRevision?: number;
@@ -154,6 +166,7 @@ type ReviewedSendRow = {
   engine_version: string;
   consumed_at: string | null;
   consumed_message_id: string | null;
+  draft_body: string | null;
 };
 
 const asNumber = (v: string | number | null): number | null =>
@@ -258,6 +271,29 @@ export async function confirmReviewedSendInTransaction(
       ok: false,
       reason: "closed",
       message: "That enquiry is closed. Reopen it before recording a send.",
+    };
+  }
+
+  // What the owner wrote that the app cannot vouch for is theirs to send -
+  // once they have seen it. Worked out again here, never taken from the
+  // client, against the prepared reply this text was reviewed against (an
+  // older message already sent was written over an older prepared reply).
+  const [snap] = await sql<{ draft: string | null }>`
+    select decision_snapshot -> 'draft' ->> 'body' as draft from enquiry where id = ${input.enquiryId}
+  `;
+  const facts = await businessFacts(sql, input.businessId);
+  const warnings = ownerEditWarnings(reviewed.body, reviewed.draft_body ?? snap?.draft ?? "", {
+    closed: facts.closed,
+    ...(input.now ? { now: input.now } : {}),
+  });
+  // "Send anyway" counts only for the list the owner saw: one that grew since
+  // (a closed day saved in another tab) is shown again, never sent past.
+  if (warnings.length > 0 && input.acknowledgedWarnings !== warningsKey(warnings)) {
+    return {
+      ok: false,
+      reason: "warnings",
+      message: "Check what you wrote before you send it.",
+      warnings,
     };
   }
 
@@ -427,7 +463,9 @@ export async function confirmReviewedSendInTransaction(
       },
       ${`Reason: ${reviewed.reason || "no reason recorded"}. Reviewed revision: ${reviewedRevision}.${
         stale ? ` Current revision: ${currentRevision}. The newer decision was left unchanged.` : ""
-      }${closed ? " The enquiry is closed and was not reopened." : ""}`},
+      }${closed ? " The enquiry is closed and was not reopened." : ""}${
+        warnings.length ? ` Sent anyway after checking: ${warnings.join(" ")}` : ""
+      }`},
       ${"enquiry"}, ${input.enquiryId}
     )
   `;

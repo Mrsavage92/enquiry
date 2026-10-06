@@ -112,8 +112,14 @@ export function FactRow({
       </p>
       <p className="mt-1.5 text-xs text-stone">
         {factSourceWords(item.source.label)}
-        {since ? ` · ${since}` : ""}
-        {item.stale ? " · last checked a while ago" : ""}
+        {/* A concrete day, never "a while ago": the owner can tell how old it is. */}
+        {item.stale
+          ? since
+            ? ` · not checked since ${since}`
+            : " · due for a check"
+          : since
+            ? ` · ${since}`
+            : ""}
       </p>
       <div className="mt-1 flex flex-wrap gap-x-4">
         <button

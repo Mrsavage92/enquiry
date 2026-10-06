@@ -76,8 +76,8 @@ export function useDraftSaver() {
   }, [demoMode]);
 
   return useCallback(
-    (enquiryId: string, body: string) => {
-      editDraft(enquiryId, body);
+    (enquiryId: string, body: string, base?: string) => {
+      editDraft(enquiryId, body, base);
       if (demoMode) return;
       unsavedDraftIds.add(enquiryId);
       useDraftSaveState.getState().set(enquiryId, "saving");
