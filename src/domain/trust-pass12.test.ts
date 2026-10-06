@@ -304,7 +304,7 @@ test("N6: a month-first stretch is every day of it, like the day-first one", () 
 test("REG: a bare number with no $ and no money words is never money", () => {
   const read = (s: string) => dollarMatches(s).map((m) => m.amount);
   assert.deepEqual(read("If there are more windows, say 15, I'll adjust."), []);
-  assert.deepEqual(read("Say 12."), []);
+  assert.deepEqual(read("We do all sizes, say 12, 15 or 20 windows."), []);
   assert.deepEqual(read("say 20 windows or so"), []);
   // Said as a price, it is still money.
   assert.deepEqual(read("Say 550 for the lot."), [550]);
@@ -325,4 +325,18 @@ test("LOW: a 'jobs over' percentage under 1% or over 99% is refused, as the refu
   // The ends of the bound stand.
   assert.equal(readBusinessDetails("Jobs over $500 get 1% off", WED).details.length, 1);
   assert.equal(readBusinessDetails("Jobs over $500 get 99% off", WED).details.length, 1);
+});
+
+test("R3-H2: only the for-example 'say' is a count: every other 'say 400' is money", () => {
+  const read = (s: string) => dollarMatches(s).map((m) => m.amount);
+  for (const said of [
+    "Say 400.",
+    "Say 400 then.",
+    "Ok, say 400 and we're done.",
+    "Since you asked, say 400 and we're good.",
+  ]) {
+    assert.deepEqual(read(said), [400], said);
+  }
+  assert.deepEqual(read("If there are more windows, say 15, I'll adjust."), []);
+  assert.deepEqual(read("say 15 windows or so"), []);
 });

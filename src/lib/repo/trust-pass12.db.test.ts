@@ -820,3 +820,18 @@ test("R3-H1: a discount's amount never stands as another line's price, and neith
   );
   assert.equal(!res.ok && res.reason, "amount_mismatch", JSON.stringify(res));
 });
+
+test("R3-H2: 'Say 400.' on a $450 quote is refused; 'say 15,' as an example still sends", async (t) => {
+  const big = await preparedReply(t, BIG_OFF, JO_ALL, "Oven clean", /over \$600/);
+  for (const said of [
+    "Say 400.",
+    "Say 400 then.",
+    "Ok, say 400 and we're done.",
+    "Since you asked, say 400 and we're good.",
+  ]) {
+    const res = await big.tryBody(big.add(said));
+    assert.equal(!res.ok && res.reason, "amount_mismatch", `${said}: ${JSON.stringify(res)}`);
+  }
+  const example = await big.tryBody(big.add("If there are more windows, say 15, I'll adjust."));
+  assert.equal(example.ok, true, JSON.stringify(example));
+});
