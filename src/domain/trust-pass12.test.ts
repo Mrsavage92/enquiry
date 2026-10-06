@@ -340,3 +340,22 @@ test("R3-H2: only the for-example 'say' is a count: every other 'say 400' is mon
   assert.deepEqual(read("If there are more windows, say 15, I'll adjust."), []);
   assert.deepEqual(read("say 15 windows or so"), []);
 });
+
+test("R3-LOW: 'Saturday, 17' is the 17th when the 17th is a Saturday, and asked about when it is not", () => {
+  const sat = sweepDates("Hi, Saturday, 17 if you can", WED);
+  assert.deepEqual(
+    sat.days.map((d) => `${d.iso} ${d.span}`),
+    ["2026-10-17 Saturday, 17"],
+  );
+  assert.equal(readEnquiryBasics("Hi, Saturday, 17 if you can", WED).jobDate?.iso, "2026-10-17");
+  // 3 October is a Saturday: "Monday, 3" is never moved to another month, it is asked.
+  const mon = sweepDates("Monday, 3 please", WED);
+  assert.deepEqual(mon.days, []);
+  assert.deepEqual(mon.unread, ["Monday, 3"]);
+  assert.equal(readEnquiryBasics("Monday, 3 please", WED).jobDate, undefined);
+  // A count after the comma is still no day at all.
+  assert.deepEqual(
+    sweepDates("Can you do Monday, 3 hours", WED).days.map((d) => d.iso),
+    ["2026-10-05"],
+  );
+});

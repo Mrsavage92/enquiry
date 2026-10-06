@@ -131,10 +131,28 @@ const NUMERIC = /\b(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?\b/g;
 export const COUNT_AFTER = String.raw`\s*-?\s*(?:hours?|hrs?|h\b|mins?|minutes?|rooms?|bed|bath|br\b|bd\b|window|door|sq|m2|metre|meter|people|persons?|ppl|guests|kids|adults|stor(?:ey|y|ies|eys)\b|levels?|floors?|weeks?|days?|nights?|items?|loads?|x\b|am\b|pm\b|a\.m|p\.m|o'?clock|[:.]\d)`;
 /**
  * Between a weekday and its day of the month: "Monday 3", "Monday the 3rd",
- * "Monday, the 3rd", "Monday, 3rd". Never a bare number after a comma
- * ("If not Monday, 3 hour clean"): that is a new thought, not a date.
+ * "Monday, the 3rd", "Monday, 3rd", "Saturday, 17". A bare number after a
+ * comma is the day only when that date falls on the weekday said (see
+ * `commaDay`): "If not Monday, 3" is a new thought, not 3 October.
  */
-export const WEEKDAY_TO_DAY = String.raw`(?:,?\s+the\s+|\s+|,\s*(?=\d{1,2}(?:st|nd|rd|th)\b))`;
+export const WEEKDAY_TO_DAY = String.raw`(?:,?\s+the\s+|\s+|,\s*)`;
+
+/** "Saturday, 17": a weekday, a comma and a bare number, no "the" or "17th". */
+export function isCommaDay(words: string): boolean {
+  return /,\s*\d{1,2}\s*$/.test(words.replace(/[^\w\s,]+$/, "").trimEnd());
+}
+
+/**
+ * The day "Saturday, 17" means: the next 17th, when it is a Saturday.
+ * Otherwise none: the words are asked about, never moved to another month.
+ */
+export function commaDay(day: number, weekday: number, today: Date): Date | undefined {
+  for (let i = 0; i <= 31; i += 1) {
+    const d = new Date(today.getFullYear(), today.getMonth(), today.getDate() + i);
+    if (d.getDate() === day) return d.getDay() === weekday ? d : undefined;
+  }
+  return undefined;
+}
 /** A weekday's own day of the month just after it, for a lookahead. */
 export const DAY_OF_WEEKDAY = String.raw`${WEEKDAY_TO_DAY}\d{1,2}(?:st|nd|rd|th)?\b(?!${COUNT_AFTER})`;
 const WEEKDAY_ORDINAL = new RegExp(
@@ -450,8 +468,8 @@ function collect(text: string, today: Date): Token[] {
   for (const m of text.matchAll(WEEKDAY_ORDINAL)) {
     const weekday = weekdayIndex(m[1]!);
     const day = Number(m[2]);
-    let date: Date | undefined;
-    for (let i = 0; i <= 62 && !date; i += 1) {
+    let date: Date | undefined = isCommaDay(m[0]) ? commaDay(day, weekday, today) : undefined;
+    for (let i = 0; i <= 62 && !date && !isCommaDay(m[0]); i += 1) {
       const d = plusDays(today, i);
       if (d.getDate() === day && d.getDay() === weekday) date = d;
     }

@@ -1,6 +1,13 @@
 import { format } from "date-fns";
 import { enAU } from "date-fns/locale";
-import { COUNT_AFTER, DAY_OF_WEEKDAY, WEEKDAY_TO_DAY, readWeekdayWord } from "./date-sweep.ts";
+import {
+  COUNT_AFTER,
+  DAY_OF_WEEKDAY,
+  WEEKDAY_TO_DAY,
+  commaDay,
+  isCommaDay,
+  readWeekdayWord,
+} from "./date-sweep.ts";
 import { wallNow } from "./format";
 
 /**
@@ -289,6 +296,8 @@ type DateHit = {
   option?: { day: number; weekday?: number };
   /** "Sunday 4th? or 20/10": a second day offered in its own words, the fallback. */
   alt?: DateHit;
+  /** "Saturday, 17": the next 17th only, and only when it is that weekday. */
+  commaDay?: true;
 };
 
 const WEEKDAY_WORD = String.raw`(mon(?:day)?|tue(?:s(?:day)?)?|wed(?:nesday)?|thu(?:r(?:s(?:day)?)?)?|fri(?:day)?|sat(?:urday)?|sun(?:day)?)`;
@@ -433,7 +442,14 @@ function monthlessHits(text: string, skip: Set<number> = new Set()): DateHit[] {
   for (const m of text.matchAll(WEEKDAY_DAY)) {
     const weekday = weekdayIndex(m[1]!);
     if (weekday === undefined) continue;
-    hits.push({ index: m.index ?? 0, length: m[0].length, day: Number(m[2]), month: -1, weekday });
+    hits.push({
+      index: m.index ?? 0,
+      length: m[0].length,
+      day: Number(m[2]),
+      month: -1,
+      weekday,
+      ...(isCommaDay(m[0]) ? { commaDay: true as const } : {}),
+    });
   }
   for (const m of text.matchAll(WEEKDAY_ALONE)) {
     const weekday = weekdayIndex(m[1]!);
@@ -547,6 +563,10 @@ function resolveMonthless(hit: DateHit, today: Date): Resolved {
   if (hit.day === 0) {
     const read = readWeekdayWord("bare", hit.weekday!, start);
     if ("date" in read) return { kind: "date", date: read.date };
+  }
+  if (hit.commaDay) {
+    const date = commaDay(hit.day, hit.weekday!, start);
+    return date ? { kind: "date", date } : { kind: "invalid" };
   }
   for (let i = 0; i <= 62; i += 1) {
     const d = new Date(start.getFullYear(), start.getMonth(), start.getDate() + i);

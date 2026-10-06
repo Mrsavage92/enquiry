@@ -853,3 +853,20 @@ test("R3-M: honest explanations of a 'jobs over' discount send, in the owner's o
     assert.equal(!res.ok && res.reason, "amount_mismatch", `${said}: ${JSON.stringify(res)}`);
   }
 });
+
+test("R3-LOW: 'Saturday, 17' in the reply is Saturday 17 October, never Saturday 3 October", async (t) => {
+  const { pg, a } = await setup(t);
+  const e = await enquiry(
+    pg,
+    a.businessId,
+    "Hi, oven clean please, Saturday, 17 if you can. Thanks, Al",
+    "Oven clean",
+  );
+  assert.equal((await row(pg, e.enquiryId)).date_label, "Sat 17 Oct");
+  const { body, sent } = await settleAndSend(pg, a.businessId, e.enquiryId, {}, [
+    [/surcharge|weekend/i, "apply"],
+  ]);
+  assert.equal(sent.ok, true, JSON.stringify(sent));
+  assert.match(body, /Saturday 17 October/);
+  assert.doesNotMatch(body, /3 October/);
+});
