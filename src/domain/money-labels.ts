@@ -50,8 +50,42 @@ function distinctive(lines: readonly QuoteLineAmount[]): Map<string, Set<string>
   );
 }
 
-/** Words that say a figure is the amount taken off: a discount line's own. */
-const DISCOUNT_WORDS = new Set(stemsOf("discount discounted off less minus saving"));
+/**
+ * The lines a sentence or bullet names by their own words. Only priced lines
+ * have names: a discount line ("$300 off jobs over $600") has none, so its
+ * words ("off", "over") never vouch for anything.
+ */
+function namedLines(sentence: string, lines: readonly QuoteLineAmount[]): QuoteLineAmount[] {
+  const priced = lines.filter((l) => l.amountMinor > 0);
+  const words = distinctive(priced);
+  const said = new Set(stemsOf(sentence));
+  return priced.filter((l) => [...(words.get(l.label) ?? [])].some((s) => said.has(s)));
+}
+
+/**
+ * A sentence or bullet about one line, or some of them: never the place for a
+ * figure of the whole quote (the amount off, the subtotal). Naming none of
+ * the lines, or every one of them, is about the whole quote.
+ */
+function aboutSomeLines(
+  named: readonly QuoteLineAmount[],
+  lines: readonly QuoteLineAmount[],
+): boolean {
+  return named.length > 0 && named.length < lines.filter((l) => l.amountMinor > 0).length;
+}
+
+/** "-$300", "less $300", "minus $300", "save $300", "discount of $300". */
+const AMOUNT_OFF_BEFORE = /(?:[-−]|\b(?:less|minus|save|saving|discount\s+of)\s*)$/i;
+/** "$300 off", "$300 comes off", "$300 discount". */
+const AMOUNT_OFF_AFTER = /^\s*(?:(?:comes?\s+)?off\b|discount\b)/i;
+
+/** A figure written as an amount taken off, right beside it. */
+function saidAsAmountOff(body: string, m: DollarMatch): boolean {
+  return (
+    AMOUNT_OFF_BEFORE.test(body.slice(Math.max(0, m.index - 14), m.index)) ||
+    AMOUNT_OFF_AFTER.test(body.slice(m.index + m.raw.length, m.index + m.raw.length + 16))
+  );
+}
 
 /** Every sentence of a text, as `sentenceAt` cuts them, trimmed. */
 function sentencesOf(text: string): Set<string> {
@@ -96,15 +130,16 @@ export function standsAsQuoted(
   if (governed) return false;
   if (quote.totals.includes(amount)) return true;
   // A line's amount: said as that line. A discount line ("$300 off jobs over
-  // $600: -$300") is its amount off.
+  // $600: -$300") has no name: its amount stands only written as an amount
+  // off right beside it, and never in a sentence or bullet about other lines
+  // ("- Oven clean: $300 (takes over 3 hours)" is the oven's price).
   const own = quote.lines.filter((l) => Math.abs(l.amountMinor) === amount);
   if (own.length === 0) return standsInOwnWords(body, m, amount, sentence, quote);
-  const words = distinctive(quote.lines);
-  const said = new Set(stemsOf(sentence));
-  return own.some(
-    (l) =>
-      [...(words.get(l.label) ?? [])].some((s) => said.has(s)) ||
-      (l.amountMinor < 0 && [...said].some((s) => DISCOUNT_WORDS.has(s))),
+  const named = namedLines(sentence, quote.lines);
+  return own.some((l) =>
+    l.amountMinor > 0
+      ? named.includes(l)
+      : saidAsAmountOff(body, m) && !aboutSomeLines(named, quote.lines),
   );
 }
 
@@ -150,8 +185,18 @@ function standsInOwnWords(
     ...sentencesOf(quote.draft),
     ...quote.lines.flatMap((l) => [l.label, l.detail ?? ""]),
   ].filter(Boolean);
+  // On a bullet or sentence about one line, only that line's own figures: the
+  // threshold is the discount's ("- Oven clean: jobs over $600" is not), and a
+  // rate is the line whose workings say it.
+  const named = namedLines(sentence, quote.lines);
+  const owners = quote.lines.filter((l) =>
+    [l.label, l.detail ?? ""].some((t) =>
+      dollarMatches(t).some((h) => Math.round(h.amount * 100) === amount),
+    ),
+  );
+  const onItsLine = !aboutSomeLines(named, quote.lines) || named.every((l) => owners.includes(l));
   const rate = saidAsRate(body, m.index, m.raw.length);
-  for (const home of homes) {
+  for (const home of onItsLine ? homes : []) {
     for (const h of dollarMatches(home)) {
       if (h.foreign || Math.round(h.amount * 100) !== amount) continue;
       if (rate && saidAsRate(home, h.index, h.raw.length)) return true;
@@ -169,7 +214,10 @@ function standsInOwnWords(
   const subtotal = quote.lines
     .filter((l) => l.amountMinor > 0)
     .reduce((sum, l) => sum + l.amountMinor, 0);
-  if (amount !== subtotal) return false;
+  // The subtotal is the whole quote's: never on a bullet or sentence about one line.
+  if (amount !== subtotal || aboutSomeLines(namedLines(sentence, quote.lines), quote.lines)) {
+    return false;
+  }
   return (
     SUBTOTAL_BEFORE.test(body.slice(from, m.index)) ||
     SUBTOTAL_AFTER.test(body.slice(m.index + m.raw.length))

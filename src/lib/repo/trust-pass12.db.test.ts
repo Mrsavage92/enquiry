@@ -743,3 +743,80 @@ test("OPS: reviewed_send has row level security on, like every other table", asy
     [],
   );
 });
+
+// ---------------------------------------------------------------------------
+// Round 3 of the PR #80 review, through the send path
+// ---------------------------------------------------------------------------
+
+const JO_ALL = "Hi, can you quote an oven clean, a fridge clean and the inside windows? Thanks, Jo";
+
+async function preparedReply(
+  t: { after: (fn: () => Promise<void>) => void },
+  business: string,
+  message: string,
+  service: string,
+  over: RegExp,
+) {
+  const { pg, a } = await setup(t, business);
+  const e = await enquiry(pg, a.businessId, message, service);
+  const { body, sent } = await settleAndSend(pg, a.businessId, e.enquiryId, {}, [[over, "apply"]]);
+  assert.equal(sent.ok, true, JSON.stringify(sent));
+  const tryBody = (text: string) => sendAs(pg, a.businessId, e.enquiryId, text);
+  const add = (said: string) => body.replace("\n\nThanks,", `\n\n${said}\n\nThanks,`);
+  return { body, tryBody, add };
+}
+
+test("R3-H1: a discount's amount never stands as another line's price, and neither does the subtotal", async (t) => {
+  const big = await preparedReply(t, BIG_OFF, JO_ALL, "Oven clean", /over \$600/);
+  const refused: string[] = [
+    big.body.replace("- Oven clean: $250", "- Oven clean: $300 (takes over 3 hours)"),
+    big.add("Oven clean is $300 as it is over the standard size."),
+    big.body.replace("- Oven clean: $250", "- Oven clean: $750 before the discount"),
+    big.body.replace("- Oven clean: $250", "- Oven clean subtotal: $750"),
+    big.body.replace("- Oven clean: $250", "- Oven clean: jobs over $600"),
+  ];
+  for (const text of refused) {
+    const res = await big.tryBody(text);
+    assert.equal(!res.ok && res.reason, "amount_mismatch", `${text}\n${JSON.stringify(res)}`);
+  }
+  // Written as the amount off, about the whole quote, it stands.
+  for (const said of ["Less $300 for jobs over $600.", "That's $750 before the discount."]) {
+    const res = await big.tryBody(big.add(said));
+    assert.equal(res.ok, true, `${said}: ${JSON.stringify(res)}`);
+  }
+
+  // A percentage discount: -$58 on a $580 job.
+  const pct = await preparedReply(
+    t,
+    [...CLEANING.split("\n"), "Jobs over $500 get 10% off"].join("\n"),
+    MEL,
+    "End of lease clean 3 bedroom",
+    /over \$500/,
+  );
+  for (const text of [
+    pct.body.replace("- Oven clean: $60", "- Oven clean: $58, takes over an hour"),
+    pct.body.replace("- Oven clean: $60", "- Oven clean: $580 before discount"),
+  ]) {
+    const res = await pct.tryBody(text);
+    assert.equal(!res.ok && res.reason, "amount_mismatch", `${text}\n${JSON.stringify(res)}`);
+  }
+
+  // The amount off is the fridge's price too: never the windows'.
+  const clash = await preparedReply(
+    t,
+    [
+      "Oven clean $250",
+      "Fridge clean $40",
+      "Inside windows $110",
+      "Jobs over $300 get 10% off",
+    ].join("\n"),
+    JO_ALL,
+    "Oven clean",
+    /over \$300/,
+  );
+  assert.match(clash.body, /: -\$40/);
+  const res = await clash.tryBody(
+    clash.body.replace("- Inside windows: $110", "- Inside windows: $40, a bit less this time"),
+  );
+  assert.equal(!res.ok && res.reason, "amount_mismatch", JSON.stringify(res));
+});
