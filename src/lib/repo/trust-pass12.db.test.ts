@@ -835,3 +835,21 @@ test("R3-H2: 'Say 400.' on a $450 quote is refused; 'say 15,' as an example stil
   const example = await big.tryBody(big.add("If there are more windows, say 15, I'll adjust."));
   assert.equal(example.ok, true, JSON.stringify(example));
 });
+
+test("R3-M: honest explanations of a 'jobs over' discount send, in the owner's own words", async (t) => {
+  const big = await preparedReply(t, BIG_OFF, JO_ALL, "Oven clean", /over \$600/);
+  for (const said of [
+    "Because the job is over $600, you get $300 off.",
+    "Any job over $600 gets $300 off.",
+    "Any jobs over $600 get $300 off.",
+    "The oven, fridge and windows come to $750, less $300 for jobs over $600.",
+  ]) {
+    const res = await big.tryBody(big.add(said));
+    assert.equal(res.ok, true, `${said}: ${JSON.stringify(res)}`);
+  }
+  // The same figures about one line are still refused.
+  for (const said of ["The oven alone is over $600.", "The oven comes to $750."]) {
+    const res = await big.tryBody(big.add(said));
+    assert.equal(!res.ok && res.reason, "amount_mismatch", `${said}: ${JSON.stringify(res)}`);
+  }
+});

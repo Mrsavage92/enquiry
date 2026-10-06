@@ -148,6 +148,23 @@ function lettersOf(text: string): string[] {
   return text.toLowerCase().match(/[a-z]+(?:'[a-z]+)?/g) ?? [];
 }
 
+/** "jobs" and "job" are one word when a figure's own wording is compared. */
+function oneForm(word: string): string {
+  return word.length > 3 && word.endsWith("s") ? word.slice(0, -1) : word;
+}
+
+/**
+ * Whether a figure is said in its own wording: the word just before it is the
+ * home's ("over $600"), and the home's word before that ("jobs") is in the
+ * sentence too ("Because the job is over $600", "Any job over $600").
+ */
+function saidInWording(head: readonly string[], before: readonly string[]): boolean {
+  const said = head.map(oneForm);
+  const want = before.map(oneForm);
+  if (said.at(-1) !== want.at(-1)) return false;
+  return want.slice(0, -1).every((w) => said.slice(0, -1).includes(w));
+}
+
 /** A rate said as a rate: "at $30", "$30 each", "$45 an hour", "$8 per window". */
 function saidAsRate(text: string, index: number, length: number): boolean {
   const before = text.slice(Math.max(0, index - 6), index);
@@ -157,8 +174,12 @@ function saidAsRate(text: string, index: number, length: number): boolean {
   );
 }
 
-/** A subtotal label just before the figure: "Subtotal $750", "sub-total: $750". */
-const SUBTOTAL_BEFORE = /\bsub[\s-]?total\s*(?:is|of|was)?\s*[:=-]?\s*$/i;
+/**
+ * A subtotal label just before the figure: "Subtotal $750", "sub-total: $750",
+ * "The oven, fridge and windows come to $750".
+ */
+const SUBTOTAL_BEFORE =
+  /(?:\bsub[\s-]?total\s*(?:is|of|was)?\s*[:=-]?|\b(?:comes?|came)\s+to)\s*$/i;
 /** Or just after it: "$750 before the discount", "$750 subtotal". */
 const SUBTOTAL_AFTER = /^\s*(?:sub[\s-]?total|before\s+(?:the\s+|any\s+)?discounts?)\b/i;
 
@@ -202,7 +223,7 @@ function standsInOwnWords(
       if (rate && saidAsRate(home, h.index, h.raw.length)) return true;
       const before = lettersOf(home.slice(0, h.index)).slice(-2);
       if (before.length > 0) {
-        if (head.slice(-before.length).join(" ") === before.join(" ")) return true;
+        if (saidInWording(head, before)) return true;
         continue;
       }
       const after = lettersOf(home.slice(h.index + h.raw.length)).slice(0, 2);
