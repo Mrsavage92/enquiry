@@ -84,9 +84,7 @@ export function SituationCard({
           <Icon className="mt-0.5 size-4 shrink-0" aria-hidden />
           {situation.title}
         </p>
-        {compact ? null : (
-          <p className="mt-1.5 text-sm leading-relaxed text-ink-2">{situation.body}</p>
-        )}
+        {compact ? null : <p className="mt-1.5 text-sm leading-relaxed text-ink-2">{situation.body}</p>}
       </div>
 
       {situation.kind === "check_this" && situation.fact?.alternatives?.length ? (
@@ -96,7 +94,9 @@ export function SituationCard({
               key={a}
               variant="secondary"
               className="h-auto min-h-12 w-full justify-start py-2.5 text-left"
-              onClick={() => void chooseAlternative(situation.fact!.id, situation.fact!.field, a)}
+              onClick={() =>
+                void chooseAlternative(situation.fact!.id, situation.fact!.field, a)
+              }
             >
               {alternativeLabel(a)}
             </Button>
@@ -128,11 +128,7 @@ export function SituationCard({
           <Button className="min-h-12 w-full" onClick={() => resolveDuplicate(enquiry.id, "merge")}>
             Add to existing enquiry
           </Button>
-          <Button
-            className="min-h-12 w-full"
-            variant="secondary"
-            onClick={() => resolveDuplicate(enquiry.id, "separate")}
-          >
+          <Button className="min-h-12 w-full" variant="secondary" onClick={() => resolveDuplicate(enquiry.id, "separate")}>
             Separate enquiry
           </Button>
         </div>
@@ -143,11 +139,7 @@ export function SituationCard({
           <Button className="min-h-12 w-full" onClick={() => reconnect(enquiry.id)}>
             Reconnect calendar
           </Button>
-          <Button
-            className="min-h-12 w-full"
-            variant="secondary"
-            onClick={() => continueWithout(enquiry.id)}
-          >
+          <Button className="min-h-12 w-full" variant="secondary" onClick={() => continueWithout(enquiry.id)}>
             Continue without availability
           </Button>
         </div>
@@ -158,11 +150,7 @@ export function SituationCard({
           <Button className="min-h-12 w-full" onClick={() => inviteToDm(enquiry.id)}>
             Invite them to message
           </Button>
-          <Button
-            className="min-h-12 w-full"
-            variant="secondary"
-            onClick={() => markLost(enquiry.id)}
-          >
+          <Button className="min-h-12 w-full" variant="secondary" onClick={() => markLost(enquiry.id)}>
             Not an enquiry
           </Button>
         </div>
@@ -181,11 +169,7 @@ export function ReadingState({
   compact?: boolean;
 }) {
   return (
-    <section
-      className={cn("border-b border-line px-5", compact ? "py-5" : "py-6")}
-      aria-live="polite"
-      aria-busy="true"
-    >
+    <section className={cn("border-b border-line px-5", compact ? "py-5" : "py-6")} aria-live="polite" aria-busy="true">
       <p className="flex items-center gap-2 text-sm font-medium">
         <Loader className="size-4 animate-spin-slow text-stone" aria-hidden />
         {title}
@@ -195,7 +179,10 @@ export function ReadingState({
         {["Price", "Capacity", "Availability"].map((label, i) => (
           <li key={label} className="flex items-center gap-3">
             <span className="w-20 text-2xs uppercase tracking-wider text-stone">{label}</span>
-            <span className="skeleton-bar flex-1" style={{ animationDelay: `${i * 120}ms` }} />
+            <span
+              className="skeleton-bar flex-1"
+              style={{ animationDelay: `${i * 120}ms` }}
+            />
           </li>
         ))}
       </ul>

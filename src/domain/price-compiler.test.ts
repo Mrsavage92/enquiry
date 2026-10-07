@@ -5,25 +5,14 @@ import { parseBusinessRule, describeRule } from "./business-rule.ts";
 import type { BusinessRule } from "./business-rule.ts";
 
 const groupMakeup: BusinessRule = {
-  kind: "per_unit",
-  service: "Group makeup",
-  amount: 145,
-  currency: "AUD",
-  unit: "person",
-  quantityField: "guests",
-  minimumQuantity: 3,
+  kind: "per_unit", service: "Group makeup", amount: 145, currency: "AUD",
+  unit: "person", quantityField: "guests", minimumQuantity: 3,
 };
 const bridalTrial: BusinessRule = {
-  kind: "fixed_price",
-  service: "Bridal trial",
-  amount: 180,
-  currency: "AUD",
+  kind: "fixed_price", service: "Bridal trial", amount: 180, currency: "AUD",
 };
-const confirmed = (field: string, value: string) => ({
-  field,
-  value,
-  status: "confirmed" as const,
-});
+const confirmed = (field: string, value: string) =>
+  ({ field, value, status: "confirmed" as const });
 
 test("a fixed-price service prices immediately", () => {
   const out = compilePrice([bridalTrial], "Bridal trial", []);
@@ -97,12 +86,8 @@ test("service matching tolerates real customer phrasing", () => {
 
 test("money is exact at scale - no float drift", () => {
   const rule: BusinessRule = {
-    kind: "per_unit",
-    service: "Room",
-    amount: 19.99,
-    currency: "AUD",
-    unit: "room",
-    quantityField: "rooms",
+    kind: "per_unit", service: "Room", amount: 19.99, currency: "AUD",
+    unit: "room", quantityField: "rooms",
   };
   const out = compilePrice([rule], "Room", [confirmed("rooms", "3")]);
   assert.equal(out.kind, "EXACT");
@@ -117,36 +102,14 @@ test("the same inputs always produce the same answer", () => {
 });
 
 test("a rule payload from an untrusted source is validated, not trusted", () => {
-  assert.equal(
-    parseBusinessRule({
-      kind: "per_unit",
-      service: "x",
-      amount: 10,
-      unit: "hour",
-      quantityField: "hours",
-    }).ok,
-    true,
-  );
+  assert.equal(parseBusinessRule({ kind: "per_unit", service: "x", amount: 10, unit: "hour", quantityField: "hours" }).ok, true);
   assert.equal(parseBusinessRule(null).ok, false);
   assert.equal(parseBusinessRule({ kind: "fixed_price", amount: 10 }).ok, false, "needs a service");
   assert.equal(parseBusinessRule({ kind: "fixed_price", service: "x", amount: -5 }).ok, false);
   assert.equal(parseBusinessRule({ kind: "fixed_price", service: "x", amount: "ten" }).ok, false);
   assert.equal(parseBusinessRule({ kind: "sql_injection", service: "x", amount: 1 }).ok, false);
-  assert.equal(
-    parseBusinessRule({ kind: "fixed_price", service: "x", amount: 10, currency: "EUR" }).ok,
-    false,
-  );
-  assert.equal(
-    parseBusinessRule({
-      kind: "per_unit",
-      service: "x",
-      amount: 10,
-      unit: "h",
-      quantityField: "h",
-      minimumQuantity: 0,
-    }).ok,
-    false,
-  );
+  assert.equal(parseBusinessRule({ kind: "fixed_price", service: "x", amount: 10, currency: "EUR" }).ok, false);
+  assert.equal(parseBusinessRule({ kind: "per_unit", service: "x", amount: 10, unit: "h", quantityField: "h", minimumQuantity: 0 }).ok, false);
 });
 
 test("a rule reads back as a sentence the operator can check", () => {

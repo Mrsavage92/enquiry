@@ -2,7 +2,12 @@ import { channelBlocked } from "./channel";
 import type { Business, Enquiry, EnquiryFact, KnowledgeItem } from "./types";
 
 export type SituationKind =
-  "evaluating" | "duplicate" | "check_this" | "conflict" | "calendar_down" | "public_comment";
+  | "evaluating"
+  | "duplicate"
+  | "check_this"
+  | "conflict"
+  | "calendar_down"
+  | "public_comment";
 
 export type SituationTone = "warn" | "danger" | "neutral";
 
@@ -25,7 +30,10 @@ export type Situation = {
 };
 
 /** One primary operator situation per enquiry. Priority is the product order, not fixture id. */
-export function enquirySituation(enquiry: Enquiry, business?: Business): Situation | null {
+export function enquirySituation(
+  enquiry: Enquiry,
+  business?: Business,
+): Situation | null {
   if (enquiry.state.decision === "EVALUATING") {
     return {
       kind: "evaluating",

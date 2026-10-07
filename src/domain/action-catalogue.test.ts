@@ -1,6 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { ACTION_CATALOGUE, initialActionPolicies, initialGates } from "./action-catalogue.ts";
+import {
+  ACTION_CATALOGUE,
+  initialActionPolicies,
+  initialGates,
+} from "./action-catalogue.ts";
 
 // A new tenant has approved nothing. Every assertion here is about what a real
 // business is NOT granted on day one, because the failure mode is silent: an
@@ -8,7 +12,9 @@ import { ACTION_CATALOGUE, initialActionPolicies, initialGates } from "./action-
 // they ever agreed to it.
 
 test("no action starts automatic", () => {
-  const automatic = initialActionPolicies().filter((p) => p.mode === "Automatic when safe");
+  const automatic = initialActionPolicies().filter(
+    (p) => p.mode === "Automatic when safe",
+  );
   assert.deepEqual(automatic, [], "a new tenant must grant nothing automatically");
 });
 

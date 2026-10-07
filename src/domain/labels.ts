@@ -271,10 +271,7 @@ export function derivedLabel(
   // with nothing else to book, is "Not yet" on the chip too.
   const closed = enquiry?.decision?.closedDay;
   if (state.decision === "ACTION_READY" && closed && !closed.bookable) return STATUS.needsDetail;
-  if (
-    state.decision === "ACTION_READY" &&
-    enquiry?.decision?.recommendation?.action === "DECLINE"
-  ) {
+  if (state.decision === "ACTION_READY" && enquiry?.decision?.recommendation?.action === "DECLINE") {
     return STATUS.declineReady;
   }
   // The chip says what the verdict says: never Yes over a reply that is not.

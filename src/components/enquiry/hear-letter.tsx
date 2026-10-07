@@ -5,14 +5,18 @@ function pickVoice(): SpeechSynthesisVoice | undefined {
   const voices = window.speechSynthesis.getVoices();
   const au = voices.find((v) => /en-AU/i.test(v.lang));
   if (au) return au;
-  const gb = voices.find(
-    (v) => /en-GB/i.test(v.lang) && /female|serena|martha|kate|susan/i.test(v.name),
-  );
+  const gb = voices.find((v) => /en-GB/i.test(v.lang) && /female|serena|martha|kate|susan/i.test(v.name));
   if (gb) return gb;
   return voices.find((v) => /en-GB/i.test(v.lang)) ?? voices.find((v) => v.lang.startsWith("en"));
 }
 
-export function HearLetter({ text, compact }: { text: string; compact?: boolean }) {
+export function HearLetter({
+  text,
+  compact,
+}: {
+  text: string;
+  compact?: boolean;
+}) {
   const [playing, setPlaying] = useState(false);
   const [ready, setReady] = useState(false);
   const utterRef = useRef<SpeechSynthesisUtterance | null>(null);

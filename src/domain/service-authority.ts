@@ -34,7 +34,9 @@ export function serviceAuthority(
 ): ServiceAuthority {
   const fact = liveServiceFact(enquiry);
   if (fact) {
-    return fact.status === "confirmed" ? { state: "confirmed", fact } : { state: "proposed", fact };
+    return fact.status === "confirmed"
+      ? { state: "confirmed", fact }
+      : { state: "proposed", fact };
   }
   const label = (enquiry.serviceLabel ?? "").trim();
   return label ? { state: "unattributed", label } : { state: "absent" };

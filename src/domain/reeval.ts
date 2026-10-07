@@ -53,12 +53,13 @@ function applyGenericUnlock(
   next.decision.missing = next.decision.missing.filter((m) => {
     const f = next.facts.find((x) => x.field === m.factField && !x.superseded);
     if (!f) return true;
-    return (
-      f.status === "unknown" || f.status === "check_this" || (f.status === "range" && m.blocking)
-    );
+    return f.status === "unknown" || f.status === "check_this" || (f.status === "range" && m.blocking);
   });
   const stillBlocking = next.facts.some(
-    (f) => !f.superseded && f.blocking && (f.status === "unknown" || f.status === "check_this"),
+    (f) =>
+      !f.superseded &&
+      f.blocking &&
+      (f.status === "unknown" || f.status === "check_this"),
   );
   if (
     !stillBlocking &&
@@ -118,11 +119,7 @@ function applyF09(next: Enquiry, service: string): Enquiry {
         return { ...e, status: "VALIDATED", summary: "Mapped to Event coverage." };
       }
       if (e.type === "eligibility") {
-        return {
-          ...e,
-          status: "PASS",
-          summary: "Event coverage offered. Video still not offered.",
-        };
+        return { ...e, status: "PASS", summary: "Event coverage offered. Video still not offered." };
       }
       return e;
     });
@@ -305,7 +302,8 @@ function applyF15(next: Enquiry, address: string): Enquiry {
 export function reconnectCalendar(enquiry: Enquiry): Enquiry {
   const down = enquiry.decision.evaluators.some(
     (e) =>
-      (e.type === "capacity" || e.type === "availability") && e.status === "UNKNOWN_INTEGRATION",
+      (e.type === "capacity" || e.type === "availability") &&
+      e.status === "UNKNOWN_INTEGRATION",
   );
   if (!down) return enquiry;
   const next = structuredClone(enquiry);
