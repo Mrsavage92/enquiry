@@ -19,6 +19,7 @@ import { DateNotes } from "../date-notes";
 import { checkStep, otherDateCues } from "../card-cues";
 import { useDone } from "../done-notice";
 import type { CoverageNote } from "./notices";
+import { AskedStep } from "./asked-step";
 
 /**
  * Slot B: the single unsettled thing, as one question with its buttons, or,
@@ -59,7 +60,7 @@ export function NeedsYou({
     return <SettledStep enquiry={enquiry} business={business} body={body} />;
   }
   if (next.kind !== "decide") return null;
-  const coverage = ["rule", "flag", "asked", "coverage"].includes(next.decision);
+  const coverage = ["rule", "flag", "coverage"].includes(next.decision);
   // The coverage card carries its own title and counter; said once.
   const step = coverage ? null : checkStep(enquiry.decision.checks, enquiry.id);
   const situation = next.decision === "situation" ? enquirySituation(enquiry, business) : null;
@@ -89,6 +90,7 @@ export function NeedsYou({
           onConfirmed={(o) => onCoverage({ editKept: o.editKept, recheck: o.recheck })}
         />
       ) : null}
+      {next.decision === "asked" ? <AskedStep enquiry={enquiry} business={business} /> : null}
       {next.decision === "reading" ? <AnswerBlocker enquiry={enquiry} folded /> : null}
       {next.decision === "estimate" ? <AnswerBlocker enquiry={enquiry} folded asQuestion /> : null}
     </section>
@@ -99,13 +101,8 @@ function headingFor(decision: string): string {
   if (decision === "stale_edit") return "Details changed since your edit";
   if (decision === "choose_service" || decision === "confirm_service")
     return "Which service is this?";
-  if (
-    decision === "coverage" ||
-    decision === "rule" ||
-    decision === "flag" ||
-    decision === "asked"
-  ) {
-    return "Anything else they asked for?";
+  if (decision === "coverage" || decision === "rule" || decision === "flag") {
+    return "Check what the price covers";
   }
   if (decision === "reading") return "Check one detail they gave";
   if (decision === "estimate") return "Your estimate";

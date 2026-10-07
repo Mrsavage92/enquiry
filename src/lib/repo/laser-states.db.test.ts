@@ -3,7 +3,10 @@ import test from "node:test";
 import type { PGlite } from "@electric-sql/pglite";
 import { WED_30_SEP, enquiry, freshDb, tell, tenant, tx } from "./pass8-db-helpers.ts";
 import { createPracticeEnquiryInTransaction } from "./practice-core.ts";
-import { drive, type DriveOptions, type DriveResult } from "./laser-drive.ts";
+import { drive, loadEnquiry, type DriveOptions, type DriveResult } from "./laser-drive.ts";
+import { leadDateCue } from "../../components/enquiry/card-cues.ts";
+import { askedShown } from "../../domain/asked-view.ts";
+import { settledLine } from "../../domain/send-flow.ts";
 import { replaceAmounts } from "../../domain/voice-detect.ts";
 
 /**
@@ -311,4 +314,48 @@ test("B1 decline beside priced work: the No stays in the reply and the hallway k
   assert.match(r.body, /\$380/);
   assert.doesNotMatch(r.body, /which job/i);
   assert.equal(r.taps, r.decisions + 2);
+});
+
+test("B2 Tom: every open item is asked in turn, and nothing reads settled while the reply still asks or defers it", async (t) => {
+  const { pg, a } = await shop(t, "painting", PAINTER);
+  const e = await enquiry(
+    pg,
+    a.businessId,
+    "Hi, looking for a quote to repaint 3 bedrooms and the hallway, plus ceilings. Are you insured? Week of 9 Nov ideally. Tom",
+    "Bedroom repaint",
+    WED_30_SEP,
+  );
+  const opened = (await loadEnquiry(pg, e.enquiryId)).enquiry;
+  // "Week of 9 Nov" stays a week: never a Monday they did not ask for.
+  assert.match(leadDateCue(opened), /Week of 9 Nov/);
+  assert.doesNotMatch(leadDateCue(opened), /Mon 9 Nov/);
+  const r = await drive(pg, e.enquiryId, {
+    answers: { "ask:insurance": "Yes, I'm fully insured." },
+  });
+  check(t, "several items (Tom)", r, {
+    verdict: "Not yet - check one detail they gave",
+    primary: "Yes, 3 rooms",
+    taps: 6,
+    decisions: 4,
+  });
+  assert.ok(
+    r.steps.some((s) => /hallway/i.test(s.tap)),
+    `the hallway is asked as its own step: ${r.steps.map((s) => s.tap).join(" > ")}`,
+  );
+  // At the send, nothing was left to settle, and the ledger never says
+  // "answered" about what the reply still asks or will confirm.
+  const sent = (await loadEnquiry(pg, e.enquiryId)).enquiry;
+  const items = sent.decision.asked ?? [];
+  assert.deepEqual(
+    items.filter((i) => i.status === "open").map((i) => i.text),
+    [],
+    "no item left open",
+  );
+  const shown = Object.fromEntries(items.map((i) => [i.text, askedShown(i, r.body)]));
+  if (/price for the ceilings/i.test(r.body)) assert.equal(shown.Ceilings, "asking");
+  if (/I'll confirm/i.test(r.body)) {
+    const date = items.find((i) => i.kind === "date");
+    assert.equal(date && askedShown(date, r.body), "will_confirm");
+  }
+  assert.ok(settledLine(sent, r.body).count < items.length);
 });

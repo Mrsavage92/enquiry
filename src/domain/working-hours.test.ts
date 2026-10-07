@@ -1,6 +1,10 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { FOLLOW_UP_AFTER_MINUTES, shouldReleaseFollowUp, workingMinutesBetween } from "./working-hours.ts";
+import {
+  FOLLOW_UP_AFTER_MINUTES,
+  shouldReleaseFollowUp,
+  workingMinutesBetween,
+} from "./working-hours.ts";
 import { ENQUIRIES } from "../fixtures/enquiries.ts";
 
 const prefs = {

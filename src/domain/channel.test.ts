@@ -2,13 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { BUSINESSES } from "../fixtures/businesses.ts";
 import { ENQUIRIES } from "../fixtures/enquiries.ts";
-import {
-  channelBlocked,
-  isShortChannel,
-  replyChannel,
-  replyTo,
-  threadLabel,
-} from "./channel.ts";
+import { channelBlocked, isShortChannel, replyChannel, replyTo, threadLabel } from "./channel.ts";
 
 function byId(id: string) {
   return ENQUIRIES.find((e) => e.id === id)!;

@@ -5,6 +5,7 @@ import type { CompositeState, Enquiry } from "./types.ts";
 import { PROMISE_WORDS, STATUS, derivedLabel, promiseVerdict } from "./labels.ts";
 import { isHighRisk, laserNext, precheckEligible, sendRisk } from "./laser.ts";
 import { VERDICT_MAX, riskLines, segmentsOf, verdictLine } from "./laser-view.ts";
+import { askedShown, isSettledShown } from "./asked-view.ts";
 
 const LIFECYCLES: CompositeState["lifecycle"][] = [
   "OPEN",
@@ -122,4 +123,27 @@ test("safeguards keep their owner words; the action-class line is not repeated",
     },
   };
   assert.deepEqual(riskLines(e), ["This requires your personal review"]);
+});
+
+test("B2: nothing reads Answered while the reply still asks about it or will confirm it", () => {
+  const body =
+    "Hi there,\n\nBefore I can give you a price for the ceilings, can you let me know how many rooms there are?\n\nYou mentioned Week of 9 November - I'll confirm which day works.\n\nThanks";
+  const ceilings = {
+    id: "extra:Ceilings",
+    kind: "extra",
+    text: "Ceilings",
+    status: "answered",
+  } as const;
+  const date = { id: "date", kind: "date", text: "Week of 9 Nov", status: "answered" } as const;
+  const hallway = {
+    id: "extra:Hallway",
+    kind: "extra",
+    text: "Hallway",
+    status: "answered",
+  } as const;
+  assert.equal(askedShown(ceilings, body), "asking");
+  assert.equal(askedShown(date, body), "will_confirm");
+  assert.equal(askedShown(hallway, body), "answered");
+  assert.equal(isSettledShown(ceilings, body), false);
+  assert.equal(isSettledShown(hallway, body), true);
 });

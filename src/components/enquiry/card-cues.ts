@@ -111,6 +111,15 @@ export const ASKED_CHIP: Record<AskedStatus, { word: string; tone: "ok" | "neutr
   open: { word: "To settle", tone: "warn" },
 };
 
+/**
+ * What the reply still does about an item it has not settled (go-live review
+ * B2): never "Answered" while it asks them a detail or will confirm the day.
+ */
+export const SHOWN_CHIP = {
+  asking: { word: "Asked in reply", tone: "neutral" as const },
+  will_confirm: { word: "In reply: will confirm", tone: "neutral" as const },
+};
+
 /** A day they wrote that the owner doesn't work: the reply says so. */
 export const CLOSED_CHIP = { word: "Not available", tone: "neutral" as const };
 

@@ -1,12 +1,5 @@
 import type { Booking, Business, Enquiry, Service } from "./types";
-import {
-  addMinutesToIso,
-  dayKeyFromIso,
-  isoOffset,
-  startOfDay,
-  wallDate,
-  wallNow,
-} from "./format";
+import { addMinutesToIso, dayKeyFromIso, isoOffset, startOfDay, wallDate, wallNow } from "./format";
 
 const DEFAULT_DURATION = 90;
 
@@ -14,7 +7,10 @@ export function activeBookings(bookings: Booking[]): Booking[] {
   return bookings.filter((b) => b.status !== "cancelled");
 }
 
-export function durationOf(booking: Pick<Booking, "durationMinutes" | "serviceLabel">, business?: Business): number {
+export function durationOf(
+  booking: Pick<Booking, "durationMinutes" | "serviceLabel">,
+  business?: Business,
+): number {
   if (booking.durationMinutes && booking.durationMinutes > 0) return booking.durationMinutes;
   return durationForService(booking.serviceLabel, business?.services);
 }
@@ -68,7 +64,12 @@ export function minutesBetween(startIso: string, endIso: string): number {
   return Math.round((wallDate(endIso).getTime() - wallDate(startIso).getTime()) / 60_000);
 }
 
-export function intervalsOverlap(aStart: string, aEnd: string, bStart: string, bEnd: string): boolean {
+export function intervalsOverlap(
+  aStart: string,
+  aEnd: string,
+  bStart: string,
+  bEnd: string,
+): boolean {
   return wallDate(aStart) < wallDate(bEnd) && wallDate(bStart) < wallDate(aEnd);
 }
 
@@ -198,7 +199,10 @@ export function hoursSpan(bookings: Booking[]): { startHour: number; endHour: nu
     const endH = e.getHours() + (e.getMinutes() > 0 ? 1 : 0);
     endHour = Math.max(endHour, endH);
   }
-  return { startHour: Math.max(6, startHour), endHour: Math.min(22, Math.max(endHour, startHour + 8)) };
+  return {
+    startHour: Math.max(6, startHour),
+    endHour: Math.min(22, Math.max(endHour, startHour + 8)),
+  };
 }
 
 export function bookingDraftFromEnquiry(
@@ -214,11 +218,7 @@ export function bookingDraftFromEnquiry(
   return { when, durationMinutes, location };
 }
 
-export function proposedBooking(
-  booking: Booking,
-  when: string,
-  durationMinutes?: number,
-): Booking {
+export function proposedBooking(booking: Booking, when: string, durationMinutes?: number): Booking {
   return {
     ...booking,
     when,

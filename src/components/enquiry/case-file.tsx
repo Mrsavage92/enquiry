@@ -13,7 +13,7 @@ export function CaseFile({ enquiry }: { enquiry: Enquiry }) {
       id: m.id,
       at: m.at,
       label: m.direction === "inbound" ? "They wrote" : "You sent",
-      detail: m.quoted ? "Quote sheet attached" : m.subject ?? m.body.slice(0, 72),
+      detail: m.quoted ? "Quote sheet attached" : (m.subject ?? m.body.slice(0, 72)),
     })),
     ...(enquiry.decision.changeDiff ?? []).map((d, i) => ({
       id: `diff-${i}`,

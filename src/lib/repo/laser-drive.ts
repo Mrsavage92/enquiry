@@ -17,6 +17,7 @@ import { confirmReviewedSendInTransaction } from "./sent-reply-core.ts";
 import { applyPracticeSampleInTransaction } from "./practice-core.ts";
 import { answer, sqlFor, tell, tx } from "./pass8-db-helpers.ts";
 import { applyDecision, lockEnquiry } from "./decision-apply.ts";
+import { holdingItems } from "../../domain/asked.ts";
 
 /** The owner saying which service it is: the same writes as `setEnquiryService`. */
 async function confirmService(pg: PGlite, enquiryId: string, serviceLabel: string) {
@@ -174,6 +175,21 @@ async function decide(
       const m = d.missing.find((x) => x.blocking)!;
       await answer(pg, "user-a", e.id, m.factField, typed(m.factField) ?? "3");
       return "Confirm";
+    }
+    case "asked": {
+      const item = holdingItems(d.asked ?? [])[0]!;
+      // An extra with a saved price is added (the filled button); anything else is come back on.
+      const value =
+        typed(item.id) ??
+        (next.primary
+          ? EXTRA_CHOICE.include
+          : item.kind === "extra"
+            ? EXTRA_CHOICE.comeBack
+            : item.kind === "question"
+              ? QUESTION_ANSWER.later
+              : ASK_CHOICE.later);
+      await answer(pg, "user-a", e.id, item.id, value);
+      return `${item.text}: ${next.primary ?? "come back to them"}`;
     }
     case "choose_service":
     case "confirm_service": {

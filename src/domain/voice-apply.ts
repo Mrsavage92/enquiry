@@ -1,11 +1,7 @@
 import type { VoiceProfile } from "./types";
 
 /** Rewrite greeting and sign-off. Leaves the commercial body alone. */
-export function applyVoiceToDraft(
-  body: string,
-  voice: VoiceProfile,
-  firstName: string,
-): string {
+export function applyVoiceToDraft(body: string, voice: VoiceProfile, firstName: string): string {
   const greeting = voice.greeting.replace(/\{name\}/g, firstName);
   const lines = body.replace(/\s+$/, "").split("\n");
   if (lines[0] && /^(hi|hello|hey|dear)\b/i.test(lines[0]!.trim())) {

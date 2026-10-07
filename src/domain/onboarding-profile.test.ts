@@ -91,6 +91,12 @@ test("no field can carry a channel connection into a new tenant", () => {
     integrations: [{ kind: "instagram", status: "connected" }],
   } as Record<string, unknown>);
   assert.deepEqual(Object.keys(p).sort(), [
-    "baseLocation", "currency", "industry", "name", "ownerFirstName", "soloOrTeam", "timezone",
+    "baseLocation",
+    "currency",
+    "industry",
+    "name",
+    "ownerFirstName",
+    "soloOrTeam",
+    "timezone",
   ]);
 });

@@ -6,6 +6,7 @@ import { needsServiceConfirmation } from "./service-authority.ts";
 import { serviceNeedsOwner } from "./service-match.ts";
 import { isOwnerEstimate } from "./count-phrase.ts";
 import { holdingItems } from "./asked.ts";
+import { savedPriceFor } from "./asked-view.ts";
 import type { CoverageFlag } from "./coverage.ts";
 import { preparedBody } from "./labels.ts";
 import { coversLabel } from "./coverage-fold.ts";
@@ -100,17 +101,34 @@ function extraPrimary(enquiry: Enquiry): string | null {
 }
 
 /** The coverage card's next tap: a rule, a flag, something they asked, then "That's everything". */
-function coverageStep(enquiry: Enquiry): { decision: DecisionKind; primary: string | null } {
+function coverageStep(
+  enquiry: Enquiry,
+  business: Business | undefined,
+): { decision: DecisionKind; primary: string | null } {
   const coverage = enquiry.decision.coverage!;
   const flag = coverage.flagged.find((f) => f.thing);
   if (flag?.kind === "rule" && flag.check) {
     return { decision: "rule", primary: flag.check.choices[0]?.[1] ?? null };
   }
   if (flag) return { decision: "flag", primary: flagPrimary(flag) };
-  if (holdingItems(enquiry.decision.asked ?? []).length > 0) {
-    return { decision: "asked", primary: null };
-  }
+  const asked = askedStep(enquiry, business);
+  if (asked) return asked;
   return { decision: "coverage", primary: "That's everything" };
+}
+
+/**
+ * The next thing they asked that is still to settle, asked on its own (go-live
+ * review B2): never left in a collapsed row while Copy is offered. Its filled
+ * button is "Add it" when one of the owner's saved prices covers it.
+ */
+function askedStep(
+  enquiry: Enquiry,
+  business: Business | undefined,
+): { decision: DecisionKind; primary: string | null } | null {
+  const item = holdingItems(enquiry.decision.asked ?? [])[0];
+  if (!item) return null;
+  const priced = savedPriceFor(item, enquiry, business);
+  return { decision: "asked", primary: priced ? `Add it - ${priced}` : null };
 }
 
 /** "Add your $60 oven clean" when one of the owner's saved prices covers it; else no filled button. */
@@ -191,7 +209,7 @@ export function laserNext(enquiry: Enquiry, ctx: LaserContext = {}): LaserNext {
     return { kind: "decide", decision: "confirm_service", primary: null };
   }
   if (d.coverage && !d.coverage.confirmed && !folding(enquiry)) {
-    return { kind: "decide", ...coverageStep(enquiry) };
+    return { kind: "decide", ...coverageStep(enquiry, ctx.business) };
   }
   const blocking = d.missing.find((m) => m.blocking);
   if (blocking?.inferred) {
@@ -204,6 +222,8 @@ export function laserNext(enquiry: Enquiry, ctx: LaserContext = {}): LaserNext {
     return { kind: "decide", decision: "booking", primary: null };
   }
   const blocked = outboundBlocked(ctx.business, Boolean(ctx.offline), enquiry);
+  const stillAsked = askedStep(enquiry, ctx.business);
+  if (stillAsked) return { kind: "decide", ...stillAsked };
   const sendable =
     (isSendableAction(rec.action) && rec.primaryEnabled) ||
     (folding(enquiry) && !rec.blockedReason);

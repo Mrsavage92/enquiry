@@ -1,9 +1,4 @@
-import type {
-  BrainChangePreview,
-  Business,
-  Enquiry,
-  KnowledgeItem,
-} from "./types";
+import type { BrainChangePreview, Business, Enquiry, KnowledgeItem } from "./types";
 import { ACTION_LABELS, commercialValue, formatAud } from "./labels";
 import { defaultHold } from "./commercial";
 
@@ -80,7 +75,10 @@ function coveringItem(
   return applicable.find((k) => k.state === "Active" || k.state === "Confirmed") ?? applicable[0];
 }
 
-export function matchKnowledge(input: string, knowledge: KnowledgeItem[]): KnowledgeItem | undefined {
+export function matchKnowledge(
+  input: string,
+  knowledge: KnowledgeItem[],
+): KnowledgeItem | undefined {
   const text = input.toLowerCase();
   const pick = (part: string) =>
     knowledge.find((k) => k.title.toLowerCase().includes(part) && k.state !== "Superseded") ??
@@ -149,11 +147,7 @@ export function compileBrainChange(
       next = `Standard bedroom $${amount} including prep and two coats. Living areas quoted on measure.`;
     } else if (/deep/.test(title)) {
       next = `Priced from property scope. 3 bed / 2 bath deep clean $${amount}.`;
-    } else if (
-      target.section === "pricing" ||
-      title.includes("makeup") ||
-      title.includes("lash")
-    ) {
+    } else if (target.section === "pricing" || title.includes("makeup") || title.includes("lash")) {
       next = named ? `$${amount} per person from ${named}.` : `$${amount} per person. Confirmed.`;
     } else if (target.title === "Travel") {
       next = target.body.replace(/\$[0-9]+(\.[0-9]+)?/, `$${amount}`);
@@ -268,8 +262,10 @@ function peopleCount(enquiry: Enquiry): number {
 
 function glowService(enquiry: Enquiry): "group" | "formal" | null {
   const value = enquiry.facts.find((f) => f.field === "service")?.value ?? "";
-  if (value === "group-makeup" || enquiry.serviceLabel.toLowerCase().includes("group")) return "group";
-  if (value === "formal-makeup" || enquiry.serviceLabel.toLowerCase().includes("formal")) return "formal";
+  if (value === "group-makeup" || enquiry.serviceLabel.toLowerCase().includes("group"))
+    return "group";
+  if (value === "formal-makeup" || enquiry.serviceLabel.toLowerCase().includes("formal"))
+    return "formal";
   return null;
 }
 
@@ -329,7 +325,11 @@ export function applyBrainToEnquiry(
         };
       }
       if (e.type === "pricing") {
-        return { ...e, status: "NOT_QUOTABLE", summary: "Exact quote blocked until the minimum is met or an exception is granted." };
+        return {
+          ...e,
+          status: "NOT_QUOTABLE",
+          summary: "Exact quote blocked until the minimum is met or an exception is granted.",
+        };
       }
       return e;
     });
@@ -351,13 +351,18 @@ export function applyBrainToEnquiry(
       from: pricing ? "Met" : "Met",
       to: `${people} is below ${min}`,
     });
-    diffs.push({ factLabel: "Recommendation", from: prevRec, to: next.decision.recommendation.label });
+    diffs.push({
+      factLabel: "Recommendation",
+      from: prevRec,
+      to: next.decision.recommendation.label,
+    });
     next.decision.changeDiff = diffs;
     next.updatedAt = new Date().toISOString();
     return { enquiry: next, changed: true };
   }
 
-  const title = service === "group" ? "Group mobile makeup" : service === "formal" ? "Formal makeup" : null;
+  const title =
+    service === "group" ? "Group mobile makeup" : service === "formal" ? "Formal makeup" : null;
   const priceRule = title ? coveringItem(business.knowledge, title, date) : undefined;
   const unit = priceRule ? parseDollar(priceRule.body) : undefined;
   if (unit == null || !service) return { enquiry, changed: false };
@@ -368,7 +373,10 @@ export function applyBrainToEnquiry(
   const travelAmount = travel ?? (service === "formal" && enquiry.id === "f15" ? undefined : 45);
   const total = travelAmount != null ? serviceAmount + travelAmount : undefined;
   const previous = enquiry.valueExact?.amount;
-  const prevUnit = previous != null && people ? Math.round((previous - (enquiry.id === "f06" ? 232 : 45)) / people) : undefined;
+  const prevUnit =
+    previous != null && people
+      ? Math.round((previous - (enquiry.id === "f06" ? 232 : 45)) / people)
+      : undefined;
 
   if (service === "formal" && enquiry.state.decision === "NEEDS_INFORMATION") {
     const assumedTravel = 45;
@@ -391,10 +399,17 @@ export function applyBrainToEnquiry(
     next.decision.draft = { ...next.decision.draft, body: draftBody };
     next.decision.explanation = `Formal makeup is now ${formatAud(unit)}. Travel stays unconfirmed until the suburb is known.`;
     next.decision.changeDiff = [
-      { factLabel: "Formal makeup", from: prevUnit != null ? formatAud(prevUnit) : "$165", to: formatAud(unit) },
+      {
+        factLabel: "Formal makeup",
+        from: prevUnit != null ? formatAud(prevUnit) : "$165",
+        to: formatAud(unit),
+      },
     ];
     next.updatedAt = new Date().toISOString();
-    return { enquiry: next, changed: next.decision.changeDiff[0]!.from !== next.decision.changeDiff[0]!.to };
+    return {
+      enquiry: next,
+      changed: next.decision.changeDiff[0]!.from !== next.decision.changeDiff[0]!.to,
+    };
   }
 
   if (total == null) return { enquiry, changed: false };
@@ -485,7 +500,12 @@ export function applyBrainToEnquiry(
 
   diffs.push({
     factLabel: title ?? "Price",
-    from: prevUnit != null ? `${formatAud(prevUnit)} per person` : enquiry.decision.quotes[0] ? formatAud(previous ?? 0) : "Previous rule",
+    from:
+      prevUnit != null
+        ? `${formatAud(prevUnit)} per person`
+        : enquiry.decision.quotes[0]
+          ? formatAud(previous ?? 0)
+          : "Previous rule",
     to: `${formatAud(unit)} per person`,
   });
   diffs.push({
@@ -507,7 +527,9 @@ function rewriteDraftMoney(body: string, pairs: [string, string][]): string {
   return next;
 }
 
-function hoursSpec(enquiry: Enquiry): { kind: "range"; min: number; max: number } | { kind: "exact"; n: number } | null {
+function hoursSpec(
+  enquiry: Enquiry,
+): { kind: "range"; min: number; max: number } | { kind: "exact"; n: number } | null {
   const fact = enquiry.facts.find((f) => f.field === "hours" && !f.superseded);
   if (!fact?.value) return null;
   const range = fact.value.match(/^(\d+)\s*[-–]\s*(\d+)$/);
@@ -550,20 +572,33 @@ function applyNorthlight(
               status: "RANGE" as const,
               summary: `Estimated ${formatAud(range.min)}-${formatAud(range.max)}`,
               range,
-              assumptions: [`${formatAud(rate)}/hr`, "4-hour minimum", "Range preserved - not coerced"],
+              assumptions: [
+                `${formatAud(rate)}/hr`,
+                "4-hour minimum",
+                "Range preserved - not coerced",
+              ],
             }
           : e,
       );
       next.decision.draft = {
         ...next.decision.draft,
         body: rewriteDraftMoney(enquiry.decision.draft.body, [
-          [enquiry.valueRange ? `${formatAud(enquiry.valueRange.min)}-${formatAud(enquiry.valueRange.max)}` : "", `${formatAud(range.min)}-${formatAud(range.max)}`],
+          [
+            enquiry.valueRange
+              ? `${formatAud(enquiry.valueRange.min)}-${formatAud(enquiry.valueRange.max)}`
+              : "",
+            `${formatAud(range.min)}-${formatAud(range.max)}`,
+          ],
           ["$180", formatAud(rate)],
         ]),
       };
       next.decision.explanation = `Event coverage is ${formatAud(rate)}/hour with a 4-hour minimum, so ${hours.min}-${hours.max} hours is ${formatAud(range.min)}-${formatAud(range.max)}.`;
       next.decision.changeDiff = [
-        { factLabel: "Event coverage", from: from, to: `${formatAud(range.min)}-${formatAud(range.max)}` },
+        {
+          factLabel: "Event coverage",
+          from: from,
+          to: `${formatAud(range.min)}-${formatAud(range.max)}`,
+        },
       ];
       next.updatedAt = new Date().toISOString();
       return { enquiry: next, changed: true };
@@ -581,7 +616,14 @@ function applyNorthlight(
             status: "EXACT" as const,
             summary: `${formatAud(total)} for ${billed} hours`,
             total: { amount: total, currency: "AUD" },
-            lineItems: [{ id: "h", label: `Event coverage × ${billed} hours`, amount: total, ruleId: rule?.id }],
+            lineItems: [
+              {
+                id: "h",
+                label: `Event coverage × ${billed} hours`,
+                amount: total,
+                ruleId: rule?.id,
+              },
+            ],
           }
         : e,
     );
@@ -598,9 +640,7 @@ function applyNorthlight(
         ruleSetVersion: rule?.version ?? "nl-v1",
       },
     ];
-    const sentBit = sent?.total
-      ? null
-      : `Coverage of ${billed} hours is ${formatAud(total)}.`;
+    const sentBit = sent?.total ? null : `Coverage of ${billed} hours is ${formatAud(total)}.`;
     next.decision.draft = {
       ...next.decision.draft,
       body: sent
@@ -610,7 +650,11 @@ function applyNorthlight(
         : `Hi ${firstName},\n\n${sentBit}\n\nAlex\nNorthlight`,
     };
     next.decision.changeDiff = [
-      { factLabel: "Event coverage", from: previous != null ? formatAud(previous) : "Previous rule", to: formatAud(total) },
+      {
+        factLabel: "Event coverage",
+        from: previous != null ? formatAud(previous) : "Previous rule",
+        to: formatAud(total),
+      },
     ];
     next.updatedAt = new Date().toISOString();
     return { enquiry: next, changed: true };
@@ -623,7 +667,10 @@ function applyNorthlight(
     if (!rule || rule.state === "Needs review") return { enquiry, changed: false };
     const amount = parseDollar(rule.body);
     if (amount == null) return { enquiry, changed: false };
-    if (enquiry.valueExact?.amount === amount && enquiry.decision.evaluators.find((e) => e.type === "pricing")?.status === "EXACT") {
+    if (
+      enquiry.valueExact?.amount === amount &&
+      enquiry.decision.evaluators.find((e) => e.type === "pricing")?.status === "EXACT"
+    ) {
       return { enquiry, changed: false };
     }
     const next = structuredClone(enquiry);
@@ -654,7 +701,9 @@ function applyNorthlight(
       action: "SEND_QUOTE",
       body: `Hi ${firstName},\n\nA family session is ${formatAud(amount)} for two hours and 30 edited images.\n\nAlex\nNorthlight`,
     };
-    next.decision.changeDiff = [{ factLabel: "Family session", from: "Conflict", to: formatAud(amount) }];
+    next.decision.changeDiff = [
+      { factLabel: "Family session", from: "Conflict", to: formatAud(amount) },
+    ];
     next.updatedAt = new Date().toISOString();
     return { enquiry: next, changed: true };
   }
@@ -667,11 +716,20 @@ function applyNorthlight(
     next.valueExact = { amount, currency: "AUD" };
     next.decision.evaluators = next.decision.evaluators.map((e) =>
       e.type === "pricing"
-        ? { ...e, status: "EXACT" as const, summary: `${formatAud(amount)} half-day brand / headshot`, total: { amount, currency: "AUD" } }
+        ? {
+            ...e,
+            status: "EXACT" as const,
+            summary: `${formatAud(amount)} half-day brand / headshot`,
+            total: { amount, currency: "AUD" },
+          }
         : e,
     );
     next.decision.changeDiff = [
-      { factLabel: "Brand / headshot", from: enquiry.valueExact ? formatAud(enquiry.valueExact.amount) : "Previous", to: formatAud(amount) },
+      {
+        factLabel: "Brand / headshot",
+        from: enquiry.valueExact ? formatAud(enquiry.valueExact.amount) : "Previous",
+        to: formatAud(amount),
+      },
     ];
     next.updatedAt = new Date().toISOString();
     return { enquiry: next, changed: true };
@@ -691,26 +749,33 @@ function applyHarbour(
   const amount = rule ? parseDollar(rule.body) : undefined;
   if (amount == null) return { enquiry, changed: false };
   if (enquiry.valueExact?.amount === amount) return { enquiry, changed: false };
-  if (!enquiry.valueExact && enquiry.state.commercial === "UNASSESSED") return { enquiry, changed: false };
+  if (!enquiry.valueExact && enquiry.state.commercial === "UNASSESSED")
+    return { enquiry, changed: false };
   const next = structuredClone(enquiry);
   const previous = enquiry.valueExact?.amount;
   next.valueExact = { amount, currency: "AUD" };
   next.decision.evaluators = next.decision.evaluators.map((e) =>
     e.type === "pricing"
-      ? { ...e, status: "EXACT" as const, summary: `${formatAud(amount)} ${title.toLowerCase()}`, total: { amount, currency: "AUD" } }
+      ? {
+          ...e,
+          status: "EXACT" as const,
+          summary: `${formatAud(amount)} ${title.toLowerCase()}`,
+          total: { amount, currency: "AUD" },
+        }
       : e,
   );
   next.decision.changeDiff = [
-    { factLabel: title, from: previous != null ? formatAud(previous) : "Previous rule", to: formatAud(amount) },
+    {
+      factLabel: title,
+      from: previous != null ? formatAud(previous) : "Previous rule",
+      to: formatAud(amount),
+    },
   ];
   next.updatedAt = new Date().toISOString();
   return { enquiry: next, changed: true };
 }
 
-function applyRidge(
-  business: Business,
-  enquiry: Enquiry,
-): { enquiry: Enquiry; changed: boolean } {
+function applyRidge(business: Business, enquiry: Enquiry): { enquiry: Enquiry; changed: boolean } {
   if (!enquiry.serviceLabel.toLowerCase().includes("interior")) return { enquiry, changed: false };
   const rule = coveringItem(business.knowledge, "Interior room rate", enquiryDate(enquiry));
   const unit = rule ? parseDollar(rule.body) : undefined;
@@ -721,7 +786,12 @@ function applyRidge(
     (k) => k.title === "Interior room rate" && k.state === "Superseded",
   );
   const oldUnit = superseded ? parseDollar(superseded.body) : 420;
-  const qty = Number.isFinite(rooms) && rooms > 0 ? rooms : enquiry.valueExact && oldUnit ? enquiry.valueExact.amount / oldUnit : 0;
+  const qty =
+    Number.isFinite(rooms) && rooms > 0
+      ? rooms
+      : enquiry.valueExact && oldUnit
+        ? enquiry.valueExact.amount / oldUnit
+        : 0;
   if (!qty) return { enquiry, changed: false };
   const total = Math.round(qty * unit);
   if (enquiry.valueExact?.amount === total) return { enquiry, changed: false };
@@ -730,11 +800,20 @@ function applyRidge(
   next.valueExact = { amount: total, currency: "AUD" };
   next.decision.evaluators = next.decision.evaluators.map((e) =>
     e.type === "pricing"
-      ? { ...e, status: "EXACT" as const, summary: `${formatAud(total)} interior`, total: { amount: total, currency: "AUD" } }
+      ? {
+          ...e,
+          status: "EXACT" as const,
+          summary: `${formatAud(total)} interior`,
+          total: { amount: total, currency: "AUD" },
+        }
       : e,
   );
   next.decision.changeDiff = [
-    { factLabel: "Interior room rate", from: previous != null ? formatAud(previous) : "Previous", to: formatAud(total) },
+    {
+      factLabel: "Interior room rate",
+      from: previous != null ? formatAud(previous) : "Previous",
+      to: formatAud(total),
+    },
   ];
   next.updatedAt = new Date().toISOString();
   return { enquiry: next, changed: true };

@@ -1,5 +1,6 @@
 import type { Enquiry } from "./types.ts";
 import { previewFor } from "./send-preview.ts";
+import { isSettledShown } from "./asked-view.ts";
 import { formatMinorAud } from "./money-format.ts";
 import { CLOSE_UNCONFIRMED_DAY } from "./compose-reply.ts";
 
@@ -171,8 +172,9 @@ export function settledLine(
   parts: string[];
 } {
   const items = enquiry.decision.asked ?? [];
-  // The job itself is not a decision the owner settled.
-  const settled = items.filter((i) => i.status !== "open" && i.kind !== "service");
+  // The job itself is not a decision the owner settled, and nothing the reply
+  // still asks them about or will confirm counts as settled.
+  const settled = items.filter((i) => isSettledShown(i, body) || i.closed || i.declined);
   const parts: string[] = [];
   for (const item of settled) {
     const text = item.text.trim();
