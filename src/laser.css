@@ -6,6 +6,8 @@
 */
 .laser-scroll {
   padding: 0;
+  /* A visually hidden live region must never widen the screen (go-live review S6). */
+  overflow-x: clip;
   scroll-padding-top: 128px;
   scroll-padding-bottom: 168px;
   background: var(--color-raised);
@@ -91,6 +93,7 @@
 
 /* The column every slot sits in */
 .laser-column {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: 12px;

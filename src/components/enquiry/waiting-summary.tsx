@@ -10,6 +10,7 @@ import { usePrototype } from "@/store/prototype-store";
 import { useFirstBetaActions } from "@/lib/workspace/live-mutations";
 import { AnswerBlocker } from "./answer-blocker";
 import { Badge } from "@/components/ui/badge";
+import { ownerError } from "@/lib/owner-error";
 
 /**
  * Undo "I've sent this" from the enquiry itself, for as long as the server
@@ -47,9 +48,7 @@ export function LastingUndo({ enquiry }: { enquiry: Enquiry }) {
             if (res.ok) toast("Send record removed. The reply is ready to check again.");
             else toast.error(res.message ?? "Could not undo that send record.");
           })
-          .catch((err: unknown) =>
-            toast.error(err instanceof Error ? err.message : "Could not undo that send record."),
-          )
+          .catch((err: unknown) => toast.error(ownerError(err)))
           .finally(() => setWorking(false));
       }}
     >

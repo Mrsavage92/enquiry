@@ -6,6 +6,7 @@ import { QUESTION_ANSWER } from "@/domain/service-questions";
 import { ASK_CHOICE, availabilityValue } from "@/domain/customer-asks";
 import type { QuestionPending } from "@/domain/decide";
 import type { Enquiry } from "@/domain/types";
+import { ownerError } from "@/lib/owner-error";
 
 /**
  * A question they asked, answered before any reply is ready: "Do you do mould
@@ -29,7 +30,7 @@ export function QuestionAnswer({ enquiry }: { enquiry: Enquiry }) {
       await actions.answerFact(enquiry.id, question.field, value);
       say(done);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not save that. Try again.");
+      setError(ownerError(err));
     } finally {
       setSaving(null);
     }

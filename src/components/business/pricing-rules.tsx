@@ -8,6 +8,7 @@ import { useFirstBetaActions } from "@/lib/workspace/live-mutations";
 import { activeRules } from "@/domain/decide";
 import { quantityFieldFor } from "@/domain/price-sentence";
 import type { Business } from "@/domain/types";
+import { ownerError } from "@/lib/owner-error";
 
 /**
  * Where a business tells Enquiry what it charges.
@@ -105,7 +106,7 @@ export function PricingRules({
       }
       reset();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Could not save that rule.");
+      toast.error(ownerError(err));
     } finally {
       setSaving(false);
     }

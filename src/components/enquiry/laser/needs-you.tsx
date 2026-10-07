@@ -20,6 +20,7 @@ import { checkStep, otherDateCues } from "../card-cues";
 import { useDone } from "../done-notice";
 import type { CoverageNote } from "./notices";
 import { AskedStep } from "./asked-step";
+import { ownerError } from "@/lib/owner-error";
 
 /**
  * Slot B: the single unsettled thing, as one question with its buttons, or,
@@ -165,9 +166,7 @@ function PricesStep({
                   if (!res.ok) setError(res.message);
                   else say("Priced with a sample price, for practice only.");
                 })
-                .catch((err: unknown) =>
-                  setError(err instanceof Error ? err.message : "Could not do that."),
-                )
+                .catch((err: unknown) => setError(ownerError(err)))
                 .finally(() => setSaving(false));
             }}
           >

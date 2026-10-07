@@ -1209,11 +1209,18 @@ html.embed .site-nav {
 [data-sonner-toaster] {
   pointer-events: none;
 }
-/* The toast close button is drawn small; its tap area is 44px. */
-[data-sonner-toast] [data-close-button]::after {
-  content: "";
-  position: absolute;
-  inset: -12px;
+/*
+  The toast close button is a 44px target itself, not a 20px button with a
+  bigger invisible area (go-live review: measured 20x20). The cross stays small.
+*/
+[data-sonner-toaster] [data-sonner-toast] [data-close-button] {
+  width: 44px;
+  height: 44px;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  color: var(--color-ink-2);
+  transform: translate(-30%, -30%);
 }
 [data-sonner-toaster] [data-sonner-toast][data-visible="true"] {
   pointer-events: auto;

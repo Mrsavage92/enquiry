@@ -8,6 +8,7 @@ import { EXTRA_CHOICE } from "@/domain/extras";
 import { lineChoicesFor } from "@/domain/line-choices";
 import { useFirstBetaActions } from "@/lib/workspace/live-mutations";
 import type { CheckRefused } from "./use-send-check";
+import { ownerError } from "@/lib/owner-error";
 
 /**
  * The way forward from a refused reply, in the bar (doc 50 7.4): a total that
@@ -77,9 +78,7 @@ export function RefusedFix({
                 setError(null);
                 void actions
                   .answerFact(enquiry.id, field, EXTRA_CHOICE.include)
-                  .catch((err: unknown) =>
-                    setError(err instanceof Error ? err.message : "Could not add that line."),
-                  );
+                  .catch((err: unknown) => setError(ownerError(err)));
               }}
             >
               Add {rule.service.toLowerCase()} ({describeRule(rule).split(": ")[1] ?? ""})

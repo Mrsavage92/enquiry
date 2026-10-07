@@ -9,6 +9,7 @@ import {
   signalWords,
 } from "@/domain/greeting";
 import { useFirstBetaActions } from "@/lib/workspace/live-mutations";
+import { ownerError } from "@/lib/owner-error";
 
 /**
  * Who the reply greets, on its own row above the reply so a tap meant for
@@ -32,9 +33,7 @@ export function GreetingRow({ enquiry, text }: { enquiry: Enquiry; text: string 
     setError(null);
     void actions
       .answerFact(enquiry.id, GREETING_FIELD, value)
-      .catch((err: unknown) =>
-        setError(err instanceof Error ? err.message : "Could not change the greeting."),
-      )
+      .catch((err: unknown) => setError(ownerError(err)))
       .finally(() => setSaving(false));
   };
   const message = enquiry.conversation

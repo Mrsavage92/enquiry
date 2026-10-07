@@ -7,6 +7,7 @@ import { usePrototype } from "@/store/prototype-store";
 import { useFirstBetaActions } from "@/lib/workspace/live-mutations";
 import { useDeletePractice } from "@/lib/workspace/use-delete-practice";
 import type { Recorded } from "./send-bar";
+import { ownerError } from "@/lib/owner-error";
 
 /**
  * After Yes: "Recorded as sent by you." with an Undo link, and the next step
@@ -58,9 +59,7 @@ export function RecordedBar({
                   if (res.ok) onUndone();
                   else setError(res.message ?? "Could not undo that send record.");
                 })
-                .catch((err: unknown) =>
-                  setError(err instanceof Error ? err.message : "Could not undo that send record."),
-                )
+                .catch((err: unknown) => setError(ownerError(err)))
                 .finally(() => setUndoing(false));
             }}
           >

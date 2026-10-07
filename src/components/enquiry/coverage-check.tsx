@@ -15,6 +15,7 @@ import type { LineChoice } from "@/domain/line-choices";
 import type { RuleChoice } from "@/domain/rule-checks";
 import { AskedList } from "./asked-list";
 import { checkStep, openAskedItems } from "./card-cues";
+import { ownerError } from "@/lib/owner-error";
 
 /** What "That's everything" came back with, for the card around it. */
 export type CoverageOutcome = {
@@ -81,7 +82,7 @@ export function CoverageCheck({
       say(done);
       return true;
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not save that. Try again.");
+      setError(ownerError(err));
       return false;
     } finally {
       setSaving(null);
@@ -107,7 +108,7 @@ export function CoverageCheck({
       say("Confirmed. The reply now says exactly what the price covers.");
       onConfirmed?.({ editKept: res.editKept?.changes, revision: res.revision });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not save that. Try again.");
+      setError(ownerError(err));
     } finally {
       setSaving(null);
     }

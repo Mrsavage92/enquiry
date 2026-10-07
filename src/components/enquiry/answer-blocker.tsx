@@ -1,5 +1,6 @@
 import { useEffect, useId, useState } from "react";
 import { useDone } from "./done-notice";
+import { ownerError } from "@/lib/owner-error";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { factStatusLabel, factStatusTone, fieldLabel } from "@/domain/labels";
@@ -119,13 +120,21 @@ export function AnswerBlocker({
         res.action === "SEND_QUOTE" && typeof res.amountMinor === "number"
           ? `Priced: ${formatMinorAud(res.amountMinor)}.`
           : null;
-      const outcome = priced ? `${priced} The reply is ready to check.` : res.explanation;
+      const saved = `Saved ${missing.label.toLowerCase()}: ${answered}.`;
       setError(null);
-      setResult(`Saved ${missing.label.toLowerCase()}: ${answered}. ${outcome}`);
-      say(outcome);
+      // Folded on the laser screen, what the answer did is the reply itself, now
+      // rewritten: a decision's explanation kept on screen goes stale the moment
+      // the next step moves on (go-live review S5).
+      if (folded) {
+        say(saved);
+      } else {
+        const outcome = priced ? `${priced} The reply is ready to check.` : res.explanation;
+        setResult(`${saved} ${outcome}`);
+        say(outcome);
+      }
       setValue("");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not save that. Try again.");
+      setError(ownerError(err));
       setEditing(true);
     } finally {
       setSaving(false);

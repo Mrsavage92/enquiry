@@ -18,6 +18,7 @@ import type { Enquiry, EnquiryFact, EvaluatorResult } from "@/domain/types";
 import { cn } from "@/lib/utils";
 import { usePrototype } from "@/store/prototype-store";
 import { useFirstBetaActions } from "@/lib/workspace/live-mutations";
+import { ownerError } from "@/lib/owner-error";
 
 /**
  * The evidence behind a decision, one tap away from the laser screen (doc 50:
@@ -241,7 +242,7 @@ export function CorrectDialog({
       // The server refuses a value it cannot price from - a range, alternatives,
       // a negative - exactly as it does for a first answer. Say so and leave the
       // dialog open so the owner can fix it, rather than closing on a failure.
-      toast.error(err instanceof Error ? err.message : "Could not save that correction.");
+      toast.error(ownerError(err));
     } finally {
       setSaving(false);
     }

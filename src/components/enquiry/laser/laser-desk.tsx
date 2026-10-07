@@ -30,6 +30,9 @@ import { useSendCheck } from "./use-send-check";
 import { useSeen } from "./use-seen";
 import { useFreshLines } from "./use-fresh-lines";
 
+/** How long the polite "what changed" line stays before it is cleared. */
+const SAID_MS = 5000;
+
 /**
  * The laser-focus enquiry screen (research doc 50): one verdict, their message,
  * the one thing that needs the owner, the whole reply, what bears on the next
@@ -85,7 +88,15 @@ export function LaserDesk({
   const readRef = useRef<HTMLDivElement>(null);
   const fresh = useFreshLines(prepared, edited);
 
+  // The live line is said, then cleared: never left behind as stale text.
   useEffect(() => {
+    if (!said) return;
+    const t = window.setTimeout(() => setSaid(""), SAID_MS);
+    return () => window.clearTimeout(t);
+  }, [said]);
+
+  useEffect(() => {
+    setSaid("");
     setRecorded(null);
     setCoverage(null);
     setStaleView("new");
@@ -264,7 +275,10 @@ export function LaserDesk({
             openLink={link}
             hidden={quietBar}
             idleHint={sentCount < IDLE_HINT_SENDS}
-            onRecorded={setRecorded}
+            onRecorded={(r) => {
+              setSaid("");
+              setRecorded(r);
+            }}
           />
         ) : null}
         <JobMenu
