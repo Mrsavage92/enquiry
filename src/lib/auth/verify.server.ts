@@ -80,7 +80,10 @@ export async function getSessionUser(
   if (!token) return null;
   const { data, error } = await verifier.auth.getUser(token);
   if (error || !data.user) return null;
-  return { id: data.user.id, email: data.user.email ?? null };
+  // The founding gate trusts this email, so an address nobody has proved they
+  // own must never count as theirs.
+  const email = data.user.email_confirmed_at ? (data.user.email ?? null) : null;
+  return { id: data.user.id, email };
 }
 
 /**
