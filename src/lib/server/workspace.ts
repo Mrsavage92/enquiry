@@ -44,13 +44,11 @@ export const fetchWorkspace = createServerFn({ method: "GET" })
       const { ensureAppUser } = await import("@/lib/repo/tenancy.server");
       const { hasWorkspace } = await import("@/lib/repo/provision.server");
       const { loadWorkspace } = await import("@/lib/repo/workspace.server");
-      const { getSessionUser } = await import("@/lib/auth/verify.server");
 
       // Mirror the Supabase identity into app_user so the rest of the schema can
       // carry real foreign keys without reaching into the auth schema. This is the
       // person, not a tenant - it creates no business.
-      const session = await getSessionUser().catch(() => null);
-      await ensureAppUser(context.userId, session?.email ?? null);
+      await ensureAppUser(context.userId, context.userEmail);
 
       if (!(await hasWorkspace(context.userId))) {
         return {
@@ -81,7 +79,6 @@ export const completeOnboarding = createServerFn({ method: "POST" })
   .handler(async ({ context, data }) =>
     workspaceGuard("completeOnboarding", async () => {
       const { ensureAppUser } = await import("@/lib/repo/tenancy.server");
-      const { getSessionUser } = await import("@/lib/auth/verify.server");
       const { createInitialWorkspace } = await import("@/lib/repo/provision.server");
 
       // Self-contained on purpose. business_member carries a foreign key to
@@ -89,13 +86,12 @@ export const completeOnboarding = createServerFn({ method: "POST" })
       // /onboarding without ever calling fetchWorkspace - would otherwise fail on
       // that constraint. Idempotent, so the ordinary path costs nothing
       // (R2A correction s3).
-      const session = await getSessionUser().catch(() => null);
-      await ensureAppUser(context.userId, session?.email ?? null);
+      await ensureAppUser(context.userId, context.userEmail);
 
       // Once payments are live, only a paid (or invited) email may create a
       // workspace. Off until launch_settings.founding_gate = 'on'.
       const { foundingGateOn, isFoundingMember } = await import("@/lib/billing/founding.server");
-      if ((await foundingGateOn()) && !(await isFoundingMember(session?.email ?? null))) {
+      if ((await foundingGateOn()) && !(await isFoundingMember(context.userEmail))) {
         throw new Error(NOT_A_FOUNDING_MEMBER);
       }
 
