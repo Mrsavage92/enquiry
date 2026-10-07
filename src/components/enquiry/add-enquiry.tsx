@@ -5,6 +5,7 @@ import { useFirstBetaActions } from "@/lib/workspace/live-mutations";
 import { decideEnquiry } from "@/domain/decide";
 import type { Business } from "@/domain/types";
 import { tradeExamples } from "@/domain/trade-examples";
+import { ownerError } from "@/lib/owner-error";
 
 /**
  * How a real enquiry gets into Enquiry during first beta.
@@ -76,7 +77,7 @@ export function AddEnquiry({
       setOpen(false);
       onCreated?.(id);
     } catch (err) {
-      setSaveError(err instanceof Error ? err.message : "Could not add that enquiry.");
+      setSaveError(ownerError(err));
     } finally {
       setSaving(false);
     }

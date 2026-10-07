@@ -1,10 +1,11 @@
 import { useState } from "react";
-import { toast } from "sonner";
+import { useDone } from "./done-notice";
 import { Button } from "@/components/ui/button";
 import { useFirstBetaActions } from "@/lib/workspace/live-mutations";
 import { EXTRA_CHOICE } from "@/domain/extras";
 import { formatMinorAud } from "@/domain/money-format";
 import type { Enquiry } from "@/domain/types";
+import { ownerError } from "@/lib/owner-error";
 
 /**
  * Something else the customer asked for, beside the main job: "plus oven
@@ -18,6 +19,7 @@ import type { Enquiry } from "@/domain/types";
 export function ExtraDecision({ enquiry }: { enquiry: Enquiry }) {
   const extra = enquiry.decision.extraPending;
   const actions = useFirstBetaActions();
+  const say = useDone();
   const [saving, setSaving] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   if (!extra) return null;
@@ -27,8 +29,7 @@ export function ExtraDecision({ enquiry }: { enquiry: Enquiry }) {
     setError(null);
     try {
       await actions.answerFact(enquiry.id, extra.field, choice);
-      toast.dismiss();
-      toast.success(
+      say(
         choice === EXTRA_CHOICE.include
           ? `Added ${extra.label.toLowerCase()} to the quote.`
           : choice === EXTRA_CHOICE.notAsked
@@ -38,7 +39,7 @@ export function ExtraDecision({ enquiry }: { enquiry: Enquiry }) {
               : `Left out. The reply tells them ${extra.label.toLowerCase()} is not included.`,
       );
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not save that. Try again.");
+      setError(ownerError(err));
     } finally {
       setSaving(null);
     }

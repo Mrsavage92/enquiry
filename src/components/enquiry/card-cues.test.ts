@@ -155,3 +155,10 @@ test("an inferred day beside a plain second day keeps 'Asked for'", () => {
   assert.equal(leadDateCue(e), "Asked for Fri 16 Oct");
   assert.deepEqual(otherDateCues(e), ["Tue 20 Oct"]);
 });
+
+test("pass 11: the check counter never grows under the owner - a later check is said as one that came up", () => {
+  assert.equal(checkStep({ done: 0, total: 2 }, "enq-counter"), "Check 1 of 2");
+  assert.equal(checkStep({ done: 1, total: 2 }, "enq-counter"), "Check 2 of 2");
+  assert.equal(checkStep({ done: 2, total: 3 }, "enq-counter"), "Check 3 - one more came up");
+  assert.equal(checkStep({ done: 3, total: 5 }, "enq-counter"), "Check 4 - 3 more came up");
+});

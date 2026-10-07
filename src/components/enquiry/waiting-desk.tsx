@@ -1,5 +1,4 @@
 import { Link } from "@tanstack/react-router";
-import { LastingUndo } from "./waiting-summary";
 import { useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -7,133 +6,23 @@ import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { SheetContent } from "@/components/ui/sheet";
 import { useNarrow } from "@/lib/use-narrow";
 import type { Enquiry } from "@/domain/types";
-import { isSendableAction } from "@/domain/situation";
-import { channelLabel, isShortChannel, replyChannel } from "@/domain/channel";
 import { usePrototype } from "@/store/prototype-store";
 import { toastUndo } from "@/lib/toast-undo";
 import { useEmbedNav } from "@/lib/use-embed-nav";
-import { useFirstBetaActions } from "@/lib/workspace/live-mutations";
-import { previewFor } from "@/domain/send-preview";
-import { comesBackCue, lastSent } from "@/domain/time-cues";
-import { SendPreview, type SendPreviewCopyState } from "./send-preview";
-import { toastRecordedSend } from "@/lib/workspace/send-undo";
 
 export function WaitingDesk({ enquiry, onDone }: { enquiry: Enquiry; onDone?: () => void }) {
   const acceptQuote = usePrototype((s) => s.acceptQuote);
   const recordClientQuestion = usePrototype((s) => s.recordClientQuestion);
   const markLost = usePrototype((s) => s.markLost);
-  const approve = usePrototype((s) => s.approve);
   const releaseFollowUp = usePrototype((s) => s.releaseFollowUp);
   const proposeRevision = usePrototype((s) => s.proposeRevision);
   const recordDeposit = usePrototype((s) => s.recordDeposit);
   const booking = usePrototype((s) => s.bookings.find((b) => b.enquiryId === enquiry.id));
-  const prefs = usePrototype((s) => s.prefs);
-  const sent = lastSent(enquiry, new Date(), prefs.timezone || undefined);
   const rec = enquiry.decision.recommendation;
-  const followUpReady =
-    rec.action === "FOLLOW_UP" && rec.primaryEnabled && isSendableAction(rec.action);
   const asked = rec.action === "REQUEST_INFORMATION" && rec.primaryEnabled;
   const booked = enquiry.state.lifecycle === "BOOKED";
-  const demoMode = usePrototype((s) => s.demoMode);
-  const firstBeta = useFirstBetaActions();
-  const [sending, setSending] = useState(false);
   const [lostOpen, setLostOpen] = useState(false);
-  const [confirmOpen, setConfirmOpen] = useState(false);
-  const [reviewedSendId, setReviewedSendId] = useState<string | null>(null);
-  const [reviewBlocked, setReviewBlocked] = useState<string | null>(null);
-  const [reviewStale, setReviewStale] = useState<string | null>(null);
-  const followUpBody = enquiry.decision.draft.body;
-  const followUpPreview = previewFor({
-    enquiry,
-    draft: followUpBody,
-    decision: enquiry.decision,
-  });
-
-  /**
-   * The follow-up path uses exactly the same semantics as the main composer,
-   * by design: copying is copying, and only the owner's attestation records a
-   * send. Both used to copy-and-record in one step, so a follow-up that was
-   * never sent still moved the enquiry as though the customer had heard from
-   * the business a second time.
-   */
-  const copyFollowUp = async (): Promise<SendPreviewCopyState> => {
-    try {
-      if (!navigator.clipboard?.writeText) return "failed";
-      await navigator.clipboard.writeText(followUpBody);
-      return "copied";
-    } catch {
-      return "failed";
-    }
-  };
-
-  const openReview = async () => {
-    if (!followUpBody.trim()) {
-      toast.error("There is no follow-up prepared.");
-      return;
-    }
-    if (demoMode) {
-      setReviewBlocked(null);
-      setReviewStale(null);
-      setReviewedSendId(null);
-      setConfirmOpen(true);
-      return;
-    }
-    setSending(true);
-    try {
-      const res = await firstBeta.prepareReview(enquiry.id, followUpBody, replyChannel(enquiry));
-      if (!res.ok) {
-        setReviewBlocked(res.message);
-        setReviewedSendId(null);
-      } else {
-        setReviewBlocked(null);
-        setReviewedSendId(res.reviewedSendId);
-      }
-      setReviewStale(null);
-      setConfirmOpen(true);
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Could not prepare that for review.");
-    } finally {
-      setSending(false);
-    }
-  };
-
-  const confirmExternalSend = async (staleAttestation = false) => {
-    if (demoMode) {
-      approve(enquiry.id);
-      toastUndo("Recorded as sent (demo). Nothing left this browser.");
-      setConfirmOpen(false);
-      onDone?.();
-      return;
-    }
-    if (!reviewedSendId) {
-      toast.error("Review the follow-up again before recording it as sent.");
-      return;
-    }
-    setSending(true);
-    try {
-      const res = await firstBeta.recordSent(enquiry.id, reviewedSendId, { staleAttestation });
-      if (!res.ok) {
-        if (res.reason === "stale") setReviewStale(res.message);
-        else setReviewBlocked(res.message);
-        return;
-      }
-      setConfirmOpen(false);
-      const messageId = res.messageId;
-      toastRecordedSend(
-        res.duplicate
-          ? "Already recorded - this follow-up is on file once."
-          : "Recorded as sent by you. The quote stays on file.",
-        res.duplicate || !messageId ? null : () => firstBeta.undoSend(enquiry.id, messageId),
-      );
-      onDone?.();
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Could not record that follow-up.");
-    } finally {
-      setSending(false);
-    }
-  };
   const [moreOpen, setMoreOpen] = useState(false);
-  const ch = replyChannel(enquiry);
   const phone = useNarrow(860);
   const Panel = phone ? SheetContent : DialogContent;
   const embedNav = useEmbedNav();
@@ -170,17 +59,6 @@ export function WaitingDesk({ enquiry, onDone }: { enquiry: Enquiry; onDone?: ()
 
   return (
     <div className="space-y-2">
-      {phone ? null : (
-        <p className="text-sm text-ink-2">
-          {sent
-            ? `You sent it ${sent.when}${isShortChannel(ch) ? ` on ${channelLabel(ch)}` : ""}. `
-            : isShortChannel(ch)
-              ? `Sent on ${channelLabel(ch)}. `
-              : "Sent. The quote is with them. "}
-          {comesBackCue(enquiry, prefs) || "Silence is not a decline."}
-        </p>
-      )}
-      {phone || demoMode ? null : <LastingUndo enquiry={enquiry} />}
       {phone ? (
         <>
           {/* What was sent, and when it comes back, is at the top of the
@@ -207,27 +85,16 @@ export function WaitingDesk({ enquiry, onDone }: { enquiry: Enquiry; onDone?: ()
               Propose a new quote version
             </Button>
           ) : null}
-          {followUpReady ? (
-            <Button
-              variant="secondary"
-              className="min-h-11 w-full"
-              onClick={() => void openReview()}
-              disabled={sending}
-            >
-              {sending ? "Recording…" : rec.label}
-            </Button>
-          ) : (
-            <Button
-              variant="ghost"
-              className="min-h-11 w-full"
-              onClick={() => {
-                releaseFollowUp(enquiry.id);
-                toast("Follow-up is due. Silence is not a decline.");
-              }}
-            >
-              They’ve gone quiet
-            </Button>
-          )}
+          <Button
+            variant="ghost"
+            className="min-h-11 w-full"
+            onClick={() => {
+              releaseFollowUp(enquiry.id);
+              toast("Follow-up is due. Silence is not a decline.");
+            }}
+          >
+            They’ve gone quiet
+          </Button>
           <Button variant="ghost" className="min-h-11 w-full" onClick={() => setLostOpen(true)}>
             Mark lost
           </Button>
@@ -290,7 +157,7 @@ export function WaitingDesk({ enquiry, onDone }: { enquiry: Enquiry; onDone?: ()
                 Propose a new version
               </Button>
             ) : null}
-            {followUpReady ? null : (
+            {
               <Button
                 variant="secondary"
                 className="min-h-12 w-full"
@@ -302,7 +169,7 @@ export function WaitingDesk({ enquiry, onDone }: { enquiry: Enquiry; onDone?: ()
               >
                 They’ve gone quiet
               </Button>
-            )}
+            }
             {embedNav ? null : (
               <Button asChild variant="secondary" className="min-h-12 w-full">
                 <Link
@@ -350,19 +217,6 @@ export function WaitingDesk({ enquiry, onDone }: { enquiry: Enquiry; onDone?: ()
           </div>
         </Panel>
       </Dialog>
-      <SendPreview
-        open={confirmOpen}
-        onOpenChange={setConfirmOpen}
-        preview={followUpPreview}
-        pending={sending}
-        compact={Boolean(phone)}
-        demoMode={demoMode}
-        blockedReason={reviewBlocked}
-        staleMessage={reviewStale}
-        onCopy={copyFollowUp}
-        onConfirm={() => void confirmExternalSend(false)}
-        onConfirmStale={() => void confirmExternalSend(true)}
-      />
     </div>
   );
 }

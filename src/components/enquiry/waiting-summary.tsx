@@ -10,6 +10,7 @@ import { usePrototype } from "@/store/prototype-store";
 import { useFirstBetaActions } from "@/lib/workspace/live-mutations";
 import { AnswerBlocker } from "./answer-blocker";
 import { Badge } from "@/components/ui/badge";
+import { ownerError } from "@/lib/owner-error";
 
 /**
  * Undo "I've sent this" from the enquiry itself, for as long as the server
@@ -47,9 +48,7 @@ export function LastingUndo({ enquiry }: { enquiry: Enquiry }) {
             if (res.ok) toast("Send record removed. The reply is ready to check again.");
             else toast.error(res.message ?? "Could not undo that send record.");
           })
-          .catch((err: unknown) =>
-            toast.error(err instanceof Error ? err.message : "Could not undo that send record."),
-          )
+          .catch((err: unknown) => toast.error(ownerError(err)))
           .finally(() => setWorking(false));
       }}
     >
@@ -64,7 +63,14 @@ export function LastingUndo({ enquiry }: { enquiry: Enquiry }) {
  * full sent reply, where the "Recorded as sent" toast covered it - so the one
  * thing an interrupted owner needs to know was the one thing out of sight.
  */
-export function WaitingSummary({ enquiry }: { enquiry: Enquiry }) {
+export function WaitingSummary({
+  enquiry,
+  undoElsewhere = false,
+}: {
+  enquiry: Enquiry;
+  /** The send was just recorded and the bar below carries its Undo: one Undo at a time. */
+  undoElsewhere?: boolean;
+}) {
   const prefs = usePrototype((s) => s.prefs);
   const demoMode = usePrototype((s) => s.demoMode);
   const first = firstName(enquiry);
@@ -90,7 +96,7 @@ export function WaitingSummary({ enquiry }: { enquiry: Enquiry }) {
         {comesBackCue(enquiry, prefs)}
       </p>
       {sent ? <p className="mt-1 text-sm text-ink-2">You sent it {sent.when}.</p> : null}
-      {demoMode ? null : <LastingUndo enquiry={enquiry} />}
+      {demoMode || undoElsewhere ? null : <LastingUndo enquiry={enquiry} />}
       {phrase && !demoMode ? (
         <AnswerBlocker
           enquiry={enquiry}

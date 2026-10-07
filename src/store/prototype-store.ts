@@ -94,6 +94,12 @@ type PrototypeState = {
    */
   staleDrafts: Record<string, string>;
   /**
+   * enquiryId -> the prepared reply the owner's edit started from. A voice
+   * change is read against THIS, never against a reply prepared later (a
+   * confirmed name changes the greeting; the owner did not).
+   */
+  draftBases?: Record<string, string>;
+  /**
    * enquiryId -> what an edit names that the quote now says differently
    * ("Makeup trial $90 -> $95"), shown on the out-of-date edit card.
    */
@@ -203,7 +209,7 @@ type Actions = {
   setBrainTab: (id: string) => void;
   setBrainFocusComposer: (v: boolean) => void;
   track: (fixtureId: string, action: string) => void;
-  editDraft: (enquiryId: string, body: string) => void;
+  editDraft: (enquiryId: string, body: string, base?: string) => void;
   considerVoice: (enquiryId: string) => void;
   decideVoice: (scope: "enquiry" | "teach") => void;
   approve: (enquiryId: string, opts?: { automated?: boolean }) => void;
@@ -605,7 +611,22 @@ export const usePrototype = create<PrototypeState & Actions>()(
             { id: `${Date.now()}-${action}`, fixtureId, action, at: Date.now() },
           ],
         })),
-      editDraft: (enquiryId, body) => set((s) => ({ drafts: { ...s.drafts, [enquiryId]: body } })),
+      editDraft: (enquiryId, body, base) =>
+        set((s) => {
+          const prepared = s.enquiries.find((e) => e.id === enquiryId)?.decision.draft.body;
+          const current = s.drafts[enquiryId];
+          const known = s.draftBases?.[enquiryId];
+          // An edit that starts from the prepared reply is based on it; one
+          // already under way keeps the reply it started from.
+          const from =
+            base ??
+            (current === undefined || current === prepared ? prepared : (known ?? prepared));
+          return {
+            drafts: { ...s.drafts, [enquiryId]: body },
+            draftBases:
+              from === undefined ? s.draftBases : { ...(s.draftBases ?? {}), [enquiryId]: from },
+          };
+        }),
       resolveStaleDraft: (enquiryId) =>
         set((s) => {
           const next = { ...s.staleDrafts };
@@ -621,7 +642,7 @@ export const usePrototype = create<PrototypeState & Actions>()(
         const edited = s.drafts[enquiryId] ?? enquiry.decision.draft.body;
         const firstName = enquiry.customerName.split(" ")[0] ?? enquiry.customerName;
         const proposal = detectVoiceEdit(
-          enquiry.decision.draft.body,
+          s.draftBases?.[enquiryId] ?? enquiry.decision.draft.body,
           edited,
           business.voice,
           firstName,

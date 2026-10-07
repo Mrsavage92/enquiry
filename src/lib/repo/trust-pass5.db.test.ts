@@ -354,17 +354,27 @@ test("repro 4: a recurring job is quoted per visit, with the first-visit extra s
 
 // The server enforces the gate, whatever the screen shows ---------------------
 
-test("the server refuses a reply naming a total until coverage is confirmed for this revision", async () => {
+test("the server refuses a reply naming a total until coverage is confirmed, unless the app is sure and the reply says what it covers", async () => {
   const pg = await freshDb();
   const a = await tenant(pg, "user-a", "Tidy Nest Cleaning");
   await saveRule(pg, a.businessId, "Oven clean $95");
   const e = await enquiry(pg, a.businessId, "Oven clean please. Jo", "Oven clean");
-  const crafted = "Hi Jo,\n\nFor the oven clean, that comes to $95.\n\nThanks";
-  const refused = await prepare(pg, e.enquiryId, a.businessId, crafted);
-  assert.equal(refused.ok, false);
-  assert.equal(!refused.ok && refused.reason, "coverage_unconfirmed");
+  // Doc 51 decision 1: a clean quote folds "That's everything" into the send.
+  // A total without the sentence that says what it covers is still refused.
+  const bare = "Hi Jo,\n\nThat's $95.\n\nThanks";
+  const refused = await prepare(pg, e.enquiryId, a.businessId, bare);
+  assert.equal(!refused.ok && refused.reason, "scope_removed");
   const none = await pg.query("select 1 from reviewed_send where enquiry_id = $1", [e.enquiryId]);
   assert.equal(none.rows.length, 0, "nothing frozen for review");
+  // With its scope it is a folded reply: checked, and confirmed only when recorded.
+  const crafted = "Hi Jo,\n\nFor the oven clean, that comes to $95.\n\nThanks";
+  const folded = await prepare(pg, e.enquiryId, a.businessId, crafted);
+  assert.equal(folded.ok && folded.confirmsCoverage, true, JSON.stringify(folded));
+  const coverage = await pg.query(
+    "select 1 from enquiry_fact where enquiry_id = $1 and field = 'coverage'",
+    [e.enquiryId],
+  );
+  assert.equal(coverage.rows.length, 0, "the check confirms nothing");
 
   // A confirmation for a revision the owner never saw is refused too.
   const r = await row(pg, e.enquiryId);
@@ -379,11 +389,12 @@ test("the server refuses a reply naming a total until coverage is confirmed for 
   await confirmCoverage(pg, "user-a", e.enquiryId);
   const ok = await prepare(pg, e.enquiryId, a.businessId, crafted);
   assert.equal(ok.ok, true, JSON.stringify(ok));
+  assert.equal(ok.ok && ok.confirmsCoverage, false);
 
-  // A later fact change resets it: the same body is refused again.
+  // A later fact change resets it: the old body no longer says what the price leaves out.
   await answer(pg, "user-a", e.enquiryId, "extra:fridge clean", EXTRA_CHOICE.comeBack);
   const again = await prepare(pg, e.enquiryId, a.businessId, `${crafted}\n`);
-  assert.equal(!again.ok && again.reason, "coverage_unconfirmed");
+  assert.equal(!again.ok && again.reason, "scope_removed");
 });
 
 // Two tenants on every new or changed server path ----------------------------

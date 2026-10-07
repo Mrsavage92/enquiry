@@ -31,7 +31,7 @@ import {
   coverageKey,
   askedForFirstVisit,
   isFirstVisit,
-  frequencyIn,
+  frequencyFor,
   RECURRING_FIELD,
   unsettledFlags,
   type Coverage,
@@ -57,13 +57,13 @@ import {
   shortDay,
   topicWords,
 } from "./customer-asks.ts";
-import { closedReason, spokenDate, type ReplyContext } from "./compose-reply.ts";
+import { closedReason, insteadOf, spokenDate, type ReplyContext } from "./compose-reply.ts";
 import { planClosedDays, type ClosedDayPlan } from "./closed-day.ts";
 import { distinctiveStems, mentionsAny, namesService, stemsOf } from "./service-words.ts";
 import { sameCountWords } from "./quantity-reader.ts";
 import { applyHeadcount } from "./headcount.ts";
 import { contextMentions } from "./date-roles.ts";
-import { askedLedger, checkCount, openAsked, type AskedItem } from "./asked.ts";
+import { askedLedger, checkCount, holdingItems, type AskedItem } from "./asked.ts";
 
 /** One priced line of a quote with more than one thing on it. */
 export type QuoteLine = {
@@ -227,7 +227,33 @@ export type Decision = {
    * the owner settles it.
    */
   conflict?: string;
+  /**
+   * "How much for a clean?" with no service to price: the owner chose to ask
+   * them which job they need. The reply asks, naming these, and no price.
+   */
+  askService?: { work: string; services: string[] };
 };
+
+/** The owner's choice to ask a vague enquiry which job they need. */
+export const ASK_SERVICE_FIELD = "ask_service";
+
+/** "clean", "paint": the work word of a vague ask, and the owner's services for it. */
+function servicesToAsk(message: string, services: readonly string[]): Decision["askService"] {
+  const word = /\b(clean|paint|makeup|lawn|mow|wash|detail|groom|photo|tutor|lesson)\w*/i.exec(
+    message,
+  )?.[1];
+  const work = (word ?? "job").toLowerCase();
+  // "End of lease clean 2 bedroom" and "... 3 bedroom" are one kind of job to ask about.
+  const kinds = [
+    ...new Set(
+      services
+        .filter((s) => !word || s.toLowerCase().includes(work))
+        .map((s) => s.replace(/\s+\d+\s*(?:bed(?:room)?s?|br)\b.*$/i, "").trim())
+        .filter(Boolean),
+    ),
+  ].slice(0, 4);
+  return { work, services: kinds };
+}
 
 export type ClosedDay = {
   /** The days, yyyy-mm-dd, the owner doesn't work. */
@@ -352,10 +378,10 @@ export function decideEnquiry(
 function withLedger(
   decided: Decision,
   facts: ReadonlyArray<DecideFact>,
-  enquiry: { serviceLabel?: string | null },
+  enquiry: { serviceLabel?: string | null; reply?: ReplyContext },
 ): Decision {
-  const asked = askedLedger(decided, facts, enquiry.serviceLabel ?? "");
-  const open = openAsked(asked).filter((i) => i.kind !== "service" && i.kind !== "date");
+  const asked = askedLedger(decided, facts, enquiry.serviceLabel ?? "", enquiry.reply);
+  const open = holdingItems(asked);
   const flags = decided.coverage ? unsettledFlags(decided.coverage.flagged).length : 0;
   const checks = checkCount(facts, open.length + flags + (decided.blocker?.inferred ? 1 : 0));
   const coverage =
@@ -380,6 +406,20 @@ function decideCore(
   const facts = (enquiry.facts ?? []) as DecideFact[];
   const serviceLabel = enquiry.serviceLabel ?? "";
   const primary = decidePrimary(rules, serviceLabel, facts);
+  // "How much for a clean?": the owner asks them which job, and nothing is priced.
+  const askService = facts.find(
+    (f) => f.field.trim().toLowerCase() === ASK_SERVICE_FIELD && f.status === "confirmed",
+  );
+  if (!serviceLabel.trim() && String(askService?.value ?? "") === "yes") {
+    return {
+      ...primary,
+      action: "REQUEST_INFORMATION",
+      explanation: "You chose to ask them which job they need. The reply asks and names no price.",
+      askService: servicesToAsk(enquiry.messageText ?? "", [
+        ...new Set([...rules.map((r) => r.service), ...(enquiry.services ?? [])]),
+      ]),
+    };
+  }
   const knownServices = [...new Set(rules.map((r) => r.service))];
   const decided = primary.price.kind === "EXACT" ? decideExtras(rules, primary, facts) : primary;
   // What the quote prices: never also a thing the reply comes back on.
@@ -559,9 +599,13 @@ export function noLine(thing: string, details: readonly BusinessDetail[]): strin
 /** Hello, thanks and a name: never content of their own. */
 const PLEASANTRY =
   /^(?:hi|hello|hey|g'?day|morning|thanks|thank you|thx|cheers|regards|kind regards|ta)\b/i;
-/** Words that ask for more than the question: "also", "if so", "as well", "quote". */
-const ASKS_MORE =
-  /\b(?:also|as well|if so|too|quote|price|cost|can you|could you|would you|do you|please|pls|need|needs|want|keen|after|looking|book)\b/i;
+/**
+ * Words that ask for something beside the question: "also", "as well", "too",
+ * "plus". Words that only say more about the thing itself ("Need the tiles
+ * redone before Christmas", "can you quote?") are not: once the owner says
+ * they don't do it, a "which job?" about it would ignore their No.
+ */
+const ASKS_MORE = /\b(?:also|as well|too|plus|another|other)\b/i;
 /** Filler that says nothing more: "Just the front fence and the eaves." is three things about it. */
 const FILLER = new Set(["just", "the", "a", "an", "and", "only", "my", "our", "of", "its", "it's"]);
 
@@ -609,7 +653,7 @@ function onlyTheQuestions(
     if (/^[A-Z][a-z]+(?:\s+[A-Z][a-z]+)?$/.test(words)) continue;
     if (ASKS_MORE.test(words) || mentionsAny(words, serviceStems)) return false;
     const meaningful = words.split(/\s+/).filter((w) => !FILLER.has(w.toLowerCase()));
-    if (meaningful.length > 6) return false;
+    if (meaningful.length > 12) return false;
   }
   return true;
 }
@@ -910,8 +954,16 @@ function weekdaysSaid(words: string): number[] {
  * weekend"), a day they prefer, and the trial's or the event's own day. Empty
  * when no day is said at all - which a day-based charge treats as unsure.
  */
-function jobWeekdaysOf(facts: ReadonlyArray<DecideFact>): number[] {
+function jobWeekdaysOf(
+  facts: ReadonlyArray<DecideFact>,
+  open: (iso: string) => string | null = (iso) => iso,
+  closedDays: readonly number[] = [],
+): number[] {
   const out = new Set<number>();
+  const addIso = (iso: string) => {
+    const day = open(iso);
+    if (day) out.add(new Date(`${day}T00:00:00`).getDay());
+  };
   const find = (field: string) => facts.find((f) => f.field.trim().toLowerCase() === field);
   const date = find("date");
   const value = String(date?.value ?? "").trim();
@@ -922,15 +974,26 @@ function jobWeekdaysOf(facts: ReadonlyArray<DecideFact>): number[] {
       const day = new Date(y, m - 1, d + i);
       const iso = `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, "0")}-${String(day.getDate()).padStart(2, "0")}`;
       if (iso > window[2]!) break;
-      out.add(day.getDay());
+      // A day of the stretch the owner doesn't work is never the job's.
+      if (open(iso) === iso) out.add(day.getDay());
     }
   } else if (/^\d{4}-\d{2}-\d{2}/.test(value)) {
-    for (const iso of jobDatesOf(facts)) out.add(new Date(`${iso}T00:00:00`).getDay());
+    // "Sat 10 or Sun 11" with Sundays off: the job can only be the Saturday,
+    // never the Monday a closed option would otherwise move to.
+    const isos = jobDatesOf(facts);
+    const openOnes = isos.filter((iso) => open(iso) === iso);
+    for (const iso of openOnes.length ? openOnes : isos) addIso(iso);
   } else if (date) {
-    weekdaysSaid(String(date.displayValue ?? "")).forEach((d) => out.add(d));
+    weekdaysSaid(String(date.displayValue ?? ""))
+      .filter((d) => !closedDays.includes(d))
+      .forEach((d) => out.add(d));
   }
   const preference = find("day_preference");
-  if (preference) weekdaysSaid(String(preference.value ?? "")).forEach((d) => out.add(d));
+  if (preference) {
+    weekdaysSaid(String(preference.value ?? ""))
+      .filter((d) => !closedDays.includes(d))
+      .forEach((d) => out.add(d));
+  }
   const context = find("date_context");
   // An event beside a day of its own ("wedding Saturday, trial done by
   // Friday") is when it happens, not when the work is; with no day of its own,
@@ -943,10 +1006,28 @@ function jobWeekdaysOf(facts: ReadonlyArray<DecideFact>): number[] {
     )) {
       if (m.to || m.role === "context") continue;
       if (m.role === "event" && hasOwnDay) continue;
-      out.add(new Date(`${m.iso}T00:00:00`).getDay());
+      addIso(m.iso);
     }
   }
   return [...out].sort((a, b) => a - b);
+}
+
+/**
+ * A day they asked for as the quote prices it: the day itself when the owner
+ * works it, the day the reply offers instead when not (null when none), and
+ * the day itself when the owner confirmed it.
+ */
+function openDay(reply: ReplyContext | undefined): (iso: string) => string | null {
+  return (iso) => {
+    if (!reply?.closed || !closedReason(iso, reply.closed)) return iso;
+    if (reply.jobDateConfirmed && reply.jobDateIso === iso) return iso;
+    return insteadOf(iso, reply.closed, reply.surchargeDays);
+  };
+}
+
+function openDays(isos: readonly string[], reply: ReplyContext | undefined): string[] {
+  const open = openDay(reply);
+  return [...new Set(isos.map(open).filter((d): d is string => Boolean(d)))];
 }
 
 /** The job's days and every other single day they wrote (the trial's): each checked against closed days. */
@@ -1063,12 +1144,25 @@ function gateCoverage(start: Decision, ctx: CoverageContext): Decision {
   let decided = plan && plan.held.length > 0 ? withoutHeld(start, plan, ctx.rules) : start;
   const held = plan?.held ?? [];
   // How often is a reading: shown as its own line to confirm, never assumed.
-  const frequency = frequencyIn(ctx.message);
+  // The frequency of the work on this quote only: "a regular clean, probably
+  // weekly" beside a painting quote never makes the painting per visit.
+  const frequency = frequencyFor(
+    ctx.message,
+    [ctx.serviceLabel, ...linesOf(decided).map((l) => l.label)],
+    ctx.services,
+  );
   const recurringAnswer = ctx.facts.find(
     (f) => f.field.trim().toLowerCase() === RECURRING_FIELD && f.status === "confirmed",
   );
   const recurring = String(recurringAnswer?.value ?? "") === "yes";
   const unruled = linesOf(decided);
+  // The days they need, even when only the date sweep read them ("27th or
+  // 28th"): priced as the day the reply offers, never "it may be weekends".
+  const read = jobDatesOf(ctx.facts);
+  const sweptOnly = read.length === 0 && (ctx.reply?.sweptClosed ?? []).some((d) => d.say);
+  const asked = sweptOnly
+    ? (ctx.reply?.sweptClosed ?? []).filter((d) => d.say).map((d) => d.iso)
+    : read;
   // "for me n my sister (2 ppl)" beside a flat price: priced the way the
   // owner says, never one price read as covering both.
   const counted = applyHeadcount({
@@ -1085,8 +1179,14 @@ function gateCoverage(start: Decision, ctx: CoverageContext): Decision {
     message: ctx.message,
     // Only the days of the work left on the quote: the trial's Saturday, never
     // the closed Sunday of the wedding it no longer prices.
-    jobDates: held.length ? plan!.workDays : jobDatesOf(ctx.facts),
-    jobWeekdays: held.length ? weekdaysOf(plan!.workDays) : jobWeekdaysOf(ctx.facts),
+    // A day the owner doesn't work is priced as the day the reply offers
+    // instead: never "your Sunday rate" on a Sunday the reply turns down.
+    jobDates: held.length ? plan!.workDays : openDays(asked, ctx.reply),
+    jobWeekdays: held.length
+      ? weekdaysOf(plan!.workDays)
+      : sweptOnly
+        ? weekdaysOf(openDays(asked, ctx.reply))
+        : jobWeekdaysOf(ctx.facts, openDay(ctx.reply), ctx.reply?.closed?.days ?? []),
     facts: ctx.facts,
     ...(recurring ? { recurring: frequency ?? "regularly" } : {}),
   });

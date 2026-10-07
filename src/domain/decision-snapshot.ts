@@ -1,5 +1,6 @@
 import type { Decision } from "./decide.ts";
 import { composeReply } from "./compose-reply.ts";
+import { coverageFold } from "./coverage-fold.ts";
 import { questionStep } from "./customer-asks.ts";
 import { decidingPhrase, impliedAmountsMinor } from "./price-compiler.ts";
 import { countParts, isOwnerEstimate } from "./count-phrase.ts";
@@ -119,6 +120,7 @@ export function snapshotFromDecision(decision: Decision, who: ReplyContext = {})
     primaryEnabled: decision.action !== "ESCALATE_HUMAN" && !decision.blocker?.inferred,
   };
   const dates = datesOnCard(who);
+  const fold = coverageFold(decision, who);
   return {
     ...base,
     recommendation,
@@ -165,6 +167,7 @@ export function snapshotFromDecision(decision: Decision, who: ReplyContext = {})
         : undefined,
     ...(decision.extraPending ? { extraPending: decision.extraPending } : {}),
     ...(decision.coverage ? { coverage: decision.coverage } : {}),
+    ...(fold ? { fold } : {}),
     ...(decision.questionPending ? { questionPending: decision.questionPending } : {}),
     ...(decision.leftOut?.length ? { leftOut: decision.leftOut } : {}),
     // Shown to the owner as a provisional figure, never as a decided one. The

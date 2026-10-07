@@ -12,6 +12,10 @@ import { standsAsQuoted, type QuoteLineAmount } from "../../domain/money-labels.
 import { formatMinorAud } from "../../domain/money-format.ts";
 import { COVERAGE_FIELD } from "../../domain/coverage.ts";
 import { isClosed, lockEnquiry } from "./decision-apply.ts";
+import { ownerEditWarnings, sentencesOf } from "../../domain/edit-warnings.ts";
+import { activeDetails, closedTimesOf } from "../../domain/business-detail.ts";
+import type { ClosedTimes } from "../../domain/compose-reply.ts";
+import { keepsScope, type CoverageFold } from "../../domain/coverage-fold.ts";
 
 /**
  * Preparing a send for review, as pure SQL logic.
@@ -49,6 +53,8 @@ export type PrepareReviewInput = {
   /** The text on screen, which the owner may have edited. */
   body: string;
   channel: Channel;
+  /** The clock the owner's days are read against; injected in tests. */
+  now?: Date;
 };
 
 export type PrepareReviewResult =
@@ -63,6 +69,21 @@ export type PrepareReviewResult =
       amountMinor: number | null;
       currency: string | null;
       alreadyConfirmed: boolean;
+      /**
+       * "Check this before you send": promises and claims the owner wrote
+       * that the app cannot vouch for. Sending anyway is one tap, recorded.
+       */
+      warnings: string[];
+      /**
+       * Whether the text itself names the decision's amount (both ends of a
+       * range). The send line shows the amount only when it does, and says
+       * "No price in this reply" otherwise (doc 50 S2).
+       */
+      namesAmount: boolean;
+      /** The range the artefact was frozen with, for an estimate. */
+      rangeMinor: { min: number; max: number } | null;
+      /** Recording this reply also confirms what the price covers (doc 51 decision 1). */
+      confirmsCoverage: boolean;
     }
   | {
       ok: false;
@@ -83,6 +104,7 @@ export type PrepareReviewResult =
         | "practice"
         | "unconfirmed_reading"
         | "coverage_unconfirmed"
+        | "scope_removed"
         | "amount_unreadable";
       message: string;
       /**
@@ -138,6 +160,8 @@ type MoneyCheck = {
   insurance: boolean;
   /** A figure is in another currency. */
   foreign: boolean;
+  /** Each refused figure where it stands. */
+  refused: { index: number; raw: string; minor: number }[];
 };
 
 /**
@@ -163,7 +187,14 @@ function checkMoney(
 ): MoneyCheck {
   const expectedMinor = price?.kind === "EXACT" ? price.amountMinor : null;
   const free = moneyOutsideAnswers(body, ownerTexts);
-  const none = { ok: true, named: [], expectedMinor, insurance: false, foreign: false };
+  const none = {
+    ok: true,
+    named: [],
+    expectedMinor,
+    insurance: false,
+    foreign: false,
+    refused: [],
+  };
   // A message that names no money of its own is left alone: the structured
   // quote carries the figure, and an owner may write a covering note.
   if (free.length === 0) return none;
@@ -193,7 +224,21 @@ function checkMoney(
     expectedMinor,
     insurance,
     foreign: refused.some((m) => m.foreign),
+    refused: refused.map((m) => ({ index: m.index, raw: m.raw, minor: minor(m) })),
   };
+}
+
+/** The clause around a figure: "the total is $20m" in "We're insured for $20m, and the total is $20m." */
+function clauseAt(body: string, index: number, length: number): string {
+  const sentence = sentenceAt(body, index, index + length);
+  const at = body.lastIndexOf(sentence, index);
+  const from = at === -1 ? 0 : index - at;
+  const head = sentence.slice(0, from);
+  const last = [...head.matchAll(/[,;]|\b(?:and|but)\b/gi)].at(-1);
+  const start = last ? last.index + last[0].length : 0;
+  const tail = sentence.slice(from + length);
+  const stop = tail.search(/[,;]|\b(?:and|but)\b/i);
+  return sentence.slice(start, stop === -1 ? sentence.length : from + length + stop).trim();
 }
 
 export function mismatchAmounts(
@@ -211,6 +256,63 @@ export function mismatchAmounts(
 export const INSURANCE_AS_ANSWER =
   "Write insurance cover as a saved answer so Enquiry can check it.";
 
+/** Words that make a sentence about the price, whatever else it mentions. */
+const PRICE_WORDS =
+  /\b(?:total|price|prices|quote|quoted|comes?\s+to|all\s+up|costs?|charge[ds]?|fees?|pay|deposit|per|each|hour|hourly|rate|discount|off)\b/i;
+
+/** A saved answer of the owner's: "We have $10 million public liability insurance." */
+export type SavedAnswer = { topic: string; text: string };
+
+function plain(s: string): string {
+  return s
+    .toLowerCase()
+    .replace(/[^a-z0-9$.%]+/g, " ")
+    .replace(/\.(?!\d)/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/**
+ * The owner's own saved answers as they appear in a reply, typed by hand or
+ * inserted: a sentence that reads the same as a saved answer (case, spacing
+ * and full stops aside) is that answer. So is a sentence about insurance
+ * whose every figure is the saved insurance answer's own figure ("We carry
+ * $10m cover" beside "$10 million public liability") - never a different one.
+ */
+export function savedAnswerSentences(body: string, saved: readonly SavedAnswer[]): string[] {
+  if (saved.length === 0) return [];
+  const texts = new Set(saved.map((a) => plain(a.text)));
+  const cover = new Set(
+    saved
+      .filter((a) => a.topic === "insurance")
+      .flatMap((a) => dollarMatches(a.text).map((m) => Math.round(m.amount * 100))),
+  );
+  return sentencesOf(body).filter((s) => {
+    if (texts.has(plain(s))) return true;
+    const figures = dollarMatches(s);
+    // Only a sentence about the cover alone: "insured for $20m, and the total
+    // is $20m" states a price too, and that figure is money like any other.
+    return (
+      cover.size > 0 &&
+      figures.length > 0 &&
+      INSURANCE_WORDS.test(s) &&
+      !PRICE_WORDS.test(s) &&
+      figures.every((m) => !m.foreign && cover.has(Math.round(m.amount * 100)))
+    );
+  });
+}
+
+/** "Your saved insurance answer says $10,000,000." when a cover figure differs from it. */
+function insuranceMessage(saved: readonly SavedAnswer[]): string {
+  const figure = saved
+    .filter((a) => a.topic === "insurance")
+    .flatMap((a) => dollarMatches(a.text))
+    .find((m) => !m.foreign);
+  return figure
+    ? `Your saved insurance answer says ${formatMinorAud(Math.round(figure.amount * 100))}. Use that figure, or change your saved answer first.`
+    : INSURANCE_AS_ANSWER;
+}
+
 /** "Your reply says $880, but the quote Enquiry worked out is $760." */
 export function mismatchMessage(
   body: string,
@@ -218,9 +320,24 @@ export function mismatchMessage(
   impliedMinor: number[] = [],
   ownerTexts: readonly string[] = [],
   quote?: QuoteContext,
+  saved: readonly SavedAnswer[] = [],
 ): string {
   const check = checkMoney(body, price, impliedMinor, ownerTexts, quote);
-  if (check.insurance) return INSURANCE_AS_ANSWER;
+  // The saved cover figure said as a price ("the total is $20m"): the clause
+  // that prices it is the problem, never the cover figure itself.
+  const cover = new Set(
+    saved
+      .filter((a) => a.topic === "insurance")
+      .flatMap((a) => dollarMatches(a.text).map((m) => Math.round(m.amount * 100))),
+  );
+  const priced = check.refused
+    .filter((m) => cover.has(m.minor))
+    .map((m) => clauseAt(body, m.index, m.raw.length))
+    .find((clause) => PRICE_WORDS.test(clause) && !INSURANCE_WORDS.test(clause));
+  if (priced && check.expectedMinor !== null) {
+    return `"${priced}" says your insurance figure is a price. The quote Enquiry worked out is ${formatMinorAud(check.expectedMinor)}: take that out, or use the prepared total.`;
+  }
+  if (check.insurance) return insuranceMessage(saved);
   if (check.foreign) return "Write amounts in Australian dollars so Enquiry can check them.";
   const total = check.expectedMinor !== null ? formatMinorAud(check.expectedMinor) : null;
   const says = check.named.map((n) => formatMinorAud(n)).join(" and ");
@@ -357,8 +474,33 @@ type SnapshotRow = {
   draft_body: string | null;
   evaluators: EvaluatorResult[] | null;
   missing: { factField?: string; inferred?: unknown }[] | null;
+  fold: CoverageFold | null;
+  coverage_key: string | null;
   engine_version: string;
 };
+
+/** The message for a folded reply that no longer says what the price covers. */
+export const SCOPE_REMOVED =
+  "Keep the lines that say what the price covers and what it leaves out. The customer reads those, so a reply without them can't be copied.";
+
+/**
+ * Whether a text names the decision's own amount: the total, or both ends of a
+ * range, outside the owner's own answer sentences.
+ */
+export function namesAmount(
+  body: string,
+  price: DecisionPrice | null,
+  ownerTexts: readonly string[] = [],
+): boolean {
+  if (!price) return false;
+  const stated = new Set(
+    moneyOutsideAnswers(body, ownerTexts)
+      .filter((m) => !m.foreign)
+      .map((m) => Math.round(m.amount * 100)),
+  );
+  const required = price.kind === "EXACT" ? [price.amountMinor] : [price.minMinor, price.maxMinor];
+  return required.every((r) => stated.has(r));
+}
 
 /**
  * Freeze what the owner is about to review. Assumes it is ALREADY inside a
@@ -403,6 +545,8 @@ export async function prepareReviewedSendInTransaction(
       decision_snapshot -> 'draft' ->> 'body' as draft_body,
       decision_snapshot -> 'evaluators' as evaluators,
       decision_snapshot -> 'missing' as missing,
+      decision_snapshot -> 'fold' as fold,
+      decision_snapshot -> 'coverage' ->> 'key' as coverage_key,
       engine_version
     from enquiry where id = ${input.enquiryId}
   `;
@@ -424,9 +568,23 @@ export async function prepareReviewedSendInTransaction(
   // covers, for this revision. Checked against the stored confirmation itself,
   // not only the snapshot, so a crafted body cannot name a total early.
   // Only the owner's own answer sentences, as written, carry figures of their
-  // own; a snapshot from before these were recorded trusts none.
-  const ownerTexts = Array.isArray(enq.owner_texts) ? enq.owner_texts : [];
-  if (moneyFigures(input.body, ownerTexts).length > 0) {
+  // own; a snapshot from before these were recorded trusts none. The owner's
+  // saved answers count too, typed by hand or inserted.
+  const business = await businessFacts(sql, input.businessId);
+  const ownerTexts = [
+    ...(Array.isArray(enq.owner_texts) ? enq.owner_texts : []),
+    ...savedAnswerSentences(input.body, business.saved),
+  ];
+  // The coverage tap folded into Copy: only while this exact coverage is still
+  // unconfirmed, and only for a reply that still says everything the scope
+  // lines say. Recording it is what confirms the coverage (sent-reply-core).
+  const folding =
+    enq.fold && enq.fold.key === enq.coverage_key
+      ? (await coverageNow(sql, input.enquiryId)) === "unconfirmed"
+        ? enq.fold
+        : null
+      : null;
+  if (!folding && moneyFigures(input.body, ownerTexts).length > 0) {
     const coverage = await coverageNow(sql, input.enquiryId);
     if (coverage === "unconfirmed") {
       return {
@@ -438,7 +596,7 @@ export async function prepareReviewedSendInTransaction(
     }
   }
 
-  const action = enq.action ?? "";
+  const action = folding ? "SEND_QUOTE" : (enq.action ?? "");
   if (!SENDABLE.has(action)) {
     return {
       ok: false,
@@ -483,11 +641,14 @@ export async function prepareReviewedSendInTransaction(
     }
   }
 
-  const price = enq.price ?? null;
+  const price = folding ? folding.price : (enq.price ?? null);
+  // What the owner was shown as the prepared reply: the folded one names the
+  // total its confirmation will authorise.
+  const prepared = folding ? folding.body : (enq.draft_body ?? "");
   // A line's amount only where it is said as that line: in the prepared
   // reply's own sentence, or beside a word of that line's own name.
   const quote: QuoteContext = {
-    draft: enq.draft_body ?? "",
+    draft: prepared,
     lines:
       price?.kind === "EXACT" && price.lines?.length
         ? price.lines
@@ -495,14 +656,19 @@ export async function prepareReviewedSendInTransaction(
           ? [{ label: enq.service_label ?? "", amountMinor: price.amountMinor }]
           : [],
   };
-  const implied = enq.implied_amounts ?? [];
+  const implied = folding ? folding.impliedAmountsMinor : (enq.implied_amounts ?? []);
   if (!amountAgrees(input.body, price, implied, ownerTexts, quote)) {
     return {
       ok: false,
       reason: "amount_mismatch",
-      message: mismatchMessage(input.body, price, implied, ownerTexts, quote),
+      message: mismatchMessage(input.body, price, implied, ownerTexts, quote, business.saved),
       amounts: mismatchAmounts(input.body, price, implied, ownerTexts, quote),
     };
+  }
+  // A changed total is said as that, with its fix; a reply that dropped what
+  // the price covers is refused as that.
+  if (folding && !keepsScope(input.body, folding.scope)) {
+    return { ok: false, reason: "scope_removed", message: SCOPE_REMOVED };
   }
 
   const body = normalizeBody(input.body);
@@ -514,21 +680,27 @@ export async function prepareReviewedSendInTransaction(
   // response - resolve to the SAME artefact rather than a second one, and
   // `do update` rather than `do nothing` so the id comes back either way.
   //
-  // The existing row keeps its original decision_revision. That matters: an
-  // artefact prepared before the facts moved stays pinned to the decision it
-  // actually described, so confirming it is correctly seen as stale rather
-  // than quietly re-pointed at a newer amount.
+  // A row nobody has recorded yet is bound again to the decision it was just
+  // checked against: every rule above ran on THIS revision, so the same text
+  // is a fresh review now (an owner's kept edit after "Use this name" was
+  // otherwise refused as stale forever). An artefact that is not prepared
+  // again stays pinned to the revision it described, so confirming it after
+  // the facts moved is still stale. A recorded row is never re-pointed.
   const [row] = await sql<{
     id: string;
     consumed_at: string | null;
     decision_revision: string | number;
     amount_minor: string | number | null;
     currency: string | null;
+    range_min_minor: string | number | null;
+    range_max_minor: string | number | null;
+    coverage_key: string | null;
   }>`
     insert into reviewed_send
       (enquiry_id, business_id, reviewed_by, decision_revision, action, channel,
        recipient, body, body_hash, price_kind, amount_minor, range_min_minor,
-       range_max_minor, currency, service_label, reason, evaluators, engine_version)
+       range_max_minor, currency, service_label, reason, evaluators, engine_version, draft_body,
+       coverage_key)
     values (
       ${input.enquiryId}, ${input.businessId}, ${input.userId}, ${locked.decisionRevision},
       ${action}, ${input.channel}, ${recipient}, ${body}, ${hash},
@@ -539,11 +711,28 @@ export async function prepareReviewedSendInTransaction(
       ${price?.currency ?? null},
       ${enq.service_label ?? ""}, ${enq.reason ?? ""},
       ${enq.evaluators ? JSON.stringify(enq.evaluators) : null}::jsonb,
-      ${enq.engine_version ?? "0"}
+      ${enq.engine_version ?? "0"}, ${prepared}, ${folding?.key ?? null}
     )
     on conflict (enquiry_id, body_hash)
-      do update set reviewed_by = excluded.reviewed_by
-    returning id, consumed_at, decision_revision, amount_minor, currency
+      do update set
+        reviewed_by = excluded.reviewed_by,
+        decision_revision = case when reviewed_send.consumed_at is null then excluded.decision_revision else reviewed_send.decision_revision end,
+        action = case when reviewed_send.consumed_at is null then excluded.action else reviewed_send.action end,
+        channel = case when reviewed_send.consumed_at is null then excluded.channel else reviewed_send.channel end,
+        recipient = case when reviewed_send.consumed_at is null then excluded.recipient else reviewed_send.recipient end,
+        price_kind = case when reviewed_send.consumed_at is null then excluded.price_kind else reviewed_send.price_kind end,
+        amount_minor = case when reviewed_send.consumed_at is null then excluded.amount_minor else reviewed_send.amount_minor end,
+        range_min_minor = case when reviewed_send.consumed_at is null then excluded.range_min_minor else reviewed_send.range_min_minor end,
+        range_max_minor = case when reviewed_send.consumed_at is null then excluded.range_max_minor else reviewed_send.range_max_minor end,
+        currency = case when reviewed_send.consumed_at is null then excluded.currency else reviewed_send.currency end,
+        service_label = case when reviewed_send.consumed_at is null then excluded.service_label else reviewed_send.service_label end,
+        reason = case when reviewed_send.consumed_at is null then excluded.reason else reviewed_send.reason end,
+        evaluators = case when reviewed_send.consumed_at is null then excluded.evaluators else reviewed_send.evaluators end,
+        engine_version = case when reviewed_send.consumed_at is null then excluded.engine_version else reviewed_send.engine_version end,
+        draft_body = case when reviewed_send.consumed_at is null then excluded.draft_body else reviewed_send.draft_body end,
+        coverage_key = case when reviewed_send.consumed_at is null then excluded.coverage_key else reviewed_send.coverage_key end
+    returning id, consumed_at, decision_revision, amount_minor, currency, range_min_minor,
+      range_max_minor, coverage_key
   `;
   if (!row) throw new Error("Could not prepare that send for review.");
 
@@ -563,5 +752,33 @@ export async function prepareReviewedSendInTransaction(
     amountMinor: row.amount_minor === null ? null : Number(row.amount_minor),
     currency: row.currency,
     alreadyConfirmed: Boolean(row.consumed_at),
+    warnings: ownerEditWarnings(body, prepared, {
+      closed: business.closed,
+      ...(input.now ? { now: input.now } : {}),
+    }),
+    namesAmount: namesAmount(body, price, ownerTexts),
+    rangeMinor:
+      row.range_min_minor === null || row.range_max_minor === null
+        ? null
+        : { min: Number(row.range_min_minor), max: Number(row.range_max_minor) },
+    confirmsCoverage: Boolean(row.coverage_key) && !row.consumed_at,
   };
+}
+
+/** The owner's saved answers and closed days, read once for the send check. */
+export async function businessFacts(
+  sql: Sql,
+  businessId: string,
+): Promise<{ saved: SavedAnswer[]; closed: ClosedTimes }> {
+  const rows = await sql<{ state: string; rule_payload: unknown }>`
+    select state, rule_payload from knowledge_item
+    where business_id = ${businessId} and rule_payload is not null
+  `;
+  const details = activeDetails({
+    knowledge: rows.map((r) => ({ state: r.state, rulePayload: r.rule_payload })),
+  });
+  const saved = details.flatMap((d) =>
+    d.kind === "answer" && d.text ? [{ topic: d.topic, text: d.text }] : [],
+  );
+  return { saved, closed: closedTimesOf(details) };
 }

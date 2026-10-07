@@ -56,5 +56,12 @@ export function Button({
 }: ButtonHTMLAttributes<HTMLButtonElement> &
   VariantProps<typeof buttonVariants> & { asChild?: boolean; ref?: Ref<HTMLButtonElement> }) {
   const Comp = asChild ? Slot : "button";
-  return <Comp ref={ref} className={cn(buttonVariants({ variant, size }), className)} {...props} />;
+  return (
+    <Comp
+      ref={ref}
+      data-variant={variant ?? "primary"}
+      className={cn(buttonVariants({ variant, size }), className)}
+      {...props}
+    />
+  );
 }

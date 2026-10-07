@@ -40,7 +40,9 @@ function useToastFloor() {
         }
         let floor = 0;
         const pinned = document.querySelectorAll<HTMLElement>(
-          '.app-nav, [role="dialog"][data-state="open"]',
+          // The laser screen's action bar is pinned at the bottom too: a toast
+          // over Copy or Yes would swallow the tap.
+          '.app-nav, .laser-bar:not([data-hidden]), [role="dialog"][data-state="open"]',
         );
         for (const el of pinned) {
           const style = getComputedStyle(el);
@@ -60,7 +62,7 @@ function useToastFloor() {
       childList: true,
       subtree: true,
       attributes: true,
-      attributeFilter: ["data-state"],
+      attributeFilter: ["data-state", "data-hidden"],
     });
     window.addEventListener("resize", measure);
     return () => {

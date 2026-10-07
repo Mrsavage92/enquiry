@@ -1,92 +1,23 @@
 import { useState } from "react";
-import { toast } from "sonner";
+import { useDone } from "./done-notice";
 import { Check, ChevronDown } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useFirstBetaActions } from "@/lib/workspace/live-mutations";
-import { EXTRA_CHOICE } from "@/domain/extras";
-import { QUESTION_ANSWER, questionThing } from "@/domain/service-questions";
-import { ASK_CHOICE, askTopic } from "@/domain/customer-asks";
 import { activeRules } from "@/domain/decide";
 import { lineChoicesFor } from "@/domain/line-choices";
 import { describeRule } from "@/domain/business-rule";
 import type { AskedItem } from "@/domain/asked";
 import type { Business, Enquiry } from "@/domain/types";
 import { cn } from "@/lib/utils";
-import { ASKED_CHIP, leadDateCue, openAskedItems } from "./card-cues";
+import { ASKED_CHIP, CLOSED_CHIP, SHOWN_CHIP, openAskedItems } from "./card-cues";
+import { askedShown, isSettledShown } from "@/domain/asked-view";
+import { PROMISE_WORDS, preparedBody, promiseVerdict } from "@/domain/labels";
+import { ownerError } from "@/lib/owner-error";
+import { choicesFor, itemWords, type Choice } from "./asked-choices";
 
 /** Rows shown before "Show all": enough for a normal enquiry, short enough to scan. */
 const VISIBLE_ROWS = 6;
-
-type Choice = { value: string; label: string; done: string };
-
-/**
- * The owner's ways to change one item, only in values the server accepts for
- * it (answer-fact-core.ts): an extra takes include / covered / leave out /
- * come back, a "do you do X?" takes yes / no / later, a question in their
- * words takes later / ignore (a new answer is written on the question card).
- * The job itself, the days they wrote and "are you free?" are read-only here.
- */
-function choicesFor(item: AskedItem, priced: string | null): Choice[] {
-  const thing = item.text.toLowerCase();
-  if (item.kind === "extra") {
-    return [
-      ...(priced
-        ? [{ value: EXTRA_CHOICE.include, label: `Add it - ${priced}`, done: `Added ${thing}.` }]
-        : []),
-      {
-        value: EXTRA_CHOICE.covered,
-        label: "Part of the price",
-        done: `Noted: ${thing} is part of this price.`,
-      },
-      {
-        value: EXTRA_CHOICE.leaveOut,
-        label: "Leave out",
-        done: `The reply says ${thing} is not included.`,
-      },
-      {
-        value: EXTRA_CHOICE.comeBack,
-        label: "Come back to them",
-        done: `The reply says you'll come back to them on ${thing}.`,
-      },
-    ];
-  }
-  if (item.kind === "question") {
-    return [
-      { value: QUESTION_ANSWER.yes, label: "Yes, I do it", done: "The reply says you do it." },
-      { value: QUESTION_ANSWER.no, label: "No, I don't", done: "The reply says you don't do it." },
-      {
-        value: QUESTION_ANSWER.later,
-        label: "Come back to them",
-        done: "The reply says you'll come back to them on it.",
-      },
-    ];
-  }
-  if (item.kind === "ask" && askTopic(item.id) !== "availability") {
-    return [
-      {
-        value: ASK_CHOICE.later,
-        label: "Come back to them",
-        done: "The reply says you'll come back to them on it.",
-      },
-      { value: ASK_CHOICE.ignore, label: "Leave out", done: "Nothing about it goes in the reply." },
-    ];
-  }
-  return [];
-}
-
-/** A line's words: the job's day by what it is for ("Wedding Sun 8 Nov"), the rest capitalised. */
-function itemWords(item: AskedItem, enquiry: Enquiry): string {
-  // A "do you do X?" is named by what they asked, never by the answer the
-  // ledger may carry as its display ("No - you don't do this").
-  const text =
-    item.id === "date"
-      ? leadDateCue(enquiry) || item.text
-      : item.kind === "question"
-        ? `Do you do ${questionThing(item.id)}?`
-        : item.text;
-  return text ? `${text[0]!.toUpperCase()}${text.slice(1)}` : text;
-}
 
 /**
  * "Everything they asked": one line per thing they asked for or about, with
@@ -103,6 +34,7 @@ export function AskedList({
   business: Business | undefined;
 }) {
   const actions = useFirstBetaActions();
+  const say = useDone();
   const [openId, setOpenId] = useState<string | null>(null);
   const [all, setAll] = useState(false);
   const [saving, setSaving] = useState<string | null>(null);
@@ -130,6 +62,11 @@ export function AskedList({
   const open = openAskedItems(items).length;
   // More open items than rows: every one is shown, never hidden behind "Show all".
   const shown = all ? items : items.slice(0, Math.max(VISIBLE_ROWS, open));
+  // "All settled" only when it is true of the reply too: never beside a "Not yet".
+  const body = preparedBody(enquiry);
+  const allSettled =
+    promiseVerdict(enquiry).word !== PROMISE_WORDS.notYet &&
+    items.every((i) => i.kind === "service" || isSettledShown(i, body) || i.closed);
 
   const choose = async (item: AskedItem, choice: Choice) => {
     const key = `${item.id}:${choice.value}`;
@@ -138,10 +75,9 @@ export function AskedList({
     try {
       await actions.answerFact(enquiry.id, item.id, choice.value);
       setOpenId(null);
-      toast.dismiss();
-      toast.success(choice.done);
+      say(choice.done);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not save that. Try again.");
+      setError(ownerError(err));
     } finally {
       setSaving(null);
     }
@@ -151,11 +87,19 @@ export function AskedList({
     <div className="mt-3" data-testid="asked-list">
       <div className="flex items-baseline justify-between gap-3">
         <p className="text-sm font-medium text-ink">Everything they asked</p>
-        <p className="text-sm text-ink-2">{open === 0 ? "All settled" : `${open} to settle`}</p>
+        <p className="text-sm text-ink-2">
+          {open > 0 ? `${open} to settle` : allSettled ? "All settled" : ""}
+        </p>
       </div>
       <ul className="mt-2 divide-y divide-line rounded-md border border-line-strong">
         {shown.map((item) => {
-          const chip = ASKED_CHIP[item.status];
+          // A day they wrote that the owner doesn't work is never "Answered".
+          const shownAs = askedShown(item, body);
+          const chip = item.closed
+            ? CLOSED_CHIP
+            : shownAs === "asking" || shownAs === "will_confirm"
+              ? SHOWN_CHIP[shownAs]
+              : ASKED_CHIP[shownAs];
           const priced = saved.find((c) => c.field === item.id);
           const choices = choicesFor(
             item,

@@ -214,7 +214,30 @@ function answerFor(line: string): AnswerDetail | null {
  * A whole line: split into its days when it names several, and saved only
  * when every part reads - never one part quietly dropped.
  */
+/** "don't", "not", "never": the line says what the owner does not do. */
+const NEGATED =
+  /\b(?:don'?t|do\s+not|doesn'?t|does\s+not|not|never|isn'?t|aren'?t|won'?t|can'?t|cannot)\b/i;
+/** A price, a percentage, a time or a run of days: read as a rule, a "not" turns it upside down. */
+const NEGATION_TROUBLE =
+  /[$%]|\d\s*(?:am|pm)\b|\b(?:mon|tue|wed|thu|fri|sat|sun)[a-z]*\s*(?:-|–|to|through|thru|till|until)\s*(?:mon|tue|wed|thu|fri|sat|sun)/i;
+
 function readLine(line: string, now: Date): LineRead {
+  // "We don't work Mon-Fri 7am-5pm", "Oven clean is not $60": never saved as
+  // the opposite of what they say. Kept as the owner's note, in their words.
+  if (NEGATED.test(line) && NEGATION_TROUBLE.test(line)) {
+    return {
+      prices: [],
+      details: [],
+      unread: [
+        {
+          line,
+          reason:
+            "It says what you don't do, with a price, a percentage or a time in it, so Enquiry has not read it as a rule. Write what you do instead, for example: We work Saturdays 8am-2pm.",
+          note: true,
+        },
+      ],
+    };
+  }
   const parts = dayParts(line);
   if (parts.length === 1) return readPart(line, now);
   const reads = parts.map((p) => readPart(p, now));
