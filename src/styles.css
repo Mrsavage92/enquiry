@@ -1213,7 +1213,8 @@ html.embed .site-nav {
   The toast close button is a 44px target itself, not a 20px button with a
   bigger invisible area (go-live review: measured 20x20). The cross stays small.
 */
-[data-sonner-toaster] [data-sonner-toast] [data-close-button] {
+/* One step more specific than sonner's own rule, which is injected after this sheet. */
+[data-sonner-toaster] [data-sonner-toast][data-styled="true"] [data-close-button] {
   width: 44px;
   height: 44px;
   border: 0;

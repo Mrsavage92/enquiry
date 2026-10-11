@@ -316,7 +316,8 @@
   background: var(--color-raised);
   border-top: 1px solid var(--color-line);
 }
-.laser-bar > * {
+/* Never the visually hidden live line: a full width would widen the screen. */
+.laser-bar > :not(.sr-only) {
   width: 100%;
   max-width: 688px;
   margin-inline: auto;
