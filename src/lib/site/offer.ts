@@ -5,8 +5,10 @@
  * fails if any of them restates a price or discount in its own words. Change
  * the offer here and nowhere else.
  *
- * Decided 2026-09-25 (research 49): founding members pay A$15 a month for as
- * long as they stay subscribed, from day one, with a first-month refund.
+ * The founder's decision of 2026-09-25: founding members pay A$15 a month for
+ * as long as they stay subscribed, from day one, with a first-month refund,
+ * and businesses that join after launch pay A$29. Research 49 is background
+ * only; it recommended A$19, and the founder chose A$15.
  */
 
 export const FOUNDING_PRICE = "A$15";
@@ -21,7 +23,20 @@ export const STANDARD_PRICE = "A$29";
 export const FOUNDING_CLOSES: string | null = null;
 
 /**
- * The Stripe Payment Link for the founding plan (A$15/month, inc GST).
+ * Whether prices are stated as including GST. This MUST stay accurate to the
+ * operator's GST registration: "inc GST" implies GST is charged and will show
+ * on tax invoices, which is only true for a GST-registered business with an
+ * ABN. The founder has not confirmed registration yet; see
+ * docs/growth/FOUNDER-CONFIRM.md. Every GST statement on the site, the FAQ and
+ * Terms reads this one switch, so the answer is changed here and nowhere else.
+ */
+export const PRICES_INCLUDE_GST = true;
+
+/** The GST sentence, or nothing if prices are not stated as GST-inclusive. */
+const GST_LINE = PRICES_INCLUDE_GST ? "Prices include GST." : "";
+
+/**
+ * The Stripe Payment Link for the founding plan (A$15/month).
  * Empty until Stripe is set up; while empty the site collects the list and
  * promises the founding price to everyone on it, and never says "pay today".
  */
@@ -40,8 +55,13 @@ const PAYMENT_TIMING = `${NO_CARD} ${PAY_WHEN}`;
 
 const AFTER = `Businesses that join after the founding window pay ${STANDARD_PRICE} a month.`;
 
-/** Both prices in one line, without the payment-timing tail. */
-const PRICES = `${FOUNDING_PRICE} a month while you're a member. ${STANDARD_PRICE} after launch.`;
+/**
+ * Both prices in one line, without the payment-timing tail. Worded so it
+ * cannot be read as "A$15 until launch, then A$29": the founding price lasts
+ * as long as the subscription, and A$29 is for businesses that join later
+ * (marketing review 2026-10-06, finding 7).
+ */
+const PRICES = `${FOUNDING_PRICE} a month for as long as you stay. ${STANDARD_PRICE} for anyone who joins after launch.`;
 
 /**
  * The one price line: hero note, invite band, home FAQ and the /early-access
@@ -75,7 +95,9 @@ export const OFFER = {
   next: "We email you when your place opens, and everyone on the list keeps the founding price.",
   /** The invite band lede: the two prices, nothing else. */
   band: PRICE_LINE,
-  gst: "Prices include GST.",
+  gst: GST_LINE,
+  /** The label beside the big founding price on /early-access. */
+  valueLabel: `a month${PRICES_INCLUDE_GST ? " inc GST" : ""}, for as long as you stay.`,
   /** Appended to OFFER.short on the hero note while payments are not open. */
   noteSuffix: ` ${NO_CARD}`,
   /** The small line under the invite-band form while payments are not open. */
@@ -107,7 +129,9 @@ export const OFFER_PROMISES = [
 
 /** FAQ answers that state the offer. */
 export const OFFER_FAQ = {
-  cost: `${OFFER.priceLine} ${OFFER.gst} ${paymentsOpen ? OFFER.refund : OFFER.payWhen}`,
+  cost: [OFFER.priceLine, OFFER.gst, paymentsOpen ? OFFER.refund : OFFER.payWhen]
+    .filter(Boolean)
+    .join(" "),
   joining: `${OFFER.start} ${OFFER.window}`,
   leaving:
     "Once you are paying, cancel any time, no call or reason needed. If it hasn't earned its keep in your first month, we refund that month.",
@@ -117,4 +141,4 @@ export const OFFER_FAQ = {
  * The binding version, used on /terms. Keep the conditions here, not in
  * marketing copy.
  */
-export const OFFER_TERMS = `The founding rate of ${FOUNDING_PRICE} a month (inc GST) applies to one business on the founding plan for as long as its subscription stays active. It ends if the subscription is cancelled for more than 30 days, and it cannot be transferred. While it applies we will not raise the founding rate or charge anything else for the founding plan. If you ask within 30 days of your first charge, we refund that first month. The founding rate is available until ${FOUNDING_CLOSES ?? "we launch publicly, with at least 14 days' notice before it closes"}, and no business joining after that will be offered it. Products or add-ons released later may be priced separately and are never needed to keep the founding plan. If we stop offering the service we will give at least 60 days' notice and refund any prepaid period.`;
+export const OFFER_TERMS = `The founding rate of ${FOUNDING_PRICE} a month${PRICES_INCLUDE_GST ? " (inc GST)" : ""} applies to one business on the founding plan for as long as its subscription stays active. It ends if the subscription is cancelled for more than 30 days, and it cannot be transferred. While it applies we will not raise the founding rate or charge anything else for the founding plan. If you ask within 30 days of your first charge, we refund that first month. The founding rate is offered to every business that joins the early-access list, or starts the founding plan, before ${FOUNDING_CLOSES ?? "we launch publicly, with at least 14 days' notice before that"}. A business that first joins after that is offered the standard rate instead. Products or add-ons released later may be priced separately and are never needed to keep the founding plan. If we stop offering the service we will give at least 60 days' notice and refund any prepaid period.`;

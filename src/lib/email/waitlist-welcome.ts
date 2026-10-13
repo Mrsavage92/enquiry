@@ -18,8 +18,16 @@ import { FOUNDING_PRICE } from "@/lib/site/offer";
  * fonts, an optional dark-mode block that clients may strip, and no images.
  */
 
-import { SUPPORT_EMAIL } from "@/lib/site/contact";
+import { EMAIL_SENDER_LINE, SUPPORT_EMAIL } from "@/lib/site/contact";
 import type { EmailMessage } from "./send.server";
+
+/**
+ * The two unsubscribe URLs for this recipient: `page` is the link in the
+ * body, `oneClick` is the RFC 8058 endpoint named in List-Unsubscribe. Both
+ * carry the same sealed token (src/lib/launch/unsubscribe-token.ts), never
+ * the email address.
+ */
+export type WelcomeUnsubscribe = { page: string; oneClick: string };
 
 export const WAITLIST_WELCOME_SUBJECT = "You are on the Enquiry early-access list";
 
@@ -33,7 +41,7 @@ function escapeHtml(value: string): string {
     .replace(/"/g, "&quot;");
 }
 
-export function waitlistWelcomeText(siteOrigin: string): string {
+export function waitlistWelcomeText(siteOrigin: string, unsubscribeUrl: string): string {
   return [
     "You are on the list.",
     "",
@@ -55,11 +63,16 @@ export function waitlistWelcomeText(siteOrigin: string): string {
     "",
     `You are receiving this because you joined the early-access list at ${siteOrigin}.`,
     "We will only email you about Enquiry access.",
+    `Unsubscribe in one click (this removes you from the list): ${unsubscribeUrl}`,
+    "",
+    EMAIL_SENDER_LINE,
+    `Contact: ${SUPPORT_EMAIL}`,
   ].join("\n");
 }
 
-export function waitlistWelcomeHtml(siteOrigin: string): string {
+export function waitlistWelcomeHtml(siteOrigin: string, unsubscribeUrl: string): string {
   const origin = escapeHtml(siteOrigin);
+  const unsubscribe = escapeHtml(unsubscribeUrl);
   const support = escapeHtml(SUPPORT_EMAIL);
   return `<!doctype html>
 <html lang="en">
@@ -116,11 +129,14 @@ export function waitlistWelcomeHtml(siteOrigin: string): string {
                   <p class="email-muted" style="margin:0;color:#68656d;font-size:13px;line-height:21px">
                     You are receiving this because you joined the early-access list at ${origin}. We will only email you about Enquiry access. Questions go to <a class="email-link" href="mailto:${support}" style="color:#583ac0;text-decoration:underline">${support}</a>.
                   </p>
+                  <p class="email-muted" style="margin:12px 0 0;color:#68656d;font-size:13px;line-height:21px">
+                    <a class="email-link" href="${unsubscribe}" style="color:#583ac0;text-decoration:underline">Unsubscribe</a> in one click. This removes you from the list.
+                  </p>
                 </div>
               </td>
             </tr>
             <tr>
-              <td class="email-muted" style="padding:22px 4px 0;color:#68656d;font-size:12px;line-height:20px">Enquiry &nbsp;|&nbsp; Early access</td>
+              <td class="email-muted" style="padding:22px 4px 0;color:#68656d;font-size:12px;line-height:20px">${escapeHtml(EMAIL_SENDER_LINE)} Contact: <a class="email-link" href="mailto:${support}" style="color:#583ac0;text-decoration:underline">${support}</a></td>
             </tr>
           </table>
         </td>
@@ -130,13 +146,25 @@ export function waitlistWelcomeHtml(siteOrigin: string): string {
 </html>`;
 }
 
-/** The full message for one new waitlist signup. */
-export function waitlistWelcomeEmail(to: string, siteOrigin: string): EmailMessage {
+/**
+ * The full message for one new waitlist signup. It is a commercial message
+ * (it states the price), so it always carries a working unsubscribe and the
+ * sender's identity; there is no way to build it without the links.
+ */
+export function waitlistWelcomeEmail(
+  to: string,
+  siteOrigin: string,
+  unsubscribe: WelcomeUnsubscribe,
+): EmailMessage {
   return {
     to,
     subject: WAITLIST_WELCOME_SUBJECT,
-    html: waitlistWelcomeHtml(siteOrigin),
-    text: waitlistWelcomeText(siteOrigin),
+    html: waitlistWelcomeHtml(siteOrigin, unsubscribe.page),
+    text: waitlistWelcomeText(siteOrigin, unsubscribe.page),
     replyTo: SUPPORT_EMAIL,
+    headers: {
+      "List-Unsubscribe": `<${unsubscribe.oneClick}>, <mailto:${SUPPORT_EMAIL}?subject=unsubscribe>`,
+      "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+    },
   };
 }

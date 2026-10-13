@@ -93,7 +93,20 @@ export const joinWaitlist = createServerFn({ method: "POST" })
       const { sendEmailInBackground } = await import("@/lib/email/send.server");
       const { waitlistWelcomeEmail } = await import("@/lib/email/waitlist-welcome");
       const { siteOrigin } = await import("@/lib/site/head");
-      sendEmailInBackground(waitlistWelcomeEmail(data.email, siteOrigin()));
+      const { unsubscribeLinks } = await import("./unsubscribe.server");
+      const origin = siteOrigin();
+      // The welcome email is commercial, so it never goes out without a
+      // working unsubscribe link.
+      const links = await unsubscribeLinks(result.id, origin, sql);
+      if (links) {
+        sendEmailInBackground(waitlistWelcomeEmail(data.email, origin, links));
+      } else {
+        const { reportServerError } = await import("@/lib/server/alert");
+        reportServerError({
+          scope: "waitlistWelcome",
+          error: new Error("welcome email not sent: no unsubscribe secret"),
+        });
+      }
       return { id: result.id, already: false as const };
     }),
   );

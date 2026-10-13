@@ -21,6 +21,7 @@ import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as RoadmapRouteImport } from './routes/roadmap'
 import { Route as SignupRouteImport } from './routes/signup'
 import { Route as TermsRouteImport } from './routes/terms'
+import { Route as UnsubscribeRouteImport } from './routes/unsubscribe'
 import { Route as UpdatesRouteImport } from './routes/updates'
 import { Route as AppAccountRouteImport } from './routes/_app/account'
 import { Route as AppBookingsRouteImport } from './routes/_app/bookings'
@@ -36,6 +37,7 @@ import { Route as AppTodayRouteImport } from './routes/_app/today'
 import { Route as AppTrustRouteRouteImport } from './routes/_app/trust/route'
 import { Route as AppUsageRouteImport } from './routes/_app/usage'
 import { Route as ApiStripeWebhookRouteImport } from './routes/api/stripe-webhook'
+import { Route as ApiUnsubscribeRouteImport } from './routes/api/unsubscribe'
 import { Route as AuthCompleteRouteImport } from './routes/auth.complete'
 import { Route as BookBookingIdRouteImport } from './routes/book/$bookingId'
 import { Route as QEnquiryIdRouteImport } from './routes/q/$enquiryId'
@@ -103,6 +105,11 @@ const SignupRoute = SignupRouteImport.update({
 const TermsRoute = TermsRouteImport.update({
   id: '/terms',
   path: '/terms',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const UnsubscribeRoute = UnsubscribeRouteImport.update({
+  id: '/unsubscribe',
+  path: '/unsubscribe',
   getParentRoute: () => rootRouteImport,
 } as any)
 const UpdatesRoute = UpdatesRouteImport.update({
@@ -180,6 +187,11 @@ const ApiStripeWebhookRoute = ApiStripeWebhookRouteImport.update({
   path: '/api/stripe-webhook',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiUnsubscribeRoute = ApiUnsubscribeRouteImport.update({
+  id: '/api/unsubscribe',
+  path: '/api/unsubscribe',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthCompleteRoute = AuthCompleteRouteImport.update({
   id: '/auth/complete',
   path: '/auth/complete',
@@ -238,6 +250,7 @@ export interface FileRoutesByFullPath {
   '/roadmap': typeof RoadmapRoute
   '/signup': typeof SignupRoute
   '/terms': typeof TermsRoute
+  '/unsubscribe': typeof UnsubscribeRoute
   '/updates': typeof UpdatesRoute
   '/enquiries': typeof AppEnquiriesRouteRouteWithChildren
   '/trust': typeof AppTrustRouteRouteWithChildren
@@ -253,6 +266,7 @@ export interface FileRoutesByFullPath {
   '/today': typeof AppTodayRoute
   '/usage': typeof AppUsageRoute
   '/api/stripe-webhook': typeof ApiStripeWebhookRoute
+  '/api/unsubscribe': typeof ApiUnsubscribeRoute
   '/auth/complete': typeof AuthCompleteRoute
   '/book/$bookingId': typeof BookBookingIdRoute
   '/q/$enquiryId': typeof QEnquiryIdRoute
@@ -275,6 +289,7 @@ export interface FileRoutesByTo {
   '/roadmap': typeof RoadmapRoute
   '/signup': typeof SignupRoute
   '/terms': typeof TermsRoute
+  '/unsubscribe': typeof UnsubscribeRoute
   '/updates': typeof UpdatesRoute
   '/account': typeof AppAccountRoute
   '/bookings': typeof AppBookingsRoute
@@ -288,6 +303,7 @@ export interface FileRoutesByTo {
   '/today': typeof AppTodayRoute
   '/usage': typeof AppUsageRoute
   '/api/stripe-webhook': typeof ApiStripeWebhookRoute
+  '/api/unsubscribe': typeof ApiUnsubscribeRoute
   '/auth/complete': typeof AuthCompleteRoute
   '/book/$bookingId': typeof BookBookingIdRoute
   '/q/$enquiryId': typeof QEnquiryIdRoute
@@ -312,6 +328,7 @@ export interface FileRoutesById {
   '/roadmap': typeof RoadmapRoute
   '/signup': typeof SignupRoute
   '/terms': typeof TermsRoute
+  '/unsubscribe': typeof UnsubscribeRoute
   '/updates': typeof UpdatesRoute
   '/_app/enquiries': typeof AppEnquiriesRouteRouteWithChildren
   '/_app/trust': typeof AppTrustRouteRouteWithChildren
@@ -327,6 +344,7 @@ export interface FileRoutesById {
   '/_app/today': typeof AppTodayRoute
   '/_app/usage': typeof AppUsageRoute
   '/api/stripe-webhook': typeof ApiStripeWebhookRoute
+  '/api/unsubscribe': typeof ApiUnsubscribeRoute
   '/auth/complete': typeof AuthCompleteRoute
   '/book/$bookingId': typeof BookBookingIdRoute
   '/q/$enquiryId': typeof QEnquiryIdRoute
@@ -351,6 +369,7 @@ export interface FileRouteTypes {
     | '/roadmap'
     | '/signup'
     | '/terms'
+    | '/unsubscribe'
     | '/updates'
     | '/enquiries'
     | '/trust'
@@ -366,6 +385,7 @@ export interface FileRouteTypes {
     | '/today'
     | '/usage'
     | '/api/stripe-webhook'
+    | '/api/unsubscribe'
     | '/auth/complete'
     | '/book/$bookingId'
     | '/q/$enquiryId'
@@ -388,6 +408,7 @@ export interface FileRouteTypes {
     | '/roadmap'
     | '/signup'
     | '/terms'
+    | '/unsubscribe'
     | '/updates'
     | '/account'
     | '/bookings'
@@ -401,6 +422,7 @@ export interface FileRouteTypes {
     | '/today'
     | '/usage'
     | '/api/stripe-webhook'
+    | '/api/unsubscribe'
     | '/auth/complete'
     | '/book/$bookingId'
     | '/q/$enquiryId'
@@ -424,6 +446,7 @@ export interface FileRouteTypes {
     | '/roadmap'
     | '/signup'
     | '/terms'
+    | '/unsubscribe'
     | '/updates'
     | '/_app/enquiries'
     | '/_app/trust'
@@ -439,6 +462,7 @@ export interface FileRouteTypes {
     | '/_app/today'
     | '/_app/usage'
     | '/api/stripe-webhook'
+    | '/api/unsubscribe'
     | '/auth/complete'
     | '/book/$bookingId'
     | '/q/$enquiryId'
@@ -463,8 +487,10 @@ export interface RootRouteChildren {
   RoadmapRoute: typeof RoadmapRoute
   SignupRoute: typeof SignupRoute
   TermsRoute: typeof TermsRoute
+  UnsubscribeRoute: typeof UnsubscribeRoute
   UpdatesRoute: typeof UpdatesRoute
   ApiStripeWebhookRoute: typeof ApiStripeWebhookRoute
+  ApiUnsubscribeRoute: typeof ApiUnsubscribeRoute
   AuthCompleteRoute: typeof AuthCompleteRoute
   BookBookingIdRoute: typeof BookBookingIdRoute
   QEnquiryIdRoute: typeof QEnquiryIdRoute
@@ -554,6 +580,13 @@ declare module '@tanstack/react-router' {
       path: '/terms'
       fullPath: '/terms'
       preLoaderRoute: typeof TermsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/unsubscribe': {
+      id: '/unsubscribe'
+      path: '/unsubscribe'
+      fullPath: '/unsubscribe'
+      preLoaderRoute: typeof UnsubscribeRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/updates': {
@@ -659,6 +692,13 @@ declare module '@tanstack/react-router' {
       path: '/api/stripe-webhook'
       fullPath: '/api/stripe-webhook'
       preLoaderRoute: typeof ApiStripeWebhookRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/unsubscribe': {
+      id: '/api/unsubscribe'
+      path: '/api/unsubscribe'
+      fullPath: '/api/unsubscribe'
+      preLoaderRoute: typeof ApiUnsubscribeRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/auth/complete': {
@@ -805,8 +845,10 @@ const rootRouteChildren: RootRouteChildren = {
   RoadmapRoute: RoadmapRoute,
   SignupRoute: SignupRoute,
   TermsRoute: TermsRoute,
+  UnsubscribeRoute: UnsubscribeRoute,
   UpdatesRoute: UpdatesRoute,
   ApiStripeWebhookRoute: ApiStripeWebhookRoute,
+  ApiUnsubscribeRoute: ApiUnsubscribeRoute,
   AuthCompleteRoute: AuthCompleteRoute,
   BookBookingIdRoute: BookBookingIdRoute,
   QEnquiryIdRoute: QEnquiryIdRoute,

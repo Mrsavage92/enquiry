@@ -175,3 +175,50 @@ test("phone captures ship a real 2x file and every phone image offers it", () =>
   ])
     assert.match(source(file), /mobileCaptureSrcSet\(/, `${file} serves the 2x capture`);
 });
+
+test("the price line cannot be read as the founding price ending at launch", () => {
+  const offer = source("src/lib/site/offer.ts");
+  const prices = offer.match(/const PRICES = `([^`]*)`/)?.[1] ?? "";
+  assert.match(prices, /for as long as you stay/);
+  assert.match(prices, /joins after launch/);
+  assert.doesNotMatch(prices, /while you're a member/);
+  assert.doesNotMatch(prices, /\$\{STANDARD_PRICE\} after launch/);
+});
+
+test("every GST statement reads the one switch in offer.ts", () => {
+  const offer = source("src/lib/site/offer.ts");
+  assert.match(offer, /export const PRICES_INCLUDE_GST = (true|false);/);
+  assert.match(offer, /MUST stay accurate to the\s+\* operator's GST registration/);
+  assert.match(source("docs/growth/FOUNDER-CONFIRM.md"), /GST registration and ABN/);
+  for (const file of [
+    "src/routes/index.tsx",
+    "src/routes/early-access.tsx",
+    "src/routes/terms.tsx",
+    "src/components/site/brand-hero.tsx",
+    "src/components/site/early-access-invite.tsx",
+    "src/components/site/waitlist-form.tsx",
+    "src/lib/email/waitlist-welcome.ts",
+  ]) {
+    assert.doesNotMatch(source(file), /\bGST\b/, `${file} states GST outside offer.ts`);
+  }
+});
+
+test("privacy names every processor and a complaints path", () => {
+  const privacy = source("src/routes/privacy.tsx");
+  for (const name of ["Vercel", "Supabase", "Resend", "Anthropic", "Stripe"]) {
+    assert.match(privacy, new RegExp(`\\b${name}\\b`), `privacy names ${name}`);
+  }
+  assert.match(privacy, /Washington DC region/);
+  assert.match(privacy, /Sydney,\s+Australia/);
+  assert.match(privacy, /id="complaints"/);
+  assert.match(privacy, /https:\/\/www\.oaic\.gov\.au/);
+  assert.match(privacy, /unsubscribe link/);
+});
+
+test("terms promise the founding price to the list, as the site does", () => {
+  const offer = source("src/lib/site/offer.ts");
+  assert.match(offer, /everyone on the list keeps the founding price/);
+  assert.match(offer, /offered to every business that joins the early-access list/);
+  assert.doesNotMatch(offer, /no business joining after that will be offered it/);
+  assert.match(source("src/routes/terms.tsx"), /paid subscription/);
+});

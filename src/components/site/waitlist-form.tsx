@@ -266,7 +266,7 @@ export function WaitlistForm({
       setWaitlistId(null);
       setAlready(false);
       setEmail("");
-      setNotice("You have been removed from the list. Nothing else is kept.");
+      setNotice("You have been removed from the list. Your email and answers are deleted.");
       setConfirmLeave(false);
       setStep("email");
     } catch (e) {
