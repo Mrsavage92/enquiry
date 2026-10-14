@@ -4,6 +4,7 @@ import { readWeekdayWord, sweepDates, readSweep } from "./date-sweep.ts";
 import { readEnquiryBasics } from "./enquiry-basics.ts";
 import { ownerEditWarnings, priceWarning, warningsKey } from "./edit-warnings.ts";
 import { dollarMatches } from "./voice-detect.ts";
+import { amountAgrees } from "../lib/repo/reviewed-send-core.ts";
 import { readBusinessDetails } from "./business-details-read.ts";
 import { frequencyIn } from "./coverage.ts";
 import { frequencyWord } from "./rule-checks.ts";
@@ -477,4 +478,29 @@ test("R5-6: 'a discount the quote does not include' is never said of the quote's
   );
   // No discount on the quote and no figure: still listed.
   assert.ok(ownerEditWarnings(add("Mates rates for you."), draft).some((w) => wrong.test(w)));
+});
+
+test("R5-7: money in fullwidth, small or other-script digits, or split by an invisible character, is read", () => {
+  const read = (s: string) => dollarMatches(s).map((m) => [m.amount, m.raw]);
+  assert.deepEqual(read("Total: ＄400"), [[400, "＄400"]]);
+  assert.deepEqual(read("Total: ﹩400"), [[400, "﹩400"]]);
+  assert.deepEqual(read("- Oven clean: $７５０"), [[750, "$７５０"]]);
+  assert.deepEqual(read("- Oven clean: $٧٥٠"), [[750, "$٧٥٠"]]);
+  for (const mark of ["​", "‌", "‍", "⁠", "﻿", "­"]) {
+    assert.deepEqual(
+      dollarMatches(`- Oven clean: $${mark}750`).map((m) => m.amount),
+      [750],
+      `U+${mark.codePointAt(0)!.toString(16)}`,
+    );
+  }
+  assert.deepEqual(read("- Oven clean: $7​50"), [[750, "$7​50"]]);
+  // Through the send check: a stated total in fullwidth is refused, a line in it listed.
+  const draft = "Hi there,\n\nFor the oven clean, that comes to $450.\n\nThanks,\nSam";
+  const price = { kind: "EXACT" as const, amountMinor: 45_000, currency: "AUD" as const };
+  const add = (said: string) => draft.replace("\n\nThanks,", `\n\n${said}\n\nThanks,`);
+  const quote = { draft, lines: [{ label: "Oven clean", amountMinor: 45_000 }] };
+  assert.equal(amountAgrees(add("Total: ＄400"), price, [], [], quote), false);
+  const fullwidth = add("The fridge is $７５０.");
+  assert.equal(amountAgrees(fullwidth, price, [], [], quote), true);
+  assert.ok(ownerEditWarnings(fullwidth, draft).includes(priceWarning("The fridge is $７５０.")));
 });
