@@ -1,41 +1,18 @@
-import { Link, useNavigate } from "@tanstack/react-router";
-import { initialsOf } from "@/domain/customer-name";
-import { ChevronLeft, MoreVertical } from "lucide-react";
-import { useState } from "react";
-import { Dialog } from "@/components/ui/dialog";
-import { SheetContent } from "@/components/ui/sheet";
-import { Button } from "@/components/ui/button";
-import { nextNeedsYou, STATUS } from "@/domain/labels";
-import { LaterChoices } from "./later-choices";
-import { parkedUntil } from "@/domain/time-cues";
-import { leadDateCue, otherDateCues } from "./card-cues";
+import { useNavigate } from "@tanstack/react-router";
+import { nextNeedsYou } from "@/domain/labels";
 import type { Enquiry } from "@/domain/types";
-import { toast } from "sonner";
 import { usePrototype } from "@/store/prototype-store";
-import { useLiveEnquiryMutations } from "@/lib/workspace/live-mutations";
-import { toastUndo } from "@/lib/toast-undo";
-import { Conversation } from "./conversation";
-import { ReturnContext } from "./return-context";
-import { DeclineConfirm } from "./decline-confirm";
-import { Intelligence } from "./intelligence";
-import { TeachDialog } from "./teach-dialog";
-import { WaitingSummary } from "./waiting-summary";
-import { isWaitingOnCustomer } from "./reply-presentation";
-import { PracticeNote } from "./practice-note";
 import { useEmbedNav } from "@/lib/use-embed-nav";
+import { TeachDialog } from "./teach-dialog";
+import { LaserDesk } from "./laser/laser-desk";
 
+/**
+ * One enquiry on the phone: the laser screen in the page's one scroller, its
+ * summary sticky at the top and its action bar sticky at the bottom (doc 50).
+ */
 export function PhoneDesk({ enquiry }: { enquiry: Enquiry }) {
-  const [details, setDetails] = useState(false);
-  const [more, setMore] = useState(false);
-  const [noteOpen, setNoteOpen] = useState(false);
-  const [declineOpen, setDeclineOpen] = useState(false);
-  const [declining, setDeclining] = useState(false);
-  const [laterOpen, setLaterOpen] = useState(false);
   const navigate = useNavigate();
   const embedNav = useEmbedNav();
-  const demoMode = usePrototype((s) => s.demoMode);
-  // Persisted write-through: a note about a customer must survive a reload.
-  const enq = useLiveEnquiryMutations();
 
   const advance = () => {
     const { enquiries, businessFilter } = usePrototype.getState();
@@ -45,185 +22,15 @@ export function PhoneDesk({ enquiry }: { enquiry: Enquiry }) {
       else embedNav.today();
       return;
     }
-    if (next) {
-      void navigate({ to: "/enquiries/$enquiryId", params: { enquiryId: next } });
-    } else {
-      void navigate({ to: "/enquiries" });
-    }
+    if (next) void navigate({ to: "/enquiries/$enquiryId", params: { enquiryId: next } });
+    else void navigate({ to: "/today" });
   };
 
   return (
     <div className="flex h-full min-h-0 flex-col overflow-hidden bg-raised">
-      <header className="flex shrink-0 items-center gap-1 border-b border-line px-1 pb-1.5 pt-[max(0.375rem,var(--app-safe-top))]">
-        {embedNav ? (
-          <button
-            type="button"
-            className="inline-flex min-h-11 min-w-11 items-center justify-center text-ink-2"
-            aria-label="Back to today"
-            onClick={() => embedNav.today()}
-          >
-            <ChevronLeft className="size-5" aria-hidden />
-          </button>
-        ) : (
-          <Link
-            to="/enquiries"
-            className="inline-flex min-h-11 min-w-11 items-center justify-center text-ink-2"
-            aria-label="Back to enquiries"
-          >
-            <ChevronLeft className="size-5" aria-hidden />
-          </Link>
-        )}
-        <span className="customer-avatar phone-customer-avatar" aria-hidden>
-          {initialsOf(enquiry)}
-        </span>
-        <div className="min-w-0 flex-1 pl-2">
-          <h1 className="break-words text-base font-semibold leading-tight">
-            {enquiry.customerName}
-          </h1>
-          {/* Waiting is said once, by the status block below; the header
-              keeps the job and its day. */}
-          <p className="truncate text-2xs text-stone">
-            {enquiry.state.lifecycle === "BOOKED"
-              ? STATUS.booked
-              : [enquiry.serviceLabel, leadDateCue(enquiry)].filter(Boolean).join(" · ")}
-          </p>
-          {otherDateCues(enquiry).length ? (
-            <p className="truncate text-2xs text-stone">{otherDateCues(enquiry).join(" · ")}</p>
-          ) : null}
-        </div>
-        <button
-          type="button"
-          className="inline-flex min-h-11 min-w-11 items-center justify-center text-ink-2"
-          aria-label="More"
-          onClick={() => setMore(true)}
-        >
-          <MoreVertical className="size-5" aria-hidden />
-        </button>
-      </header>
-      <div className="phone-conversation-scroll">
-        <PracticeNote enquiry={enquiry} />
-        {isWaitingOnCustomer(enquiry) ? <WaitingSummary enquiry={enquiry} /> : null}
-        <ReturnContext enquiry={enquiry} />
-        <Conversation enquiry={enquiry} compact embedded />
-        <Intelligence
-          enquiry={enquiry}
-          compact
-          inline
-          detailsOpen={details}
-          onDetailsOpenChange={setDetails}
-          onDone={advance}
-        />
+      <div className="phone-conversation-scroll laser-scroll">
+        <LaserDesk enquiry={enquiry} compact onDone={advance} />
       </div>
-      <Dialog open={more} onOpenChange={setMore}>
-        <SheetContent title="This job">
-          <div className="grid gap-2">
-            <Button
-              variant="secondary"
-              className="min-h-12 w-full"
-              onClick={() => {
-                setMore(false);
-                setDetails(true);
-              }}
-            >
-              Customer details & evidence
-            </Button>
-            <Button
-              variant="secondary"
-              className="min-h-12 w-full"
-              onClick={() => {
-                setMore(false);
-                setNoteOpen(true);
-              }}
-            >
-              Note
-            </Button>
-            <Button
-              variant="secondary"
-              className="min-h-12 w-full"
-              onClick={() => {
-                setMore(false);
-                setLaterOpen(true);
-              }}
-            >
-              {STATUS.later}
-            </Button>
-            <Button
-              variant="ghost"
-              className="min-h-12 w-full"
-              onClick={() => {
-                setMore(false);
-                setDeclineOpen(true);
-              }}
-            >
-              Decline
-            </Button>
-          </div>
-        </SheetContent>
-      </Dialog>
-      <Dialog open={noteOpen} onOpenChange={setNoteOpen}>
-        <SheetContent title="Note">
-          <p className="text-sm text-ink-2">Stays on the case. Not sent.</p>
-          <textarea
-            className="field mt-3"
-            rows={4}
-            defaultValue={enquiry.notes ?? ""}
-            id="phone-enquiry-note"
-            aria-label="Private enquiry note"
-          />
-          <Button
-            className="mt-4 min-h-12 w-full"
-            onClick={() => {
-              const el = document.getElementById(
-                "phone-enquiry-note",
-              ) as HTMLTextAreaElement | null;
-              void enq.setNote(enquiry.id, el?.value ?? "", (m) => toast.error(m));
-              setNoteOpen(false);
-            }}
-          >
-            Save
-          </Button>
-        </SheetContent>
-      </Dialog>
-      <DeclineConfirm
-        open={declineOpen}
-        onOpenChange={setDeclineOpen}
-        pending={declining}
-        compact
-        onConfirm={(reason) => {
-          setDeclining(true);
-          void enq
-            .decline(enquiry.id, reason, (m) => toast.error(m))
-            .then((ok) => {
-              setDeclining(false);
-              // A failed write already showed its own error toast via
-              // onFailure - do not also close the dialog, show a success
-              // toast, or navigate away. Leave the enquiry exactly where the
-              // operator found it so they can retry.
-              if (!ok) return;
-              setDeclineOpen(false);
-              if (demoMode) toastUndo("Declined - nothing sent to the customer.");
-              else toast.success("Declined.");
-              advance();
-            });
-        }}
-      />
-      <LaterChoices
-        open={laterOpen}
-        onOpenChange={setLaterOpen}
-        compact
-        onChoose={(until) => {
-          void enq.snooze(enquiry.id, (m) => toast.error(m), until);
-          setLaterOpen(false);
-          const tz = usePrototype.getState().prefs.timezone || undefined;
-          toast(`${parkedUntil(until, new Date(), tz)}. It comes back to Needs you then.`, {
-            action: {
-              label: "Undo",
-              onClick: () => void enq.unsnooze(enquiry.id, (m) => toast.error(m)),
-            },
-          });
-          advance();
-        }}
-      />
       <TeachDialog />
     </div>
   );

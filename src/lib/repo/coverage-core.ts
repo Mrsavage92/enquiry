@@ -2,7 +2,7 @@ import type { Sql } from "../db.ts";
 import { COVERAGE_FIELD, unsettledFlags, type CoverageFlag } from "../../domain/coverage.ts";
 import { applyDecision, isClosed, lockEnquiry } from "./decision-apply.ts";
 import { requireEnquiryAccess } from "./tenancy.server.ts";
-import { openAsked, type AskedItem } from "../../domain/asked.ts";
+import { holdingItems, type AskedItem } from "../../domain/asked.ts";
 import { describeChange, updateEditFigures } from "../../domain/edit-figures.ts";
 import { questionThing } from "../../domain/service-questions.ts";
 import { askTopic } from "../../domain/customer-asks.ts";
@@ -96,9 +96,7 @@ export async function confirmCoverageInTransaction(
   }
   // Everything they asked for or about has an answer, a "leave it out" or a
   // "come back": "That's everything" is never said over one still open.
-  const unasked = openAsked(row?.asked ?? []).filter(
-    (i) => i.kind !== "service" && i.kind !== "date",
-  );
+  const unasked = holdingItems(row?.asked ?? []);
   if (unasked.length > 0) {
     return {
       ok: false,

@@ -1,7 +1,14 @@
 import type { BusinessDetail } from "./business-detail.ts";
 import { WEEKDAYS, closedRangeCovers, describeDetail, spokenMonthDay } from "./business-detail.ts";
 import { DECLINED, NOT_A_REQUEST, SERVICE_NOUNS } from "./extras.ts";
-import { distinctiveStems, mentionsAny, namesService, stem, stemsOf } from "./service-words.ts";
+import {
+  distinctiveStems,
+  mentionsAny,
+  namesService,
+  stem,
+  stemsOf,
+  withoutNegated,
+} from "./service-words.ts";
 import type { RuleCheck } from "./rule-checks.ts";
 
 /**
@@ -25,7 +32,7 @@ import type { RuleCheck } from "./rule-checks.ts";
 
 export const COVERAGE_FIELD = "coverage";
 
-const NOT_IN_KEY = new Set([COVERAGE_FIELD, "name", "phone", "email"]);
+const NOT_IN_KEY = new Set([COVERAGE_FIELD, "name", "phone", "email", "greeting"]);
 
 export type CoverageLine = {
   label: string;
@@ -131,10 +138,72 @@ export function coverageConfirmed(facts: readonly KeyFact[], key: string): boole
  * "we clean regularly ourselves" and "an ongoing issue with mould" are not.
  */
 const FREQUENCY =
-  /\b(?:every\s+(?:other\s+)?(?:\d+\s+|two\s+|three\s+|four\s+)?(?:week|fortnight|month)s?|weekly|fortnightly|monthly|once\s+a\s+(?:week|fortnight|month)|each\s+(?:week|fortnight|month))\b/i;
+  /\b(?:every\s+(?:other\s+|second\s+|2nd\s+)?(?:\d+\s+|two\s+|three\s+|four\s+)?(?:week|fortnight|month)s?|weekly|fortnightly|monthly|(?:once|twice|two\s+times|2\s+times|2x)\s+(?:a|per|each)\s+(?:week|fortnight|month)|each\s+(?:week|fortnight|month))\b/i;
 
 export function frequencyIn(message: string): string | undefined {
   return FREQUENCY.exec(message)?.[0]?.toLowerCase();
+}
+
+/** Where the words about one thing start: "..., and a regular clean once we are in, probably weekly". */
+const THING_START = /\b(?:and|also|plus|as well as|then)\b|[;:]/gi;
+
+/**
+ * How often they want the QUOTED work, never another thing's: "the interior
+ * painted ... and a regular clean once we are in, probably weekly" is a
+ * weekly clean, and the painting stays one job. The words from the last
+ * "and" / "also" / "plus" before the frequency say what it is about: another
+ * of the owner's services, or a thing a business does, that is not on the
+ * quote means the frequency is not the quote's.
+ */
+export function frequencyFor(
+  message: string,
+  quoted: readonly string[],
+  services: readonly string[],
+): string | undefined {
+  const m = FREQUENCY.exec(message);
+  if (!m) return undefined;
+  const at = m.index ?? 0;
+  const start =
+    Math.max(
+      message.lastIndexOf(".", at - 1),
+      message.lastIndexOf("!", at - 1),
+      message.lastIndexOf("?", at - 1),
+      message.lastIndexOf("\n", at - 1),
+    ) + 1;
+  const rest = message.slice(at + m[0].length);
+  const stop = rest.search(/[.!?\n]/);
+  const sentence = message.slice(start, stop === -1 ? message.length : at + m[0].length + stop);
+  const local = at - start;
+  // The words about the one thing the frequency sits in: from the last
+  // "and" / "also" before it to the next one after it.
+  const cuts = [...sentence.matchAll(THING_START)].map((c) => c.index ?? 0);
+  const from = Math.max(0, ...cuts.filter((c) => c < local));
+  const to = Math.min(sentence.length, ...cuts.filter((c) => c > local));
+  const about = sentence.slice(from, to);
+  const isQuoted = (s: string) =>
+    quoted.some((q) => q.trim().toLowerCase() === s.trim().toLowerCase());
+  const quotedOwn = quoted.flatMap((q) =>
+    distinctiveStems(
+      q,
+      services.filter((s) => !isQuoted(s)),
+    ),
+  );
+  if (quotedOwn.length && mentionsAny(about, quotedOwn)) return m[0].toLowerCase();
+  const others = services.filter((s) => !isQuoted(s));
+  const aboutOther = others.some((o) => {
+    const own = distinctiveStems(o, quoted).filter((s) => !GENERIC_WORK.has(s));
+    return own.length > 0 && mentionsAny(about, own);
+  });
+  const words = new Set(about.toLowerCase().match(/[a-z]+/g) ?? []);
+  const aThing = [...SERVICE_NOUNS].some((n) => !n.includes(" ") && words.has(n));
+  // "a clean, weekly" beside a painting quote is not the painting.
+  const workWord = /\b(clean|cleans|cleaning|paint|painting|mow|mowing|wash|washing)\b/i.exec(
+    about,
+  );
+  const otherWork =
+    workWord !== null && !quoted.some((q) => stemsOf(q).includes(stem(workWord[1]!.toLowerCase())));
+  if (aboutOther || aThing || otherWork) return undefined;
+  return m[0].toLowerCase();
 }
 
 /** The owner's answer to "They want this every fortnight - correct?". */
@@ -412,7 +481,12 @@ export function coverageFlags(input: {
   const notOffered = details
     .filter((f) => f.kind === "not_offered")
     .flatMap((f) => stemsOf(f.thing ?? ""));
-  const mentions = mentionFlags(input.message, input.covered, input.services).filter(
+  // "Nothing bridal": what they turned down is never "They mention bridal makeup".
+  const mentions = mentionFlags(
+    withoutNegated(input.message),
+    input.covered,
+    input.services,
+  ).filter(
     (f) => f.kind !== "mention" || !stemsOf(f.thing ?? "").some((s) => notOffered.includes(s)),
   );
   return [...mentions, ...details];
@@ -424,7 +498,9 @@ export function coverageFlags(input: {
  */
 export function isInternalFact(field: string): boolean {
   const f = field.trim().toLowerCase();
-  return f === COVERAGE_FIELD || f === "practice_price";
+  return (
+    f === COVERAGE_FIELD || f === "practice_price" || f === "date_sweep" || f === "greeting"
+  );
 }
 
 /** Flags the owner has to settle one by one before the price can be confirmed. */

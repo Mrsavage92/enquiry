@@ -1,6 +1,6 @@
 import { mentionWords, roleLabel, type DateMention } from "@/domain/date-roles";
 import { jobDateCue, leadMention } from "@/domain/time-cues";
-import type { AskedItem, AskedStatus } from "@/domain/asked";
+import { holdingItems, type AskedItem, type AskedStatus } from "@/domain/asked";
 import type { Enquiry } from "@/domain/types";
 
 /**
@@ -81,11 +81,28 @@ export function otherDateCues(e: Dated): string[] {
  * "Check 2 of 4" from the server's stable count: settled plus open, so the
  * number never restarts at 1 as checks are answered. Null for a single check.
  */
-export function checkStep(checks: { done: number; total: number } | undefined): string | null {
+export function checkStep(
+  checks: { done: number; total: number } | undefined,
+  enquiryId?: string,
+): string | null {
   if (!checks || checks.total < 2) return null;
   const at = Math.min(checks.done + 1, checks.total);
+  // The total known when the enquiry was opened is the one shown: "Check 3
+  // of 5" after "Check 2 of 3" read as the work growing under the owner. A
+  // check that turns up later is said as that, never folded into a new total.
+  if (enquiryId) {
+    const first = FIRST_TOTAL.get(enquiryId);
+    if (first === undefined) FIRST_TOTAL.set(enquiryId, checks.total);
+    else if (checks.total > first) {
+      const more = checks.total - first;
+      return `Check ${at} - ${more === 1 ? "one more" : `${more} more`} came up`;
+    }
+  }
   return `Check ${at} of ${checks.total}`;
 }
+
+/** enquiryId -> the check total when it was first shown this session. */
+const FIRST_TOTAL = new Map<string, number>();
 
 export const ASKED_CHIP: Record<AskedStatus, { word: string; tone: "ok" | "neutral" | "warn" }> = {
   answered: { word: "Answered", tone: "ok" },
@@ -95,14 +112,24 @@ export const ASKED_CHIP: Record<AskedStatus, { word: string; tone: "ok" | "neutr
 };
 
 /**
+ * What the reply still does about an item it has not settled (go-live review
+ * B2): never "Answered" while it asks them a detail or will confirm the day.
+ */
+export const SHOWN_CHIP = {
+  asking: { word: "Asked in reply", tone: "neutral" as const },
+  will_confirm: { word: "In reply: will confirm", tone: "neutral" as const },
+};
+
+/** A day they wrote that the owner doesn't work: the reply says so. */
+export const CLOSED_CHIP = { word: "Not available", tone: "neutral" as const };
+
+/**
  * What "That's everything" waits on from the ledger: the same items the server
  * refuses the confirmation over (the job itself and the days are never a
  * choice for the owner).
  */
 export function openAskedItems(items: readonly AskedItem[] | undefined): AskedItem[] {
-  return (items ?? []).filter(
-    (i) => i.status === "open" && i.kind !== "service" && i.kind !== "date",
-  );
+  return holdingItems(items ?? []);
 }
 
 /** A kept edit's changes, split for the notice: figures that moved, and lines it lacks. */

@@ -69,7 +69,9 @@ export function replyTo(enquiry: Enquiry): string {
   if (ch === "instagram" || ch === "facebook") {
     return enquiry.customerHandle || enquiry.customerName;
   }
-  return enquiry.customerEmail || enquiry.customerHandle || enquiry.customerPhone || enquiry.customerName;
+  return (
+    enquiry.customerEmail || enquiry.customerHandle || enquiry.customerPhone || enquiry.customerName
+  );
 }
 
 export function identityLine(enquiry: Enquiry): string {
@@ -77,7 +79,14 @@ export function identityLine(enquiry: Enquiry): string {
   if (enquiry.customerHandle) parts.push(enquiry.customerHandle);
   if (enquiry.customerPhone) parts.push(enquiry.customerPhone);
   if (enquiry.customerEmail) parts.push(enquiry.customerEmail);
-  return parts.join(" · ") || "No return address yet";
+  if (parts.length) return parts.join(" · ");
+  // A number or address they wrote in the message is theirs to check, never
+  // "no return address".
+  const read = (enquiry.facts ?? [])
+    .filter((f) => !f.superseded && /^(?:phone|email)$/i.test(f.field.trim()))
+    .map((f) => String(f.value ?? "").trim())
+    .filter(Boolean);
+  return read.length ? `${read.join(" · ")} (from their message)` : "No return address yet";
 }
 
 export function integrationForChannel(

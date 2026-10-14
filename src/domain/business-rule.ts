@@ -45,6 +45,11 @@ export type PerUnitRule = {
    * the first `base.upTo`, and each one after that is `amount`.
    */
   base?: { amount: number; upTo: number };
+  /**
+   * "Wedding party of 5 or more: $130 per person": the price holds from this
+   * many; a smaller group has no saved price and is the owner's to quote.
+   */
+  atLeast?: number;
 };
 
 export type BusinessRule = FixedPriceRule | PerUnitRule;
@@ -119,6 +124,14 @@ export function parseBusinessRule(
       }
       base = { amount: baseAmount, upTo };
     }
+    const least = r.atLeast;
+    let atLeast: number | undefined;
+    if (least !== undefined && least !== null) {
+      if (typeof least !== "number" || !Number.isInteger(least) || least < 2) {
+        return { ok: false, reason: "A price for groups needs the smallest group it is for." };
+      }
+      atLeast = least;
+    }
     return {
       ok: true,
       rule: {
@@ -130,6 +143,7 @@ export function parseBusinessRule(
         quantityField,
         minimumQuantity,
         ...(base ? { base } : {}),
+        ...(atLeast ? { atLeast } : {}),
       },
     };
   }
@@ -178,7 +192,10 @@ export function describeRule(rule: BusinessRule): string {
   const min = rule.minimumQuantity
     ? `, minimum ${rule.minimumQuantity} ${pluraliseUnit(rule.unit, rule.minimumQuantity)}`
     : "";
-  return `${rule.service}: ${formatMajorAmount(rule.amount)} per ${rule.unit}${min}`;
+  const group = rule.atLeast
+    ? `, for ${rule.atLeast} or more ${pluraliseUnit(rule.unit, rule.atLeast)}`
+    : "";
+  return `${rule.service}: ${formatMajorAmount(rule.amount)} per ${rule.unit}${min}${group}`;
 }
 
 /**
@@ -204,5 +221,6 @@ export function ruleFingerprint(rule: BusinessRule): string {
     norm(rule.quantityField),
     rule.minimumQuantity ?? "",
     rule.base ? `${rule.base.amount}@${rule.base.upTo}` : "",
+    ...(rule.atLeast ? [`${rule.atLeast}+`] : []),
   ].join("|");
 }

@@ -8,6 +8,7 @@ import { SERVICE_NOUNS } from "./extras.ts";
 import { closedRangeCovers, closedRangeReason, type ClosedRange } from "./business-detail.ts";
 import type { DateRole } from "./enquiry-basics.ts";
 import type { DateMention } from "./date-roles.ts";
+import { greetedFirst, greetingLine } from "./greeting.ts";
 
 export { humanField, howMany };
 
@@ -85,6 +86,16 @@ export type ReplyContext = {
    * never one of these without saying so.
    */
   surchargeDays?: readonly number[];
+  /**
+   * Days the date sweep read (date-sweep.ts) that fall on a day the owner
+   * doesn't work and that no other line says: a day they need is said as not
+   * available (`say`); a day about something else only once the owner says so.
+   */
+  sweptClosed?: { iso: string; span: string; say: boolean }[];
+  /** Date-like words Enquiry could not read that the owner said to confirm. */
+  sweptUnread?: string[];
+  /** A swept day or fragment the owner has not settled: the close never says "go ahead". */
+  sweptOpen?: boolean;
 };
 
 /**
@@ -136,19 +147,34 @@ export function nextWorkingDay(iso: string, closed: ClosedTimes | undefined): st
  * surcharge) is skipped for one that does not, within a week; when every day
  * near it costs more, the reply says so rather than offering it quietly.
  */
-function offerInstead(
+/**
+ * The day the reply offers instead of a closed one: the next day the owner
+ * works, skipping a day that costs more within a week. The quote is priced
+ * for this day, never for the closed one (decide.ts `gateCoverage`).
+ */
+export function insteadOf(
   iso: string,
   closed: ClosedTimes | undefined,
   surchargeDays: readonly number[] = [],
-): string {
+): string | null {
   const first = nextWorkingDay(iso, closed);
-  if (!first) return "What other day would suit you?";
+  if (!first) return null;
   let pick = first;
   for (let i = 0; i < 7 && surchargeDays.includes(dateOf(pick)!.getDay()); i += 1) {
     const next = nextWorkingDay(pick, closed);
     if (!next) break;
     pick = next;
   }
+  return pick;
+}
+
+function offerInstead(
+  iso: string,
+  closed: ClosedTimes | undefined,
+  surchargeDays: readonly number[] = [],
+): string {
+  const pick = insteadOf(iso, closed, surchargeDays);
+  if (!pick) return "What other day would suit you?";
   const day = spokenDate(pick)!;
   const costsMore = surchargeDays.includes(dateOf(pick)!.getDay());
   const note = costsMore ? ` (${DAY_NAMES[dateOf(pick)!.getDay()]} jobs cost more)` : "";
@@ -286,11 +312,55 @@ function contextSaid(what: string, day: string): string {
 function dateTalk(opts: ReplyContext): DateTalk {
   const others = [...(opts.otherDates ?? [])];
   const main = mainDateTalk(opts, others);
-  const rest = others.map((d) => otherDateTalk(d, opts));
+  const rest = [...others.map((d) => otherDateTalk(d, opts)), sweptTalk(opts)];
   return {
     lines: [...main.lines, ...rest.flatMap((r) => r.lines)],
     close: rest.reduce<DateClose | undefined>((c, r) => worst(c, r.close), main.close),
   };
+}
+
+/** "Sunday 27 or Monday 28 December", "Saturday 26 December". */
+function daysSaid(isos: readonly string[]): string {
+  const days = [...isos].sort().map((iso) => dateOf(iso)!);
+  const sameMonth = days.every((d) => d.getMonth() === days[0]!.getMonth());
+  const said = days.map((d, i) =>
+    format(d, sameMonth && i < days.length - 1 ? "EEEE d" : "EEEE d MMMM", { locale: enAU }),
+  );
+  return said.length <= 1 ? (said[0] ?? "") : `${said.slice(0, -1).join(", ")} or ${said.at(-1)}`;
+}
+
+/**
+ * The days only the date sweep caught: a closed day they need, said as not
+ * available in their words; a fragment the owner said to confirm. Anything
+ * still waiting on the owner keeps "go ahead" out of the close.
+ */
+function sweptTalk(opts: ReplyContext): DateTalk {
+  const lines: string[] = [];
+  let close: DateClose | undefined = opts.sweptOpen ? "unconfirmed" : undefined;
+  const say = (opts.sweptClosed ?? []).filter((d) => d.say);
+  const spans = [...new Set(say.map((d) => d.span))];
+  for (const span of spans) {
+    const isos = say.filter((d) => d.span === span).map((d) => d.iso);
+    // Their week is already said above ("You mentioned the week of ..."): not twice.
+    const saidAbove =
+      spokenSpan(opts.approxSpan ?? "").toLowerCase() === spokenSpan(span).toLowerCase();
+    lines.push(
+      saidAbove
+        ? `I'm sorry, I'm not available on ${daysSaid(isos)}.`
+        : `You mentioned ${spokenSpan(span)} - I'm sorry, I'm not available on ${daysSaid(isos)}.`,
+    );
+    close = "closed";
+  }
+  if ((opts.sweptClosed ?? []).some((d) => !d.say)) close = worst(close, "unconfirmed");
+  for (const words of opts.sweptUnread ?? []) {
+    lines.push(
+      words
+        ? `You mentioned ${spokenSpan(words)} - I'll confirm which day works.`
+        : "I'll confirm which day works.",
+    );
+    close = worst(close, "unconfirmed");
+  }
+  return { lines, close };
 }
 
 /**
@@ -429,15 +499,15 @@ function otherDateTalk(d: DateMention, opts: ReplyContext): DateTalk {
   }
   const reason = closedReason(d.iso, opts.closed);
   // Another day's event ("the wedding is Saturday 24 October" beside a
-  // makeup job the day before): theirs, said as theirs, never booked.
+  // makeup job the day before) or a day about something else ("your lease
+  // ends on Sunday 27 December"): theirs, said as theirs, never promised
+  // around. Nothing checks a calendar, so the job's day is still the owner's
+  // to confirm.
   if (d.role === "context" || d.role === "event") {
     const said = contextSaid(d.what, day);
     return {
-      lines: [
-        d.role === "event"
-          ? `I understand ${said}.`
-          : `I understand ${said} - I'll work around that.`,
-      ],
+      lines: [`I understand ${said}.`],
+      ...(d.role === "context" ? { close: "unconfirmed" as const } : {}),
     };
   }
   const lead =
@@ -598,7 +668,7 @@ function priceLines(decision: Decision): QuoteLine[] {
  * that had dropped the deck staining. A recurring job is "per visit", with
  * anything for the first visit only said separately.
  */
-function priceBlock(decision: Decision): string[] {
+export function priceBlock(decision: Decision): string[] {
   if (decision.price.kind !== "EXACT") return [];
   const currency = decision.price.currency;
   const all = priceLines(decision);
@@ -703,10 +773,7 @@ function closeFor(close: DateClose | undefined): string {
  * asked is unanswered, the reply names no price at all.
  */
 export function composeReply(decision: Decision, opts: ReplyContext = {}): string {
-  // "Margaret & Tony Russo" is greeted as "Margaret & Tony"; one name by its first word.
-  const who = (opts.customerName ?? "").trim();
-  const first = /^(\S+\s+(?:&|and)\s+\S+)/.exec(who)?.[1] ?? who.split(/\s+/)[0] ?? "";
-  const greeting = first ? `Hi ${first},` : "Hi there,";
+  const greeting = greetingLine(greetedFirst(opts.customerName ?? ""));
   const date = dateTalk(opts);
   const dateBlock = date.lines.length ? [...date.lines, ""] : [];
   const signOff = opts.ownerFirstName?.trim() ? `Thanks,\n${opts.ownerFirstName.trim()}` : "Thanks";
@@ -789,6 +856,26 @@ export function composeReply(decision: Decision, opts: ReplyContext = {}): strin
       thanks,
       "",
       priceQuestion(field),
+      "",
+      ...notesBlock(decision),
+      ...dateBlock,
+      "Once I have that I can send the price straight back.",
+      "",
+      signOff,
+    ].join("\n");
+  }
+
+  // "How much for a clean?": which one, in the owner's own services.
+  if (decision.askService && !onHold) {
+    const { work, services } = decision.askService;
+    const which = work === "job" ? "job" : work;
+    const list = services.length ? ` I do ${joinLabels(services)}.` : "";
+    return [
+      greeting,
+      "",
+      hello,
+      "",
+      `Before I can give you a price, which ${which} are you after?${list}`,
       "",
       ...notesBlock(decision),
       ...dateBlock,

@@ -5,7 +5,7 @@ import { ForbiddenError, requireEnquiryAccess } from "./tenancy.server.ts";
 import { confirmCoverageForUser } from "./coverage-core.ts";
 import { toEnquiry, type EnquiryRow } from "./rows.ts";
 import { promiseVerdict } from "../../domain/labels.ts";
-import { INSURANCE_AS_ANSWER } from "./reviewed-send-core.ts";
+import { settledLine } from "../../domain/send-flow.ts";
 import {
   WED_30_SEP,
   answer,
@@ -57,6 +57,13 @@ async function verdict(pg: PGlite, enquiryId: string): Promise<string> {
   return promiseVerdict(e).line;
 }
 
+/** Doc 50 section 5: the days that can't be done are said on the settled line, not the verdict. */
+async function settledNot(pg: PGlite, enquiryId: string): Promise<string[]> {
+  const r = await pg.query<EnquiryRow>("select * from enquiry where id = $1", [enquiryId]);
+  const e = toEnquiry(r.rows[0]!, { facts: [], conversation: [], quotes: [] });
+  return settledLine(e, e.decision.draft.body).parts.filter((p) => p.startsWith("not "));
+}
+
 async function reviewedSends(pg: PGlite, enquiryId: string): Promise<number> {
   const r = await pg.query("select 1 from reviewed_send where enquiry_id = $1", [enquiryId]);
   return r.rows.length;
@@ -101,7 +108,8 @@ test("1/2 Chloe: the trial is priced, the Sunday wedding is named without a pric
   assert.equal(body, CHLOE_REPLY);
   assert.equal(snapshot.price?.amountMinor, 9000);
   assert.equal(sent.ok && sent.amountMinor, 9000, "the recorded quote is the trial's price");
-  assert.equal(await verdict(pg, e.enquiryId), "Yes - reply ready, one date can't be done");
+  assert.equal(await verdict(pg, e.enquiryId), "Yes - reply ready");
+  assert.equal((await settledNot(pg, e.enquiryId)).length, 1, "the closed day is on the settled line");
   // The owner confirmed exactly what is quoted: the held work is on the check.
   assert.ok(
     snapshot.coverage?.flagged.some(
@@ -388,7 +396,8 @@ test("2: an oven clean asked for on a Sunday can move: priced as usual, and the 
   assert.equal(snapshot.price?.amountMinor, 6000, body);
   assert.match(body, /For the oven clean, that comes to \$60\./);
   assert.match(body, /I don't work Sundays/);
-  assert.equal(await verdict(pg, e.enquiryId), "Yes - reply ready, one date can't be done");
+  assert.equal(await verdict(pg, e.enquiryId), "Yes - reply ready");
+  assert.equal((await settledNot(pg, e.enquiryId)).length, 1, "the closed day is on the settled line");
 });
 
 test("3: an answered 'do you do exterior painting?' is 'Exterior painting' in the ledger; stored answers read the same", async (t) => {
@@ -459,15 +468,18 @@ test("round 2 (M1/M2): a cover figure goes out as the owner's own answer, as wri
   );
   // Edited, the sentence is no longer the owner's answer; the same $20m
   // anywhere else is a figure like any other (review M2).
+  const COVER =
+    "Your saved insurance answer says $20,000,000. Use that figure, or change your saved answer first.";
   for (const [edited, message] of [
-    [body.replace("cover $20m.", "cover $25m."), INSURANCE_AS_ANSWER],
+    [body.replace("cover $20m.", "cover $25m."), COVER],
     [`${body}\n\nBridal makeup plus travel, all up $20m.`, null],
+    // Pass 12: the owner used the saved figure; the clause that prices it is the problem.
     [
       body.replace(
         "We have public liability cover $20m.",
         "We're insured for $20m, and the total is $20m.",
       ),
-      INSURANCE_AS_ANSWER,
+      '"the total is $20m" says your insurance figure is a price. The quote Enquiry worked out is $90: take that out, or use the prepared total.',
     ],
   ] as const) {
     const res = await sendAs(pg, a.businessId, e.enquiryId, edited);
@@ -803,5 +815,6 @@ test("round 2 (M5): a trial the owner calls 'Makeup preview' is priced on the tr
   );
   assert.doesNotMatch(body, /nothing else/);
   assert.equal((snapshot as { closedDay?: { bookable: boolean } }).closedDay?.bookable, true);
-  assert.equal(await verdict(pg, e.enquiryId), "Yes - reply ready, one date can't be done");
+  assert.equal(await verdict(pg, e.enquiryId), "Yes - reply ready");
+  assert.equal((await settledNot(pg, e.enquiryId)).length, 1, "the closed day is on the settled line");
 });

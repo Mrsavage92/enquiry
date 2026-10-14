@@ -14,6 +14,7 @@ import {
 import { useFirstBetaActions } from "@/lib/workspace/live-mutations";
 import type { Business, Enquiry } from "@/domain/types";
 import { cn } from "@/lib/utils";
+import { ownerError } from "@/lib/owner-error";
 
 const OTHER = "__other__";
 
@@ -76,7 +77,7 @@ export function ServiceChooser({
       await actions.setService(enquiry.id, value);
       toast.success("Service confirmed.");
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Could not save that.");
+      toast.error(ownerError(err));
     } finally {
       setSaving(false);
     }
@@ -139,6 +140,27 @@ export function ServiceChooser({
       ) : null}
       {suggested && choice === suggested ? (
         <p className="mt-2 text-sm text-ink-2">Picked from their message. Check it.</p>
+      ) : null}
+      {/* "How much for a clean?" names no job to price: ask them, never guess. */}
+      {!initial && !suggested ? (
+        <button
+          type="button"
+          className="mt-2 inline-flex min-h-11 items-center text-sm font-medium text-mark-strong underline-offset-4 hover:underline"
+          disabled={saving}
+          onClick={() => {
+            setSaving(true);
+            void actions
+              .answerFact(enquiry.id, "ask_service", "yes")
+              .then(() => {
+                toast.dismiss();
+                toast.success("The reply asks them which job they need.");
+              })
+              .catch((err: unknown) => toast.error(ownerError(err)))
+              .finally(() => setSaving(false));
+          }}
+        >
+          Ask what they need
+        </button>
       ) : null}
       <Button
         className="mt-3 min-h-11 w-full max-w-full sm:w-auto"

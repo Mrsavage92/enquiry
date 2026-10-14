@@ -8,6 +8,18 @@ import {
 import { ASK_CHOICE, askTopic, askWhen, availabilitySettled, isAskField } from "./customer-asks.ts";
 import { contextMentions, mentionWords } from "./date-roles.ts";
 import { COVERAGE_FIELD } from "./coverage.ts";
+import {
+  CLOSED_DAY_CHOICE,
+  dateAddedText,
+  isClosedDayField,
+  isDateAddedField,
+  isDateCheckField,
+  readSweep,
+  sweptLabel,
+} from "./date-sweep.ts";
+import { sweptAnswer, sweptChecks } from "./reply-context.ts";
+import type { ReplyContext } from "./compose-reply.ts";
+import { closedReason } from "./compose-reply.ts";
 
 /**
  * Everything the customer asked for or asked about, and where each stands.
@@ -39,7 +51,24 @@ export type AskedItem = {
   status: AskedStatus;
   /** A "do you do X?" the owner answered No: answered, and the reply says so kindly. */
   declined?: true;
+  /** A day they wrote that the owner doesn't work: the reply says so, never "Answered". */
+  closed?: true;
 };
+
+/** A day the date sweep caught for the owner (a closed day, a date it could not read). */
+export function isSweptItem(item: Pick<AskedItem, "id">): boolean {
+  return isClosedDayField(item.id) || isDateCheckField(item.id);
+}
+
+/**
+ * Whether an item holds the reply until the owner settles it: anything open,
+ * except the job itself and the days they wrote (the reply says those) - but
+ * a day the sweep caught does hold it.
+ */
+export function holdsReply(item: AskedItem): boolean {
+  if (item.status !== "open" || item.kind === "service") return false;
+  return item.kind !== "date" || isSweptItem(item);
+}
 
 /** "exterior painting" -> "Exterior painting". */
 function sentenceCase(thing: string): string {
@@ -152,6 +181,7 @@ export function askedLedger(
   decision: LedgerDecision,
   facts: readonly LedgerFact[],
   serviceLabel: string,
+  reply?: ReplyContext,
 ): AskedItem[] {
   const out: AskedItem[] = [];
   if (serviceLabel.trim()) {
@@ -197,13 +227,21 @@ export function askedLedger(
       });
     }
   }
+  const closedOn = (isos: readonly string[]) =>
+    isos.length > 0 && isos.every((iso) => closedReason(iso, reply?.closed))
+      ? { closed: true as const }
+      : {};
   const date = facts.find((f) => norm(f.field) === "date");
   if (date && String(date.value ?? "").trim()) {
+    const isos = String(date.value)
+      .split("|")
+      .filter((d) => /^\d{4}-\d{2}-\d{2}$/.test(d));
     out.push({
       id: "date",
       kind: "date",
       text: date.displayValue?.trim() || String(date.value),
       status: "answered",
+      ...closedOn(isos),
     });
   }
   const context = facts.find((f) => norm(f.field) === "date_context");
@@ -214,6 +252,48 @@ export function askedLedger(
         kind: "date",
         text: mentionWords(m),
         status: "answered",
+        // A day about something else (the lease ending) is theirs, not a booking.
+        ...(m.role === "context" || m.to ? {} : closedOn([m.iso])),
+      });
+    }
+  }
+  // A day the owner added: theirs, said in the reply.
+  for (const f of facts) {
+    if (!isDateAddedField(f.field) || f.status !== "confirmed") continue;
+    const isos = readSweep(f.value)
+      .days.filter((d) => !d.to)
+      .map((d) => d.iso);
+    out.push({
+      id: f.field,
+      kind: "date",
+      text: dateAddedText(f.field),
+      status: "answered",
+      ...closedOn(isos),
+    });
+  }
+  // What only the date sweep caught: a closed day no other line says, a date
+  // it could not read. Each one holds the reply until the owner settles it.
+  if (reply) {
+    for (const c of sweptChecks(facts as never, reply)) {
+      const answer = sweptAnswer(facts as never, c);
+      const answered = Boolean(answer);
+      // Said as not available: the ledger says so, never "Answered".
+      const notAvailable = c.kind === "closed" && answer === CLOSED_DAY_CHOICE.notAvailable;
+      out.push({
+        id: c.field,
+        kind: "date",
+        text:
+          c.kind === "unread"
+            ? c.corrupt
+              ? "Enquiry could not re-check the dates in this message: check them against your closed dates"
+              : c.either
+                ? `"${c.words}" could mean ${sweptLabel(c.either[0])} or ${sweptLabel(c.either[1])}: check which day they mean`
+                : `Enquiry could not read a date in: "${c.words}"`
+            : c.week
+              ? `Part of ${c.span} is in your closed dates`
+              : `A day they mention is ${reply.closed?.days.includes(new Date(`${c.iso}T00:00:00`).getDay()) ? "one you don't work" : "in your closed dates"}: ${sweptLabel(c.iso)}`,
+        status: answered ? "answered" : "open",
+        ...(notAvailable ? { closed: true as const } : {}),
       });
     }
   }
@@ -232,6 +312,11 @@ const NOT_A_CHECK = new Set([
 /** The items still waiting on the owner. */
 export function openAsked(items: readonly AskedItem[]): AskedItem[] {
   return items.filter((i) => i.status === "open");
+}
+
+/** The items that hold "That's everything" and a reply naming a price. */
+export function holdingItems(items: readonly AskedItem[]): AskedItem[] {
+  return items.filter(holdsReply);
 }
 
 /**

@@ -1,15 +1,10 @@
-import { statusChip } from "@/domain/time-cues";
-import { leadDateCue, otherDateCues } from "./card-cues";
 import { useEffect, useState } from "react";
-import { initialsOf } from "@/domain/customer-name";
-import { ArrowLeft, ArrowRight, CircleHelp, Mail, MapPin, PanelRightOpen } from "lucide-react";
+import { CircleHelp, Mail, MapPin } from "lucide-react";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useNarrow } from "@/lib/use-narrow";
 import { usePrototype } from "@/store/prototype-store";
 import { Button } from "@/components/ui/button";
-import { Conversation } from "./conversation";
-import { ReturnContext } from "./return-context";
-import { Intelligence } from "./intelligence";
+import { LaserDesk } from "./laser/laser-desk";
 import { Queue } from "./queue";
 import { TeachDialog } from "./teach-dialog";
 import { PhoneDesk } from "./phone-desk";
@@ -19,12 +14,10 @@ import { filteredEnquiries } from "@/domain/labels";
 import { isFramed } from "@/lib/embed";
 import { mayPlayDemoArrival } from "@/domain/live-demo-isolation";
 import { resolveSendKey } from "@/domain/send-keys";
-import { Badge } from "@/components/ui/badge";
-import { statusTone } from "@/domain/status-tone";
 import { identityLine } from "@/domain/format";
 
 export function EnquiryWorkspace({ enquiryId }: { enquiryId?: string }) {
-  const [detailsOpen, setDetailsOpen] = useState(false);
+  const [asideOpen, setAsideOpen] = useState(false);
   const mobile = useNarrow(860);
   const enquiries = usePrototype((s) => s.enquiries);
   const businessFilter = usePrototype((s) => s.businessFilter);
@@ -190,55 +183,22 @@ export function EnquiryWorkspace({ enquiryId }: { enquiryId?: string }) {
   return (
     <div className="flex h-full min-h-0 flex-col overflow-hidden bg-raised">
       {enquiry ? (
-        <>
-          <header className="enquiry-header">
-            <Link
-              to="/enquiries"
-              className="enquiry-back"
-              aria-label="Back to enquiries"
-              title="Back to enquiries"
-            >
-              <ArrowLeft size={18} />
-            </Link>
-            <span className="customer-avatar" aria-hidden>
-              {initialsOf(enquiry)}
-            </span>
-            <div className="min-w-0 flex-1">
-              <div className="flex flex-wrap items-center gap-3">
-                <h1>{enquiry.customerName}</h1>
-                <Badge tone={statusTone(enquiry)}>{statusChip(enquiry)}</Badge>
-              </div>
-              <p>{[enquiry.serviceLabel, leadDateCue(enquiry)].filter(Boolean).join(" · ")}</p>
-              {otherDateCues(enquiry).length ? (
-                <p className="text-xs text-stone">{otherDateCues(enquiry).join(" · ")}</p>
-              ) : null}
-            </div>
-            <Button
-              variant="ghost"
-              size="icon"
-              aria-label="Enquiry details"
-              title="Enquiry details"
-              onClick={() => setDetailsOpen(true)}
-            >
-              <PanelRightOpen size={19} />
-            </Button>
-          </header>
-          <div className="enquiry-work-grid">
-            <div className="enquiry-conversation-scroll" key={enquiry.id}>
-              <ReturnContext enquiry={enquiry} />
-              <Conversation enquiry={enquiry} embedded />
-              <Intelligence
-                enquiry={enquiry}
-                inline
-                detailsOpen={detailsOpen}
-                onDetailsOpenChange={setDetailsOpen}
-              />
-            </div>
-            <aside className="enquiry-context">
+        <div className="enquiry-work-grid" data-aside={asideOpen ? "open" : "closed"}>
+          <div className="enquiry-conversation-scroll laser-scroll" key={enquiry.id}>
+            <LaserDesk
+              enquiry={enquiry}
+              compact={false}
+              asideOpen={asideOpen}
+              onAside={() => setAsideOpen((open) => !open)}
+            />
+          </div>
+          {asideOpen ? (
+            <aside className="enquiry-context" aria-label="Why this reply and customer details">
               <div className="ui-section-heading">
                 <CircleHelp size={17} className="text-mark" aria-hidden />
                 <h2>Why this reply?</h2>
               </div>
+              <p className="mt-2 text-sm text-ink-2">{enquiry.decision.recommendation.reason}</p>
               <ul className="context-reasons">
                 {enquiry.decision.why.slice(0, 3).map((reason) => (
                   <li key={reason.id}>
@@ -256,9 +216,6 @@ export function EnquiryWorkspace({ enquiryId }: { enquiryId?: string }) {
                   </li>
                 ))}
               </ul>
-              <button className="ui-text-link" onClick={() => setDetailsOpen(true)}>
-                View full details <ArrowRight size={15} aria-hidden />
-              </button>
               <section className="context-customer">
                 <h2>Customer details</h2>
                 <p>
@@ -273,8 +230,8 @@ export function EnquiryWorkspace({ enquiryId }: { enquiryId?: string }) {
                 ) : null}
               </section>
             </aside>
-          </div>
-        </>
+          ) : null}
+        </div>
       ) : (
         <DeskEmpty />
       )}

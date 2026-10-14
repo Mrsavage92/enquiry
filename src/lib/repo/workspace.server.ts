@@ -4,6 +4,7 @@ import type { AuditEvent, Booking, Business, Enquiry, WorkspacePrefs } from "@/d
 import { withFollowUpDue } from "@/domain/time-cues";
 import { withDefaults } from "@/domain/workspace-prefs";
 import { loadOwnerState } from "./owner-state-core";
+import { loadCopied, type CopiedMark } from "./copied-core";
 import {
   toActionPolicy,
   toAuditEvent,
@@ -190,6 +191,7 @@ export async function loadWorkspace(
   );
 
   const owner = await loadOwnerState(sql, businessIds);
+  const copied = await loadCopied(sql, enquiryIds);
 
   // A quiet customer comes back to the owner from what is on record - the
   // last reply sent and the business's own working hours - on every read, on
@@ -197,11 +199,14 @@ export async function loadWorkspace(
   const now = new Date();
   const enquiries = enquiryRows.map((e) =>
     withFollowUpDue(
-      toEnquiry(e, {
-        facts: (factsBy.get(e.id) ?? []).map(toFact),
-        conversation: (messagesBy.get(e.id) ?? []).map(toMessage),
-        quotes: (quotesBy.get(e.id) ?? []).map(toQuote),
-      }),
+      withCopied(
+        toEnquiry(e, {
+          facts: (factsBy.get(e.id) ?? []).map(toFact),
+          conversation: (messagesBy.get(e.id) ?? []).map(toMessage),
+          quotes: (quotesBy.get(e.id) ?? []).map(toQuote),
+        }),
+        copied[e.id],
+      ),
       owner.prefs[e.business_id] ?? withDefaults({}),
       now,
     ),
@@ -218,6 +223,11 @@ export async function loadWorkspace(
     setupCallUrl: await readSetupCallUrl(sql),
     prefs: owner.prefs,
   };
+}
+
+/** An enquiry with the reply the owner copied and has not marked sent, if any. */
+function withCopied(enquiry: Enquiry, mark: CopiedMark | undefined): Enquiry {
+  return mark ? { ...enquiry, copied: mark } : enquiry;
 }
 
 /**
