@@ -504,3 +504,21 @@ test("R5-7: money in fullwidth, small or other-script digits, or split by an inv
   assert.equal(amountAgrees(fullwidth, price, [], [], quote), true);
   assert.ok(ownerEditWarnings(fullwidth, draft).includes(priceWarning("The fridge is $７５０.")));
 });
+
+test("R5-H3: 'Each one costs $250.' is a price per thing, never a stated total", () => {
+  const draft =
+    "Hi there,\n\nFor the oven, fridge and windows, that comes to $450.\n\nThanks,\nSam";
+  const price = { kind: "EXACT" as const, amountMinor: 45_000, currency: "AUD" as const };
+  const lines = [
+    { label: "Oven clean", amountMinor: 25_000 },
+    { label: "Fridge clean", amountMinor: 25_000 },
+    { label: "Inside windows", amountMinor: 25_000 },
+    { label: "$300 off jobs over $600", amountMinor: -30_000 },
+  ];
+  const add = (said: string) => draft.replace("\n\nThanks,", `\n\n${said}\n\nThanks,`);
+  for (const said of ["Each one costs $250.", "It's $250 per item.", "That'll be $250 each."]) {
+    assert.equal(amountAgrees(add(said), price, [], [], { draft, lines }), true, said);
+    assert.ok(ownerEditWarnings(add(said), draft).includes(priceWarning(said)), said);
+  }
+  assert.equal(amountAgrees(add("That'll be $250."), price, [], [], { draft, lines }), false);
+});

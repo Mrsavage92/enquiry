@@ -190,7 +190,8 @@ const RATE_AFTER =
 
 /** Whether a figure, with the words before and after it, is a stated total. */
 function statedTotal(before: string, after: string, text: string, quote?: QuoteContext): boolean {
-  if (RATE_AFTER.test(after)) return false;
+  // "$55 an hour", "Each one costs $250": a rate, never the whole job's.
+  if (RATE_AFTER.test(after) || /\b(?:each|per)\b/i.test(before)) return false;
   if (TOTAL_AFTER.test(after)) return true;
   const lines = quote?.lines ?? [];
   if (COMES_TO_BEFORE.test(before)) return !namesSomeLinesOnly(text, lines);
