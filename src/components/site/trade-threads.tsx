@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import * as Tabs from "@radix-ui/react-tabs";
 import { ClipboardPaste } from "lucide-react";
 import { PhoneFrame } from "@/components/site/device-frame";
@@ -187,11 +187,52 @@ function ThreadPhone({ thread, shown }: { thread: TradeThread; shown: number }) 
           </li>
           <li className="trade-step trade-step-out" {...step(3)}>
             <p className="trade-label">Ready reply. You send it.</p>
-            <p className="trade-bubble trade-bubble-out">{thread.reply}</p>
+            <ReadyReply reply={thread.reply} />
           </li>
         </ol>
       </div>
     </PhoneFrame>
+  );
+}
+
+/** A reply this long is shortened on a phone until they ask for the rest. */
+const LONG_REPLY_CHARS = 200;
+
+/**
+ * The prepared reply. On a phone a long one is cut to its first lines with a
+ * fade and a "Show full reply" button; on wider screens it is always whole.
+ * The cut is only applied once JavaScript has mounted, so with it off the
+ * full reply is always there, and the hidden lines stay in the page for
+ * screen readers either way.
+ */
+function ReadyReply({ reply }: { reply: string }) {
+  const id = useId();
+  const long = reply.length > LONG_REPLY_CHARS;
+  const [mounted, setMounted] = useState(false);
+  const [open, setOpen] = useState(false);
+  useEffect(() => setMounted(true), []);
+  const collapsible = long && mounted;
+  return (
+    <>
+      <p
+        id={id}
+        className="trade-bubble trade-bubble-out"
+        data-collapsed={collapsible && !open ? "true" : "false"}
+      >
+        {reply}
+      </p>
+      {collapsible ? (
+        <button
+          type="button"
+          className="trade-reply-toggle"
+          aria-expanded={open}
+          aria-controls={id}
+          onClick={() => setOpen((o) => !o)}
+        >
+          {open ? "Show less" : "Show full reply"}
+        </button>
+      ) : null}
+    </>
   );
 }
 

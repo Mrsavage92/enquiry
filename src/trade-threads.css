@@ -18,7 +18,8 @@
    inactive #f0eef4 track and the active #fff tab:
      #24724f  5.07 / 5.84  Yes
      #8b5e00  4.93 / 5.68  Not yet
-     #9b5069  4.87 / 5.61  No */
+     #9b5069  4.87 / 5.61  No
+   "Show full reply" (phone only): #654ac2 on the #fff screen, 6.34. */
 
 .trade-band {
   background: #f8f8fa;
@@ -361,6 +362,34 @@
   }
   .trade-screen {
     min-height: 0;
+  }
+}
+
+.trade-reply-toggle {
+  display: none;
+}
+
+/* A phone shortens a long reply until they ask for the rest. */
+@media (max-width: 760px) {
+  .trade-bubble-out[data-collapsed="true"] {
+    max-height: 9.5em;
+    overflow: hidden;
+    mask-image: linear-gradient(to bottom, #000 55%, transparent);
+  }
+  .trade-reply-toggle {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    margin-top: 2px;
+    padding: 0 12px;
+    border-radius: 8px;
+    background: transparent;
+    color: #654ac2;
+    font-size: 14px;
+    font-weight: 600;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    cursor: pointer;
   }
 }
 
