@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import * as Tabs from "@radix-ui/react-tabs";
 import { ClipboardPaste } from "lucide-react";
 import { PhoneFrame } from "@/components/site/device-frame";
@@ -31,6 +31,8 @@ const NARROW_PX = 1000;
 
 export function TradeThreads() {
   const narrow = useNarrow(NARROW_PX);
+  const { ref, shown } = useReveal();
+  const firstId = TRADE_THREADS[0]!.id;
   return (
     <section className="trade-band" aria-labelledby="trade-title">
       <div className="public-container public-section">
@@ -44,7 +46,8 @@ export function TradeThreads() {
           </p>
         </div>
         <Tabs.Root
-          defaultValue={TRADE_THREADS[0]!.id}
+          ref={ref}
+          defaultValue={firstId}
           orientation={narrow ? "horizontal" : "vertical"}
           className="trade-tabs"
         >
@@ -64,7 +67,7 @@ export function TradeThreads() {
           </Tabs.List>
           {TRADE_THREADS.map((thread) => (
             <Tabs.Content key={thread.id} value={thread.id} className="trade-panel">
-              <ThreadPhone thread={thread} />
+              <ThreadPhone thread={thread} shown={thread.id === firstId ? shown : STEPS} />
               <ThreadNotes thread={thread} />
             </Tabs.Content>
           ))}
@@ -85,17 +88,23 @@ function sentence(text: string): string {
 }
 
 /**
- * How many steps are showing. Everything is showing until JavaScript has
- * mounted and confirmed motion is allowed, so a failed script, a crawler or a
- * reduced-motion reader always gets the whole thread.
+ * How many steps of the first thread are showing. It runs once per page:
+ * every other tab mounts with its thread already shown, so switching tabs
+ * never blanks a panel and fades it back in.
+ *
+ * Everything is showing until JavaScript has mounted, confirmed motion is
+ * allowed and found the section still below the fold, so a failed script, a
+ * crawler, a reduced-motion reader or a section already on screen always gets
+ * the whole thread with no flash. The check runs before paint.
  */
 function useReveal() {
-  const ref = useRef<HTMLOListElement>(null);
+  const ref = useRef<HTMLDivElement>(null);
   const [shown, setShown] = useState(STEPS);
-  useEffect(() => {
+  useLayoutEffect(() => {
     const el = ref.current;
     if (!el || typeof IntersectionObserver === "undefined") return;
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    if (el.getBoundingClientRect().top < window.innerHeight) return;
     const timers: number[] = [];
     const showAll = () => setShown(STEPS);
     setShown(0);
@@ -120,8 +129,7 @@ function useReveal() {
   return { ref, shown };
 }
 
-function ThreadPhone({ thread }: { thread: TradeThread }) {
-  const { ref, shown } = useReveal();
+function ThreadPhone({ thread, shown }: { thread: TradeThread; shown: number }) {
   const step = (index: number) => ({ "data-in": index < shown ? "true" : "false" });
   return (
     <PhoneFrame className="trade-phone">
@@ -136,7 +144,6 @@ function ThreadPhone({ thread }: { thread: TradeThread }) {
           </div>
         </div>
         <ol
-          ref={ref}
           className="trade-thread"
           aria-label={`Example ${thread.tab.toLowerCase()} enquiry, from their message to the ready reply`}
         >
