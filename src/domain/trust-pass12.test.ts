@@ -377,3 +377,38 @@ test("R5-H2: only a whole answer sentence, word for word and figure for figure, 
     );
   }
 });
+
+test("R5-4: a changed sign, symbol or non-ASCII word in a prepared money line is the owner's edit", () => {
+  const draft = [
+    "Hi there,",
+    "",
+    "For the oven clean, the fridge clean and the inside windows, that comes to $450:",
+    "- Oven clean: $250",
+    "- Fridge clean: $250",
+    "- Inside windows: $250",
+    "- $300 off jobs over $600: -$300",
+    "",
+    "Thanks,",
+    "Sam",
+  ].join("\n");
+  const off = "- $300 off jobs over $600: -$300";
+  const header = "For the oven clean, the fridge clean and the inside windows, that comes to $450:";
+  for (const [from, to] of [
+    [off, "- $300 off jobs over $600: +$300"],
+    [off, "- $300 off jobs over $600: $300"],
+    ["- Oven clean: $250", "- Oven clean: $250 еасһ"],
+    [header, header.replace("$450:", "$450+:")],
+    [header, header.replace("$450:", "~$450:")],
+  ] as const) {
+    const body = draft.replace(from, to);
+    assert.ok(
+      ownerEditWarnings(body, draft).includes(priceWarning(to)),
+      `${to} -> ${JSON.stringify(ownerEditWarnings(body, draft))}`,
+    );
+  }
+  // Case and spacing alone are not an edit.
+  assert.deepEqual(
+    ownerEditWarnings(draft.replace("- Oven clean: $250", "- OVEN  CLEAN: $250"), draft),
+    [],
+  );
+});

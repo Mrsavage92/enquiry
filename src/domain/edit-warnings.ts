@@ -65,10 +65,19 @@ const CHECKS: Check[] = [
   },
 ];
 
+/**
+ * A sentence as compared with the prepared reply: case, spacing, punctuation
+ * and a bullet marker aside. Signs, currency and symbols that change a figure
+ * ("-$300" against "+$300" or "$300", "$450+", "~$450") and letters in any
+ * script are kept, so changing them is an edit.
+ */
 function norm(s: string): string {
   return s
+    .normalize("NFKC")
     .toLowerCase()
-    .replace(/[^a-z0-9$%]+/g, " ")
+    .replace(/^\s*[-*\u2022]\s+/, "")
+    .replace(/[^\p{L}\p{N}$%+\-\u2212~\u00d7]+/gu, " ")
+    .replace(/\s+/g, " ")
     .trim();
 }
 
