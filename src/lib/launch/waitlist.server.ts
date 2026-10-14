@@ -105,10 +105,29 @@ export async function joinWaitlistRow(
   return { id, already: false, created: true };
 }
 
-/** Self-service removal. Knowing the id is proof of ownership. */
+/**
+ * Self-service removal. Knowing the id is proof of ownership.
+ *
+ * Removes everything that names the person: the waitlist row, and any
+ * roadmap feedback tied to it by id or carrying the same email address.
+ * Roadmap interest ("I need this") is detached rather than deleted, so the
+ * anonymous per-session counts stay honest without pointing back at anyone.
+ * launch_events carry no waitlist id or email, only a browser session id,
+ * so they are left as they are (Privacy discloses them). The waitlist row
+ * goes last, so a failure part-way leaves it in place to retry.
+ */
 export async function leaveWaitlistRow(id: string, db?: Sql): Promise<{ removed: boolean }> {
   if (!isUuid(id)) return { removed: false };
   const sql = db ?? (await getSql());
+  const owner = await sql<{ email: string }>`
+    select email from waitlist where id = ${id} limit 1
+  `;
+  const email = owner[0]?.email ?? null;
+  await sql`
+    delete from roadmap_feedback
+    where waitlist_id = ${id} or (${email}::text is not null and lower(email) = lower(${email}::text))
+  `;
+  await sql`update roadmap_interest set waitlist_id = null where waitlist_id = ${id}`;
   const rows = await sql<{ id: string }>`
     delete from waitlist where id = ${id} returning id
   `;

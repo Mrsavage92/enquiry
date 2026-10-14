@@ -19,7 +19,7 @@ function Terms() {
   return (
     <LegalLayout
       title="Terms"
-      lastUpdated="25 September 2026"
+      lastUpdated="12 October 2026"
       sections={[
         { id: "waitlist", title: "The waitlist" },
         { id: "founding", title: "The founding rate" },
@@ -32,6 +32,11 @@ function Terms() {
       <p>
         These terms cover this website, the early-access list, the sample demo and invited
         early-access use of Enquiry. Some capabilities are still being developed.
+      </p>
+      <p>
+        Payments are not open yet. Before they open we will publish a version of these terms for the
+        paid subscription, covering billing, cancelling and what happens to your information if you
+        leave. Nobody is charged under these terms.
       </p>
       <h2 id="waitlist">The waitlist</h2>
       <p>

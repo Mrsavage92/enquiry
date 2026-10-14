@@ -360,6 +360,10 @@
     border-radius: 12px;
     text-wrap: balance;
   }
+  /* Each price starts its own line on a phone; desktop keeps one line. */
+  .brand-hero-note-line {
+    display: block;
+  }
   .brand-hero {
     height: auto;
     min-height: min(590px, calc(100svh - 140px));
