@@ -88,25 +88,23 @@ export const joinWaitlist = createServerFn({ method: "POST" })
         ${data.referrer}, ${data.landing_path}
       )
     `;
-      // Fire and forget: a signup must succeed whether or not the welcome
-      // email does, and this is inert until the mailbox is configured.
+      // A signup must succeed whether or not the welcome email does;
+      // welcomeNewSignup never throws, and the send itself is fire and forget.
       const { sendEmailInBackground } = await import("@/lib/email/send.server");
       const { waitlistWelcomeEmail } = await import("@/lib/email/waitlist-welcome");
       const { siteOrigin } = await import("@/lib/site/head");
       const { unsubscribeLinks } = await import("./unsubscribe.server");
-      const origin = siteOrigin();
-      // The welcome email is commercial, so it never goes out without a
-      // working unsubscribe link.
-      const links = await unsubscribeLinks(result.id, origin, sql);
-      if (links) {
-        sendEmailInBackground(waitlistWelcomeEmail(data.email, origin, links));
-      } else {
-        const { reportServerError } = await import("@/lib/server/alert");
-        reportServerError({
-          scope: "waitlistWelcome",
-          error: new Error("welcome email not sent: no unsubscribe secret"),
-        });
-      }
+      const { welcomeNewSignup } = await import("./welcome.server");
+      const { reportServerError } = await import("@/lib/server/alert");
+      await welcomeNewSignup(
+        { waitlistId: result.id, email: data.email, origin: siteOrigin() },
+        {
+          links: (id, origin) => unsubscribeLinks(id, origin, sql),
+          build: waitlistWelcomeEmail,
+          send: sendEmailInBackground,
+          report: (error) => reportServerError({ scope: "waitlistWelcome", error }),
+        },
+      );
       return { id: result.id, already: false as const };
     }),
   );

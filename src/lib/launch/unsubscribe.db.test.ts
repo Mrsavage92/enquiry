@@ -4,7 +4,12 @@ import { join } from "node:path";
 import test from "node:test";
 import { PGlite } from "@electric-sql/pglite";
 import { openUnsubscribeToken, sealUnsubscribeToken } from "./unsubscribe-token.ts";
-import { unsubscribeByToken, unsubscribeLinks, unsubscribeSecret } from "./unsubscribe.server.ts";
+import {
+  resetUnsubscribeSecretCache,
+  unsubscribeByToken,
+  unsubscribeLinks,
+  unsubscribeSecret,
+} from "./unsubscribe.server.ts";
 import { joinWaitlistRow, type JoinWaitlistInput } from "./waitlist.server.ts";
 
 const SECRET = "test-secret-0123456789abcdef";
@@ -81,6 +86,7 @@ test("sealing refuses a missing secret or a non-id", () => {
 test("the secret is created once in launch_settings and then reused", async () => {
   const previous = process.env.WAITLIST_UNSUBSCRIBE_SECRET;
   delete process.env.WAITLIST_UNSUBSCRIBE_SECRET;
+  resetUnsubscribeSecretCache();
   try {
     const pg = await freshDb();
     const sql = sqlFor(pg);
@@ -88,12 +94,41 @@ test("the secret is created once in launch_settings and then reused", async () =
     const second = await unsubscribeSecret(sql);
     assert.equal(first.length, 64);
     assert.equal(first, second);
+    const rows = await pg.query("select key from launch_settings where key = 'waitlist_unsubscribe_secret'");
+    assert.equal(rows.rows.length, 1);
   } finally {
+    resetUnsubscribeSecretCache();
+    if (previous !== undefined) process.env.WAITLIST_UNSUBSCRIBE_SECRET = previous;
+  }
+});
+
+test("an existing secret is read, not replaced, and then served from cache", async () => {
+  const previous = process.env.WAITLIST_UNSUBSCRIBE_SECRET;
+  delete process.env.WAITLIST_UNSUBSCRIBE_SECRET;
+  resetUnsubscribeSecretCache();
+  try {
+    const pg = await freshDb();
+    await pg.query(
+      "insert into launch_settings (key, value) values ('waitlist_unsubscribe_secret', 'seeded')",
+    );
+    let queries = 0;
+    const base = sqlFor(pg) as unknown as (s: TemplateStringsArray, ...v: unknown[]) => unknown;
+    const counting = ((strings: TemplateStringsArray, ...values: unknown[]) => {
+      queries += 1;
+      return base(strings, ...values);
+    }) as never;
+    assert.equal(await unsubscribeSecret(counting), "seeded");
+    assert.equal(queries, 1, "one read, no insert");
+    assert.equal(await unsubscribeSecret(counting), "seeded");
+    assert.equal(queries, 1, "the second call is served from cache even with db passed");
+  } finally {
+    resetUnsubscribeSecretCache();
     if (previous !== undefined) process.env.WAITLIST_UNSUBSCRIBE_SECRET = previous;
   }
 });
 
 test("an unsubscribe link deletes exactly its own row, without signing in", async () => {
+  resetUnsubscribeSecretCache();
   const pg = await freshDb();
   const sql = sqlFor(pg);
   const mine = await joinWaitlistRow(input("mine@x.com"), sql);

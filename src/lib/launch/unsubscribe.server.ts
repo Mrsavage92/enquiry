@@ -15,28 +15,41 @@ export const UNSUBSCRIBE_API_PATH = "/api/unsubscribe";
 
 let cachedSecret = "";
 
+async function readSecret(sql: Sql): Promise<string> {
+  const rows = await sql<{ value: string }>`
+    select value from launch_settings where key = ${SECRET_SETTING_KEY} limit 1
+  `;
+  return rows[0]?.value ?? "";
+}
+
 /**
  * The sealing secret: `WAITLIST_UNSUBSCRIBE_SECRET` if set, otherwise a
  * random secret kept in launch_settings, created on first use so links work
- * without the owner having to configure anything. "" means it could not be
- * read or created, and the caller must not send a list email without a link.
+ * without the owner having to configure anything. Read first and insert only
+ * when missing, then cached for the life of the instance, so a signup costs
+ * no query once warm. "" means it could not be read or created, and the
+ * caller must not send a list email without a link.
+ *
+ * Rotating the secret (changing the env var or the launch_settings row)
+ * invalidates every unsubscribe link already sent. Do not rotate it unless a
+ * leak forces it; people then unsubscribe by replying instead.
  */
 export async function unsubscribeSecret(db?: Sql): Promise<string> {
   const fromEnv = process.env.WAITLIST_UNSUBSCRIBE_SECRET ?? "";
   if (fromEnv) return fromEnv;
-  if (cachedSecret && !db) return cachedSecret;
+  if (cachedSecret) return cachedSecret;
   try {
     const sql = db ?? (await getSql());
-    await sql`
-      insert into launch_settings (key, value)
-      values (${SECRET_SETTING_KEY}, ${randomBytes(SECRET_BYTES).toString("hex")})
-      on conflict (key) do nothing
-    `;
-    const rows = await sql<{ value: string }>`
-      select value from launch_settings where key = ${SECRET_SETTING_KEY} limit 1
-    `;
-    const value = rows[0]?.value ?? "";
-    if (!db) cachedSecret = value;
+    let value = await readSecret(sql);
+    if (!value) {
+      await sql`
+        insert into launch_settings (key, value)
+        values (${SECRET_SETTING_KEY}, ${randomBytes(SECRET_BYTES).toString("hex")})
+        on conflict (key) do nothing
+      `;
+      value = await readSecret(sql);
+    }
+    cachedSecret = value;
     return value;
   } catch (error) {
     console.error("[unsubscribe] could not read or create the secret", error);
