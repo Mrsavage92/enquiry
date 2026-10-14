@@ -11,6 +11,11 @@
  * only; it recommended A$19, and the founder chose A$15.
  */
 
+/**
+ * Changing a price or the offer wording here? public/og.jpg shows
+ * OFFER.headline and OFFER.after as a baked image: regenerate it from the
+ * /og-card route (src/routes/og-card.tsx) in the same change.
+ */
 export const FOUNDING_PRICE = "A$15";
 /** The same founding price as a number of dollars; a test keeps the two in step. */
 export const FOUNDING_PRICE_AMOUNT = 15;

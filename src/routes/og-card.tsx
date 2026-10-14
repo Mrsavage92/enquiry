@@ -12,6 +12,11 @@ import { OFFER } from "@/lib/site/offer";
  * src/lib/site/offer.ts, so the card cannot quote a price the site does not.
  * Everything is large enough to read at a thumbnail.
  *
+ * public/og.jpg is a screenshot of this route, not a live render: whenever a
+ * price or the offer wording in offer.ts changes, regenerate it (build,
+ * preview, screenshot /og-card at 1200x630). scripts/og-card.test.mjs keeps
+ * that reminder beside the prices and fails if this card states a price itself.
+ *
  * Contrast on the #f0eef5 card ground: #292136 13.37:1, #64586d 5.78:1,
  * #fff on #654ac2 6.34:1. No image behind any text.
  */
@@ -39,17 +44,6 @@ function OgCard() {
         fontFamily: '"Inter Variable", Inter, sans-serif',
       }}
     >
-      <span
-        aria-hidden="true"
-        style={{
-          position: "absolute",
-          top: 0,
-          right: 0,
-          width: 14,
-          height: "100%",
-          background: "#654ac2",
-        }}
-      />
       <div style={{ position: "relative" }}>
         <Wordmark />
       </div>
