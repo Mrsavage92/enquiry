@@ -278,9 +278,14 @@ export async function confirmReviewedSendInTransaction(
   // once they have seen it. Worked out again here, never taken from the
   // client, against the prepared reply this text was reviewed against (an
   // older message already sent was written over an older prepared reply).
-  const [snap] = await sql<{ draft: string | null; owner_texts: string[] | null }>`
+  const [snap] = await sql<{
+    draft: string | null;
+    owner_texts: string[] | null;
+    lines: { amountMinor?: number }[] | null;
+  }>`
     select decision_snapshot -> 'draft' ->> 'body' as draft,
-      decision_snapshot -> 'ownerAnswerTexts' as owner_texts
+      decision_snapshot -> 'ownerAnswerTexts' as owner_texts,
+      decision_snapshot -> 'price' -> 'lines' as lines
     from enquiry where id = ${input.enquiryId}
   `;
   const facts = await businessFacts(sql, input.businessId);
@@ -292,6 +297,9 @@ export async function confirmReviewedSendInTransaction(
   const warnings = ownerEditWarnings(reviewed.body, reviewed.draft_body ?? snap?.draft ?? "", {
     closed: facts.closed,
     answers,
+    hasDiscount: (Array.isArray(snap?.lines) ? snap.lines : []).some(
+      (l) => Number(l?.amountMinor) < 0,
+    ),
     ...(input.now ? { now: input.now } : {}),
   });
   // "Send anyway" counts only for the list the owner saw: one that grew since

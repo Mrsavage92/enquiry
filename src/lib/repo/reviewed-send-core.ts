@@ -745,6 +745,7 @@ export async function prepareReviewedSendInTransaction(
     warnings: ownerEditWarnings(body, enq.draft_body ?? "", {
       closed: business.closed,
       answers: ownerTexts,
+      hasDiscount: quote.lines.some((l) => l.amountMinor < 0),
       ...(input.now ? { now: input.now } : {}),
     }),
   };

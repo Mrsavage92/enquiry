@@ -456,3 +456,25 @@ test("R5-5: prepared money kept word for word but given a new meaning is listed"
     [],
   );
 });
+
+test("R5-6: 'a discount the quote does not include' is never said of the quote's own discount, or of a listed price", () => {
+  const draft = "Hi there,\n\nFor the oven clean, that comes to $450.\n\nThanks,\nSam";
+  const add = (said: string) => draft.replace("\n\nThanks,", `\n\n${said}\n\nThanks,`);
+  const wrong = /a discount the quote does not include/;
+  for (const said of [
+    "The discount is $300.",
+    "Discount: $300",
+    "Without the discount it would be $750.",
+  ]) {
+    const warned = ownerEditWarnings(add(said), draft);
+    assert.ok(warned.includes(priceWarning(said)), said);
+    assert.ok(!warned.some((w) => wrong.test(w)), `${said} -> ${JSON.stringify(warned)}`);
+  }
+  // The quote has a discount line: the word alone is not news either.
+  assert.deepEqual(
+    ownerEditWarnings(add("Your discount is applied."), draft, { hasDiscount: true }),
+    [],
+  );
+  // No discount on the quote and no figure: still listed.
+  assert.ok(ownerEditWarnings(add("Mates rates for you."), draft).some((w) => wrong.test(w)));
+});

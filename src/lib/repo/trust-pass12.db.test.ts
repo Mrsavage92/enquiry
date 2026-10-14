@@ -1058,10 +1058,8 @@ test("R4: honest ways to state the discount send, as the prepared reply or past 
   const res = await big.tryBody(big.add(said));
   assert.ok(res.ok);
   if (!res.ok) return;
-  assert.deepEqual(res.warnings, [
-    priceWarning(said),
-    '"discount" - a discount the quote does not include.',
-  ]);
+  // The quote has its own discount: only the price is listed (round 5, item 6).
+  assert.deepEqual(res.warnings, [priceWarning(said)]);
   const held = await confirm(big.pg, big.businessId, big.enquiryId, res.reviewedSendId);
   assert.equal(!held.ok && held.reason, "warnings");
   const sent = await confirm(big.pg, big.businessId, big.enquiryId, res.reviewedSendId, {

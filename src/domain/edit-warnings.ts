@@ -71,6 +71,9 @@ const CHECKS: Check[] = [
  * ("-$300" against "+$300" or "$300", "$450+", "~$450") and letters in any
  * script are kept, so changing them is an edit.
  */
+/** The check for a discount the quote does not include. */
+const DISCOUNT_CHECK = CHECKS[0]!;
+
 function norm(s: string): string {
   return s
     .normalize("NFKC")
@@ -266,7 +269,13 @@ function priceDetailEdits(body: string, draft: string, spans: readonly ReplySpan
 export function ownerEditWarnings(
   body: string,
   draft: string,
-  opts: { closed?: ClosedTimes; now?: Date; answers?: readonly string[] } = {},
+  opts: {
+    closed?: ClosedTimes;
+    now?: Date;
+    answers?: readonly string[];
+    /** The quote takes something off: "discount" in the owner's words is not news. */
+    hasDiscount?: boolean;
+  } = {},
 ): string[] {
   const answers = (opts.answers ?? []).map((a) => a.trim()).filter(Boolean);
   const out: string[] = [];
@@ -274,11 +283,13 @@ export function ownerEditWarnings(
     if (!out.includes(line)) out.push(line);
   };
   const money = replyMoney(body, draft, answers);
+  const priced = new Set<string>();
   for (const m of money) {
     if (!m.added) continue;
     // The sentences the figure stands in, as the owner wrote them.
     const words = m.spans.map((s) => s.text).join(" ");
     push(priceWarning(words || m.match.raw));
+    for (const span of m.spans) priced.add(span.text);
   }
   const spans = replySpans(body, draft, answers);
   for (const text of priceDetailEdits(body, draft, spans)) push(priceDetailWarning(text));
@@ -286,6 +297,9 @@ export function ownerEditWarnings(
     if (!span.added) continue;
     const sentence = span.text;
     for (const check of CHECKS) {
+      // A discount the quote has, or one in a sentence already listed as a
+      // price, is never "a discount the quote does not include".
+      if (check === DISCOUNT_CHECK && (opts.hasDiscount || priced.has(sentence))) continue;
       const m = check.re.exec(sentence);
       if (m) push(`"${m[0].trim()}" - ${check.why}.`);
     }
