@@ -8,13 +8,12 @@ import { SUPPORT_EMAIL, SUPPORT_MAILTO } from "@/lib/site/contact";
  * no photo in public/, so the slot carries initials rather than a stock face.
  *
  * Facts only, all already in this repository: the name and Queensland
- * (src/lib/site/contact.ts), working alone, and Louise's mobile makeup
- * business (docs/handover/2026-09-07). No credentials, counts or quotes from
- * anyone else, and nothing that reads as Louise endorsing it.
+ * (src/lib/site/contact.ts) and working alone. No credentials, counts or
+ * quotes from anyone else. Do not name family or partners here without their
+ * explicit consent.
  */
 export const FOUNDER_NOTE = [
   "I'm Adam Savage, and I'm building this on my own in Queensland.",
-  "My partner Louise runs a mobile makeup business, so I've seen the kind of enquiries it's built for up close.",
   "If something doesn't fit how your business works, email me and I'll reply myself.",
 ] as const;
 
