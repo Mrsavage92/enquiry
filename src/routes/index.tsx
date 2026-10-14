@@ -6,6 +6,8 @@ import { ProductShowcase } from "@/components/site/product-showcase";
 import { EarlyAccessInvite } from "@/components/site/early-access-invite";
 import { BrandHero } from "@/components/site/brand-hero";
 import { CrossMark } from "@/components/site/cross-mark";
+import { TradeThreads } from "@/components/site/trade-threads";
+import { FounderNote } from "@/components/site/founder-note";
 import { SUPPORT_EMAIL, SUPPORT_MAILTO } from "@/lib/site/contact";
 import { OFFER, OFFER_FAQ } from "@/lib/site/offer";
 import { mobileCaptureSrcSet } from "@/lib/site/captures";
@@ -62,6 +64,7 @@ function Home() {
   return (
     <SiteShell>
       <BrandHero />
+      <TradeThreads />
       <section className="public-section public-container public-adhd" aria-labelledby="adhd-title">
         <div>
           <div className="public-section-heading">
@@ -117,6 +120,7 @@ function Home() {
           </Link>
         </p>
       </section>
+      <FounderNote />
       <section
         className="public-container public-section public-faq"
         aria-labelledby="questions-title"

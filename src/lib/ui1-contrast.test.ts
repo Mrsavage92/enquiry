@@ -108,3 +108,47 @@ test("Story disclosure text meets AA against its own section ground", () => {
   const measured = (values[0]! + 0.05) / (values[1]! + 0.05);
   assert.ok(measured >= 4.5, `.story-disclosure on ${ground} measured ${measured.toFixed(2)}:1`);
 });
+
+/**
+ * "Built for your trade" and the founder note (src/trade-threads.css). Each
+ * pair is a text colour on the background it actually renders on: the band,
+ * the white phone screen, a bubble or a chip. Both colours must be in the
+ * shipped CSS, so a colour change there cannot leave this list stale.
+ */
+test("Trade examples and founder note text meet AA on their rendered backgrounds", () => {
+  const tradeCss = readFileSync(new URL("../trade-threads.css", import.meta.url), "utf8");
+  const ogCard = readFileSync(new URL("../routes/og-card.tsx", import.meta.url), "utf8");
+  const pairs: [string, string, string][] = [
+    ["#4f4b55", "#f8f8fa", "inactive tab title on the band"],
+    ["#1c1b1f", "#ffffff", "active tab, names and verdict on white"],
+    ["#68656d", "#ffffff", "labels and summaries on white"],
+    ["#68656d", "#f8f8fa", "inactive tab summary on the band"],
+    ["#1c1b1f", "#f0eef4", "customer bubble"],
+    ["#543aab", "#f3efff", "paste step chip"],
+    ["#24724f", "#e8f4ee", "Yes"],
+    ["#8b5e00", "#fff2d8", "Not yet"],
+    ["#9b5069", "#faedf1", "No"],
+    ["#4f4b55", "#ffffff", "what it checked, taps and notes"],
+    ["#ffffff", "#654ac2", "ready reply bubble"],
+    ["#654ac2", "#f0eafa", "founder initials"],
+    ["#654ac2", "#ffffff", "founder email link"],
+  ];
+  const inCss = (hex: string) =>
+    tradeCss.includes(hex) || (hex === "#ffffff" && /#fff\b/.test(tradeCss));
+  for (const [foreground, background, what] of pairs) {
+    assert.ok(inCss(foreground) && inCss(background), `${what}: colours are in the shipped CSS`);
+    const values = [luminance(foreground), luminance(background)].sort((a, b) => b - a);
+    const measured = (values[0]! + 0.05) / (values[1]! + 0.05);
+    assert.ok(measured >= 4.5, `${what}: ${foreground} on ${background} is ${measured.toFixed(2)}:1`);
+  }
+  for (const [foreground, background] of [
+    ["#292136", "#f0eef5"],
+    ["#64586d", "#f0eef5"],
+    ["#fff", "#654ac2"],
+  ]) {
+    assert.ok(ogCard.includes(foreground) && ogCard.includes(background), "share card colours");
+    const fg = foreground === "#fff" ? "#ffffff" : foreground;
+    const values = [luminance(fg), luminance(background)].sort((a, b) => b - a);
+    assert.ok((values[0]! + 0.05) / (values[1]! + 0.05) >= 4.5, `share card ${foreground}`);
+  }
+});
