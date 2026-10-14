@@ -152,3 +152,35 @@ test("an unsubscribe link deletes exactly its own row, without signing in", asyn
   assert.equal(await unsubscribeByToken(token, sql), "already-removed", "a second click is safe");
   assert.equal((await pg.query("select id from waitlist")).rows.length, 1);
 });
+
+test("removal deletes the person's roadmap feedback and detaches their interest", async () => {
+  const pg = await freshDb();
+  const sql = sqlFor(pg);
+  const mine = await joinWaitlistRow(input("mine@x.com"), sql);
+  const other = await joinWaitlistRow(input("other@x.com"), sql);
+  const feedback = (id: string, waitlistId: string | null, email: string | null) =>
+    pg.query(
+      "insert into roadmap_feedback (id, feature_id, session_id, waitlist_id, problem_text, email) values ($1, 'f', 's', $2, 'text', $3)",
+      [id, waitlistId, email],
+    );
+  await feedback("fb-by-id", mine.id, null);
+  await feedback("fb-by-email", null, "Mine@X.com");
+  await feedback("fb-other", other.id, "other@x.com");
+  await pg.query(
+    "insert into roadmap_interest (id, feature_id, session_id, waitlist_id) values ('ri-1', 'f', 's', $1)",
+    [mine.id],
+  );
+
+  const { leaveWaitlistRow } = await import("./waitlist.server.ts");
+  assert.deepEqual(await leaveWaitlistRow(mine.id, sql), { removed: true });
+
+  const left = await pg.query<{ id: string }>("select id from roadmap_feedback order by id");
+  assert.deepEqual(left.rows.map((r) => r.id), ["fb-other"]);
+  const interest = await pg.query<{ waitlist_id: string | null }>(
+    "select waitlist_id from roadmap_interest where id = 'ri-1'",
+  );
+  assert.equal(interest.rows.length, 1, "the anonymous vote still counts");
+  assert.equal(interest.rows[0]?.waitlist_id, null, "but no longer points at the person");
+  const waitlist = await pg.query<{ id: string }>("select id from waitlist");
+  assert.deepEqual(waitlist.rows.map((r) => r.id), [other.id]);
+});

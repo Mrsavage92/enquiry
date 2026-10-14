@@ -225,6 +225,9 @@ test("privacy names every processor and a complaints path", () => {
   assert.match(privacy, /id="complaints"/);
   assert.match(privacy, /https:\/\/www\.oaic\.gov\.au/);
   assert.match(privacy, /unsubscribe link/);
+  assert.match(privacy, /n8n GmbH in Germany/);
+  assert.match(privacy, /Error reports/);
+  assert.doesNotMatch(privacy, /private notification service/);
 });
 
 test("terms promise the founding price to the list, as the site does", () => {

@@ -41,10 +41,9 @@ editing copy. Each item says what the site says today and where it lives.
   ABN and a lawyer read before the first charge.
 - Source: go-live marketing review 2026-10-06, finding 34.
 
-## Notification service named in Privacy (open, 2026-10-12)
+## Notification service named in Privacy (closed, 2026-10-14)
 
-- Roadmap feedback (with any email the person leaves) and founding-member
-  alerts are sent to `ALERT_WEBHOOK_URL` (`src/lib/server/alert.ts`). The
-  Privacy page describes this as "a private notification service" because the
-  code does not say which service the webhook points at (Slack, Discord or
-  n8n). The founder should say which one so Privacy can name it.
+- Confirmed: `ALERT_WEBHOOK_URL` points at n8n cloud (n8n GmbH, Germany),
+  which emails the founder through Resend. Privacy now names it and says the
+  notifications can include roadmap feedback, email addresses and error
+  details.

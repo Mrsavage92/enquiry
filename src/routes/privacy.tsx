@@ -86,14 +86,18 @@ function Privacy() {
         details go to Stripe, not to us.
       </p>
       <p>
-        Roadmap feedback, including an email address if you leave one, is forwarded to the founder
-        through a private notification service so a person reads it.
+        n8n (n8n cloud, run by n8n GmbH in Germany) forwards notifications to the founder by email,
+        through Resend. These can include roadmap feedback and the email address you leave with
+        it. Error reports sent to the founder the same way may contain the details that caused
+        the error.
       </p>
       <h2 id="retention">How long we keep it</h2>
       <p>
         Waitlist records are kept until you ask us to remove them or the early-access programme
         ends. You can remove yourself straight away with the unsubscribe link in any email from us,
-        or with &quot;Remove me from the list&quot; on the early-access page. Workspace information
+        or with &quot;Remove me from the list&quot; on the early-access page. Either way we delete
+        your email, your answers and any roadmap feedback you left, and anonymous &quot;I need
+        this&quot; votes stop being linked to you. Workspace information
         is kept while your account is active and removed within 30 days of a deletion request,
         apart from records we must keep to show what actions were recorded and by whom. To ask for
         deletion, email the address below.
