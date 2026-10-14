@@ -81,7 +81,14 @@ export function BrandHero() {
           </Link>
         </div>
         <p className="brand-hero-note">
-          {paymentsOpen ? OFFER.refund : `${OFFER.short}${OFFER.noteSuffix}`}
+          {paymentsOpen
+            ? OFFER.refund
+            : OFFER.noteParts.map((part, index) => (
+                <span key={part} className="brand-hero-note-line">
+                  {index > 0 ? " " : null}
+                  {part}
+                </span>
+              ))}
         </p>
       </div>
       <div className="brand-hero-footer">

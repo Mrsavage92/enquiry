@@ -5,8 +5,10 @@ editing copy. Each item says what the site says today and where it lives.
 
 ## GST registration and ABN (open, 2026-10-12)
 
-- **What the site says today:** "Prices include GST." and "A$15 a month inc GST"
-  on /early-access, in the home FAQ, and "(inc GST)" in the Terms founding rate.
+- **What the site says today:** nothing about GST. `PRICES_INCLUDE_GST` is
+  `false` since 2026-10-14, so "Prices include GST.", "inc GST" on
+  /early-access and "(inc GST)" in the Terms are all hidden. A$15 is the full
+  price either way.
 - **Why it matters:** "inc GST" says GST is charged and will appear on tax
   invoices. That is only true for a GST-registered business with an ABN. No ABN
   appears anywhere on the site. Registration is only mandatory from A$75K
@@ -15,10 +17,10 @@ editing copy. Each item says what the site says today and where it lives.
   `src/lib/site/offer.ts`. Every GST statement reads it.
 - **Founder to confirm:**
   1. Is the operator registered for GST? If yes, provide the ABN so it can be
-     shown on the site, the Terms, list emails and receipts.
-  2. If not registered, an agent sets `PRICES_INCLUDE_GST = false` and the
-     GST statements disappear. Whether to add a line such as "No GST is
-     charged" instead is also the founder's call.
+     shown on the site, the Terms, list emails and receipts, and an agent sets
+     `PRICES_INCLUDE_GST = true`.
+  2. If not registered, it stays `false`. Whether to add a line such as "No GST
+     is charged" is also the founder's call.
 - Source: go-live marketing review 2026-10-06, finding 35; business review (e).
 
 ## Founding-price cut-off for list members (open, 2026-10-12)

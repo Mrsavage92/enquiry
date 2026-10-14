@@ -178,11 +178,23 @@ test("phone captures ship a real 2x file and every phone image offers it", () =>
 
 test("the price line cannot be read as the founding price ending at launch", () => {
   const offer = source("src/lib/site/offer.ts");
-  const prices = offer.match(/const PRICES = `([^`]*)`/)?.[1] ?? "";
-  assert.match(prices, /for as long as you stay/);
-  assert.match(prices, /joins after launch/);
-  assert.doesNotMatch(prices, /while you're a member/);
-  assert.doesNotMatch(prices, /\$\{STANDARD_PRICE\} after launch/);
+  const founding = offer.match(/const FOUNDING_SENTENCE = `([^`]*)`/)?.[1] ?? "";
+  const standard = offer.match(/const STANDARD_SENTENCE = `([^`]*)`/)?.[1] ?? "";
+  assert.match(founding, /for as long as you stay\.$/);
+  assert.match(standard, /joins after public launch\.$/);
+  assert.match(offer, /const PRICES = `\$\{FOUNDING_SENTENCE\} \$\{STANDARD_SENTENCE\}`/);
+  assert.doesNotMatch(offer, /while you're a member/);
+  assert.doesNotMatch(offer, /\$\{STANDARD_PRICE\} after launch/);
+  // The hero puts each price on its own line on a phone, without a hard break.
+  const hero = source("src/components/site/brand-hero.tsx");
+  assert.match(hero, /OFFER\.noteParts\.map/);
+  const note = hero.slice(hero.indexOf('className="brand-hero-note"'));
+  assert.doesNotMatch(note.slice(0, note.indexOf("</p>")), /<br/);
+  assert.match(source("src/brand-hero.css"), /\.brand-hero-note-line \{\s*display: block;/);
+});
+
+test("GST is not claimed until the founder confirms registration", () => {
+  assert.match(source("src/lib/site/offer.ts"), /export const PRICES_INCLUDE_GST = false;/);
 });
 
 test("every GST statement reads the one switch in offer.ts", () => {

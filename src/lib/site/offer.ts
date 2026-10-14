@@ -26,11 +26,12 @@ export const FOUNDING_CLOSES: string | null = null;
  * Whether prices are stated as including GST. This MUST stay accurate to the
  * operator's GST registration: "inc GST" implies GST is charged and will show
  * on tax invoices, which is only true for a GST-registered business with an
- * ABN. The founder has not confirmed registration yet; see
+ * ABN. The founder has not confirmed registration yet, so this stays false
+ * until they do (A$15 is the full price either way); see
  * docs/growth/FOUNDER-CONFIRM.md. Every GST statement on the site, the FAQ and
  * Terms reads this one switch, so the answer is changed here and nowhere else.
  */
-export const PRICES_INCLUDE_GST = true;
+export const PRICES_INCLUDE_GST = false;
 
 /** The GST sentence, or nothing if prices are not stated as GST-inclusive. */
 const GST_LINE = PRICES_INCLUDE_GST ? "Prices include GST." : "";
@@ -61,7 +62,9 @@ const AFTER = `Businesses that join after the founding window pay ${STANDARD_PRI
  * as long as the subscription, and A$29 is for businesses that join later
  * (marketing review 2026-10-06, finding 7).
  */
-const PRICES = `${FOUNDING_PRICE} a month for as long as you stay. ${STANDARD_PRICE} for anyone who joins after launch.`;
+const FOUNDING_SENTENCE = `${FOUNDING_PRICE} a month for as long as you stay.`;
+const STANDARD_SENTENCE = `${STANDARD_PRICE} for anyone who joins after public launch.`;
+const PRICES = `${FOUNDING_SENTENCE} ${STANDARD_SENTENCE}`;
 
 /**
  * The one price line: hero note, invite band, home FAQ and the /early-access
@@ -100,6 +103,11 @@ export const OFFER = {
   valueLabel: `a month${PRICES_INCLUDE_GST ? " inc GST" : ""}, for as long as you stay.`,
   /** Appended to OFFER.short on the hero note while payments are not open. */
   noteSuffix: ` ${NO_CARD}`,
+  /**
+   * The hero note in two parts, so narrow screens can put each price on its
+   * own line. Joined with a space they read exactly as OFFER.short + noteSuffix.
+   */
+  noteParts: [FOUNDING_SENTENCE, paymentsOpen ? STANDARD_SENTENCE : `${STANDARD_SENTENCE} ${NO_CARD}`],
   /** The small line under the invite-band form while payments are not open. */
   reassure: PAY_WHEN,
   /** The /early-access page heading, once payments are not open. */
