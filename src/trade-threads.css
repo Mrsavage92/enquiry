@@ -98,6 +98,10 @@
   gap: 40px;
   align-items: start;
 }
+/* Every panel is in the markup (forceMount); only the selected one shows. */
+.trade-panel[data-state="inactive"] {
+  display: none;
+}
 .trade-panel:focus-visible {
   outline-offset: 8px;
   border-radius: 8px;

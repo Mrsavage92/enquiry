@@ -20,8 +20,11 @@ import { useNarrow } from "@/lib/use-narrow";
  * PhoneFrame.
  *
  * Every verdict, check and reply comes from the real engine (see
- * src/lib/site/trade-threads.ts). Content is in the server-rendered markup
- * and fully visible without JavaScript; the reveal only fades steps in once
+ * src/lib/site/trade-threads.ts). Every panel is force-mounted, so all three
+ * threads are in the server-rendered markup for crawlers and with JavaScript
+ * off; the inactive ones are hidden by CSS on Radix's data-state, and each
+ * keeps its role="tabpanel" and aria-labelledby. Without JavaScript the first
+ * thread shows and the tabs cannot switch. The reveal only fades steps in once
  * the section scrolls into view, and never runs under reduced motion.
  */
 
@@ -66,7 +69,12 @@ export function TradeThreads() {
             ))}
           </Tabs.List>
           {TRADE_THREADS.map((thread) => (
-            <Tabs.Content key={thread.id} value={thread.id} className="trade-panel">
+            <Tabs.Content
+              key={thread.id}
+              value={thread.id}
+              className="trade-panel"
+              forceMount
+            >
               <ThreadPhone thread={thread} shown={thread.id === firstId ? shown : STEPS} />
               <ThreadNotes thread={thread} />
             </Tabs.Content>
