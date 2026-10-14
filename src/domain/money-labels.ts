@@ -39,3 +39,10 @@ export function namesSomeLinesOnly(sentence: string, lines: readonly QuoteLineAm
   const named = distinctive(priced).filter((words) => [...words].some((s) => said.has(s)));
   return named.length > 0 && named.length < priced.length;
 }
+
+/** Whether `sentence` names any of the quote's priced lines. */
+export function namesAnyLine(sentence: string, lines: readonly QuoteLineAmount[]): boolean {
+  const priced = lines.filter((l) => l.amountMinor > 0);
+  const said = new Set(stemsOf(sentence));
+  return distinctive(priced).some((words) => [...words].some((s) => said.has(s)));
+}

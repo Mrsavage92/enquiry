@@ -1167,3 +1167,45 @@ test("R5-H1: money read across a line break is refused or listed, never recorded
   const held = await confirm(big.pg, big.businessId, big.enquiryId, split.reviewedSendId);
   assert.equal(!held.ok && held.reason, "warnings");
 });
+
+test("R5-H3: a price said for one thing or as a rate sends, listed; only the whole job's figure is a stated total", async (t) => {
+  const big = await preparedReply(t, BIG_OFF, JO_ALL, "Oven clean", /over \$600/);
+  for (const said of ["The oven clean costs $250.", "The price is $250 for the oven."]) {
+    const res = await big.tryBody(big.add(said));
+    assert.equal(res.ok, true, `${said}: ${JSON.stringify(res)}`);
+    assert.ok(res.ok && res.warnings.includes(priceWarning(said)), said);
+  }
+  const { pg, a } = await setup(t);
+  const e = await enquiry(
+    pg,
+    a.businessId,
+    "Hi, regular clean 3 hours this Friday plus the oven please. Thanks, Bo",
+    "Regular house clean",
+  );
+  const { body, sent } = await settleAndSend(pg, a.businessId, e.enquiryId, {
+    "number of hours": "3",
+    hours: "3",
+  });
+  assert.equal(sent.ok, true, JSON.stringify(sent));
+  const add = (said: string) => body.replace("\n\nThanks,", `\n\n${said}\n\nThanks,`);
+  for (const said of [
+    "It costs $55 an hour.",
+    "The price is $55 per hour, minimum 3 hours.",
+    "The oven costs $60.",
+    "It would be $55 an hour.",
+  ]) {
+    const res = await sendAs(pg, a.businessId, e.enquiryId, add(said));
+    assert.equal(res.ok, true, `${said}: ${JSON.stringify(res)}`);
+    assert.ok(res.ok && res.warnings.includes(priceWarning(said)), said);
+  }
+  // Said of the whole job with no line named, a figure that is not the quote is refused.
+  for (const said of [
+    "It would be $300.",
+    "That'll be $300.",
+    "The price is $300.",
+    "Total: $300",
+  ]) {
+    const res = await sendAs(pg, a.businessId, e.enquiryId, add(said));
+    assert.equal(!res.ok && res.reason, "amount_mismatch", said);
+  }
+});
