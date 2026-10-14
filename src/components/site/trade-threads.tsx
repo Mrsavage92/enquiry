@@ -52,6 +52,10 @@ export function TradeThreads() {
             {TRADE_THREADS.map((thread) => (
               <Tabs.Trigger key={thread.id} value={thread.id} className="trade-tab">
                 <span className="trade-tab-title">{thread.tab}</span>
+                {/* On a phone the summary is hidden; the answer word still shows. */}
+                <span className="trade-tab-hint" data-tone={toneOf(thread.verdict.word)}>
+                  {thread.verdict.word}
+                </span>
                 <span className="trade-tab-sum">
                   {thread.verdict.word}: {verdictReason(thread)}
                 </span>

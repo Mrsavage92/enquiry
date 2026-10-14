@@ -132,6 +132,12 @@ test("Trade examples and founder note text meet AA on their rendered backgrounds
     ["#ffffff", "#654ac2", "ready reply bubble"],
     ["#654ac2", "#f0eafa", "founder initials"],
     ["#654ac2", "#ffffff", "founder email link"],
+    ["#24724f", "#f0eef4", "phone tab hint Yes on the track"],
+    ["#8b5e00", "#f0eef4", "phone tab hint Not yet on the track"],
+    ["#9b5069", "#f0eef4", "phone tab hint No on the track"],
+    ["#24724f", "#ffffff", "phone tab hint Yes on the active tab"],
+    ["#8b5e00", "#ffffff", "phone tab hint Not yet on the active tab"],
+    ["#9b5069", "#ffffff", "phone tab hint No on the active tab"],
   ];
   const inCss = (hex: string) =>
     tradeCss.includes(hex) || (hex === "#ffffff" && /#fff\b/.test(tradeCss));

@@ -3,19 +3,6 @@ import type { TradeThreadOutput } from "./trade-threads";
 
 export const GENERATED_THREADS: readonly TradeThreadOutput[] = [
   {
-    "id": "painter",
-    "verdict": {
-      "word": "No",
-      "line": "No - outside what you offer"
-    },
-    "checked": "Two storey - you said exterior painting only if single storey",
-    "ownerSteps": [
-      "Check the number of square metres",
-      "Two storey - you said exterior painting only if single storey: Decline kindly"
-    ],
-    "reply": "Hi Karen,\n\nThanks for getting in touch.\n\nSorry, I only do exterior painting if the house is single storey, so I can't quote this one.\n\nThanks,\nTom"
-  },
-  {
     "id": "cleaner",
     "verdict": {
       "word": "Yes",
@@ -27,6 +14,19 @@ export const GENERATED_THREADS: readonly TradeThreadOutput[] = [
       "Check it covers everything they asked for"
     ],
     "reply": "Hi Priya,\n\nThanks for getting in touch about end of lease clean.\n\nFor the end of lease clean, that comes to $380 (2 bedrooms at $190 each).\n\nYou mentioned Friday 30 October - I'll confirm whether that works.\n\nJust let me know if you'd like to go ahead and I'll confirm the day.\n\nThanks,\nJess"
+  },
+  {
+    "id": "painter",
+    "verdict": {
+      "word": "No",
+      "line": "No - outside what you offer"
+    },
+    "checked": "Two storey - you said exterior painting only if single storey",
+    "ownerSteps": [
+      "Check the number of square metres",
+      "Two storey - you said exterior painting only if single storey: Decline kindly"
+    ],
+    "reply": "Hi Karen,\n\nThanks for getting in touch.\n\nSorry, I only do exterior painting if the house is single storey, so I can't quote this one.\n\nThanks,\nTom"
   },
   {
     "id": "beauty",

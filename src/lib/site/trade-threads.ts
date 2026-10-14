@@ -42,7 +42,22 @@ export type TradeInput = {
 /** The day the examples were run: their dates are read relative to it. */
 export const TRADE_THREADS_NOW = "2026-10-14T10:15:00+10:00";
 
+/**
+ * Cleaner leads: on a phone the first thread a visitor sees is the one with
+ * a reply ready and a price in it.
+ */
 export const TRADE_INPUTS: readonly TradeInput[] = [
+  {
+    id: "cleaner",
+    tab: "Cleaner",
+    industry: "cleaning",
+    ownerFirstName: "Jess",
+    ownerLines: ["End of lease clean $190 per bedroom"],
+    customerName: "Priya",
+    message:
+      "Hi, need an end of lease clean for a 2 bedroom unit in Chermside on Friday 30 October. How much? Thanks, Priya",
+    serviceLabel: "End of lease clean",
+  },
   {
     id: "painter",
     tab: "Painter",
@@ -57,17 +72,6 @@ export const TRADE_INPUTS: readonly TradeInput[] = [
       "Hi, two storey weatherboard house, exterior repaint about 220 square metres. Could you do Saturday 7 November? Cheers, Karen",
     serviceLabel: "Exterior painting",
     ruleChoice: "decline",
-  },
-  {
-    id: "cleaner",
-    tab: "Cleaner",
-    industry: "cleaning",
-    ownerFirstName: "Jess",
-    ownerLines: ["End of lease clean $190 per bedroom"],
-    customerName: "Priya",
-    message:
-      "Hi, need an end of lease clean for a 2 bedroom unit in Chermside on Friday 30 October. How much? Thanks, Priya",
-    serviceLabel: "End of lease clean",
   },
   {
     id: "beauty",
