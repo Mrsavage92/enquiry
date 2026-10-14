@@ -39,7 +39,17 @@ export type TradeInput = {
   ruleChoice?: "decline" | "quote";
 };
 
-/** The day the examples were run: their dates are read relative to it. */
+/**
+ * The day the examples were run: their dates are read relative to it.
+ *
+ * STALE AFTER 19 December 2026, the last day any example names. Before then,
+ * move the dates in the messages below (and this day, if needed) and
+ * regenerate the shipped text from the engine:
+ *
+ *   UPDATE_TRADE_THREADS=1 node --experimental-strip-types  *     --import ./scripts/test-resolve-hook.mjs --test src/lib/site/trade-threads.db.test.ts
+ *
+ * then review the diff in trade-threads.data.ts before committing it.
+ */
 export const TRADE_THREADS_NOW = "2026-10-14T10:15:00+10:00";
 
 /**
@@ -55,7 +65,7 @@ export const TRADE_INPUTS: readonly TradeInput[] = [
     ownerLines: ["End of lease clean $190 per bedroom"],
     customerName: "Priya",
     message:
-      "Hi, need an end of lease clean for a 2 bedroom unit in Chermside on Friday 30 October. How much? Thanks, Priya",
+      "Hi, need an end of lease clean for a 2 bedroom unit in Chermside on Friday 11 December. How much? Thanks, Priya",
     serviceLabel: "End of lease clean",
   },
   {
@@ -69,7 +79,7 @@ export const TRADE_INPUTS: readonly TradeInput[] = [
     ],
     customerName: "Karen",
     message:
-      "Hi, two storey weatherboard house, exterior repaint about 220 square metres. Could you do Saturday 7 November? Cheers, Karen",
+      "Hi, two storey weatherboard house, exterior repaint about 220 square metres. Could you do Saturday 12 December? Cheers, Karen",
     serviceLabel: "Exterior painting",
     ruleChoice: "decline",
   },
@@ -81,7 +91,7 @@ export const TRADE_INPUTS: readonly TradeInput[] = [
     ownerLines: ["Bridal party makeup $145 per person"],
     customerName: "Chloe",
     message:
-      "Hi! Could you do makeup for me and my bridesmaids on Saturday 21 November? What would it cost? Chloe",
+      "Hi! Could you do makeup for me and my bridesmaids on Saturday 19 December? What would it cost? Chloe",
     serviceLabel: "Bridal party makeup",
   },
 ];

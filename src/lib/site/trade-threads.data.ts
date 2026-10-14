@@ -13,7 +13,7 @@ export const GENERATED_THREADS: readonly TradeThreadOutput[] = [
       "Check the number of bedrooms",
       "Check it covers everything they asked for"
     ],
-    "reply": "Hi Priya,\n\nThanks for getting in touch about end of lease clean.\n\nFor the end of lease clean, that comes to $380 (2 bedrooms at $190 each).\n\nYou mentioned Friday 30 October - I'll confirm whether that works.\n\nJust let me know if you'd like to go ahead and I'll confirm the day.\n\nThanks,\nJess"
+    "reply": "Hi Priya,\n\nThanks for getting in touch about end of lease clean.\n\nFor the end of lease clean, that comes to $380 (2 bedrooms at $190 each).\n\nYou mentioned Friday 11 December - I'll confirm whether that works.\n\nJust let me know if you'd like to go ahead and I'll confirm the day.\n\nThanks,\nJess"
   },
   {
     "id": "painter",
@@ -36,6 +36,6 @@ export const GENERATED_THREADS: readonly TradeThreadOutput[] = [
     },
     "checked": "Bridal party makeup is priced per person, so the number of people decides the price.",
     "ownerSteps": [],
-    "reply": "Hi Chloe,\n\nThanks for getting in touch about bridal party makeup.\n\nBefore I can give you a price, can you let me know how many people there are?\n\nYou mentioned Saturday 21 November - I'll confirm whether that works.\n\nOnce I have that I can send the price straight back.\n\nThanks,\nMia"
+    "reply": "Hi Chloe,\n\nThanks for getting in touch about bridal party makeup.\n\nBefore I can give you a price, can you let me know how many people there are?\n\nYou mentioned Saturday 19 December - I'll confirm whether that works.\n\nOnce I have that I can send the price straight back.\n\nThanks,\nMia"
   }
 ];
