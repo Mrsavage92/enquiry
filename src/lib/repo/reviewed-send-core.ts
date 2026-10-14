@@ -8,11 +8,11 @@ import {
   unreadableMoney,
   type DollarMatch,
 } from "../../domain/voice-detect.ts";
-import { standsAsQuoted, type QuoteLineAmount } from "../../domain/money-labels.ts";
+import { namesAQuoteLine, type QuoteLineAmount } from "../../domain/money-labels.ts";
 import { formatMinorAud } from "../../domain/money-format.ts";
 import { COVERAGE_FIELD } from "../../domain/coverage.ts";
 import { isClosed, lockEnquiry } from "./decision-apply.ts";
-import { ownerEditWarnings, sentencesOf } from "../../domain/edit-warnings.ts";
+import { addedSentences, ownerEditWarnings, sentencesOf } from "../../domain/edit-warnings.ts";
 import { activeDetails, closedTimesOf } from "../../domain/business-detail.ts";
 import type { ClosedTimes } from "../../domain/compose-reply.ts";
 
@@ -153,23 +153,53 @@ type MoneyCheck = {
 };
 
 /**
- * The one rule for money in a reply. A figure is allowed only when it is an
- * amount of the quote (its total, its lines, the owner's rule amounts it
- * implies) or it sits inside the owner's own answer sentence, as written. No
- * word beside a figure ("insurance", "cover", "excess") makes it anything but
- * money: a cover figure goes in a saved answer, where it is the owner's.
- */
-/**
  * What the reply is checked against beyond the amounts: the app's own prepared
- * reply and the quote's lines, so a line's amount is allowed only where it is
- * said as that line (see `money-labels.ts`).
+ * reply (money in its sentences, unchanged, is the app's own) and the quote's
+ * lines (to tell a stated total from one thing's price).
  */
 export type QuoteContext = { draft: string; lines: readonly QuoteLineAmount[] };
 
+/**
+ * A figure stated as the price of the whole job: "Total: $500", "That'll be
+ * $500", "Price: $500", "Quote: $500", "You'll pay $500", "Call it 500",
+ * "Say 400", "it comes to $500", "$500 all up".
+ */
+const TOTAL_BEFORE =
+  /(?:\b(?:grand\s+)?total(?:\s+(?:is|of|comes\s+to))?|\ball\s+up|\baltogether|\bin\s+total|\b(?:comes?|came)\s+to|\bthat'?ll\s+be|\bthat\s+will\s+be|\bprice(?:\s+(?:is|of))?|\bquote[ds]?(?:\s+(?:is|of|at))?|\bcosts?|\byou'?ll\s+pay|\b(?:make|call)\s+it|\blet'?s\s+(?:say|call\s+it|make\s+it)|\bsay)\s*[:=-]?\s*(?:(?:is|of|about|around|roughly|approx(?:imately)?|just|only)\s+)*$/i;
+const TOTAL_AFTER = /^\s*(?:all\s+up|altogether|in\s+total|total)\b/i;
+/** "comes to" is the whole job's only when no single thing is named beside it. */
+const COMES_TO_BEFORE = /\b(?:comes?|came)\s+to\s*[:=-]?\s*(?:(?:about|around|just|only)\s+)*$/i;
+
+/** Whether a figure in its sentence is a stated total. */
+function statedTotal(sentence: string, at: number, length: number, quote?: QuoteContext): boolean {
+  const before = sentence.slice(0, at);
+  const after = sentence.slice(at + length);
+  if (TOTAL_AFTER.test(after)) return true;
+  if (!TOTAL_BEFORE.test(before)) return false;
+  if (COMES_TO_BEFORE.test(before)) return !namesAQuoteLine(sentence, quote?.lines ?? []);
+  return true;
+}
+
+/**
+ * The one rule for money in a reply.
+ *
+ * Money in the app's own prepared reply, in its sentence as written, is the
+ * app's: it passes. So does the figure in the owner's own answer sentence,
+ * as written. Every other sentence that names money is the owner's own figure:
+ * it is never guessed at here (which line it belongs to, whether it is a
+ * discount or a subtotal) - it is listed for the owner to check before they
+ * send (`ownerEditWarnings`).
+ *
+ * Refused outright, only where nothing needs guessing: any money on a reply
+ * with no price on file; a stated total ("Total: $500", "all up", "comes to"
+ * with no one thing named, "Call it 500") that is not the quote; a figure in a
+ * sentence about insurance (cover goes in a saved answer); another currency;
+ * and a reply that names money but no longer names the quote's own total.
+ */
 function checkMoney(
   body: string,
   price: DecisionPrice | null,
-  impliedMinor: readonly number[] = [],
+  _impliedMinor: readonly number[] = [],
   ownerTexts: readonly string[] = [],
   quote?: QuoteContext,
 ): MoneyCheck {
@@ -191,28 +221,46 @@ function checkMoney(
     : price.kind === "EXACT"
       ? [price.amountMinor]
       : [price.minMinor, price.maxMinor];
-  const allowed = new Set<number>([...required, ...impliedMinor]);
   const minor = (m: DollarMatch) => Math.round(m.amount * 100);
-  // No quote: any money at all is refused. A foreign amount never matches.
-  const refused = free.filter(
-    (m) =>
-      !price ||
-      m.foreign ||
-      !allowed.has(minor(m)) ||
-      (quote !== undefined && !standsAsQuoted(body, m, minor(m), { totals: required, ...quote })),
-  );
+  // The lines before anything is taken off ("All three come to $750" on a
+  // $450 quote with $300 off): the owner's honest subtotal, listed, not refused.
+  const lines = quote?.lines ?? [];
+  const beforeDiscount = lines.some((l) => l.amountMinor < 0)
+    ? lines.filter((l) => l.amountMinor > 0).reduce((sum, l) => sum + l.amountMinor, 0)
+    : null;
+  const contradicts = (n: number) => !required.includes(n) && n !== beforeDiscount;
+  const refused: { m: DollarMatch; insurance: boolean }[] = [];
+  // Each sentence of the reply, where it stands, and whether the owner wrote it.
+  const added = new Set(addedSentences(body, quote?.draft ?? ""));
+  const spans: { from: number; to: number; sentence: string }[] = [];
+  let cursor = 0;
+  for (const sentence of sentencesOf(body)) {
+    const at = body.indexOf(sentence, cursor);
+    if (at === -1) continue;
+    spans.push({ from: at, to: at + sentence.length, sentence });
+    cursor = at + sentence.length;
+  }
+  for (const m of free) {
+    const span = spans.find((s) => m.index >= s.from && m.index < s.to);
+    // A sentence of the app's own reply, as written: its money is the app's.
+    if (span && !added.has(span.sentence)) continue;
+    const sentence = span?.sentence ?? sentenceAt(body, m.index, m.index + m.raw.length);
+    const from = span ? m.index - span.from : sentence.indexOf(m.raw);
+    const insurance = INSURANCE_WORDS.test(sentence) && !required.includes(minor(m));
+    const total = statedTotal(sentence, from, m.raw.length, quote);
+    if (!price || m.foreign || insurance || (total && contradicts(minor(m)))) {
+      refused.push({ m, insurance });
+    }
+  }
   const stated = new Set(free.filter((m) => !m.foreign).map(minor));
   const missingTotal = Boolean(price) && !required.every((r) => stated.has(r));
-  const insurance = refused.some((m) =>
-    INSURANCE_WORDS.test(sentenceAt(body, m.index, m.index + m.raw.length)),
-  );
   return {
     ok: refused.length === 0 && !missingTotal,
-    named: [...new Set(refused.map(minor))],
+    named: [...new Set(refused.map((r) => minor(r.m)))],
     expectedMinor,
-    insurance,
-    foreign: refused.some((m) => m.foreign),
-    refused: refused.map((m) => ({ index: m.index, raw: m.raw, minor: minor(m) })),
+    insurance: refused.some((r) => r.insurance),
+    foreign: refused.some((r) => r.m.foreign),
+    refused: refused.map(({ m }) => ({ index: m.index, raw: m.raw, minor: minor(m) })),
   };
 }
 
@@ -389,25 +437,20 @@ const SENDABLE = new Set([
  * Whether the reviewed text's money agrees with the structured decision.
  *
  * Deliberately a CHECK, not an extraction: prose never becomes an authoritative
- * price here. An owner is free to rewrite the tone, the greeting, the whole
- * letter - but if they change the figure, the structured amount and the text
- * would then say different things, and that is refused rather than recorded
- * with a warning attached. Repricing goes through the decision, not the
- * textarea.
+ * price here. Repricing goes through the decision, not the textarea.
  *
  * Two conditions, and both matter:
  *
- *  1. **Nothing unimplied.** Every figure named must be one the decision itself
- *     implies - the total, the unit rate, or the minimum-billed total (see
- *     `impliedAmountsMinor`). This is what lets the product send its own
- *     composed draft, "That comes to $580. 4 people at $145 each.", which the
- *     first version of this check refused on every per-unit quote because it
- *     compared each figure against the total alone.
+ *  1. **No stated total but the quote's.** Money in the app's own prepared
+ *     sentences is the app's. Money the owner wrote is listed for them to
+ *     check (`ownerEditWarnings`), never guessed at - except a figure stated
+ *     as the whole job's price ("Total: $500", "That comes to $500", "Call it
+ *     500"), which must be the quote's, a figure about insurance, or another
+ *     currency: those are refused.
  *  2. **The total is still stated.** If the message talks about money at all,
  *     it must still name the amount the quote will be recorded at. Without
- *     this, quietly replacing "$580" with "$145" would pass condition 1 - every
- *     remaining figure is implied - while the message told the customer one
- *     number and the quote recorded another.
+ *     this, quietly deleting "$580" would leave the customer with no price
+ *     while the quote recorded one.
  *
  * A message that names no money is left alone: the structured quote carries the
  * figure, and an owner is allowed to write a covering note.
@@ -594,8 +637,8 @@ export async function prepareReviewedSendInTransaction(
   }
 
   const price = enq.price ?? null;
-  // A line's amount only where it is said as that line: in the prepared
-  // reply's own sentence, or beside a word of that line's own name.
+  // Money in the prepared reply's own sentences is the app's; money the owner
+  // wrote is listed for them to check (see `checkMoney`).
   const quote: QuoteContext = {
     draft: enq.draft_body ?? "",
     lines:
@@ -692,6 +735,7 @@ export async function prepareReviewedSendInTransaction(
     alreadyConfirmed: Boolean(row.consumed_at),
     warnings: ownerEditWarnings(body, enq.draft_body ?? "", {
       closed: business.closed,
+      answers: ownerTexts,
       ...(input.now ? { now: input.now } : {}),
     }),
   };

@@ -4,6 +4,7 @@ import { decideEnquiry } from "./decide.ts";
 import { snapshotFromDecision } from "./decision-snapshot.ts";
 import { askedLedger, readableAsked, type AskedItem } from "./asked.ts";
 import { dollarMatches } from "./voice-detect.ts";
+import { ownerEditWarnings, priceWarning } from "./edit-warnings.ts";
 import type { ReplyContext } from "./compose-reply.ts";
 import {
   INSURANCE_AS_ANSWER,
@@ -402,16 +403,16 @@ const PRICE = (amountMinor: number) => ({
 
 const BASE = "Hi Mia,\n\nFor the makeup trial, that comes to $90.";
 
-/** Every one of these refuses: alone, beside the correct total, and with no quote. */
+/**
+ * Every one of these refuses: alone, beside the correct total, and with no quote.
+ * A stated total that is not the quote, a cover figure, another currency.
+ */
 const REFUSED = [
   // Round 1.
   "Price: $5,000 insurance included.",
   "Quote: $2m.",
   "that'll be $5m",
   "You'll pay $5m",
-  "Wedding package - $5.5m",
-  "Deposit: $1m",
-  "deposit $5m",
   "Pool cover: $1,200.",
   "Full cover for $5,000.",
   "Fully insured: $5,000.",
@@ -419,14 +420,8 @@ const REFUSED = [
   "Removal of excess: $150.",
   "That comes to $2m",
   "Total $1.5m cover",
-  "$250k",
-  "$1,000 thousand",
-  "fifty thousand dollars",
-  "$3.6k",
-  "A $50 deposit holds the day.",
   "We carry $90 million cover.",
   "That comes to £90.",
-  "2 thousand dollars",
   // Round 2, H1: a total hidden behind an insurance word.
   "If you can move the wedding, the total including insurance $340.",
   "Total with insurance $340.",
@@ -450,9 +445,6 @@ const REFUSED = [
   "We're insured for $20m.",
   "Insurance claims carry a $2k excess.",
   // M6.
-  "Bridal makeup is 250 if you can move it.",
-  "Bridal makeup is AUD250.",
-  "5 grand",
   "Price: 5000",
   "Quote: 5000",
   "That'll be 5000",
@@ -463,6 +455,40 @@ const REFUSED = [
   "US$340",
   "That comes to US$90.",
 ];
+
+/**
+ * Money the owner writes that is not a stated total, a cover figure or another
+ * currency: the send gate never guesses what it is (round 4 of the PR #80
+ * review). Beside the correct total it is listed for the owner to check;
+ * alone (the total gone) or with no quote on file it is still refused.
+ */
+const LISTED = [
+  "Wedding package - $5.5m",
+  "Deposit: $1m",
+  "deposit $5m",
+  "$250k",
+  "$1,000 thousand",
+  "fifty thousand dollars",
+  "$3.6k",
+  "A $50 deposit holds the day.",
+  "2 thousand dollars",
+  "Bridal makeup is 250 if you can move it.",
+  "Bridal makeup is AUD250.",
+  "5 grand",
+];
+
+test("round 4: owner-written money that is no stated total is listed, never guessed at", () => {
+  for (const row of LISTED) {
+    const body = `${BASE}\n\n${row}`;
+    assert.equal(amountAgrees(body, PRICE(9000), [9000]), true, `with total: ${row}`);
+    assert.ok(
+      ownerEditWarnings(body, BASE).includes(priceWarning(row)),
+      `listed: ${row} -> ${JSON.stringify(ownerEditWarnings(body, BASE))}`,
+    );
+    assert.equal(amountAgrees(row, PRICE(9000), [9000]), false, `alone: ${row}`);
+    assert.equal(amountAgrees(row, null), false, `no quote: ${row}`);
+  }
+});
 
 test("round 2: every money row refuses - alone, beside the correct total, and with no quote", () => {
   for (const row of REFUSED) {
@@ -678,7 +704,7 @@ test("LOW: the rule the reduced quote reads from is never the held line's; a rep
 
 // Ruling: a line's amount only where it is said as that line.
 
-test("ruling: a line's amount stands beside its own name or in the prepared reply's own sentence", () => {
+test("ruling: money in the prepared reply's own sentences is the app's; what the owner writes is listed, a wrong total refused", () => {
   const draft =
     "Hi there,\n\nFor the makeup trial, that comes to $130:\n- Makeup trial: $90\n- Travel fee: $40\n\nThanks,\nSam";
   const quote = {
@@ -691,11 +717,27 @@ test("ruling: a line's amount stands beside its own name or in the prepared repl
   const agrees = (extra: string) =>
     amountAgrees(`${draft}\n\n${extra}`, PRICE(13000), [13000, 9000, 4000], [], quote);
   assert.equal(amountAgrees(draft, PRICE(13000), [13000, 9000, 4000], [], quote), true);
-  assert.equal(agrees("The travel fee is $40 because you're past 15km."), true);
-  assert.equal(agrees("The trial itself is $90."), true);
-  assert.equal(agrees("So $130 all up."), true);
-  assert.equal(agrees("A $40 cancellation fee applies."), false);
-  assert.equal(agrees("The travel is $90."), false);
-  assert.equal(agrees("Total with insurance $130."), false);
-  assert.equal(agrees("A $130 deposit holds the day."), false);
+  assert.deepEqual(ownerEditWarnings(draft, draft), []);
+  // Round 4: what the owner writes is never guessed at. It sends, listed for
+  // the owner to check ("A $40 cancellation fee applies." used to be refused
+  // by guessing the $40 belonged to the travel line).
+  for (const extra of [
+    "The travel fee is $40 because you're past 15km.",
+    "The trial itself is $90.",
+    "So $130 all up.",
+    "A $40 cancellation fee applies.",
+    "The travel is $90.",
+    "A $130 deposit holds the day.",
+  ]) {
+    assert.equal(agrees(extra), true, extra);
+    assert.ok(
+      ownerEditWarnings(`${draft}\n\n${extra}`, draft).includes(priceWarning(extra)),
+      extra,
+    );
+  }
+  // The right total beside an insurance word is the owner's claim: listed.
+  // A total that is not the quote is refused, insurance word or not.
+  assert.equal(agrees("Total with insurance $130."), true);
+  assert.equal(agrees("Total with insurance $150."), false);
+  assert.equal(agrees("So $150 all up."), false);
 });

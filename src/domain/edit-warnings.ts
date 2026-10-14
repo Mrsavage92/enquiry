@@ -1,13 +1,17 @@
 import { closedReason, type ClosedTimes } from "./compose-reply.ts";
 import { sweepDates } from "./date-sweep.ts";
+import { dollarMatches } from "./voice-detect.ts";
 
 /**
  * What the owner wrote into a reply that the app cannot vouch for: a
  * discount, something free, a booking promise, a licence, a day they don't
  * work. These are the owner's own words, so they are never refused - the
  * send sheet lists them under "Check this before you send", and sending
- * anyway is one tap, recorded in the audit. Money that does not match the
- * quote is not here: that is refused by the send check, never warned about.
+ * anyway is one tap, recorded in the audit. Money the owner writes is listed
+ * here too, sentence by sentence ("You wrote a price: ..."): the app never
+ * guesses which line a figure belongs to. Only a stated total that differs
+ * from the quote, a cover figure or a foreign amount is refused outright, by
+ * the send check.
  *
  * Only sentences the owner added or changed are read: the app's own prepared
  * reply never warns about itself.
@@ -77,22 +81,41 @@ export function sentencesOf(text: string): string[] {
 }
 
 /**
+ * The sentences and bullets of `body` that are not in the app's prepared
+ * reply as it was written: what the owner added or changed.
+ */
+export function addedSentences(body: string, draft: string): string[] {
+  const prepared = new Set(sentencesOf(draft).map(norm));
+  return sentencesOf(body).filter((s) => !prepared.has(norm(s)));
+}
+
+/** The warning for money the owner wrote, in their sentence. */
+export function priceWarning(sentence: string): string {
+  return `You wrote a price: "${sentence}". Check it before you send.`;
+}
+
+/**
  * "Check this before you send" for an owner's edit: each phrase the owner
- * added that makes a promise or a claim, in their words, with why. Days they
- * wrote are read against `now` and the owner's closed days.
+ * added that makes a promise or a claim, in their words, with why, and every
+ * sentence of theirs that names money. Days they wrote are read against `now`
+ * and the owner's closed days. `answers` are the owner's own saved answer
+ * sentences: inserted as written, their figures are the owner's and are not
+ * listed.
  */
 export function ownerEditWarnings(
   body: string,
   draft: string,
-  opts: { closed?: ClosedTimes; now?: Date } = {},
+  opts: { closed?: ClosedTimes; now?: Date; answers?: readonly string[] } = {},
 ): string[] {
-  const prepared = new Set(sentencesOf(draft).map(norm));
-  const added = sentencesOf(body).filter((s) => !prepared.has(norm(s)));
+  const added = addedSentences(body, draft);
+  const answers = (opts.answers ?? []).map((a) => a.trim()).filter(Boolean);
   const out: string[] = [];
   const push = (line: string) => {
     if (!out.includes(line)) out.push(line);
   };
   for (const sentence of added) {
+    const answer = answers.some((a) => a.includes(sentence) || norm(a) === norm(sentence));
+    if (!answer && dollarMatches(sentence).length > 0) push(priceWarning(sentence));
     for (const check of CHECKS) {
       const m = check.re.exec(sentence);
       if (m) push(`"${m[0].trim()}" - ${check.why}.`);
