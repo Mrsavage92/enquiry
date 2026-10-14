@@ -1141,3 +1141,29 @@ test("R4: an unedited app reply carries no warnings, in every state these trust 
     assert.deepEqual(sent.ok && sent.warnings, [], name);
   }
 });
+
+// ---------------------------------------------------------------------------
+// Round 5 of the PR #80 review
+// ---------------------------------------------------------------------------
+
+test("R5-H1: money read across a line break is refused or listed, never recorded silently", async (t) => {
+  const big = await preparedReply(t, BIG_OFF, JO_ALL, "Oven clean", /over \$600/);
+  // Stated totals whose cue is on the line above: refused, as on one line.
+  for (const said of [
+    "Call it\n400.",
+    "Make it\n500 for the lot.",
+    "Total:\n$900",
+    "Since you asked, let's say\n400 and we're good.",
+  ]) {
+    const res = await big.tryBody(big.add(said));
+    assert.equal(!res.ok && res.reason, "amount_mismatch", `${said}: ${JSON.stringify(res)}`);
+  }
+  // A figure split from its "$" by a new line is listed, and cannot be
+  // recorded until the owner acknowledges that list.
+  const split = await big.tryBody(big.body.replace("- Oven clean: $250", "- Oven clean: $\n750"));
+  assert.equal(split.ok, true, JSON.stringify(split));
+  if (!split.ok) return;
+  assert.deepEqual(split.warnings, [priceWarning("- Oven clean: $ 750")]);
+  const held = await confirm(big.pg, big.businessId, big.enquiryId, split.reviewedSendId);
+  assert.equal(!held.ok && held.reason, "warnings");
+});

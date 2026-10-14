@@ -1,6 +1,6 @@
 import { closedReason, type ClosedTimes } from "./compose-reply.ts";
 import { sweepDates } from "./date-sweep.ts";
-import { dollarMatches } from "./voice-detect.ts";
+import { dollarMatches, type DollarMatch } from "./voice-detect.ts";
 
 /**
  * What the owner wrote into a reply that the app cannot vouch for: a
@@ -89,6 +89,101 @@ export function addedSentences(body: string, draft: string): string[] {
   return sentencesOf(body).filter((s) => !prepared.has(norm(s)));
 }
 
+/** One sentence or bullet of a reply, where it stands, and who wrote it. */
+export type ReplySpan = {
+  from: number;
+  to: number;
+  text: string;
+  /** Not in the app's prepared reply as written: the owner added or changed it. */
+  added: boolean;
+  /** The owner's own saved answer, word for word and figure for figure. */
+  answer: boolean;
+};
+
+/** Every sentence and bullet of `body`, in order, with where it stands. */
+export function replySpans(
+  body: string,
+  draft: string,
+  answers: readonly string[] = [],
+): ReplySpan[] {
+  const added = new Set(addedSentences(body, draft));
+  const spans: ReplySpan[] = [];
+  let cursor = 0;
+  for (const text of sentencesOf(body)) {
+    const at = body.indexOf(text, cursor);
+    if (at === -1) continue;
+    spans.push({
+      from: at,
+      to: at + text.length,
+      text,
+      added: added.has(text),
+      answer: isAnswer(text, answers),
+    });
+    cursor = at + text.length;
+  }
+  return spans;
+}
+
+/** Whether `sentence` is (part of) one of the owner's answer texts. */
+function isAnswer(sentence: string, answers: readonly string[]): boolean {
+  return answers.some((a) => a.includes(sentence) || norm(a) === norm(sentence));
+}
+
+/** A figure in a reply, with the sentences it stands in and the words around it. */
+export type ReplyMoney = {
+  match: DollarMatch;
+  /** Every sentence or bullet the figure and its cue overlap. */
+  spans: ReplySpan[];
+  /** Any of them the owner added or changed. */
+  added: boolean;
+  /**
+   * The words before the figure, from the start of its first sentence, or of
+   * the line above when the figure starts its line ("Total:\n$900").
+   */
+  before: string;
+  /** The words after the figure, to the end of its last sentence. */
+  after: string;
+  /** The text from `before` to `after`, one line. */
+  text: string;
+};
+
+/**
+ * Every figure the reply names, read once over the whole body (so a figure
+ * whose cue is on the line above, "Call it\n400.", is read), and mapped onto
+ * every sentence it overlaps. A figure at the very start of its line takes the
+ * line above as its words too ("Total:\n$900" is a stated total).
+ */
+export function replyMoney(
+  body: string,
+  draft: string,
+  answers: readonly string[] = [],
+): ReplyMoney[] {
+  const spans = replySpans(body, draft, answers);
+  return dollarMatches(body).map((match) => {
+    const end = match.index + match.raw.length;
+    let over = spans.filter((s) => match.index < s.to && end > s.from);
+    if (over.length === 0) {
+      const next = spans.findIndex((s) => s.from >= end);
+      over = spans.slice(Math.max(0, (next === -1 ? spans.length : next) - 1)).slice(0, 1);
+    }
+    const first = over[0];
+    const at = first ? spans.indexOf(first) : -1;
+    const lead = first ? body.slice(first.from, match.index) : "";
+    // At the very start of its line, the line above is its words too.
+    const from =
+      first && at > 0 && !/[A-Za-z0-9]/.test(lead) ? spans[at - 1]!.from : (first?.from ?? 0);
+    const to = Math.max(end, over.at(-1)?.to ?? end);
+    return {
+      match,
+      spans: over,
+      added: over.length === 0 || over.some((s) => s.added && !s.answer),
+      before: body.slice(from, match.index).replace(/\s+/g, " "),
+      after: body.slice(end, to).replace(/\s+/g, " "),
+      text: body.slice(from, to).replace(/\s+/g, " ").trim(),
+    };
+  });
+}
+
 /** The warning for money the owner wrote, in their sentence. */
 export function priceWarning(sentence: string): string {
   return `You wrote a price: "${sentence}". Check it before you send.`;
@@ -99,23 +194,29 @@ export function priceWarning(sentence: string): string {
  * added that makes a promise or a claim, in their words, with why, and every
  * sentence of theirs that names money. Days they wrote are read against `now`
  * and the owner's closed days. `answers` are the owner's own saved answer
- * sentences: inserted as written, their figures are the owner's and are not
- * listed.
+ * sentences: inserted word for word, their figures are the owner's and are
+ * not listed.
  */
 export function ownerEditWarnings(
   body: string,
   draft: string,
   opts: { closed?: ClosedTimes; now?: Date; answers?: readonly string[] } = {},
 ): string[] {
-  const added = addedSentences(body, draft);
   const answers = (opts.answers ?? []).map((a) => a.trim()).filter(Boolean);
   const out: string[] = [];
   const push = (line: string) => {
     if (!out.includes(line)) out.push(line);
   };
-  for (const sentence of added) {
-    const answer = answers.some((a) => a.includes(sentence) || norm(a) === norm(sentence));
-    if (!answer && dollarMatches(sentence).length > 0) push(priceWarning(sentence));
+  const money = replyMoney(body, draft, answers);
+  for (const m of money) {
+    if (!m.added) continue;
+    // The sentences the figure stands in, as the owner wrote them.
+    const words = m.spans.map((s) => s.text).join(" ");
+    push(priceWarning(words || m.match.raw));
+  }
+  for (const span of replySpans(body, draft, answers)) {
+    if (!span.added) continue;
+    const sentence = span.text;
     for (const check of CHECKS) {
       const m = check.re.exec(sentence);
       if (m) push(`"${m[0].trim()}" - ${check.why}.`);

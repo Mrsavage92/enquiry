@@ -12,7 +12,7 @@ import { namesSomeLinesOnly, type QuoteLineAmount } from "../../domain/money-lab
 import { formatMinorAud } from "../../domain/money-format.ts";
 import { COVERAGE_FIELD } from "../../domain/coverage.ts";
 import { isClosed, lockEnquiry } from "./decision-apply.ts";
-import { addedSentences, ownerEditWarnings, sentencesOf } from "../../domain/edit-warnings.ts";
+import { ownerEditWarnings, replyMoney, sentencesOf } from "../../domain/edit-warnings.ts";
 import { activeDetails, closedTimesOf } from "../../domain/business-detail.ts";
 import type { ClosedTimes } from "../../domain/compose-reply.ts";
 
@@ -174,13 +174,11 @@ const TOTAL_AFTER = /^\s*(?:all\s+up|altogether|in\s+total|total)\b/i;
  */
 const COMES_TO_BEFORE = /\b(?:comes?|came)\s+to\s*[:=-]?\s*(?:(?:about|around|just|only)\s+)*$/i;
 
-/** Whether a figure in its sentence is a stated total. */
-function statedTotal(sentence: string, at: number, length: number, quote?: QuoteContext): boolean {
-  const before = sentence.slice(0, at);
-  const after = sentence.slice(at + length);
+/** Whether a figure, with the words before and after it, is a stated total. */
+function statedTotal(before: string, after: string, text: string, quote?: QuoteContext): boolean {
   if (TOTAL_AFTER.test(after)) return true;
   if (!TOTAL_BEFORE.test(before)) return false;
-  if (COMES_TO_BEFORE.test(before)) return !namesSomeLinesOnly(sentence, quote?.lines ?? []);
+  if (COMES_TO_BEFORE.test(before)) return !namesSomeLinesOnly(text, quote?.lines ?? []);
   return true;
 }
 
@@ -234,24 +232,14 @@ function checkMoney(
     : null;
   const contradicts = (n: number) => !required.includes(n) && n !== beforeDiscount;
   const refused: { m: DollarMatch; insurance: boolean }[] = [];
-  // Each sentence of the reply, where it stands, and whether the owner wrote it.
-  const added = new Set(addedSentences(body, quote?.draft ?? ""));
-  const spans: { from: number; to: number; sentence: string }[] = [];
-  let cursor = 0;
-  for (const sentence of sentencesOf(body)) {
-    const at = body.indexOf(sentence, cursor);
-    if (at === -1) continue;
-    spans.push({ from: at, to: at + sentence.length, sentence });
-    cursor = at + sentence.length;
-  }
-  for (const m of free) {
-    const span = spans.find((s) => m.index >= s.from && m.index < s.to);
-    // A sentence of the app's own reply, as written: its money is the app's.
-    if (span && !added.has(span.sentence)) continue;
-    const sentence = span?.sentence ?? sentenceAt(body, m.index, m.index + m.raw.length);
-    const from = span ? m.index - span.from : sentence.indexOf(m.raw);
-    const insurance = INSURANCE_WORDS.test(sentence) && !required.includes(minor(m));
-    const total = statedTotal(sentence, from, m.raw.length, quote);
+  // Every figure, read once over the whole reply and mapped onto the sentences
+  // it stands in: the app's own sentences as written pass, the owner's are
+  // listed (`ownerEditWarnings`), and only these few are refused.
+  for (const r of replyMoney(body, quote?.draft ?? "", ownerTexts)) {
+    if (!r.added) continue;
+    const m = r.match;
+    const insurance = INSURANCE_WORDS.test(r.text) && !required.includes(minor(m));
+    const total = statedTotal(r.before, r.after, r.text, quote);
     if (!price || m.foreign || insurance || (total && contradicts(minor(m)))) {
       refused.push({ m, insurance });
     }
