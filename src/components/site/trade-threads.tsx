@@ -249,7 +249,7 @@ function ThreadNotes({ thread }: { thread: TradeThread }) {
         <div>
           <dt>The business</dt>
           <dd>
-            A sample {thread.tab.toLowerCase()} business run by {owner}. {thread.customerName} is
+            A sample {thread.industry} business run by {owner}. {thread.customerName} is
             made up.
           </dd>
         </div>

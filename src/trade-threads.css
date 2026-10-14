@@ -372,9 +372,9 @@
 /* A phone shortens a long reply until they ask for the rest. */
 @media (max-width: 760px) {
   .trade-bubble-out[data-collapsed="true"] {
-    max-height: 9.5em;
+    max-height: 15.5em;
     overflow: hidden;
-    mask-image: linear-gradient(to bottom, #000 55%, transparent);
+    mask-image: linear-gradient(to bottom, #000 80%, transparent);
   }
   .trade-reply-toggle {
     display: inline-flex;
