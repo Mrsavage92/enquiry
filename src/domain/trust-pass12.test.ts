@@ -412,3 +412,47 @@ test("R5-4: a changed sign, symbol or non-ASCII word in a prepared money line is
     [],
   );
 });
+
+test("R5-5: prepared money kept word for word but given a new meaning is listed", () => {
+  const draft = [
+    "Hi there,",
+    "",
+    "For the oven clean, the fridge clean and the inside windows, that comes to $450:",
+    "- Oven clean: $250",
+    "- Fridge clean: $250",
+    "- Inside windows: $250",
+    "- $300 off jobs over $600: -$300",
+    "",
+    "Just let me know if you'd like to go ahead.",
+    "",
+    "Thanks,",
+    "Sam",
+  ].join("\n");
+  const oven = "- Oven clean: $250";
+  const listed = (body: string) =>
+    ownerEditWarnings(body, draft).filter((w) => w.startsWith("You changed the price details:"));
+  for (const [name, body] of [
+    ["label detached", draft.replace(oven, "- Whole house. Oven clean: $250")],
+    ["unit on the next line", draft.replace(oven, `${oven}\n  per hour`)],
+    ["Plus GST.", draft.replace("\n\nJust let", "\n\nPlus GST.\n\nJust let")],
+    [
+      "moved under a new heading",
+      draft
+        .replace(`${oven}\n`, "")
+        .replace("\n\nJust let", `\n\nOptional extras, not in the total:\n${oven}\n\nJust let`),
+    ],
+    ["label on the line above", draft.replace(oven, `- Whole house, including\n${oven}`)],
+    ["duplicate bullet", draft.replace(oven, `${oven}\n${oven}`)],
+  ] as const) {
+    assert.ok(
+      listed(body).length > 0,
+      `${name}: ${JSON.stringify(ownerEditWarnings(body, draft))}`,
+    );
+  }
+  // The prepared reply as it stands, or a note away from the figures, lists nothing.
+  assert.deepEqual(ownerEditWarnings(draft, draft), []);
+  assert.deepEqual(
+    listed(draft.replace("Just let me know if you'd like to go ahead.", "Thanks heaps, Jo!")),
+    [],
+  );
+});

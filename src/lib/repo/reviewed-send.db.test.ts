@@ -8,7 +8,7 @@ import { prepareReviewedSendInTransaction } from "./reviewed-send-core.ts";
 import { confirmReviewedSendInTransaction } from "./sent-reply-core.ts";
 import { declineEnquiryInTransaction } from "./close-enquiry-core.ts";
 import type { Channel } from "../../domain/types.ts";
-import { priceWarning, warningsKey } from "../../domain/edit-warnings.ts";
+import { priceDetailWarning, priceWarning, warningsKey } from "../../domain/edit-warnings.ts";
 
 /**
  * CC1-04, CC1-05 and CC1-06 against a real database.
@@ -400,7 +400,13 @@ test("P02: a tone-only edit is retained exactly, with the structured amount unch
   const prepared = await prepare(pg, ids, edited);
   assert.equal(prepared.ok, true);
   if (!prepared.ok) return;
-  await confirm(pg, ids, prepared.reviewedSendId);
+  // Round 5 of the PR #80 review: words added on the same line as a prepared
+  // figure can change what it means, so the line is listed for the owner,
+  // and the send is recorded over that list.
+  assert.deepEqual(prepared.warnings, [
+    priceDetailWarning("Lovely to hear from you. That comes to $580."),
+  ]);
+  await confirm(pg, ids, prepared.reviewedSendId, false, warningsKey(prepared.warnings));
 
   const msg = await pg.query<{ body: string }>(
     "select body from message where enquiry_id = $1 and direction = 'outbound'",

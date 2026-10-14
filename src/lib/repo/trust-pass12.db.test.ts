@@ -1163,7 +1163,7 @@ test("R5-H1: money read across a line break is refused or listed, never recorded
   const split = await big.tryBody(big.body.replace("- Oven clean: $250", "- Oven clean: $\n750"));
   assert.equal(split.ok, true, JSON.stringify(split));
   if (!split.ok) return;
-  assert.deepEqual(split.warnings, [priceWarning("- Oven clean: $ 750")]);
+  assert.ok(split.warnings.includes(priceWarning("- Oven clean: $ 750")), JSON.stringify(split));
   const held = await confirm(big.pg, big.businessId, big.enquiryId, split.reviewedSendId);
   assert.equal(!held.ok && held.reason, "warnings");
 });

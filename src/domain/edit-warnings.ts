@@ -208,6 +208,53 @@ export function priceWarning(sentence: string): string {
   return `You wrote a price: "${sentence}". Check it before you send.`;
 }
 
+/** The warning for words that change what a prepared figure means. */
+export function priceDetailWarning(text: string): string {
+  return `You changed the price details: "${text}". Check it before you send.`;
+}
+
+/** Words that change what a figure means: "Plus GST.", "per hour", "each", "extra", "deposit". */
+const QUALIFIES_MONEY =
+  /\b(?:gst|per|plus|extras?|each|deposit|excl(?:uding|udes|\.)?|incl(?:uding|udes|\.)?|not\s+included|not\s+in\s+the\s+total|an?\s+hour|hourly|surcharge|on\s+top|optional)\b/i;
+
+/**
+ * Prepared money whose meaning the owner changed without touching its words:
+ * text added in the same line as a prepared figure ("- Whole house. Oven
+ * clean: $250"), an added line right above or below one ("$250\n  per hour"),
+ * an added sentence that qualifies money ("Plus GST."), and a prepared money
+ * line said more times than the prepared reply says it.
+ */
+function priceDetailEdits(body: string, draft: string, spans: readonly ReplySpan[]): string[] {
+  const out: string[] = [];
+  const money = (s: ReplySpan) => dollarMatches(s.text).length > 0;
+  const lines: { from: number; to: number; text: string }[] = [];
+  let at = 0;
+  for (const text of body.split("\n")) {
+    lines.push({ from: at, to: at + text.length, text: text.trim() });
+    at += text.length + 1;
+  }
+  const inLine = lines.map((l) => spans.filter((s) => s.from >= l.from && s.to <= l.to));
+  const preparedMoney = inLine.map((ss) => ss.some((s) => !s.added && money(s)));
+  lines.forEach((line, i) => {
+    const ss = inLine[i]!;
+    if (ss.length === 0) return;
+    if (preparedMoney[i] && ss.some((s) => s.added && !s.answer)) out.push(line.text);
+    const owners = ss.every((s) => s.added && !s.answer) && !ss.some(money);
+    if (owners && (preparedMoney[i - 1] || preparedMoney[i + 1])) out.push(line.text);
+  });
+  for (const s of spans) {
+    if (s.added && !s.answer && !money(s) && QUALIFIES_MONEY.test(s.text)) out.push(s.text);
+  }
+  const count = (texts: readonly string[], text: string) =>
+    texts.filter((t) => norm(t) === norm(text)).length;
+  const drafted = sentencesOf(draft);
+  const said = spans.map((s) => s.text);
+  for (const s of spans) {
+    if (!s.added && money(s) && count(said, s.text) > count(drafted, s.text)) out.push(s.text);
+  }
+  return out;
+}
+
 /**
  * "Check this before you send" for an owner's edit: each phrase the owner
  * added that makes a promise or a claim, in their words, with why, and every
@@ -233,7 +280,9 @@ export function ownerEditWarnings(
     const words = m.spans.map((s) => s.text).join(" ");
     push(priceWarning(words || m.match.raw));
   }
-  for (const span of replySpans(body, draft, answers)) {
+  const spans = replySpans(body, draft, answers);
+  for (const text of priceDetailEdits(body, draft, spans)) push(priceDetailWarning(text));
+  for (const span of spans) {
     if (!span.added) continue;
     const sentence = span.text;
     for (const check of CHECKS) {
