@@ -2,6 +2,7 @@ import { useState, type FormEvent } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { CheckCircle2, LoaderCircle } from "lucide-react";
 import { AuthLayout } from "@/components/auth/auth-layout";
+import { Button } from "@/components/ui/button";
 import { SUPPORT_EMAIL, SUPPORT_MAILTO } from "@/lib/site/contact";
 import { FROM_PAGE_FIELD, FROM_PAGE_VALUE } from "@/lib/launch/unsubscribe-form";
 
@@ -95,12 +96,17 @@ function Unsubscribe() {
         {showButton ? (
           <form method="post" action={action} onSubmit={remove}>
             <input type="hidden" name={FROM_PAGE_FIELD} value={FROM_PAGE_VALUE} />
-            <button type="submit" className="auth-submit" disabled={outcome === "working"}>
+            <Button
+              type="submit"
+              variant="primary"
+              className="auth-submit"
+              disabled={outcome === "working"}
+            >
               {outcome === "working" ? (
                 <LoaderCircle size={17} className="auth-spinner" aria-hidden="true" />
               ) : null}
               Remove me from the list
-            </button>
+            </Button>
           </form>
         ) : null}
         {broken ? (
