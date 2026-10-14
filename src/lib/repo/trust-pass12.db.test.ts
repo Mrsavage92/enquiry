@@ -4,7 +4,7 @@ import type { PGlite } from "@electric-sql/pglite";
 import { ForbiddenError } from "./tenancy.server.ts";
 import { confirmReviewedSendInTransaction } from "./sent-reply-core.ts";
 import { prepareReviewedSendInTransaction } from "./reviewed-send-core.ts";
-import { warningsKey } from "../../domain/edit-warnings.ts";
+import { priceWarning, warningsKey } from "../../domain/edit-warnings.ts";
 import { readBusinessDetails } from "../../domain/business-details-read.ts";
 import {
   WED_30_SEP,
@@ -776,7 +776,7 @@ async function preparedReply(
   assert.equal(sent.ok, true, JSON.stringify(sent));
   const tryBody = (text: string) => sendAs(pg, a.businessId, e.enquiryId, text);
   const add = (said: string) => body.replace("\n\nThanks,", `\n\n${said}\n\nThanks,`);
-  return { body, tryBody, add };
+  return { body, tryBody, add, pg, businessId: a.businessId, enquiryId: e.enquiryId };
 }
 
 test("R3-H1: a discount's amount never stands as another line's price, and neither does the subtotal", async (t) => {
@@ -882,4 +882,262 @@ test("R3-LOW: 'Saturday, 17' in the reply is Saturday 17 October, never Saturday
   assert.equal(sent.ok, true, JSON.stringify(sent));
   assert.match(body, /Saturday 17 October/);
   assert.doesNotMatch(body, /3 October/);
+});
+
+// ---------------------------------------------------------------------------
+// Round 4 of the PR #80 review: the send gate diffs against the prepared reply
+// ---------------------------------------------------------------------------
+
+const PCT_BUSINESS = [...CLEANING.split("\n"), "Jobs over $500 get 10% off"].join("\n");
+const CLASH_BUSINESS = [
+  "Oven clean $250",
+  "Fridge clean $40",
+  "Inside windows $110",
+  "Jobs over $300 get 10% off",
+].join("\n");
+
+type Edit = [string, (body: string, add: (said: string) => string) => string];
+const swap =
+  (from: string, to: string): Edit[1] =>
+  (b) => {
+    assert.ok(b.includes(from), `the prepared reply has "${from}"`);
+    return b.replace(from, to);
+  };
+const say =
+  (said: string): Edit[1] =>
+  (_b, add) =>
+    add(said);
+
+const OVEN = "- Oven clean: $250";
+const WINDOWS = "- Inside windows: $250";
+const OFF = "- $300 off jobs over $600: -$300";
+
+/** Every R3 and R4 attack on the $450 quote (three $250 lines, $300 off jobs over $600). */
+const BIG_ATTACKS: Edit[] = [
+  // Round 3.
+  ["R3 oven over 3 hours", swap(OVEN, "- Oven clean: $300 (takes over 3 hours)")],
+  ["R3 oven over size", say("Oven clean is $300 as it is over the standard size.")],
+  ["R3 oven before discount", swap(OVEN, "- Oven clean: $750 before the discount")],
+  ["R3 oven subtotal", swap(OVEN, "- Oven clean subtotal: $750")],
+  ["R3 oven jobs over", swap(OVEN, "- Oven clean: jobs over $600")],
+  ["R3 oven at threshold", swap(OVEN, "- Oven clean: $600")],
+  ["R3 oven at subtotal", swap(OVEN, "- Oven clean: $750")],
+  ["R3 oven usually", say("Oven clean is usually $600.")],
+  ["R3 fridge alone", say("Fridge clean alone would be $750.")],
+  ["R3 oven at rate", say("Oven clean at $600.")],
+  // Round 4.
+  ["A1", say("Oven, fridge and windows are $250-$300 each.")],
+  ["A2", swap(OVEN, "- Oven clean: $250-$300")],
+  ["A3", say("The balcony comes to $750.")],
+  ["A4", say("- Carpet steam clean: $750 before the discount")],
+  ["A5", say("- Gutters: -$300")],
+  ["A6", say("The oven is $750 before the discount, and the fridge and windows are free.")],
+  ["A7", say("Oven clean comes to $750, fridge and windows included.")],
+  ["A8", swap(OVEN, "- Oven clean. Comes to $750 before the discount.")],
+  ["A9", swap(OVEN, "- Oven clean: see below. $750 subtotal")],
+  ["A10", swap(OVEN, "- Oven clean:\n  $750 before the discount")],
+  ["A11", swap(OVEN, "- Oven clean:\n-$300")],
+  ["A12", swap(OVEN, "- Oven clean! $300 off")],
+  ["A13", swap(OVEN, "- Oven clean: save $300")],
+  ["A14", swap(OVEN, "- Oven clean: $200 off")],
+  ["A15", say("You get $250 off.")],
+  ["A16", swap(OVEN, "- Oven clean: over $600")],
+  ["A17", say("Oven jobs over $600 are $600.")],
+  ["A18", say("The oven clean comes to $750.")],
+  ["A19", say("Oven and fridge come to $750.")],
+  ["A20", swap(OVEN, "- Oven clean: $ 300")],
+  ["A21", swap(OVEN, "- Oven clean: $300.00")],
+  ["A22", swap(OVEN, "- Oven clean: AUD 300")],
+  ["A23", swap(OVEN, "- Oven clean: 300 dollars")],
+  ["A24", swap(OVEN, "- Oven clean: A$300 off")],
+  ["A27", swap(OVEN, "- Oven clean: $250–$300")],
+  ["A28", swap(OVEN, "- Oven clean: $250−$300")],
+  ["A29", swap(WINDOWS, "- Inside windows: $300 discount")],
+  ["A30", say("Oven, fridge and windows: less $300 each.")],
+  ["A31", say("Each of the oven, fridge and windows is $300 off.")],
+  ["A32", swap(OFF, "- Oven clean: -$300")],
+  ["A33", say("A gutter clean would be $300 off too.")],
+  ["A35", say("- Balcony: $300 discount")],
+  ["A36", swap(OVEN, "- Oven clean; $750 before the discount")],
+  ["A37", swap(OVEN, "- Oven clean: $750 subtotal")],
+  ["A38", swap(OVEN, "- Ovens: $750 before the discount")],
+  ["A39", swap(OVEN, "- Ovn clean: $750 before the discount")],
+  ["A40", swap(OVEN, "- Oven clean: jobs over $600 get $600")],
+  ["A41", say("Since the job is over $600, the oven is $600.")],
+  ["A42", say("Say 300.")],
+  ["A43", swap(OVEN, "- Oven clean: $250 -$300")],
+  ["A44", swap(OVEN, "- Oven clean (fridge and windows on top): $750 subtotal")],
+  ["A45", say("Oven $300 off, and the fridge and windows are $250.")],
+  ["A46", say("Oven clean $300.\nOff peak rates apply.")],
+  ["A47", swap(OVEN, "- Oven clean: $300 -off peak")],
+];
+
+/** The collision quote: the 10% off works out to -$40, the fridge's own price. */
+const CLASH_ATTACKS: Edit[] = [
+  [
+    "R3 windows a bit less",
+    swap("- Inside windows: $110", "- Inside windows: $40, a bit less this time"),
+  ],
+  ["C1", swap("- Inside windows: $110", "- Inside windows: $40 off")],
+  ["C2", say("- Gutters: $40")],
+  ["C3", say("- Gutters: -$40")],
+  ["C4", say("Oven, fridge and windows: $40 off each.")],
+  ["C5", say("Save $40 on the windows.")],
+  ["C7", swap("- Inside windows: $110", "- Inside windows: $110-$40")],
+  ["C8", swap("- Inside windows: $110", "- Inside windows. $40 off.")],
+  ["C9", swap("- Inside windows: $110", "- Inside windows: $400 before discount")],
+  ["C10", say("The gutters come to $400.")],
+  ["C11", swap("- Inside windows: $110", "- Inside windows: $40, less if small")],
+  ["C12", swap("- Inside windows: $110", "- Inside windows: $40")],
+];
+
+/** The percent quote: 10% off a $580 job, -$58. */
+const PCT_ATTACKS: Edit[] = [
+  ["R3 oven takes over", swap("- Oven clean: $60", "- Oven clean: $58, takes over an hour")],
+  ["R3 oven before discount", swap("- Oven clean: $60", "- Oven clean: $580 before discount")],
+  ["P1", swap("- Oven clean: $60", "- Oven clean: $58 off")],
+  ["P2", say("- Gutters: -$58")],
+  ["P3", swap("- Oven clean: $60", "- Oven clean: $60-$58")],
+  ["P4", say("The carpets come to $580.")],
+];
+
+test("R4: every R3 and R4 attack is refused or listed for the owner, never sent silently", async (t) => {
+  for (const [business, message, service, over, attacks] of [
+    [BIG_OFF, JO_ALL, "Oven clean", /over \$600/, BIG_ATTACKS],
+    [CLASH_BUSINESS, JO_ALL, "Oven clean", /over \$300/, CLASH_ATTACKS],
+    [PCT_BUSINESS, MEL, "End of lease clean 3 bedroom", /over \$500/, PCT_ATTACKS],
+  ] as const) {
+    const quote = await preparedReply(t, business, message, service, over);
+    for (const [name, edit] of attacks) {
+      const res = await quote.tryBody(edit(quote.body, quote.add));
+      notSilent(res, name);
+    }
+  }
+});
+
+test("R4: honest ways to state the discount send, as the prepared reply or past a warning", async (t) => {
+  const big = await preparedReply(t, BIG_OFF, JO_ALL, "Oven clean", /over \$600/);
+  for (const said of [
+    // R4-H2.
+    "The discount is $300.",
+    "Discount: $300",
+    "$300 has been taken off.",
+    "That's a $300 saving.",
+    // R3-M.
+    "Because the job is over $600, you get $300 off.",
+    "Any job over $600 gets $300 off.",
+    "The oven, fridge and windows come to $750, less $300 for jobs over $600.",
+    // And the rest of the reviewer's honest list.
+    "You save $300.",
+    "All three come to $750.",
+    "Total before discount: $750",
+    "It's $450 after the $300 discount.",
+  ]) {
+    const res = await big.tryBody(big.add(said));
+    assert.equal(res.ok, true, `${said}: ${JSON.stringify(res)}`);
+    assert.ok(res.ok && res.warnings.includes(priceWarning(said)), said);
+  }
+  const clash = await preparedReply(t, CLASH_BUSINESS, JO_ALL, "Oven clean", /over \$300/);
+  for (const said of ["That's 10% off, which is $40.", "A 10% discount ($40) applies."]) {
+    const res = await clash.tryBody(clash.add(said));
+    assert.equal(res.ok, true, `${said}: ${JSON.stringify(res)}`);
+  }
+  const pct = await preparedReply(
+    t,
+    PCT_BUSINESS,
+    MEL,
+    "End of lease clean 3 bedroom",
+    /over \$500/,
+  );
+  for (const said of ["That's 10% off, $58.", "10% off is $58."]) {
+    const res = await pct.tryBody(pct.add(said));
+    assert.equal(res.ok, true, `${said}: ${JSON.stringify(res)}`);
+  }
+  // Sending one: "Send anyway" over exactly the list shown records it.
+  const said = "The discount is $300.";
+  const res = await big.tryBody(big.add(said));
+  assert.ok(res.ok);
+  if (!res.ok) return;
+  assert.deepEqual(res.warnings, [
+    priceWarning(said),
+    '"discount" - a discount the quote does not include.',
+  ]);
+  const held = await confirm(big.pg, big.businessId, big.enquiryId, res.reviewedSendId);
+  assert.equal(!held.ok && held.reason, "warnings");
+  const sent = await confirm(big.pg, big.businessId, big.enquiryId, res.reviewedSendId, {
+    ack: warningsKey(res.warnings),
+  });
+  assert.equal(sent.ok, true, JSON.stringify(sent));
+});
+
+test("R4: an unedited app reply carries no warnings, in every state these trust tests cover", async (t) => {
+  const cases: [
+    string,
+    string,
+    string,
+    string,
+    [RegExp, string][],
+    Record<string, string>,
+    Date?,
+  ][] = [
+    ["cleaning, EOL + extras", CLEANING, MEL, "End of lease clean 3 bedroom", [], {}],
+    ["cleaning, two days", CLEANING, JASE, "End of lease clean 2 bedroom", [], {}],
+    ["jobs over, $ off", BIG_OFF, JO_ALL, "Oven clean", [[/over \$600/, "apply"]], {}],
+    [
+      "jobs over, % off",
+      PCT_BUSINESS,
+      MEL,
+      "End of lease clean 3 bedroom",
+      [[/over \$500/, "apply"]],
+      {},
+    ],
+    [
+      "jobs over, % off is a line's price",
+      CLASH_BUSINESS,
+      JO_ALL,
+      "Oven clean",
+      [[/over \$300/, "apply"]],
+      {},
+    ],
+    [
+      "hourly",
+      CLEANING,
+      "Hi, regular clean Monday 4 hours please. Thanks, Bo",
+      "Regular house clean",
+      [],
+      { "number of hours": "4" },
+    ],
+    [
+      "closed either-day",
+      CLEANING,
+      "Hi, oven clean please, next Sunday? Thanks, Al",
+      "Oven clean",
+      [],
+      {},
+      at("2026-10-03"),
+    ],
+    [
+      "closed stretch",
+      ["Oven clean $60", "Closed 29 December to 2 January"].join("\n"),
+      "Hi, oven clean please, any day Dec 28 to Jan 3 works. Thanks, Al",
+      "Oven clean",
+      [],
+      {},
+    ],
+    [
+      "weekday, comma, day",
+      CLEANING,
+      "Hi, oven clean please, Saturday, 17 if you can. Thanks, Al",
+      "Oven clean",
+      [[/surcharge|weekend/i, "apply"]],
+      {},
+    ],
+  ];
+  for (const [name, business, message, service, checks, answers, now] of cases) {
+    const { pg, a } = await setup(t, business);
+    const e = await enquiry(pg, a.businessId, message, service, now);
+    const { sent } = await settleAndSend(pg, a.businessId, e.enquiryId, answers, checks);
+    assert.equal(sent.ok, true, `${name}: ${JSON.stringify(sent)}`);
+    assert.deepEqual(sent.ok && sent.warnings, [], name);
+  }
 });
