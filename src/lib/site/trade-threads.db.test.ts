@@ -50,25 +50,39 @@ async function verdictOf(pg: PGlite, enquiryId: string) {
   return promiseVerdict(enquiry);
 }
 
-/** One owner step, or false when nothing is left for them to do. */
-async function ownerStep(pg: PGlite, enquiryId: string): Promise<boolean> {
+type Step = { label: string; checked?: string };
+
+/**
+ * One owner step, as the app labels it, or null when nothing is left for
+ * them to do. `checked` is set when the step is one of their own saved rules.
+ */
+async function ownerStep(pg: PGlite, enquiryId: string, input: TradeInput): Promise<Step | null> {
   const current = await row(pg, enquiryId);
   const s = current.decision_snapshot;
+  const label = s.recommendation.label;
   if (s.questionPending) {
-    // Answered from the owner's own saved rule when it has one ("We don't do ...").
-    await answer(
-      pg,
-      "user-a",
-      enquiryId,
-      s.questionPending.field,
-      s.questionPending.readAs ?? "yes",
+    // Only an answer the owner's own saved rule already gives is taken here;
+    // anything else would be the test inventing what the owner said.
+    assert.ok(
+      s.questionPending.readAs,
+      `${input.id}: "${s.questionPending.thing}" needs an owner answer the example does not give`,
     );
-    return true;
+    await answer(pg, "user-a", enquiryId, s.questionPending.field, s.questionPending.readAs);
+    return { label, checked: s.questionPending.said };
+  }
+  const ruleCheck = (s.coverage?.flagged ?? []).find((f) => f.kind === "rule" && f.check);
+  if (ruleCheck && !s.coverage?.confirmed) {
+    assert.ok(input.ruleChoice, `${input.id}: "${ruleCheck.text}" needs the owner's choice`);
+    const check = ruleCheck.check as { field: string; choices?: [string, string][] };
+    const chose = check.choices?.find(([value]) => value === input.ruleChoice)?.[1];
+    assert.ok(chose, `${input.id}: "${input.ruleChoice}" is one of the app's own choices`);
+    await answer(pg, "user-a", enquiryId, check.field, input.ruleChoice);
+    return { label: `${ruleCheck.text}: ${chose}`, checked: ruleCheck.text };
   }
   const reading = s.missing.find((m) => m.inferred);
   if (reading) {
     await answer(pg, "user-a", enquiryId, reading.factField, reading.inferred!.value);
-    return true;
+    return { label };
   }
   if (s.coverage && !s.coverage.confirmed) {
     const res = await confirmCoverageForUser(sqlFor(pg), (fn) => tx(pg, fn), "user-a", {
@@ -77,9 +91,9 @@ async function ownerStep(pg: PGlite, enquiryId: string): Promise<boolean> {
       revision: Number(current.decision_revision),
     });
     assert.equal(res.ok, true, JSON.stringify(res));
-    return true;
+    return { label };
   }
-  return false;
+  return null;
 }
 
 async function run(
@@ -117,11 +131,10 @@ async function run(
   const ownerSteps: string[] = [];
   let ownRule: string | undefined;
   for (let i = 0; i < MAX_OWNER_STEPS; i += 1) {
-    const s = (await row(pg, enquiryId)).decision_snapshot;
-    const label = s.recommendation.label;
-    ownRule ??= s.questionPending?.said;
-    if (!(await ownerStep(pg, enquiryId))) break;
-    ownerSteps.push(label);
+    const step = await ownerStep(pg, enquiryId, input);
+    if (!step) break;
+    ownerSteps.push(step.label);
+    ownRule ??= step.checked;
   }
 
   const final = (await row(pg, enquiryId)).decision_snapshot as Snap & {

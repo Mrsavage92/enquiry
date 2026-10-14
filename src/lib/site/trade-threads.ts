@@ -31,6 +31,12 @@ export type TradeInput = {
   message: string;
   /** "What are they asking for?" as the owner types it; empty when they leave it blank. */
   serviceLabel: string;
+  /**
+   * The owner's choice on one of their own "only if" rules, when the message
+   * conflicts with it: deciding to decline or quote anyway is theirs, never
+   * the engine's, so the example states it rather than the test inventing it.
+   */
+  ruleChoice?: "decline" | "quote";
 };
 
 /** The day the examples were run: their dates are read relative to it. */
@@ -42,11 +48,15 @@ export const TRADE_INPUTS: readonly TradeInput[] = [
     tab: "Painter",
     industry: "painting",
     ownerFirstName: "Tom",
-    ownerLines: ["Interior painting $30 per square metre"],
+    ownerLines: [
+      "Exterior painting $38 per square metre",
+      "Exterior painting only if the house is single storey",
+    ],
     customerName: "Karen",
     message:
-      "Hi, we're after three bedrooms and the hallway repainted. Could you do Saturday 7 November? Cheers, Karen",
-    serviceLabel: "Interior painting",
+      "Hi, two storey weatherboard house, exterior repaint about 220 square metres. Could you do Saturday 7 November? Cheers, Karen",
+    serviceLabel: "Exterior painting",
+    ruleChoice: "decline",
   },
   {
     id: "cleaner",
@@ -64,10 +74,11 @@ export const TRADE_INPUTS: readonly TradeInput[] = [
     tab: "Mobile beauty",
     industry: "mobile makeup",
     ownerFirstName: "Mia",
-    ownerLines: ["Bridal makeup $250", "Makeup trial $90", "We don't do spray tans"],
+    ownerLines: ["Bridal party makeup $145 per person"],
     customerName: "Chloe",
-    message: "Hi, do you do spray tans? Saturday 21 November if you can. Chloe",
-    serviceLabel: "",
+    message:
+      "Hi! Could you do makeup for me and my bridesmaids on Saturday 21 November? What would it cost? Chloe",
+    serviceLabel: "Bridal party makeup",
   },
 ];
 

@@ -5,12 +5,15 @@ export const GENERATED_THREADS: readonly TradeThreadOutput[] = [
   {
     "id": "painter",
     "verdict": {
-      "word": "Not yet",
-      "line": "Not yet - one detail decides it"
+      "word": "No",
+      "line": "No - outside what you offer"
     },
-    "checked": "Interior painting is priced per square metre, so the number of square metres decides the price.",
-    "ownerSteps": [],
-    "reply": "Hi Karen,\n\nThanks for getting in touch about interior painting.\n\nBefore I can give you a price, can you let me know how many square metres there are?\n\nYou mentioned Saturday 7 November - I'll confirm whether that works.\n\nOnce I have that I can send the price straight back.\n\nThanks,\nTom"
+    "checked": "Two storey - you said exterior painting only if single storey",
+    "ownerSteps": [
+      "Check the number of square metres",
+      "Two storey - you said exterior painting only if single storey: Decline kindly"
+    ],
+    "reply": "Hi Karen,\n\nThanks for getting in touch.\n\nSorry, I only do exterior painting if the house is single storey, so I can't quote this one.\n\nThanks,\nTom"
   },
   {
     "id": "cleaner",
@@ -28,13 +31,11 @@ export const GENERATED_THREADS: readonly TradeThreadOutput[] = [
   {
     "id": "beauty",
     "verdict": {
-      "word": "No",
-      "line": "No - outside what you offer"
+      "word": "Not yet",
+      "line": "Not yet - one detail decides it"
     },
-    "checked": "You don't offer spray tans",
-    "ownerSteps": [
-      "Answer: do you do spray tans?"
-    ],
-    "reply": "Hi Chloe,\n\nThanks for getting in touch.\n\nSorry, I don't do spray tans.\n\nThanks,\nMia"
+    "checked": "Bridal party makeup is priced per person, so the number of people decides the price.",
+    "ownerSteps": [],
+    "reply": "Hi Chloe,\n\nThanks for getting in touch about bridal party makeup.\n\nBefore I can give you a price, can you let me know how many people there are?\n\nYou mentioned Saturday 21 November - I'll confirm whether that works.\n\nOnce I have that I can send the price straight back.\n\nThanks,\nMia"
   }
 ];
