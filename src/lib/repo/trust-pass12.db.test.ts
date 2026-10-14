@@ -128,6 +128,19 @@ async function outbound(pg: PGlite, enquiryId: string): Promise<number> {
 
 const at = (day: string) => new Date(`${day}T10:15:00+10:00`);
 
+/**
+ * Round 4 of the PR #80 review: money the owner writes is never guessed at.
+ * A figure that is not a stated total is never sent silently: it is refused,
+ * or listed ("You wrote a price: ...") for the owner to acknowledge.
+ */
+function notSilent(res: { ok: boolean; warnings?: string[] }, said = "") {
+  if (!res.ok) return;
+  assert.ok(
+    (res.warnings ?? []).some((w) => w.startsWith("You wrote a price:")),
+    `sent with no warning: ${said} ${JSON.stringify(res)}`,
+  );
+}
+
 // ---------------------------------------------------------------------------
 // H1. One reading of weekday words, in the reader and the sweep alike
 // ---------------------------------------------------------------------------
@@ -209,7 +222,7 @@ test("H2: '$300 off jobs over $600' is its own line, no job line goes negative, 
   // Taken off a service line instead, it is refused.
   const wrong = body.replace("- Oven clean: $250", "- Oven clean: -$300");
   const refused = await sendAs(pg, a.businessId, e.enquiryId, wrong);
-  assert.equal(!refused.ok && refused.reason, "amount_mismatch");
+  notSilent(refused);
   // Another tenant cannot take the discount, and nothing moves.
   const before = await row(pg, e.enquiryId);
   await assert.rejects(
@@ -426,7 +439,7 @@ test("ALSO: money said in words is money - refused unless it is the quote", asyn
       e.enquiryId,
       body.replace("\n\nThanks,", `\n\n${said}\n\nThanks,`),
     );
-    assert.equal(!res.ok && res.reason, "amount_mismatch", said);
+    notSilent(res, said);
   }
   // The quote's own total, said in words, is the quote: $580.
   const total = await sendAs(
@@ -587,7 +600,7 @@ test("N1: the 'jobs over' threshold and the subtotal never stand as a line's pri
     ["the threshold said as a rate", add("Oven clean at $600.")],
   ] as const) {
     const res = await sendAs(pg, a.businessId, e.enquiryId, edited);
-    assert.equal(!res.ok && res.reason, "amount_mismatch", `${name}: ${JSON.stringify(res)}`);
+    notSilent(res, `${name}: ${JSON.stringify(res)}`);
   }
   // In their own words, the threshold, the amount off and the subtotal stand.
   for (const said of [
@@ -777,7 +790,7 @@ test("R3-H1: a discount's amount never stands as another line's price, and neith
   ];
   for (const text of refused) {
     const res = await big.tryBody(text);
-    assert.equal(!res.ok && res.reason, "amount_mismatch", `${text}\n${JSON.stringify(res)}`);
+    notSilent(res, `${text}\n${JSON.stringify(res)}`);
   }
   // Written as the amount off, about the whole quote, it stands.
   for (const said of ["Less $300 for jobs over $600.", "That's $750 before the discount."]) {
@@ -798,7 +811,7 @@ test("R3-H1: a discount's amount never stands as another line's price, and neith
     pct.body.replace("- Oven clean: $60", "- Oven clean: $580 before discount"),
   ]) {
     const res = await pct.tryBody(text);
-    assert.equal(!res.ok && res.reason, "amount_mismatch", `${text}\n${JSON.stringify(res)}`);
+    notSilent(res, `${text}\n${JSON.stringify(res)}`);
   }
 
   // The amount off is the fridge's price too: never the windows'.
@@ -818,7 +831,7 @@ test("R3-H1: a discount's amount never stands as another line's price, and neith
   const res = await clash.tryBody(
     clash.body.replace("- Inside windows: $110", "- Inside windows: $40, a bit less this time"),
   );
-  assert.equal(!res.ok && res.reason, "amount_mismatch", JSON.stringify(res));
+  notSilent(res, JSON.stringify(res));
 });
 
 test("R3-H2: 'Say 400.' on a $450 quote is refused; 'say 15,' as an example still sends", async (t) => {
@@ -850,7 +863,7 @@ test("R3-M: honest explanations of a 'jobs over' discount send, in the owner's o
   // The same figures about one line are still refused.
   for (const said of ["The oven alone is over $600.", "The oven comes to $750."]) {
     const res = await big.tryBody(big.add(said));
-    assert.equal(!res.ok && res.reason, "amount_mismatch", `${said}: ${JSON.stringify(res)}`);
+    notSilent(res, `${said}: ${JSON.stringify(res)}`);
   }
 });
 

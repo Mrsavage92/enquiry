@@ -5,7 +5,7 @@ import { stemsOf } from "./service-words.ts";
  * own. The send gate never guesses which line a figure belongs to (money the
  * owner writes is listed for them to check, see `edit-warnings.ts`); this only
  * tells "That comes to $750" (the whole quote, a stated total) from "The oven
- * comes to $750" (one thing, the owner's own figure).
+ * comes to $750" on a three-line quote (one thing, the owner's own figure).
  */
 
 export type QuoteLineAmount = { label: string; amountMinor: number; detail?: string };
@@ -29,9 +29,13 @@ function distinctive(lines: readonly QuoteLineAmount[]): Set<string>[] {
   );
 }
 
-/** Whether `sentence` names any priced line of the quote. */
-export function namesAQuoteLine(sentence: string, lines: readonly QuoteLineAmount[]): boolean {
+/**
+ * Whether `sentence` names some of the quote's priced lines but not all of
+ * them: about one thing, not the whole job.
+ */
+export function namesSomeLinesOnly(sentence: string, lines: readonly QuoteLineAmount[]): boolean {
   const priced = lines.filter((l) => l.amountMinor > 0);
   const said = new Set(stemsOf(sentence));
-  return distinctive(priced).some((words) => [...words].some((s) => said.has(s)));
+  const named = distinctive(priced).filter((words) => [...words].some((s) => said.has(s)));
+  return named.length > 0 && named.length < priced.length;
 }

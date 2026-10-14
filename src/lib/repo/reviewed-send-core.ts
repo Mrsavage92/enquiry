@@ -8,7 +8,7 @@ import {
   unreadableMoney,
   type DollarMatch,
 } from "../../domain/voice-detect.ts";
-import { namesAQuoteLine, type QuoteLineAmount } from "../../domain/money-labels.ts";
+import { namesSomeLinesOnly, type QuoteLineAmount } from "../../domain/money-labels.ts";
 import { formatMinorAud } from "../../domain/money-format.ts";
 import { COVERAGE_FIELD } from "../../domain/coverage.ts";
 import { isClosed, lockEnquiry } from "./decision-apply.ts";
@@ -165,9 +165,13 @@ export type QuoteContext = { draft: string; lines: readonly QuoteLineAmount[] };
  * "Say 400", "it comes to $500", "$500 all up".
  */
 const TOTAL_BEFORE =
-  /(?:\b(?:grand\s+)?total(?:\s+(?:is|of|comes\s+to))?|\ball\s+up|\baltogether|\bin\s+total|\b(?:comes?|came)\s+to|\bthat'?ll\s+be|\bthat\s+will\s+be|\bprice(?:\s+(?:is|of))?|\bquote[ds]?(?:\s+(?:is|of|at))?|\bcosts?|\byou'?ll\s+pay|\b(?:make|call)\s+it|\blet'?s\s+(?:say|call\s+it|make\s+it)|\bsay)\s*[:=-]?\s*(?:(?:is|of|about|around|roughly|approx(?:imately)?|just|only)\s+)*$/i;
+  /(?:\b(?:grand\s+)?total(?:\s+(?:is|of|comes\s+to))?|\ball\s+up|\baltogether|\bin\s+total|\b(?:comes?|came)\s+to|\b(?:that|it)(?:'?ll|\s+will|\s+would)\s+be|\bprice(?:\s+(?:is|of))?|\bquote[ds]?(?:\s+(?:is|of|at))?|\bcosts?|\byou'?ll\s+pay|\b(?:make|call)\s+it|\blet'?s\s+(?:say|call\s+it|make\s+it)|\bsay)\s*[:=-]?\s*(?:(?:it\s+is|it'?s|that'?s|is|be|of|about|around|roughly|approx(?:imately)?|just|only)\s+)*$/i;
 const TOTAL_AFTER = /^\s*(?:all\s+up|altogether|in\s+total|total)\b/i;
-/** "comes to" is the whole job's only when no single thing is named beside it. */
+/**
+ * "comes to" is the whole job's unless it names some of the quote's lines but
+ * not all of them ("The oven comes to $750" is one thing's figure; "For the
+ * makeup trial, that comes to $90" on a one-line quote is the total).
+ */
 const COMES_TO_BEFORE = /\b(?:comes?|came)\s+to\s*[:=-]?\s*(?:(?:about|around|just|only)\s+)*$/i;
 
 /** Whether a figure in its sentence is a stated total. */
@@ -176,7 +180,7 @@ function statedTotal(sentence: string, at: number, length: number, quote?: Quote
   const after = sentence.slice(at + length);
   if (TOTAL_AFTER.test(after)) return true;
   if (!TOTAL_BEFORE.test(before)) return false;
-  if (COMES_TO_BEFORE.test(before)) return !namesAQuoteLine(sentence, quote?.lines ?? []);
+  if (COMES_TO_BEFORE.test(before)) return !namesSomeLinesOnly(sentence, quote?.lines ?? []);
   return true;
 }
 
