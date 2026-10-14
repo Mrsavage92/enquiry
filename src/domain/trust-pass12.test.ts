@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { readWeekdayWord, sweepDates, readSweep } from "./date-sweep.ts";
 import { readEnquiryBasics } from "./enquiry-basics.ts";
-import { ownerEditWarnings, warningsKey } from "./edit-warnings.ts";
+import { ownerEditWarnings, priceWarning, warningsKey } from "./edit-warnings.ts";
 import { dollarMatches } from "./voice-detect.ts";
 import { readBusinessDetails } from "./business-details-read.ts";
 import { frequencyIn } from "./coverage.ts";
@@ -358,4 +358,22 @@ test("R3-LOW: 'Saturday, 17' is the 17th when the 17th is a Saturday, and asked 
     sweepDates("Can you do Monday, 3 hours", WED).days.map((d) => d.iso),
     ["2026-10-05"],
   );
+});
+
+test("R5-H2: only a whole answer sentence, word for word and figure for figure, passes unlisted", () => {
+  const draft = "Hi there,\n\nFor the oven clean, that comes to $60.\n\nThanks,\nSam";
+  const answers = ["Callouts after 5pm are $80."];
+  const add = (said: string) => draft.replace("\n\nThanks,", `\n\n${said}\n\nThanks,`);
+  assert.deepEqual(ownerEditWarnings(add("Callouts after 5pm are $80."), draft, { answers }), []);
+  for (const said of [
+    "Callouts after 5pm are $8",
+    "are $8",
+    "$80",
+    "Callouts after 5pm are $800.",
+  ]) {
+    assert.ok(
+      ownerEditWarnings(add(said), draft, { answers }).includes(priceWarning(said)),
+      `${said} -> ${JSON.stringify(ownerEditWarnings(add(said), draft, { answers }))}`,
+    );
+  }
 });

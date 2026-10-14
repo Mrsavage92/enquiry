@@ -124,9 +124,19 @@ export function replySpans(
   return spans;
 }
 
-/** Whether `sentence` is (part of) one of the owner's answer texts. */
+/**
+ * Whether `sentence` is one of the owner's answer sentences, whole: the same
+ * words and the same figures. A piece of one ("are $8" of "Callouts after 5pm
+ * are $80.") is the owner's own new figure, never their answer.
+ */
 function isAnswer(sentence: string, answers: readonly string[]): boolean {
-  return answers.some((a) => a.includes(sentence) || norm(a) === norm(sentence));
+  const figures = (s: string) =>
+    dollarMatches(s)
+      .map((m) => `${m.foreign ? "x" : ""}${m.amount}`)
+      .join(" ");
+  return answers
+    .flatMap(sentencesOf)
+    .some((a) => norm(a) === norm(sentence) && figures(a) === figures(sentence));
 }
 
 /** A figure in a reply, with the sentences it stands in and the words around it. */
