@@ -46,7 +46,8 @@ export type TradeInput = {
  * move the dates in the messages below (and this day, if needed) and
  * regenerate the shipped text from the engine:
  *
- *   UPDATE_TRADE_THREADS=1 node --experimental-strip-types  *     --import ./scripts/test-resolve-hook.mjs --test src/lib/site/trade-threads.db.test.ts
+ *   UPDATE_TRADE_THREADS=1 node --experimental-strip-types \
+ *     --import ./scripts/test-resolve-hook.mjs --test src/lib/site/trade-threads.db.test.ts
  *
  * then review the diff in trade-threads.data.ts before committing it.
  */
