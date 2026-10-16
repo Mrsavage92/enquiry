@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import type { PGlite } from "@electric-sql/pglite";
-import { WED_30_SEP, enquiry, freshDb, tell, tenant, tx } from "./pass8-db-helpers.ts";
+import { WED_30_SEP, answer, enquiry, freshDb, tell, tenant, tx } from "./pass8-db-helpers.ts";
+import { laserNext } from "../../domain/laser.ts";
 import { createPracticeEnquiryInTransaction } from "./practice-core.ts";
 import { drive, loadEnquiry, type DriveOptions, type DriveResult } from "./laser-drive.ts";
 import { leadDateCue } from "../../components/enquiry/card-cues.ts";
@@ -359,3 +360,44 @@ test("B2 Tom: every open item is asked in turn, and nothing reads settled while 
   }
   assert.ok(settledLine(sent, r.body).count < items.length);
 });
+
+/**
+ * PR #81 review: a No to "do you do X?" is a plain no only when the rest of the
+ * message depends on X ("if so") or is about it. A second job the business
+ * does must never be dropped by a ready decline.
+ */
+const SECOND_JOB = [
+  "Do you do roof restoration? What would you charge to paint the weatherboards on the house? Bob",
+  "Do you do roof restoration? Separately, I'm after a quote to paint the front fence. Bob",
+  "Do you do roof restoration? Could you give me a price for painting the garage door? Bob",
+  "Do you do roof restoration? We need the bathroom retiled and the laundry painted. Bob",
+  "Do you do roof restoration? Keen to get the front door and window frames painted before we sell. Bob",
+];
+const PLAIN_NO = [
+  "Do you do roof restoration? If so, I'd want a quote for new gutters. Bob",
+  "G'day, do you do roof restoration? Need the tiles redone before Christmas. Bob",
+];
+
+async function afterNo(t: Parameters<typeof freshDb>[0], text: string) {
+  const { pg, a } = await shop(t, "painting", PAINTER);
+  const e = await enquiry(pg, a.businessId, text, "", WED_30_SEP);
+  await answer(pg, "user-a", e.enquiryId, "question:roof restoration", "no");
+  return (await loadEnquiry(pg, e.enquiryId)).enquiry;
+}
+
+for (const text of SECOND_JOB) {
+  test(`No beside a second job is never a ready decline: ${text}`, async (t) => {
+    const e = await afterNo(t, text);
+    assert.notEqual(e.decision.recommendation.action, "DECLINE", "the second job is not dropped");
+    assert.notEqual(laserNext(e).kind, "send", "Copy is held until the second job is settled");
+    assert.match(e.decision.draft.body, /Sorry, I don't do roof restoration\./, "the no stays");
+  });
+}
+
+for (const text of PLAIN_NO) {
+  test(`A No that is all they asked is a plain no: ${text}`, async (t) => {
+    const e = await afterNo(t, text);
+    assert.equal(e.decision.recommendation.action, "DECLINE");
+    assert.match(e.decision.draft.body, /Sorry, I don't do roof restoration\./);
+  });
+}
