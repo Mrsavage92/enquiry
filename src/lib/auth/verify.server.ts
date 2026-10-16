@@ -80,7 +80,10 @@ export async function getSessionUser(
   if (!token) return null;
   const { data, error } = await verifier.auth.getUser(token);
   if (error || !data.user) return null;
-  return { id: data.user.id, email: data.user.email ?? null };
+  // The founding gate trusts this email, so an address nobody has proved they
+  // own must never count as theirs.
+  const email = data.user.email_confirmed_at ? (data.user.email ?? null) : null;
+  return { id: data.user.id, email };
 }
 
 /**
@@ -94,6 +97,16 @@ export async function getSessionUser(
  * - Auth off + no database -> the shared dev user id (local prototype mode).
  */
 export async function requireUserId(bearerToken?: string): Promise<string> {
+  return (await requireUser(bearerToken)).id;
+}
+
+/**
+ * Same rules as `requireUserId`, but keeps the verified email. The email is
+ * only known here: server functions get the token through middleware
+ * context, never as an Authorization header, so a later `getSessionUser()`
+ * call with no token always resolves to null.
+ */
+export async function requireUser(bearerToken?: string): Promise<VerifiedUser> {
   const mode = resolveAccessMode({ authConfigured, databaseConfigured });
   if (mode === "refuse") {
     throw new Error(
@@ -101,8 +114,8 @@ export async function requireUserId(bearerToken?: string): Promise<string> {
         "to the shared dev user against a real database.",
     );
   }
-  if (mode === "dev-user") return DEV_USER_ID;
+  if (mode === "dev-user") return { id: DEV_USER_ID, email: null };
   const user = await getSessionUser(bearerToken);
   if (!user) throw new UnauthorizedError();
-  return user.id;
+  return user;
 }

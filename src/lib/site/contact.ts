@@ -12,3 +12,9 @@ export const SUPPORT_MAILTO = `mailto:${SUPPORT_EMAIL}`;
 
 /** Operator identity for the legal pages. Name and state only, never an address. */
 export const OPERATOR_LINE = "Enquiry is operated by Adam Savage from Queensland, Australia.";
+
+/**
+ * Sender identification for every email to the list (Spam Act 2003, s17).
+ * Names the person who sends it; the product name is a working name.
+ */
+export const EMAIL_SENDER_LINE = "Sent by Adam Savage, founder of Enquiry (working name).";

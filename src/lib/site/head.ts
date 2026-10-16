@@ -22,7 +22,7 @@ const SHARE_IMAGE_PATH = "/og.jpg";
  * per route either.
  */
 const SHARE_IMAGE_ALT =
-  "Enquiry's home page: know what you can safely promise before you reply, for service businesses that quote before they book.";
+  "Share card: know what you can safely promise before you reply, for painters, cleaners, mobile beauty and other service businesses that quote before they book, with the founding offer.";
 
 function parseOrigin(value: string): string | null {
   const trimmed = value.trim();

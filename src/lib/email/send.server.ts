@@ -27,6 +27,8 @@ export type EmailMessage = {
   text: string;
   /** Where a human reply lands. Defaults to the public support address. */
   replyTo?: string;
+  /** Extra message headers, e.g. List-Unsubscribe. Resend passes them through. */
+  headers?: Record<string, string>;
 };
 
 export type SendOutcome = "sent" | "skipped" | "failed";
@@ -73,6 +75,7 @@ export async function sendEmail(
         html: message.html,
         text: message.text,
         ...(message.replyTo ? { reply_to: message.replyTo } : {}),
+        ...(message.headers ? { headers: message.headers } : {}),
       }),
       signal: controller.signal,
     });

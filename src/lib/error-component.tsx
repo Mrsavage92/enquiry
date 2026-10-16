@@ -3,8 +3,11 @@ import { Link } from "@tanstack/react-router";
 import { TriangleAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-function publicMessage(error: { message?: string }) {
-  const m = (error.message ?? "").trim();
+function publicMessage(error: unknown) {
+  const message =
+    typeof error === "object" && error !== null && "message" in error ? error.message : "";
+  const raw = typeof message === "string" ? message : "";
+  const m = raw.trim();
   if (!m || m.length > 180) return "An unexpected error occurred. Try again.";
   if (/sql|postgres|database|econn|stack|at\s+\S+\s+\(/i.test(m)) {
     return "An unexpected error occurred. Try again.";

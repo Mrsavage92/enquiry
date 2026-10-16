@@ -45,7 +45,7 @@ function EarlyAccess() {
             <p className="auth-offer-value">
               <strong>{FOUNDING_PRICE}</strong>
               <span className="auth-offer-value-label">
-                a month inc GST, for as long as you stay. {OFFER.perDay}
+                {OFFER.valueLabel} {OFFER.perDay}
               </span>
             </p>
             <p className="auth-offer-window">{OFFER.window}</p>
