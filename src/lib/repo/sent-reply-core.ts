@@ -5,6 +5,7 @@ import { isClosed } from "./decision-apply.ts";
 import { ownerEditWarnings, warningsKey } from "../../domain/edit-warnings.ts";
 import { businessFacts } from "./reviewed-send-core.ts";
 import { confirmCoverageInTransaction } from "./coverage-core.ts";
+import { COVERAGE_FIELD } from "../../domain/coverage.ts";
 import { confirmGreetedName } from "./greeting-core.ts";
 
 /**
@@ -305,6 +306,8 @@ export async function confirmReviewedSendInTransaction(
   // the coverage, for exactly the key the reply was prepared against, here and
   // never earlier. The confirmation moves the decision on by that one act, so
   // the artefact follows it; anything else that moved makes it a refusal.
+  // The coverage fact this send writes, kept on the artefact so its Undo can take it back.
+  let foldFactId: string | null = null;
   if (reviewed.coverage_key && !stale && !closed) {
     const covered = await confirmCoverageInTransaction(sql, {
       enquiryId: input.enquiryId,
@@ -326,6 +329,14 @@ export async function confirmReviewedSendInTransaction(
     await sql`
       update reviewed_send set decision_revision = ${covered.revision} where id = ${reviewed.id}
     `;
+    const [fact] = await sql<{ id: string }>`
+      select id from enquiry_fact
+      where enquiry_id = ${input.enquiryId} and lower(field) = ${COVERAGE_FIELD}
+        and superseded = false and value = ${reviewed.coverage_key}
+      order by created_at desc
+      limit 1
+    `;
+    foldFactId = fact?.id ?? null;
   }
 
   // Claim it. `consumed_at is null` in the same statement as the write is what
@@ -352,7 +363,9 @@ export async function confirmReviewedSendInTransaction(
     from enquiry where id = ${input.enquiryId}
   `;
   await sql`
-    update reviewed_send set prior_state = ${JSON.stringify(prior ?? null)}::jsonb
+    update reviewed_send set prior_state = ${JSON.stringify(
+      prior ? { ...prior, ...(foldFactId ? { coverage_fact_id: foldFactId } : {}) } : null,
+    )}::jsonb
     where id = ${reviewed.id}
   `;
 

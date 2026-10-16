@@ -318,3 +318,37 @@ test("greeting: a read name greets only when a second signal agrees; the owner c
   assert.equal(undone.ok, true, JSON.stringify(undone));
   assert.equal((await name(single.enquiryId))?.status, "confirmed", "the customer has seen it");
 });
+
+test("fold: Undo of a folded send takes back the coverage confirmation the send wrote", async (t) => {
+  const { pg, a } = await shop(t, ["Oven clean $95"]);
+  const e = await enquiry(pg, a.businessId, "Oven clean please. Jo", "Oven clean", WED_30_SEP);
+  const body = (
+    (await row(pg, e.enquiryId)).decision_snapshot as never as { fold: { body: string } }
+  ).fold.body;
+  const bare = "Hi there,\n\nThat's $95.\n\nThanks";
+  const ok = await sendAs(pg, a.businessId, e.enquiryId, body);
+  assert.ok(ok.ok);
+  if (!ok.ok) return;
+  const done = await record(pg, a.businessId, e.enquiryId, ok.reviewedSendId);
+  assert.ok(done.ok && done.messageId);
+  assert.deepEqual(await coverageFacts(pg, e.enquiryId), [{ status: "confirmed" }]);
+  const undone = await tx(pg, (sql) =>
+    undoRecordedSendInTransaction(sql, {
+      enquiryId: e.enquiryId,
+      businessId: a.businessId,
+      messageId: done.ok ? done.messageId! : "",
+      userId: "user-a",
+    }),
+  );
+  assert.equal(undone.ok, true, JSON.stringify(undone));
+  // The send was the only "That's everything": with it gone, so is the confirmation.
+  assert.deepEqual(await coverageFacts(pg, e.enquiryId), []);
+  const after = (await row(pg, e.enquiryId)).decision_snapshot as never as {
+    fold?: { body: string };
+    coverage?: { confirmed: boolean };
+  };
+  assert.equal(after.coverage?.confirmed, false);
+  assert.ok(after.fold, "the folded reply is back");
+  const refused = await sendAs(pg, a.businessId, e.enquiryId, bare);
+  assert.equal(!refused.ok && refused.reason, "scope_removed");
+});
