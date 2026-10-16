@@ -88,6 +88,13 @@ export type DiscountDetail = {
   /** The owner's own words for a discount with a condition. */
   text?: string;
   service?: string;
+  /**
+   * "Jobs over $2000 get $100 off": offered, one tap, only on a quote whose
+   * total is over this many dollars.
+   */
+  over?: number;
+  /** A dollar amount off instead of a percentage: "$100 off". */
+  amountOff?: number;
 };
 
 /**
@@ -271,6 +278,35 @@ function parseMoneyRule(
     const percent = typeof r.percent === "number" ? r.percent : Number.NaN;
     const frequency = FREQUENCIES.find((f) => f === r.frequency);
     const condition = text(r.condition).toLowerCase();
+    // "Jobs over $2000 get $100 off" / "... get 5% off": a threshold the
+    // quote's own total is checked against.
+    const over = typeof r.over === "number" && Number.isFinite(r.over) && r.over > 0 ? r.over : 0;
+    const amountOff =
+      typeof r.amountOff === "number" && Number.isFinite(r.amountOff) && r.amountOff > 0
+        ? r.amountOff
+        : 0;
+    if (over) {
+      const pct = percent > 0 && percent < 100 ? percent : 0;
+      if ((!pct && !amountOff) || (amountOff && amountOff >= over)) {
+        return {
+          ok: false,
+          reason: "A discount over an amount needs how much comes off, less than that amount.",
+        };
+      }
+      const words = text(r.text);
+      return {
+        ok: true,
+        detail: {
+          kind: "discount",
+          percent: pct,
+          ...(amountOff ? { amountOff } : {}),
+          over,
+          condition: condition || `jobs over $${over}`,
+          ...(words ? { text: words } : {}),
+          ...withService,
+        },
+      };
+    }
     if (!(percent > 0 && percent < 100) || (!frequency && !condition)) {
       return {
         ok: false,
@@ -331,7 +367,7 @@ const DAY_ABBR = String.raw`(mon|tue|wed|thu|fri|sat|sun)[a-z]*\.?`;
 const TIME = String.raw`(\d{1,2})(?:[:.](\d{2}))?\s*(am|pm)?`;
 /** "Mon-Sat 7am-5pm", "Hours: Monday to Friday 8-4:30", "every day 7-5". */
 const HOURS_LINE = new RegExp(
-  String.raw`^\s*(?:(?:our|my)\s+)?(?:(?:working|business|opening|trading)\s+)?(?:hours?\s*(?:are|:|-)?\s*)?(?:open\s+)?(?:(every\s+day|7\s+days|daily)|${DAY_ABBR}\s*(?:-|–|to|through|thru)\s*${DAY_ABBR}),?\s*${TIME}\s*(?:-|–|to|until|till)\s*${TIME}\s*[.!]?\s*$`,
+  String.raw`^\s*(?:(?:i|we)\s*(?:'m|'re|am|are)?\s*(?:work|open|working|available)\s+)?(?:(?:our|my)\s+)?(?:(?:working|business|opening|trading)\s+)?(?:hours?\s*(?:are|:|-)?\s*)?(?:open\s+)?(?:(every\s+day|7\s+days|daily)|${DAY_ABBR}\s*(?:-|–|to|through|thru)\s*${DAY_ABBR}),?\s*(?:from\s+)?${TIME}\s*(?:-|–|to|until|till)\s*${TIME}\s*[.!]?\s*$`,
   "i",
 );
 const DAY_RANGES: Record<string, string> = {
@@ -502,6 +538,9 @@ export function describeDetail(detail: BusinessDetail): string {
     case "closed_dates":
       return describeClosedDates(detail);
     case "discount":
+      if (detail.over) {
+        return `Jobs over ${formatMajor(detail.over)}: ${detail.amountOff ? `${formatMajor(detail.amountOff)} off` : `${detail.percent}% off`}, when you choose it on a quote`;
+      }
       return detail.frequency
         ? `${capitalFirst(detail.frequency)} ${detail.service ? detail.service.toLowerCase() : "jobs"}: ${detail.percent}% off`
         : `${capitalFirst(detail.condition ?? "")}: ${detail.percent}% off, when you choose it on a quote`;
@@ -510,6 +549,13 @@ export function describeDetail(detail: BusinessDetail): string {
     case "working_hours":
       return `Working hours: ${detail.workingDays}, ${clock(detail.hoursStart)} to ${clock(detail.hoursEnd)}`;
   }
+}
+
+/** 2000 -> "$2,000", 99.5 -> "$99.50". */
+function formatMajor(n: number): string {
+  const cents = Math.round(n * 100);
+  const whole = Math.floor(cents / 100).toLocaleString("en-AU");
+  return cents % 100 ? `$${whole}.${String(cents % 100).padStart(2, "0")}` : `$${whole}`;
 }
 
 function capitalFirst(s: string): string {
@@ -563,6 +609,9 @@ export function detailEffect(detail: BusinessDetail): string {
     case "note":
       return "Shown to you on the quotes it concerns. Never added to a price.";
     case "discount":
+      if (detail.over) {
+        return `When a quote comes to more than ${formatMajor(detail.over)}, Enquiry asks you with one tap: take ${detail.amountOff ? formatMajor(detail.amountOff) : `${detail.percent}%`} off, or not this time.`;
+      }
       return detail.frequency
         ? `Once you confirm a job repeats ${detail.frequency === "regular" ? "regularly" : detail.frequency}, Enquiry asks you with one tap: take ${detail.percent}% off, or not this time.`
         : `When a customer mentions ${detail.condition ?? "it"} or asks about a discount, Enquiry asks you with one tap: take ${detail.percent}% off, or not this time.`;

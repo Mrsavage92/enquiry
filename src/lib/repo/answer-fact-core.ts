@@ -21,6 +21,17 @@ import {
 } from "../../domain/customer-asks.ts";
 import { closedReason } from "../../domain/compose-reply.ts";
 import {
+  CLOSED_DAY_CHOICE,
+  DATE_CHECK_CHOICE,
+  dateAddedText,
+  isClosedDayField,
+  isDateAddedField,
+  isDateCheckField,
+  sweepChoiceProblem,
+  sweepDates,
+  sweepValue,
+} from "../../domain/date-sweep.ts";
+import {
   activeDetails,
   closedTimesOf,
   describeDetail,
@@ -55,7 +66,13 @@ import { requireEnquiryAccess } from "./tenancy.server.ts";
  * written, and every query after it uses the checked id it returns.
  */
 
-export type AnswerFactInput = { enquiryId: string; field: string; value: string };
+export type AnswerFactInput = {
+  enquiryId: string;
+  field: string;
+  value: string;
+  /** The clock an added day is read against; injected in tests. */
+  now?: Date;
+};
 
 export type AnswerFactResult = {
   businessId: string;
@@ -82,6 +99,17 @@ function displayFor(field: string, value: string): string {
   if (isQuestionField(field)) {
     if (value === QUESTION_ANSWER.later) return "You'll come back to them on it";
     return value === QUESTION_ANSWER.yes ? "Yes - you do this" : "No - you don't do this";
+  }
+  if (isDateAddedField(field)) return `Added by you: ${dateAddedText(field)}`;
+  if (isClosedDayField(field)) {
+    return value === CLOSED_DAY_CHOICE.available
+      ? "You can do that day - the reply does not say otherwise"
+      : "Not available - the reply says so";
+  }
+  if (isDateCheckField(field)) {
+    return value === DATE_CHECK_CHOICE.confirm
+      ? "The reply says you'll confirm which day works"
+      : "Not a date - nothing about it goes in the reply";
   }
   if (isAskField(field)) {
     if (value === ASK_CHOICE.later) return "You'll come back to them on it";
@@ -214,7 +242,7 @@ export async function answerFactForUser(
   const exact = isCountField(brain, input.field) && EXACTLY.test(input.value);
   const typed = exact ? input.value.replace(EXACTLY, "") : input.value;
   // "three" is 3: a written count is stored as digits, then checked.
-  const value = normaliseFactAnswer(brain, input.field, typed);
+  let value = normaliseFactAnswer(brain, input.field, typed);
   if (isAskField(input.field)) {
     await checkAskAnswer(sql, enquiryId, input.field, value, brain);
   }
@@ -232,10 +260,26 @@ export async function answerFactForUser(
   if (input.field.trim().toLowerCase() === "recurring" && value !== "yes" && value !== "no") {
     throw new Error("Answer yes or no.");
   }
+  if (input.field.trim().toLowerCase() === "ask_service" && value !== "yes" && value !== "no") {
+    throw new Error("Choose whether the reply asks them which job they need.");
+  }
   // One of the owner's own rules on this quote: applied, waived, or (for an
   // "only if" rule) quoted anyway or declined. Nothing else is a choice.
   if (isRuleField(input.field) && !isRuleChoice(value)) {
     throw new Error("Choose whether your rule applies to this job.");
+  }
+  // A day the date sweep caught: the owner's word, one of two, never a date typed here.
+  const sweepProblem = sweepChoiceProblem(input.field, value);
+  if (sweepProblem) throw new Error(sweepProblem);
+  // A day the owner says they mentioned: read here, on the server's clock,
+  // never taken as a date from the client.
+  if (isDateAddedField(input.field)) {
+    const words = dateAddedText(input.field);
+    const read = sweepDates(words, input.now ?? new Date());
+    if (!words || words.length > 60 || read.days.length === 0 || read.unread.length > 0) {
+      throw new Error('Enquiry could not read a day in that. Write it like "Sunday 27 December".');
+    }
+    value = sweepValue(read);
   }
   if (isCountChoiceField(input.field) && !isCountChoice(value)) {
     throw new Error("Choose per person, one price for the booking, or come back to them.");

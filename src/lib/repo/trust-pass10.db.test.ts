@@ -5,7 +5,8 @@ import { ForbiddenError, requireEnquiryAccess } from "./tenancy.server.ts";
 import { confirmCoverageForUser } from "./coverage-core.ts";
 import { toEnquiry, type EnquiryRow } from "./rows.ts";
 import { promiseVerdict } from "../../domain/labels.ts";
-import { INSURANCE_AS_ANSWER } from "./reviewed-send-core.ts";
+import { addedSentences, priceWarning } from "../../domain/edit-warnings.ts";
+import { dollarMatches } from "../../domain/voice-detect.ts";
 import {
   WED_30_SEP,
   answer,
@@ -113,13 +114,19 @@ test("1/2 Chloe: the trial is priced, the Sunday wedding is named without a pric
   for (const wrong of ["$340", "$250"]) {
     const res = await sendAs(pg, a.businessId, e.enquiryId, body.replace("$90.", `${wrong}.`));
     assert.equal(!res.ok && res.reason, "amount_mismatch", wrong);
+    // Round 4 of the PR #80 review: a figure the owner adds that is not a
+    // stated total is never guessed at. It is listed for them to check.
     const also = await sendAs(
       pg,
       a.businessId,
       e.enquiryId,
       `${body}\n\nThe wedding day is ${wrong}.`,
     );
-    assert.equal(!also.ok && also.reason, "amount_mismatch", wrong);
+    assert.equal(also.ok, true, wrong);
+    assert.ok(
+      also.ok && also.warnings.includes(priceWarning(`The wedding day is ${wrong}.`)),
+      wrong,
+    );
   }
 });
 
@@ -459,15 +466,18 @@ test("round 2 (M1/M2): a cover figure goes out as the owner's own answer, as wri
   );
   // Edited, the sentence is no longer the owner's answer; the same $20m
   // anywhere else is a figure like any other (review M2).
+  const COVER =
+    "Your saved insurance answer says $20,000,000. Use that figure, or change your saved answer first.";
   for (const [edited, message] of [
-    [body.replace("cover $20m.", "cover $25m."), INSURANCE_AS_ANSWER],
+    [body.replace("cover $20m.", "cover $25m."), COVER],
     [`${body}\n\nBridal makeup plus travel, all up $20m.`, null],
+    // Pass 12: the owner used the saved figure; the clause that prices it is the problem.
     [
       body.replace(
         "We have public liability cover $20m.",
         "We're insured for $20m, and the total is $20m.",
       ),
-      INSURANCE_AS_ANSWER,
+      '"the total is $20m" says your insurance figure is a price. The quote Enquiry worked out is $90: take that out, or use the prepared total.',
     ],
   ] as const) {
     const res = await sendAs(pg, a.businessId, e.enquiryId, edited);
@@ -550,7 +560,9 @@ test("round 2 (M6): the all-closed wedding names no money in any form; the trial
     trial.enquiryId,
     `${ready}\n\nBridal makeup is 250 on another day.`,
   );
-  assert.equal(!res.ok && res.reason, "amount_mismatch");
+  // Not a stated total: listed for the owner to check, never sent silently.
+  assert.equal(res.ok, true);
+  assert.ok(res.ok && res.warnings.includes(priceWarning("Bridal makeup is 250 on another day.")));
 });
 
 test("4 (HIGH-3): money on a reply with no quote is refused, whatever it is about", async (t) => {
@@ -588,6 +600,11 @@ test("4 (HIGH-3): money on a reply with no quote is refused, whatever it is abou
  * works) and a $90 one (Chloe's trial, the Sunday wedding held). Each row is
  * appended to the app's own reply and sent through the send path.
  * [row, goes out on the $340 quote, goes out on the $90 quote]
+ *
+ * Round 4 of the PR #80 review changed what "goes out" means: money the owner
+ * writes that is not a stated total, a cover figure or another currency is no
+ * longer refused by guessing which line it belongs to. It goes out only past a
+ * "You wrote a price" warning the owner acknowledges, which the loop asserts.
  */
 const FUZZ: [string, boolean, boolean][] = [
   // Words with no money in them.
@@ -610,22 +627,22 @@ const FUZZ: [string, boolean, boolean][] = [
   ["Three hundred and forty dollars all up.", true, false],
   ["So $90 all up.", false, true],
   ["The trial is $90 of that.", true, true],
-  ["The bridal makeup is $250.", true, false],
-  ["Bridal makeup is 250 if you can move it.", true, false],
-  ["Bridal makeup is AUD250.", true, false],
-  ["Bridal makeup is 250 on another day.", true, false],
+  ["The bridal makeup is $250.", true, true],
+  ["Bridal makeup is 250 if you can move it.", true, true],
+  ["Bridal makeup is AUD250.", true, true],
+  ["Bridal makeup is 250 on another day.", true, true],
   // Ruling: a line's amount only beside its own name, the total never
   // governed by a fee, cover, levy, insurance or deposit word.
-  ["A $250 levy applies.", false, false],
-  ["Bridal makeup is $90.", false, true],
-  ["Trial is $250.", false, false],
-  ["Bridal makeup: $250.", true, false],
+  ["A $250 levy applies.", true, true],
+  ["Bridal makeup is $90.", true, true],
+  ["Trial is $250.", true, true],
+  ["Bridal makeup: $250.", true, true],
   ["Makeup trial $90.", true, true],
   // H1: a total behind an insurance word.
-  ["If you can move the wedding, the total including insurance $340.", false, false],
-  ["Total with insurance $340.", false, false],
-  ["All up with public liability $340.", false, false],
-  ["Wedding day total inc. public liability $340.", false, false],
+  ["If you can move the wedding, the total including insurance $340.", true, false],
+  ["Total with insurance $340.", true, false],
+  ["All up with public liability $340.", true, false],
+  ["Wedding day total inc. public liability $340.", true, false],
   ["Plus a $250 insurance fee for the wedding day.", false, false],
   ["Clean $340. Total including $20m public liability insurance $5,000", false, false],
   ["Clean $340. Total inc. insurance $5,000.", false, false],
@@ -649,9 +666,9 @@ const FUZZ: [string, boolean, boolean][] = [
   ["Quote: $2m.", false, false],
   ["that'll be $5m", false, false],
   ["You'll pay $5m", false, false],
-  ["Wedding package - $5.5m", false, false],
-  ["Deposit: $1m", false, false],
-  ["deposit $5m", false, false],
+  ["Wedding package - $5.5m", true, true],
+  ["Deposit: $1m", true, true],
+  ["deposit $5m", true, true],
   ["Pool cover: $1,200.", false, false],
   ["Full cover for $5,000.", false, false],
   ["Fully insured: $5,000.", false, false],
@@ -659,12 +676,12 @@ const FUZZ: [string, boolean, boolean][] = [
   ["Removal of excess: $150.", false, false],
   ["That comes to $2m", false, false],
   ["Total $1.5m cover", false, false],
-  ["$250k", false, false],
-  ["$1,000 thousand", false, false],
-  ["fifty thousand dollars", false, false],
-  ["$3.6k", false, false],
-  ["A $50 deposit holds the day.", false, false],
-  ["2 thousand dollars", false, false],
+  ["$250k", true, true],
+  ["$1,000 thousand", true, true],
+  ["fifty thousand dollars", true, true],
+  ["$3.6k", true, true],
+  ["A $50 deposit holds the day.", true, true],
+  ["2 thousand dollars", true, true],
   // M6: forms the gate could not see.
   ["It would be 5 grand.", false, false],
   ["Price: 5000", false, false],
@@ -712,6 +729,18 @@ test(`round 2: the ${FUZZ.length}-row regression table of owner edits against a 
       const res = await sendAs(pg, a.businessId, id, `${quote.body}\n\n${line}`);
       if (res.ok !== want) {
         wrong.push(`${quote === s340 ? "$340" : "$90"} "${line}": ${res.ok ? "sent" : res.reason}`);
+      }
+      // Round 4: whatever sends with money the owner wrote is listed, never
+      // silent. A row that repeats a line of the app's own reply as it stands
+      // ("Bridal makeup: $250.") is the app's own money.
+      const owners = addedSentences(`${quote.body}\n\n${line}`, quote.body);
+      if (
+        res.ok &&
+        dollarMatches(line).length > 0 &&
+        owners.includes(line) &&
+        !res.warnings.includes(priceWarning(line))
+      ) {
+        wrong.push(`${quote === s340 ? "$340" : "$90"} "${line}": sent with no warning`);
       }
       if (res.ok) assert.equal(res.amountMinor, quote.snapshot.price?.amountMinor, line);
     }

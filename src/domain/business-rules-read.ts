@@ -269,6 +269,102 @@ const FREQUENCY_WORDS: [RegExp, "weekly" | "fortnightly" | "monthly" | "regular"
  * percentage off a repeat job. Without a frequency ("10% off for pensioners")
  * it is a condition Enquiry cannot check, so it stays a note.
  */
+/**
+ * "Jobs over $2000 get $100 off", "Quotes above $1,500 get 5% off": a
+ * discount for a big job, offered with one tap when a quote's total is over.
+ */
+const OVER_DISCOUNT =
+  /^\s*(?:all\s+)?(?:jobs?|quotes?|bookings?|orders?|work|anything)\s+(?:over|above|more\s+than|of\s+more\s+than|worth\s+more\s+than)\s+\$\s?(\d[\d,]*(?:\.\d{1,2})?)\s+(?:get|gets|receive|save|have|attract)\s+(?:a\s+)?(?:(\d{1,3}(?:\.\d+)?)\s?%|\$\s?(\d[\d,]*(?:\.\d{1,2})?))\s+(?:off|discount)\b\.?\s*$/i;
+
+function readOverDiscount(line: string): RuleLineRead | null {
+  const m = OVER_DISCOUNT.exec(line);
+  if (!m) return null;
+  const over = Number(m[1]!.replace(/,/g, ""));
+  const percent = m[2] ? Number(m[2]) : 0;
+  const amountOff = m[3] ? Number(m[3].replace(/,/g, "")) : 0;
+  const text = line.trim().replace(/[.;]+$/, "");
+  // The checks a money rule has: nothing taken off, all of it, or more than
+  // the job could cost is never saved as a discount.
+  if (!(over > 0)) {
+    return {
+      details: [],
+      refuse: "It doesn't say a job size above $0. Write it like: Jobs over $2000 get $100 off.",
+    };
+  }
+  // The bound the refusal names: 1% to 99%, never "0.5%" or "99.5%".
+  if (m[2] && (percent < 1 || percent > 99)) {
+    const takes =
+      percent <= 0
+        ? "takes nothing off"
+        : percent < 1
+          ? "is less than 1% off"
+          : percent >= 100
+            ? "takes the whole price off"
+            : "is more than 99% off";
+    return {
+      details: [],
+      refuse: `A discount of ${percent}% ${takes}. Write a percentage between 1 and 99.`,
+    };
+  }
+  if (m[3] && (amountOff <= 0 || amountOff >= over)) {
+    return {
+      details: [],
+      refuse:
+        amountOff <= 0
+          ? "A discount of $0 takes nothing off. Write the amount it takes off."
+          : `$${amountOf(m[3])} off a job over $${amountOf(m[1]!)} could bring a price to $0 or less. Make the amount off less than $${amountOf(m[1]!)}.`,
+    };
+  }
+  return {
+    details: [
+      {
+        kind: "discount",
+        percent,
+        ...(amountOff ? { amountOff } : {}),
+        over,
+        condition: `jobs over $${over}`,
+        text,
+      },
+    ],
+  };
+}
+
+/** Words that name no job of their own: "Fortnightly cleans get 10% off" is any clean. */
+const ANY_JOB = new Set([
+  "job",
+  "jobs",
+  "clean",
+  "cleans",
+  "booking",
+  "bookings",
+  "visit",
+  "visits",
+  "service",
+  "services",
+  "customer",
+  "customers",
+  "client",
+  "clients",
+]);
+
+/**
+ * "Fortnightly regular cleans get 10% off": the job it is for, so a
+ * fortnightly painting job never gets it. "Fortnightly cleans" names none.
+ */
+function discountScope(line: string): string | undefined {
+  const m =
+    /^\s*(?:fortnightly|weekly|monthly|regular|recurring|repeat|ongoing)\s+(.+?)\s+(?:get|gets|receive|save|have)\b/i.exec(
+      line,
+    );
+  if (!m) return undefined;
+  const words = m[1]!.toLowerCase().split(/\s+/).filter(Boolean);
+  if (words.every((w) => ANY_JOB.has(w))) return undefined;
+  const last = words[words.length - 1]!;
+  const one = last.endsWith("s") && !last.endsWith("ss") ? last.slice(0, -1) : last;
+  const scope = [...words.slice(0, -1), one].join(" ");
+  return scope ? scope[0]!.toUpperCase() + scope.slice(1) : undefined;
+}
+
 function readDiscount(line: string): RuleLineRead | null {
   const pct = PERCENT.exec(line);
   if (!pct || HAS_AMOUNT.test(line) || !LESS.test(line) || MORE.test(line)) return null;
@@ -276,7 +372,10 @@ function readDiscount(line: string): RuleLineRead | null {
   const frequency = FREQUENCY_WORDS.find(([re]) => re.test(line))?.[1];
   const percent = Number(pct[1]);
   if (!(percent > 0 && percent < 100)) return null;
-  if (frequency) return { details: [{ kind: "discount", percent, frequency }] };
+  if (frequency) {
+    const service = discountScope(line);
+    return { details: [{ kind: "discount", percent, frequency, ...(service ? { service } : {}) }] };
+  }
   // "10% off for pensioners", "Pensioners get 10% off": a discount for some
   // customers, checked with one tap when a message mentions them.
   const who = (DISCOUNT_FOR.exec(line) ?? DISCOUNT_WHO_FIRST.exec(line))?.[1];
@@ -515,6 +614,7 @@ function readOne(written: string, now: Date): RuleLineRead | null {
     readClosedDates(written, now) ??
     readMinimum(written) ??
     readSurcharge(written) ??
+    readOverDiscount(written) ??
     readDiscount(written) ??
     readEligibility(written) ??
     readFee(written)

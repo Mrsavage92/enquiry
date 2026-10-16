@@ -417,7 +417,7 @@ test("a reply resting on an unconfirmed reading is refused by the server", async
   assert.equal(ok.ok, true);
 });
 
-test("a kept edit naming the old price in any money format is refused", async () => {
+test("a kept edit naming the old price in any money format is listed for the owner to check", async () => {
   const pg = await freshDb();
   const a = await tenant(pg, "user-a", "Alpha Painting");
   await saveRule(pg, a.businessId, PER_SQM);
@@ -428,9 +428,22 @@ test("a kept edit naming the old price in any money format is refused", async ()
   await confirmFact(pg, karen.enquiryId, a.businessId, "square metres", "140");
   for (const old of ["$ 3600", "3,600 dollars", "AUD 3600", "A$3600", "3.6k", "$3.6k", "3k"]) {
     const body = `Hi Karen, that comes to $4,200 (it was ${old} before). 140 square metres at $30 each.`;
+    // Round 4 of the PR #80 review: the gate never guesses what an owner's
+    // figure is. "(it was $3,600 before)" is not a stated total, so the send
+    // is held on a warning naming that sentence, never sent silently.
     const res = await prepare(pg, karen.enquiryId, a.businessId, body);
-    assert.equal(res.ok, false, old);
-    if (!res.ok) assert.equal(res.reason, "amount_mismatch", old);
+    assert.equal(res.ok, true, old);
+    if (res.ok)
+      assert.ok(
+        res.warnings.some((w) => w.startsWith("You wrote a price:")),
+        old,
+      );
+  }
+  // Said as the total, the old price is still refused.
+  for (const old of ["$ 3600", "3,600 dollars", "AUD 3600", "A$3600", "$3.6k"]) {
+    const body = `Hi Karen, that comes to ${old}. 140 square metres at $30 each.`;
+    const res = await prepare(pg, karen.enquiryId, a.businessId, body);
+    assert.equal(!res.ok && res.reason, "amount_mismatch", old);
   }
   const fine = await prepare(
     pg,

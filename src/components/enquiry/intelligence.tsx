@@ -107,6 +107,7 @@ export function Intelligence({
   // The server-frozen artefact this preview is about, and why the server would
   // not let it proceed. Both cleared every time the preview is opened afresh.
   const [reviewedSendId, setReviewedSendId] = useState<string | null>(null);
+  const [reviewWarnings, setReviewWarnings] = useState<string[]>([]);
   const [reviewBlocked, setReviewBlocked] = useState<string | null>(null);
   const [reviewStale, setReviewStale] = useState<string | null>(null);
   // Which figure the server refused, so the preview can offer a way forward.
@@ -184,7 +185,7 @@ export function Intelligence({
     !demoMode &&
     !coveragePending &&
     (questionPending || Boolean(enquiry.decision.extraPending) || readingToCheck || ownerEstimate)
-      ? checkStep(enquiry.decision.checks)
+      ? checkStep(enquiry.decision.checks, enquiry.id)
       : null;
   // Worked out from prices the owner confirmed: "Confidence Low" beside that
   // would tell them to doubt their own price list.
@@ -219,6 +220,7 @@ export function Intelligence({
   // An edit written before the facts moved: never dropped silently. The owner
   // sees it beside the new prepared reply and chooses.
   const staleEdit = usePrototype((s) => s.staleDrafts[enquiry.id]);
+  const draftBase = usePrototype((s) => s.draftBases?.[enquiry.id]);
   const staleChanges = usePrototype((s) => s.draftChanges[enquiry.id]);
   const resolveStaleDraft = usePrototype((s) => s.resolveStaleDraft);
   const showStaleEdit =
@@ -324,10 +326,12 @@ export function Intelligence({
         setReviewBlocked(res.message);
         setReviewMismatch(res.reason === "amount_mismatch" ? (res.amounts ?? null) : null);
         setReviewedSendId(null);
+        setReviewWarnings([]);
       } else {
         setReviewBlocked(null);
         setReviewMismatch(null);
         setReviewedSendId(res.reviewedSendId);
+        setReviewWarnings(res.warnings ?? []);
       }
       setReviewStale(null);
       setSendConfirm(true);
@@ -345,7 +349,7 @@ export function Intelligence({
    * copying, not opening this dialog, not closing it. Enquiry did not deliver
    * the message and does not claim to have.
    */
-  const confirmExternalSend = async (staleAttestation = false) => {
+  const confirmExternalSend = async (staleAttestation = false, acknowledgedWarnings?: string) => {
     if (demoMode) {
       approve(enquiry.id);
       toastUndo("Recorded as sent (demo). Nothing left this browser.");
@@ -362,9 +366,13 @@ export function Intelligence({
     recordingSend.current = true;
     setSending(true);
     try {
-      const res = await firstBeta.recordSent(enquiry.id, reviewedSendId, { staleAttestation });
+      const res = await firstBeta.recordSent(enquiry.id, reviewedSendId, {
+        staleAttestation,
+        ...(acknowledgedWarnings ? { acknowledgedWarnings } : {}),
+      });
       if (!res.ok) {
         if (res.reason === "stale") setReviewStale(res.message);
+        else if (res.reason === "warnings") setReviewWarnings(res.warnings ?? []);
         else setReviewBlocked(res.message);
         return;
       }
@@ -590,7 +598,9 @@ export function Intelligence({
                   variant="secondary"
                   onClick={() => {
                     resolveStaleDraft(enquiry.id);
-                    editDraft(enquiry.id, staleEdit!);
+                    // The kept edit is still based on the reply it was written
+                    // against, not the one prepared after the facts moved.
+                    editDraft(enquiry.id, staleEdit!, draftBase ?? staleEdit!);
                     setDraftOpen(true);
                   }}
                 >
@@ -1469,6 +1479,7 @@ export function Intelligence({
         compact={compact}
         demoMode={demoMode}
         blockedReason={reviewBlocked}
+        warnings={reviewWarnings}
         staleMessage={reviewStale}
         mismatch={
           reviewMismatch && !demoMode
@@ -1509,13 +1520,13 @@ export function Intelligence({
             : null
         }
         onCopy={copyDraft}
-        onConfirm={() => {
-          void confirmExternalSend(false).then(() => {
+        onConfirm={(opts) => {
+          void confirmExternalSend(false, opts?.acknowledgedWarnings).then(() => {
             if (!compact) onDone?.();
           });
         }}
-        onConfirmStale={() => {
-          void confirmExternalSend(true).then(() => {
+        onConfirmStale={(opts) => {
+          void confirmExternalSend(true, opts?.acknowledgedWarnings).then(() => {
             if (!compact) onDone?.();
           });
         }}

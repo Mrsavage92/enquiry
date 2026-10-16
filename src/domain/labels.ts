@@ -186,7 +186,9 @@ export function promiseVerdict(enquiry: Enquiry): { word: PromiseWord; line: str
   if (decision === "ACTION_READY") {
     // With the trial priced beside a closed wedding day, the reply is ready
     // and the verdict says the day can't be done - and says so of each day.
-    const closedDays = closed?.days.length ?? 0;
+    // Days the ledger marks "Not available" count too ("27th or 28th").
+    const ledgerClosed = (enquiry.decision?.asked ?? []).filter((i) => i.closed).length;
+    const closedDays = Math.max(closed?.days.length ?? 0, ledgerClosed);
     // The reply asks about a day that has passed or does not match its weekday.
     const dateToCheck = (enquiry.facts ?? []).some(
       (f) =>
