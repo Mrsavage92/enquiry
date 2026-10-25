@@ -1,91 +1,104 @@
 # Enquiry - Independent Progress Critique
 
-**Review date:** 2026-10-19 (Australia/Brisbane)  
-**Product head reviewed:** [`02cf586`](https://github.com/Mrsavage92/enquiry/commit/02cf58674e130e3ff68aecba3b788b96863d3b6e) on `main`  
-**Previous critique commit:** [`2d30621`](https://github.com/Mrsavage92/enquiry/commit/2d30621731e5efe32aa4d81f68e9c447886282ab)  
+**Review date:** 2026-10-26 (Australia/Brisbane)  
+**Default branch head reviewed:** [`3ea795e`](https://github.com/Mrsavage92/enquiry/commit/3ea795ed9d9fc693a6a19de7b9d6fabf93957117) on `main`  
+**Product code head reviewed:** [`02cf586`](https://github.com/Mrsavage92/enquiry/commit/02cf58674e130e3ff68aecba3b788b96863d3b6e)  
+**Previous critique commit:** [`3ea795e`](https://github.com/Mrsavage92/enquiry/commit/3ea795ed9d9fc693a6a19de7b9d6fabf93957117)  
 **Execution authority:** [`docs/CURRENT_PHASE.md`](./CURRENT_PHASE.md), not this critique
 
 ## Verdict against the enquiry-to-booking vision
 
-**Material product progress, but not a safe first-beta candidate. Risk is improving overall, with an urgent sequencing problem.**
+**No material movement this week. The candidate remains safer than it was before trust pass 11, but it is still not a safe first-beta candidate.**
 
-The merged trust pass advances the middle of the vision in a meaningful way:
+There are zero commits after the previous critique. The only commit above the product code head is last week's critique itself. No current source, test evidence, gate, open PR or relevant Notion record changed during the reporting period.
 
-> messy inbound enquiry -> understood Decision Object -> relevant checks -> minimum blocker -> explainable next action -> human-authorised action
+The established strengths therefore remain unchanged:
 
-Date extraction, closed-day handling, ledger completeness, removal of app-authored availability promises, owner-edit warnings and the reviewed-send gate all reduce the chance of an unsafe commercial reply. The current head also has a successful Vercel status, so last week's dependency deployment blocker is no longer active.
+> messy inbound enquiry -> interpreted Decision Object -> relevant business checks -> minimum blocker -> explainable next action -> human-authorised reply
 
-The end of the vision remains incomplete:
+Trust pass 11 still provides meaningful date, closed-day, pricing-ledger, promise and reviewed-send safeguards. Both the product commit and the current documentation-only head retain successful Vercel statuses.
+
+The unresolved end of the vision also remains unchanged:
 
 > later customer update -> recomputed decision -> booked or lost -> downstream handoff
 
-Current source still routes `acceptQuote`, `markLost`, `receiveClientReply` and `confirmExternalBooking` through the prototype store. Those are not durable server-authoritative lifecycle evidence. The real-provider benchmark still contains no successful Anthropic interpretation run, beta telemetry remains a prepared specification rather than observed evidence, and all 92 first-beta gate items remain unchecked.
-
-The largest management risk is now authority drift. `CURRENT_PHASE.md` and `PHASE_REGISTRY.md` still define UI1 as the only active slice, while substantial R2E/R2F-adjacent decision, interpretation and send behaviour has merged. The new Claude handover correctly says the critique does not authorise work, but it cannot cure that contradiction.
+Current source still routes quote acceptance, customer updates, lost state and external booking confirmation through prototype-store actions. No durable server-authoritative lifecycle evidence, first-beta telemetry, successful real-provider benchmark or completed readiness item appeared this week.
 
 ## What materially moved since the previous review
 
-| Movement | Classification | Independent assessment |
+**Nothing material moved.**
+
+| Area | Current observation | Assessment |
 |---|---|---|
-| PR #80 trust pass merged as `02cf586` | **Observed product movement** | Real progress in decision correctness and human-authorised send safety: broader date detection, closed-day checks, ledger coverage, safer promises, owner-edit warnings and exact acknowledgement of send risk. |
-| TanStack Start upgraded in PR #85 | **Observed operational movement** | The CVE-based Vercel block was removed. GitHub reports Vercel success for the exact reviewed head. |
-| Public price, unsubscribe, privacy and terms work merged in PR #83 | **Observed public-trust movement** | Reduces misleading offer and compliance risk. It does not prove operator beta readiness. |
-| Engine-backed trade examples and share card merged in PR #84 | **Observed visual/marketing movement** | More honest product proof than fabricated examples, but mostly public-site progress rather than completion of the enquiry lifecycle. |
-| Claude handover, live-check script and research briefs merged in PR #86 | **Observed documentation movement** | Improves agent orientation. The claimed 12/12 live check is implementation evidence, not independently reproduced in this review. |
-| PR #81 remains open | **Not counted as progress** | It is a large interaction rewrite based on stale history and is not validated against current `main`. Its test and tap-count claims do not apply to the released candidate. |
-| Connected Notion sources | **No material movement** | Product HQ, strategy, decisions, architecture, validation, growth and launch pages remain unverified and were last edited between 2026-08-24 and 2026-09-11. They provide intent, not current execution truth. |
+| Default branch | `main` is identical to previous critique commit `3ea795e` | No product, test, authority or release change |
+| Product code | Still ends at trust pass 11, `02cf586`, from 2026-10-16 | Prior progress retained; no new progress |
+| PR #81 | Still open at `46e44bf`, last updated 2026-10-16 | Not counted as progress; 35 commits and 120 files, diverged 35 ahead / 9 behind `main` |
+| PR #21 | Old documentation handover remains open | No product effect |
+| Deployment | Vercel remains successful for `02cf586` and `3ea795e` | Stable deployment signal, not new readiness evidence |
+| CI | No associated GitHub Actions workflow runs | No new independent regression evidence |
+| Beta gate | 0/92 checked | No first-beta readiness movement |
+| Public traffic gate | 6/23 checked | No public-readiness movement |
+| Relevant Notion sources | No relevant page changed; latest core edit remains 2026-09-11 | No strategy, decision, roadmap, validation or growth movement |
 
-Five commits landed after the prior critique. This is not merely visual or documentation activity: PR #80 and PR #85 materially improve the candidate. However, none closes the durable booked/lost/handoff path or establishes a beta gate result.
+A Notion search result titled "Readiness and test evidence" was reviewed and excluded because it belongs to an unrelated consulting-site release review, not Enquiry.
 
-## Important decisions and their status
+## Important decisions
 
-- **[Observed] Human authority remains explicit.** Prepared money can pass unchanged; owner-added or changed money is warned and must be acknowledged; hard contradictions are refused.
-- **[Observed] Public offer truth is centralised.** The repository now states A$15/month for founding members and A$29 after public launch, with payments not yet open.
-- **[Observed] Founder-only commercial decisions remain open.** GST/ABN, a founding-price subscription cut-off and paid-subscription terms still require the founder.
-- **[Observed] `CLAUDE.md` points agents to `AGENTS.project.md` and the handover.** It rejects only the unrelated sandbox instructions in `AGENTS.md`; it does not replace `CURRENT_PHASE.md`.
-- **[Unknown] No current authority decision explains why R2E/R2F-adjacent work is allowed while UI1 remains active.** Existing merged code does not retroactively authorise more of the same.
+**No new product or sequencing decision was recorded this week.**
+
+The governing decisions remain:
+
+- **[Observed]** `CURRENT_PHASE.md` still defines UI1 as the sole active slice and says it is landed but not independently signed off.
+- **[Observed]** R2E and R2F remain explicitly prepared but not authorised until `CURRENT_PHASE.md` activates them.
+- **[Observed]** PR #81 remains unmerged and unrebased against current `main`.
+- **[Observed]** The A$15 founding offer and A$29 post-launch price remain centralised in `offer.ts`; payments are not open.
+- **[Observed]** Founder-only decisions on GST/ABN, the founding-price cut-off and paid-subscription terms remain open.
+- **[Inference]** In the absence of a new authority decision, agents must not use landed R2E/R2F-adjacent code, research briefs, the handover or this critique as permission for further scope.
 
 ## Blockers
 
-1. **Execution authority is stale and internally inconsistent.** UI1 remains the active slice even though the merged work materially changes interpretation, business checks and send semantics. This creates high risk that agents use landed code, research briefs or the handover as de facto authority.
-2. **The lifecycle is not server-authoritative end to end.** Customer updates, quote acceptance, booked/lost and external booking confirmation still depend on prototype-store actions, so state can fail to persist across devices or sessions.
-3. **Decision quality is not proven with the real provider.** The latest checked-in benchmark is dated 2026-09-07: null and fake modes pass, while real mode is 1 pass / 15 skipped and the one pass intentionally makes no provider call.
-4. **Known interpretation gaps remain.** The implementation handover records count loss, missed date forms/closed periods, dropped customer questions, money-in-words bypasses, no service-area check and business-rule misreads. Date sweep is focused on initial arrival rather than the full later-update loop.
-5. **Release evidence is incomplete.** The exact head has Vercel success but no associated GitHub Actions run. The handover claims 1374/1374 tests and a 12/12 live check; this review did not independently execute either.
-6. **Readiness gates remain open.** First beta is 0/92 checked. Public traffic is 6/23 checked, including unresolved external credential revocation, device QA, claim truth and deployed waitlist checks.
-7. **Notion cannot resolve current conflicts.** The connected product and growth sources are stale and unverified relative to October repository work.
+1. **Execution authority is unresolved.** UI1 remains the active slice while substantial interpretation, decision and reviewed-send behaviour already exists on `main`. Another week without reconciliation increases the chance of accidental scope-by-precedent.
+2. **PR #81 is stale and highly divergent.** Its 120-file interaction rewrite is 35 commits ahead and 9 behind `main`. Its 1,388-test and browser-walk claims were made against the branch, not the current integrated candidate.
+3. **The lifecycle is not server-authoritative end to end.** `acceptQuote`, `markLost`, `receiveClientReply` and `confirmExternalBooking` still depend on prototype-store paths.
+4. **Real-provider interpretation remains unproven.** The newest checked-in benchmark remains 2026-09-07: real mode is 1 pass / 15 skipped, and the one pass intentionally makes no provider call.
+5. **Known decision-quality defects remain open.** The handover still records count loss, missed date forms/closed periods, dropped questions, money-in-words bypasses, no service-area check and conditional/negated rule misreads.
+6. **Readiness evidence is static.** There is still no current-head Actions run, independent full-suite record, durable beta telemetry, real-device proof or checked first-beta requirement.
+7. **Connected planning sources are stale.** Product HQ, strategy, decisions, architecture, validation, roadmap and growth pages remain unverified and last edited between 2026-08-24 and 2026-09-11. They cannot resolve October repository conflicts.
 
 ## Milestone risk
 
 | Risk | Level | Trend | Evidence |
 |---|---|---|---|
-| First-beta readiness | **High** | **Improving** | Trust/send correctness and deployability improved; durable lifecycle, telemetry, real-provider and gate evidence remain absent. |
-| Phase authority and sequencing | **Critical** | **Worsening** | More non-UI behaviour merged while UI1 remains the sole authorised slice; PR #81 is a large pending rewrite. |
-| Decision and customer trust | **High** | **Improving** | PR #80 closes several severe defects, but the 77-enquiry probe still identifies material count, date, question, service-area and rule-parsing failures. |
-| Deployment and operations | **Medium** | **Improving** | Exact-head Vercel status is successful after the dependency upgrade; broad CI and production-behaviour evidence are still limited. |
-| Validation and learning | **High** | **Flat** | No successful real-provider benchmark, no first-beta telemetry evidence and no checked beta-gate items. |
-| Public/commercial readiness | **High** | **Improving** | Price/compliance copy is clearer; 17 public-traffic checks and founder/legal decisions remain open. |
+| First-beta readiness | **High** | **Flat** | No lifecycle, provider, telemetry or gate evidence changed |
+| Phase authority and sequencing | **Critical** | **Worsening by age** | Authority conflict persisted another week; PR #81 remains large and divergent |
+| Decision and customer trust | **High** | **Flat** | Prior trust fixes remain, but known interpretation gaps received no closure evidence |
+| Deployment and operations | **Medium** | **Stable** | Vercel is green; broad CI and live behavioural evidence remain absent |
+| Validation and learning | **High** | **Flat** | No real-provider run, external beta evidence or telemetry |
+| Public/commercial readiness | **High** | **Flat** | 17 public-traffic items and founder/legal decisions remain open |
+
+There is no evidence-backed milestone date to revise. The risk is not a new regression; it is that the existing blockers have not moved.
 
 ## Next three priorities
 
-1. **Reconcile authority before another broad merge.** Product management should update `CURRENT_PHASE.md` and the registry to name the actual authorised slice and boundaries. Until then, do not infer authority from PR #80, the Claude handover or the PR #81 research briefs.
-2. **Close the truth-critical engine gaps on current `main`.** Convert the 77-enquiry findings into focused regressions for counts, date variants/closed periods, customer questions, money in words, service area and negated/conditional business rules. Include later customer updates, not only initial intake.
-3. **Complete and prove the durable loop when explicitly authorised.** Persist later inbound updates, recomputed Decision Objects, review outcomes, booked/lost and handoff evidence server-side; then run the real-provider non-fixture benchmark, two-tenant isolation, reload persistence, phone/desktop QA, full current-head tests and production smoke before changing any readiness checkbox.
+1. **Resolve authority and dispose of PR #81 deliberately.** Product management must make `CURRENT_PHASE.md` match the intended work before any broad merge. Then either rebase and independently review PR #81 as an explicitly authorised slice, reduce it, or close it. Do not merge by inertia.
+2. **Close the truth-critical decision gaps on current `main`.** Convert the 77-enquiry probe findings into focused regressions for counts, date variants and closed periods, customer questions, money in words, service area and conditional/negated business rules. Include later customer updates, not only initial intake.
+3. **Complete and prove the durable enquiry outcome loop when authorised.** Persist later inbound updates, recomputed Decision Objects, review outcomes, booked/lost and handoff evidence server-side; then run the real-provider non-fixture benchmark, two-tenant isolation, reload persistence, full current-head checks, phone/desktop QA and production smoke before checking any readiness item.
 
 ## Evidence and confidence
 
-**High confidence observed facts:** current `main`, five-commit diff since the previous critique, actual changed files, required authority/gate documents, current source search, PR states, exact-head Vercel status and zero GitHub Actions workflow runs.
+**Observed facts, high confidence:** zero commits since the previous critique; exact branch comparison; current authority and gate files; source search on the default branch; PR #81 state/divergence/file count; Vercel statuses; absence of associated Actions runs; Notion page edit times and verification state.
 
-**Implementation claims, not independently reproduced:** 1374/1374 tests for PR #80, 12/12 production content checks, production application of migration `0013`, the 77-enquiry probe findings and isolated reruns used to classify PGlite failures as memory pressure.
+**Implementation claims, not independently reproduced:** PR #80's 1,374 passing tests, PR #81's 1,388 passing tests, the handover's 12/12 production check, production migration state and the 77-enquiry probe.
 
-**Inferences:** PR #80 is real product progress because it changes decision and send behaviour, not only presentation. PR #84 is predominantly marketing progress. The candidate is safer than last week but still unsuitable for external businesses processing real enquiries.
+**Inferences:** product readiness is unchanged; authority risk has worsened only through continued non-resolution; PR #81 cannot be treated as integrated progress.
 
-**Unknowns:** production migration state beyond the handover, deployed environment keys, real sign-up persistence, external revocation of the historical preview credential, real-device behaviour, live-provider quality and final founder/legal decisions.
+**Unknowns:** external credential revocation, deployed environment keys, production migration state, real signup persistence, real-device behaviour, live-provider quality and any founder action not recorded in the connected sources.
 
 ## Practical handoff for the implementation agent
 
-- Start from `main` at `02cf586`; re-read `AGENTS.project.md` and `CURRENT_PHASE.md` before changing behaviour.
-- Treat PR #81 as unvalidated. Do not merge it merely because its research says decisions are locked; it requires explicit authority, rebase onto current `main`, independent review, migration sequencing and device evidence.
-- Preserve PR #80's warning/refusal semantics while adding regressions from the known probe gaps.
-- Do not describe focused or isolated test success as a green current-head release suite. Record exact commands, failures, baseline comparison and live evidence.
-- Stop after the authorised slice. This critique identifies sequence and evidence needs; it does not sign off UI1, activate R2E/R2F or pass either readiness gate.
+- Start from current `main`; read `AGENTS.project.md` and `CURRENT_PHASE.md` before acting.
+- There is no new authorised scope in this review. Do not start R2E/R2F work or merge PR #81 from this critique.
+- Keep PR #81 isolated until authority, rebase, migration sequencing, independent review and device evidence are explicit.
+- If asked to work within an authorised slice, preserve trust pass 11's warning/refusal semantics and add focused regressions for the known probe gaps.
+- Report exact commands, failures, baseline comparisons and production evidence. Do not convert implementation claims into checked readiness items.
+- Stop after the authorised slice. This critique does not sign off UI1, activate a later phase or pass either readiness gate.
