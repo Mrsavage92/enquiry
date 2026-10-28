@@ -1,108 +1,146 @@
-# Enquiry - Independent Progress Critique
+# Independent Progress Critique
 
-> Independent, evidence-based management review for Codex, Claude, Cursor, and other agents.
->
-> `docs/CURRENT_PHASE.md` remains the execution authority for scope, sequencing, acceptance criteria, and sign-off. This critique does not authorise later work or sign off any phase.
+**Review date:** 2026-10-12  
+**Default branch reviewed:** `main`  
+**Commit reviewed:** [`52f15f3`](https://github.com/Mrsavage92/enquiry/commit/52f15f3b6fb1c1ee7889d803a9a5291c5dce1807)  
+**Previous critique commit:** [`5daa087`](https://github.com/Mrsavage92/enquiry/commit/5daa0873535448bcf2977a831f933da9896bbd8e)  
+**Change span:** one merged product commit, [PR #82](https://github.com/Mrsavage92/enquiry/pull/82)  
+**Execution authority:** [`docs/CURRENT_PHASE.md`](./CURRENT_PHASE.md) remains authoritative. This critique does not authorise work or sign off a phase.
 
-## Review metadata
+## Verdict against the enquiry-to-booking vision
 
-- Review date: 2026-09-21
-- Repository head reviewed: [32ccfcc - finish the public-site critique loop](https://github.com/Mrsavage92/enquiry/commit/32ccfccd9cae2997104b7ced6fae443ee7e58d4e)
-- Previous critique commit: [d192390](https://github.com/Mrsavage92/enquiry/commit/d1923906416ae14bd9af27f8625af3563dba7229)
-- Change span: 62 commits on `main`, from the prior reviewed head [47a8d29](https://github.com/Mrsavage92/enquiry/commit/47a8d29ba66f19d6280cd2c2ead4b9bc5a360be7) through 2026-09-19
-- Review boundary: current `main`; open PR #21 is a documentation handover and is not counted as landed product progress
-- Authority and gates: [CURRENT_PHASE.md](./CURRENT_PHASE.md), [PHASE_REGISTRY.md](./PHASE_REGISTRY.md), [BETA_READINESS_GATE.md](./BETA_READINESS_GATE.md), [TEST_REGRESSION_POLICY.md](./TEST_REGRESSION_POLICY.md), [AGENTS.project.md](../AGENTS.project.md)
-- Product sources: [Product HQ](https://app.notion.com/p/3c6116e8bef281f9b166fb7a964a7a58), [strategy](https://app.notion.com/p/3c6116e8bef28171aab5ee334e52c852), [decision log](https://app.notion.com/p/3c6116e8bef281c7ba4bc14ba0568bdf), [decision engine](https://app.notion.com/p/3c6116e8bef28140a096e39bfa98d682), [validation](https://app.notion.com/p/3c6116e8bef28191b38cc4eaa0979b0d), [Growth and Launch HQ](https://app.notion.com/p/3c7116e8bef2810cb59ad235086c6b34), and [launch plan](https://app.notion.com/p/3d6116e8bef281268755e622aedbebdf)
+**No material movement occurred through the core product loop this week.** The reviewed change does not advance messy inbound interpretation, the Decision Object, relevant business checks, minimum-blocker selection, next-action explanation, human review, booked/lost, or downstream handoff.
 
-## Executive verdict
+It does make meaningful **safe-beta infrastructure progress**. The authenticated server path now carries the verified email into workspace provisioning and the founding gate; unconfirmed email is not trusted; the migration ledger receives RLS and revoked public-role grants; and the vulnerable `seroval` version was upgraded. These are real fixes, not visual or documentation activity.
 
-**Meaningful progress landed in public proof, onboarding safety, and launch hygiene. The core enquiry-to-booking product is not yet proven as a safe first-beta system. First-beta risk remains high, with a mixed trend.**
+That progress is not release evidence yet. GitHub reports the reviewed head's only status as **Vercel deployment failed**, with no associated GitHub Actions workflow run. PR #82 also leaves its production sign-in check unchecked. The code therefore improves the candidate while the deployed behaviour remains unproven.
 
-The strongest product-facing movement is the two-business demo: the same customer message now produces different answers for Ridge and Harbour because their business rules differ, and a changed fact moves each answer for its own reason. That is a credible demonstration of the wedge described in Notion: business-specific reasoning before booking.
-
-It is still a fixture-backed public demonstration. There is no current evidence that the same loop works for an arbitrary live tenant, with real provider interpretation, server-persisted Decision Objects, correction history, and a truthful booked/lost handoff.
-
-## Vision trace
-
-| Vision stage | Current assessment |
-| --- | --- |
-| Messy inbound enquiry | Demonstrated in fixtures and public demo; arbitrary live input remains unproven. |
-| Understood Decision Object | Stronger public explanation and existing source contracts; current-head live persistence is not independently verified. |
-| Relevant business checks | Two different sample Business Brains now change the answer; live evaluator selection and provider quality remain unknown. |
-| Minimum decision blocker | Visible in sample reasoning and `Why this reply?` affordances; beta evidence is incomplete. |
-| Explainable next action | Public demo and retained reply evidence improve explainability; no complete current-head operator proof. |
-| Human-authorised action | Product boundaries preserve review/copy/record distinctions; full live journey remains unverified. |
-| Booked or lost | No material new evidence this period. |
-| Downstream handoff | No material new evidence this period. |
+The product is still **not a safe first-beta candidate**. The server-authoritative loop still stops before customer-update, booked/lost and handoff completion; the real-provider benchmark still skips 15 of 16 cases; all 92 beta-gate items remain unchecked; and phase authority still says UI1 while payment/founding-gate and R2E/R2F-adjacent work exists on `main`.
 
 ## What materially moved
 
-### 1. The product wedge is clearer and more testable
+### Real safe-beta progress
 
-**Observed fact:** [c33df5b](https://github.com/Mrsavage92/enquiry/commit/c33df5bcf15c8f0162157710d6200819421411f5) added Harbour Painting to the signature demo. Tests pin identical input, different business rules, changed facts, no invented price, and safe fallback for an unknown business id.
+- **Verified identity propagation:** auth middleware now passes both user id and confirmed email from the token verification already performed. Workspace provisioning no longer calls `getSessionUser()` without a token and no longer writes a blank email because of that call.
+- **Founding-gate correctness:** a confirmed signed-in email can now be checked against founding membership. An unconfirmed address deliberately resolves to null and cannot pass the gate.
+- **Migration-ledger containment:** migration `0015_lock_migrations_table.sql` enables RLS on `public._migrations` and revokes access from `anon` and `authenticated` where those roles exist.
+- **Dependency risk:** `seroval` moved from 1.6.2 to 1.6.8; related lockfile dependencies also moved.
 
-**Assessment:** This is real product narrative and prototype progress, not merely visual polish. It directly tests the claim that Enquiry makes business-specific decisions rather than acting as a generic inbox or AI receptionist. It is not yet production or cross-industry validation evidence.
+### Implementation claims, not independently reproduced
 
-### 2. Onboarding became safer without pretending a draft is saved
+- PR #82 reports typecheck, lint, build, 1,283/1,283 tests and `npm audit --omit=dev` with zero vulnerabilities.
+- PR #82 says the production migration ledger was locked manually on 2026-10-07.
+- The PR's post-deploy sign-in verification remains unchecked.
 
-**Observed fact:** [0013e88](https://github.com/Mrsavage92/enquiry/commit/0013e88a0c5c769329ecbaa79b5e58530bb64072) persists an onboarding draft in browser session storage, restores it after reload, submits stage one on Enter, and clears the draft only after the server confirms the atomic workspace creation. The review screen still says the data is not saved.
+### No material product movement
 
-**Assessment:** This is useful first-beta UX and trust progress. It reduces abandonment risk while preserving server authority. It does not prove zero-membership onboarding, reload persistence of the whole live workspace, or tenant isolation at the current head.
+- No change to arbitrary enquiry interpretation or real-provider quality.
+- No change to minimum-blocker, relevant-check or next-action logic.
+- No change to the persisted customer-update loop.
+- No change to server-authoritative booked/lost and downstream handoff.
+- No change to recommendation-review or outcome telemetry.
+- No beta-readiness item was closed.
+- No current Notion strategy, decision, validation, roadmap or growth source was updated; the key pages remain unverified and were last edited between 2026-08-24 and 2026-09-11.
 
-### 3. Public-site and early-access readiness improved substantially
+## Vision trace
 
-**Observed facts:**
+| Vision stage | Current assessment | Weekly movement |
+|---|---|---|
+| Messy inbound enquiry | Deterministic and manual ingestion exist; real-provider quality remains unproven | None |
+| Understood Decision Object | Substantial prior implementation exists | None |
+| Relevant business checks | Prior rule/check work remains | None |
+| Minimum decision blocker | Prior implementation remains; no new evidence | None |
+| Explainable next action | Prior ledger and one-step UI remain | None |
+| Human-authorised action | Reviewed send and persisted decline remain; open trust fixes are not merged | None |
+| Booked or lost | Decline is persisted; other completion actions remain prototype-store behaviour | None |
+| Downstream handoff | Not demonstrated | None |
+| Identity and access foundation | Verified-email propagation and migration-ledger controls improved | Real progress |
+| Deployed exact-head proof | Current head failed Vercel deployment | Regressed / blocked |
 
-- UI1 public-site work now has explicit evidence for responsive layouts, accessibility contracts, honest sample labelling, roadmap feedback, visual references, and reduced-motion source safeguards.
-- [a402156](https://github.com/Mrsavage92/enquiry/commit/a40215607fb2f413f58690ff9cc80b9fc3900c56) added support/contact wording, processor and retention disclosures, error alerting hooks, a staged cohort operating model, and a first-20 invitation constraint.
-- [32ccfcc](https://github.com/Mrsavage92/enquiry/commit/32ccfccd9cae2997104b7ced6fae443ee7e58d4e) corrected early-access pricing to A$29/month with higher tiers deferred, made the walkthrough readable at phone scale, added business-type chips, and settled the hero motion.
-- [8b6b79e](https://github.com/Mrsavage92/enquiry/commit/8b6b79efe02b65348a67d561b8d5b5ceecccb36f) keeps the evidence explanation reachable after a reply is recorded.
+## Important decisions and contradictions
 
-**Assessment:** This is credible customer-facing and trust progress. It is mostly presentation, acquisition, and operational readiness, not new decision-engine capability.
+1. **Confirmed email is now a security boundary.** Founding access trusts only the email returned from a verified Supabase user, and server functions receive it through authenticated middleware context.
+2. **The migration ledger is private operational state.** It is no longer intended to be readable or writable through public Supabase roles.
+3. **The founding gate is moving closer to operational use without matching authority.** `CURRENT_PHASE.md` still authorises UI1 and explicitly excludes a production payment-integration programme.
+4. **Commercial truth remains contradictory.** Source code says A$15/month for as long as subscribed, A$29 standard and a first-month refund; the growth handover still says free early access, 30% off for 12 months and never lifetime pricing.
+5. **Open implementation is not landed progress.** PR #80 contains the known trust fixes from the prior review. PR #81 proposes a major “laser-focus” enquiry-screen rewrite on top of PR #80. Both remain open and are based on commits behind current `main`; neither closes a beta or phase gate.
 
-### 4. Phase governance is materially more coherent than last review
+## Blockers
 
-**Observed fact:** The current phase and registry now describe UI1 as landed on `main`, independently unreviewed, and still awaiting owner acceptance, while CC1 evidence is treated as historical rather than as automatic beta sign-off. The active sequence is UI1 review and exact-head verification, then the next authorised slice and beta gate.
+| Blocker | Evidence type | Why it matters |
+|---|---|---|
+| Current-head Vercel deployment failed | Observed GitHub status | The identity/security fix is not proven in the deployed app, and the current deployable candidate is red. |
+| Production sign-in smoke remains unchecked | Observed PR #82 checklist | The exact failure PR #82 targets could still exist in the real account path. |
+| Execution authority does not match landed or open work | Observed unchanged phase documents | UI1 remains the only active slice while payment-gate, deep trust and R2E/R2F-adjacent work continues. |
+| Known customer-trust fixes remain unmerged | Observed open PR #80 | Current `main` retains the previously reported send, promise, date and ledger defects. |
+| PR #81 is stacked on stale/unmerged work | Observed PR bases | A large interaction rewrite cannot be treated as validated against current `main` and increases integration risk. |
+| Outcome loop is not server-authoritative end to end | Observed current source | `markLost` and `acceptQuote` remain prototype-store actions; booked/lost/handoff is not durable across devices. |
+| Real-provider evidence is absent | Observed benchmark report | The 2026-09-07 report passed null/fake modes, but real Anthropic mode ran only the provider-failure case and skipped 15 cases. |
+| Readiness gates remain open | Observed | Beta gate: 0/92 checked. Public traffic gate: 6 checked and 17 unchecked, including external credential revocation. |
+| Commercial sources disagree | Observed | Users, agents and public copy can receive incompatible pricing and early-access promises. |
 
-**Assessment:** The earlier direct contradiction between the phase documents has been reduced. The remaining risk is not authority ambiguity so much as the widening public-site surface relative to the still-open beta proof.
+## Milestone risk
 
-## Important decisions
-
-- The owner-authorised UI1 continuation is public/customer-facing work. Its evidence explicitly says it does not sign off the operator beta, authentication, provider readiness, or public traffic.
-- The pricing decision is now deliberately narrower and more honest: A$29/month for early access, with A$49 and A$79 retained as deferred hypotheses.
-- The demo now makes the cross-industry, business-specific reasoning thesis visible without claiming a live integration or a sent/booked action.
-- Onboarding keeps atomic server creation. Browser draft recovery is convenience only and must not become the durable source of truth.
-- The Notion product sources remain strategically aligned with the repository: AI interprets, deterministic systems validate important outcomes, the owner authorises consequential actions, and the boundary is first enquiry to booked or lost. The Notion pages are largely unverified and older than the reviewed code, so they are strategy context, not release evidence.
-
-## Blockers and unknowns
-
-1. **The first-beta gate remains open.** Every required section in [BETA_READINESS_GATE.md](./BETA_READINESS_GATE.md) is still unchecked, including two-tenant isolation, live non-demo onboarding, arbitrary non-fixture processing, correction persistence, telemetry, and exact-head verification.
-2. **Hosted authentication evidence is mixed.** The earlier launch audit records one successful sign-in reaching `/auth/complete` and onboarding. The newer auth repair documentation says post-repair inbox delivery and a completed authenticated session still require confirmation. Treat production sign-in as not independently closed until the evidence is reconciled.
-3. **Operational launch blockers remain owner-side.** The early-access handover still calls for custom SMTP, `ALERT_WEBHOOK_URL`, a production `ANTHROPIC_API_KEY) check, and external Grok credential revocation. The repository cannot prove those dashboard and credential states.
-4. **Current-head verification is incomplete.** The reviewed head has a successful Vercel status, but no GitHub Actions workflow run. Historical full-suite, browser, and visual claims are useful evidence but are not a fresh exact-head release ledger.
-5. **The core outcome loop has not materially moved.** There is no new evidence for real-provider quality, non-fixture Decision Objects, correction and outcome telemetry, booked/lost completion, or downstream handoff.
-
-## Milestone risk and trend
-
-- **First-beta risk: high.** Improving in public trust, onboarding ergonomics, and demo clarity; flat on live core-product proof.
-- **Public launch risk: high.** The website is increasingly ready to attract attention, while auth/email/provider/credential gates are not all independently closed.
-- **Product-thesis risk: low to medium.** The two-business demo strengthens the thesis, but it remains fixture evidence.
-- **Governance risk: medium, improving.** Phase documents are more coherent, but broad UI continuation can still create a misleading sense of beta readiness.
-
-The main management risk is sequencing: visible public progress is accelerating faster than evidence for the operator loop that must turn an enquiry into a safe, explainable, authorised outcome.
+| Area | Risk | Trend | Evidence |
+|---|---|---|---|
+| Core product vision | High | Flat | No weekly movement in the enquiry-to-booking stages. |
+| Safe first beta | High | Flat | Security candidate improved, but outcome, provider and gate evidence remain open. |
+| Deployment / live operations | Critical | Worsening | Current `main` has a failed Vercel status and no exact-head workflow evidence. |
+| Identity and data security | High | Improving in code; live state unknown | Verified-email and migration-ledger fixes landed; production app verification is absent. |
+| Governance and sequencing | Critical | Flat | UI1 authority remains stale while later-slice and payment-related work continues. |
+| Commercial launch | High | Flat | Offer sources still conflict and the payment/founding path is not release-verified. |
+| Cross-industry validation | Medium-high | Flat | No new real-provider, multi-brain or real-user evidence. |
 
 ## Next three priorities
 
-1. **Produce one exact-head beta candidate ledger.** Run typecheck, full test discovery, focused product regressions, build, auth, zero-membership onboarding, two-tenant isolation, reload persistence, desktop/phone QA, and reduced-motion checks against one chosen commit. Classify every remaining failure using [TEST_REGRESSION_POLICY.md](./TEST_REGRESSION_POLICY.md).
-2. **Close and evidence the operational gates.** Reconcile the hosted sign-in result, custom SMTP, production Anthropic configuration, alert webhook, domain decision, and historical credential revocation. Record dashboard or runtime proof, not implementation claims.
-3. **Prove the differentiating live loop before expanding public scope.** Use an arbitrary non-fixture enquiry and at least two tenant-specific Business Brains to show interpretation, relevant evaluator selection, one minimum blocker, explanation, owner correction/approval, recorded response, booked/lost outcome, downstream handoff, and structured telemetry.
+1. **Restore and prove the exact-head deployment.** Diagnose the Vercel failure without broadening product scope. After an owner-authorised deployment, record the deployed commit and smoke-test confirmed-email propagation, fresh-user onboarding, allowed/refused founding-gate behaviour, and the live migration-ledger permissions.
+2. **Reconcile authority and the open PR stack.** Product management must decide whether payment/founding-gate work and PRs #80/#81 belong to the active slice. Only authorised work should be rebased onto current `main`; do not merge stale stacked branches or infer authority from their existence.
+3. **Close the real enquiry lifecycle with evidence.** Prioritise server-authoritative customer updates, booked/lost/handoff and minimum telemetry, then run the real provider across the non-fixture, multi-Business-Brain benchmark and execute the exact beta gate. Do not substitute UI simplification or test-count growth for this proof.
 
 ## Evidence and confidence
 
-- **High confidence:** current repository source, commit diffs, current phase and registry, beta gate text, current-head Vercel status, and the committed public-site and onboarding evidence.
-- **Medium confidence:** implementation reports and browser checks from earlier commits, including the deployed waitlist and sign-in audit. They are specific but not all current-head or independently rerun.
-- **Low or unknown:** current hosted environment variables, SMTP reliability, exact-head full-suite result, live provider quality, live tenant isolation, customer activation, payment intent, retention, booked/lost behaviour, and downstream handoff.
+### Observed facts - high confidence
 
-## Implementation handoff
+- `main` is at `52f15f3`, one product commit after the previous critique.
+- The diff is limited to verified-email propagation, migration-ledger RLS/grants, dependency updates and related tests.
+- Vercel reports deployment failure for the reviewed head; no pull-request workflow run is associated with it.
+- `CURRENT_PHASE.md`, `PHASE_REGISTRY.md`, `AGENTS.project.md`, UI1 briefs, beta gate, telemetry spec and regression policy are unchanged.
+- UI1 remains active; R2E/R2F remain prepared rather than authorised.
+- The beta gate is 0/92; the public-traffic gate is 6/23.
+- PRs #80 and #81 are open and are not part of current `main`.
+- Local prototype actions remain for booked/lost-related outcomes.
+- The latest checked-in real-provider benchmark evidence is incomplete.
+- Connected Notion sources preserve the same enquiry-shape, Decision Object, deterministic-validation, human-authority and booked/lost thesis, but are stale and unverified.
 
-Read [CURRENT_PHASE.md](./CURRENT_PHASE.md) first. Treat the public-site work as customer-facing progress, not beta sign-off. Preserve the server-authoritative onboarding boundary, demo/live separation, deterministic commercial rules, provenance, review-first action authority, and the explicit distinction between copied, recorded, and sent responses. Attach the next release evidence to one exact commit. Do not self-sign UI1, CC1, R2E/R2F, the beta gate, or the public traffic gate.
+### Implementation claims - medium confidence
+
+- PR #82's local typecheck, lint, build, full-test and audit results.
+- Manual production locking of `public._migrations`.
+- PR #81's interaction and test measurements; it is unmerged and reports its own incomplete iPhone, 200% text and full-suite evidence.
+
+### Inferences
+
+- The sole weekly change reduces a real beta risk but does not make the product more complete against its core vision.
+- A failed deployment means the live system may still be on the prior code, so neither the fix nor a regression can be assumed deployed.
+- Continuing to advance founding access and large UI rewrites before authority and exact-head evidence are reconciled will increase integration and launch risk faster than confidence.
+
+### Unknowns
+
+- Root cause of the Vercel deployment failure and the last successfully deployed commit.
+- Whether production is currently using the prior app build, whether the founding gate is on, and whether a confirmed user can onboard.
+- Whether migration 0015 has been applied through the normal ledger, beyond the PR's manual-production claim.
+- Whether `app_user.email` is correct for every existing production user.
+- Whether PR #80 or #81 will be authorised, rebased, revised or closed.
+- Real Anthropic interpretation quality across the non-fixture pack.
+- Real-user cross-device continuity and server-persisted booked/lost/handoff behaviour.
+
+## Implementation-agent handoff
+
+Work from `docs/CURRENT_PHASE.md`; this critique grants no new phase authority.
+
+1. Treat the failed deployment and the exact auth/migration paths touched by PR #82 as the immediate investigation boundary.
+2. Capture the Vercel root cause and exact-head verification rather than adding adjacent fixes.
+3. Do not merge PR #80 or #81 until authority is explicit and the branch is rebased onto current `main`.
+4. For each live smoke test, record commit, environment, account state, expected result, observed result and rollback boundary.
+5. Preserve confirmed-email trust, tenant checks, raw input, deterministic commercial authority and human-send semantics.
+6. Do not add parser breadth, visual scope, payments or integrations as a substitute for closing the deployed, persisted enquiry lifecycle.

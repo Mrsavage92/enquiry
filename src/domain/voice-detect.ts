@@ -128,6 +128,13 @@ const WORDS_ALL_UP = new RegExp(
 );
 /** A figure under $10 said this way is a count ("say two"), never money. */
 const LEAST_SAID_MONEY = 10;
+/**
+ * "say" as "for example": set off by commas mid-sentence ("If there are more
+ * windows, say 15, I'll adjust"). Its number is a count, not a price. Every
+ * other "say 400" ("Say 400.", "Ok, say 400 and we're done") is money.
+ */
+const SAY_FOR_EXAMPLE_BEFORE = /,\s*$/;
+const SAY_FOR_EXAMPLE_AFTER = /^\s*,/;
 
 type Hit = DollarMatch & { end: number };
 
@@ -201,6 +208,13 @@ function hitsOf(text: string): Hit[] {
       const n = figureValue(m[1]!);
       if (n === null || n < LEAST_SAID_MONEY) continue;
       const at = (m.index ?? 0) + m[0].indexOf(m[1]!);
+      if (
+        /^say\b/i.test(m[0]) &&
+        SAY_FOR_EXAMPLE_BEFORE.test(text.slice(0, m.index ?? 0)) &&
+        SAY_FOR_EXAMPLE_AFTER.test(text.slice(at + m[1]!.length))
+      ) {
+        continue;
+      }
       push(m[1]!, at, n);
     }
   }
@@ -224,6 +238,52 @@ function hitsOf(text: string): Hit[] {
  * the first and longest wins, and a foreign reading wins over a local one.
  */
 export function dollarMatches(text: string): DollarMatch[] {
+  // Plain ASCII needs no folding.
+  if (!/[^\t\n\r\x20-\x7e]/.test(text)) return matchesIn(text);
+  const { plain, at } = foldForMoney(text);
+  if (plain === text) return matchesIn(text);
+  // Read in the folded text, reported where each figure stands in the original.
+  return matchesIn(plain).map((m) => {
+    const from = at[m.index]!;
+    const to = at[m.index + m.raw.length] ?? text.length;
+    return { ...m, index: from, raw: text.slice(from, to) };
+  });
+}
+
+/** The first zero of each block of decimal digits money may be written in. */
+const DIGIT_ZEROS = [
+  0x0660, 0x06f0, 0x07c0, 0x0966, 0x09e6, 0x0a66, 0x0ae6, 0x0b66, 0x0be6, 0x0c66, 0x0ce6, 0x0d66,
+  0x0e50, 0x0ed0, 0x0f20, 0x1040, 0xff10,
+];
+
+/**
+ * Text as money is read in: NFKC (a fullwidth or small "$", fullwidth
+ * digits), digits of any script as 0-9, and invisible format characters
+ * (zero-width spaces and joiners, word joiner, byte-order mark, soft hyphen)
+ * dropped, so "$" + ZWSP + "750" is $750. `at[i]` is where the folded text's
+ * unit `i` stands in the original; `at[plain.length]` is the original's end.
+ */
+function foldForMoney(text: string): { plain: string; at: number[] } {
+  let plain = "";
+  const at: number[] = [];
+  let i = 0;
+  for (const ch of text) {
+    const cp = ch.codePointAt(0)!;
+    const zero = DIGIT_ZEROS.find((z) => cp >= z && cp <= z + 9);
+    const out = /\p{Cf}/u.test(ch)
+      ? ""
+      : zero !== undefined
+        ? String(cp - zero)
+        : ch.normalize("NFKC");
+    plain += out;
+    for (let k = 0; k < out.length; k += 1) at.push(i);
+    i += ch.length;
+  }
+  at.push(i);
+  return { plain, at };
+}
+
+function matchesIn(text: string): DollarMatch[] {
   const sorted = hitsOf(text).sort(
     (a, b) =>
       a.index - b.index || b.end - a.end || Number(Boolean(b.foreign)) - Number(Boolean(a.foreign)),

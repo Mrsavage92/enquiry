@@ -4,7 +4,7 @@ import type { PGlite } from "@electric-sql/pglite";
 import { ForbiddenError } from "./tenancy.server.ts";
 import { confirmReviewedSendInTransaction } from "./sent-reply-core.ts";
 import { prepareReviewedSendInTransaction } from "./reviewed-send-core.ts";
-import { warningsKey } from "../../domain/edit-warnings.ts";
+import { priceWarning, warningsKey } from "../../domain/edit-warnings.ts";
 import { readBusinessDetails } from "../../domain/business-details-read.ts";
 import {
   WED_30_SEP,
@@ -128,6 +128,19 @@ async function outbound(pg: PGlite, enquiryId: string): Promise<number> {
 
 const at = (day: string) => new Date(`${day}T10:15:00+10:00`);
 
+/**
+ * Round 4 of the PR #80 review: money the owner writes is never guessed at.
+ * A figure that is not a stated total is never sent silently: it is refused,
+ * or listed ("You wrote a price: ...") for the owner to acknowledge.
+ */
+function notSilent(res: { ok: boolean; warnings?: string[] }, said = "") {
+  if (!res.ok) return;
+  assert.ok(
+    (res.warnings ?? []).some((w) => w.startsWith("You wrote a price:")),
+    `sent with no warning: ${said} ${JSON.stringify(res)}`,
+  );
+}
+
 // ---------------------------------------------------------------------------
 // H1. One reading of weekday words, in the reader and the sweep alike
 // ---------------------------------------------------------------------------
@@ -209,7 +222,7 @@ test("H2: '$300 off jobs over $600' is its own line, no job line goes negative, 
   // Taken off a service line instead, it is refused.
   const wrong = body.replace("- Oven clean: $250", "- Oven clean: -$300");
   const refused = await sendAs(pg, a.businessId, e.enquiryId, wrong);
-  assert.equal(!refused.ok && refused.reason, "amount_mismatch");
+  notSilent(refused);
   // Another tenant cannot take the discount, and nothing moves.
   const before = await row(pg, e.enquiryId);
   await assert.rejects(
@@ -426,7 +439,7 @@ test("ALSO: money said in words is money - refused unless it is the quote", asyn
       e.enquiryId,
       body.replace("\n\nThanks,", `\n\n${said}\n\nThanks,`),
     );
-    assert.equal(!res.ok && res.reason, "amount_mismatch", said);
+    notSilent(res, said);
   }
   // The quote's own total, said in words, is the quote: $580.
   const total = await sendAs(
@@ -560,4 +573,637 @@ test("LOW: a stored sweep that cannot be read holds the reply as dates to check"
     ForbiddenError,
   );
   assert.deepEqual(await row(pg, e.enquiryId), before);
+});
+
+// ---------------------------------------------------------------------------
+// Round 2 of the PR #80 review, through the send path
+// ---------------------------------------------------------------------------
+
+test("N1: the 'jobs over' threshold and the subtotal never stand as a line's price", async (t) => {
+  const { pg, a } = await setup(t, BIG_OFF);
+  const e = await enquiry(
+    pg,
+    a.businessId,
+    "Hi, can you quote an oven clean, a fridge clean and the inside windows? Thanks, Jo",
+    "Oven clean",
+  );
+  const { body, sent } = await settleAndSend(pg, a.businessId, e.enquiryId, {}, [
+    [/over \$600/, "apply"],
+  ]);
+  assert.equal(sent.ok, true, JSON.stringify(sent));
+  const add = (said: string) => body.replace("\n\nThanks,", `\n\n${said}\n\nThanks,`);
+  for (const [name, edited] of [
+    ["oven line at the threshold", body.replace("- Oven clean: $250", "- Oven clean: $600")],
+    ["oven line at the subtotal", body.replace("- Oven clean: $250", "- Oven clean: $750")],
+    ["the threshold as the oven's usual price", add("Oven clean is usually $600.")],
+    ["the subtotal as the fridge's price", add("Fridge clean alone would be $750.")],
+    ["the threshold said as a rate", add("Oven clean at $600.")],
+  ] as const) {
+    const res = await sendAs(pg, a.businessId, e.enquiryId, edited);
+    notSilent(res, `${name}: ${JSON.stringify(res)}`);
+  }
+  // In their own words, the threshold, the amount off and the subtotal stand.
+  for (const said of [
+    "Subtotal $750, less $300 for jobs over $600.",
+    "That's $750 before the discount.",
+  ]) {
+    const res = await sendAs(pg, a.businessId, e.enquiryId, add(said));
+    assert.equal(res.ok, true, `${said}: ${JSON.stringify(res)}`);
+  }
+  const own = body.replace("- $300 off jobs over $600: -$300", "- Less $300 for jobs over $600");
+  assert.equal((await sendAs(pg, a.businessId, e.enquiryId, own)).ok, true);
+});
+
+test("N4: 'If not Monday, 3 hour clean' and 'Monday 4 hours' never put 'Monday, 3' or 'Monday 4' in the reply", async (t) => {
+  const { pg, a } = await setup(t);
+  const comma = await enquiry(
+    pg,
+    a.businessId,
+    "Hi, is Saturday ok? If not Monday, 3 hour clean. Thanks, Bo",
+    "Regular house clean",
+  );
+  const items = await ledger(pg, comma.enquiryId);
+  assert.ok(!items.some((i) => /Monday, 3/.test(i.text)), JSON.stringify(items));
+  const first = await settleAndSend(pg, a.businessId, comma.enquiryId, {
+    "ask:availability": "2026-10-03=later",
+  });
+  assert.equal(first.sent.ok, true, JSON.stringify(first.sent));
+  assert.doesNotMatch(first.body, /Monday, 3/);
+  assert.doesNotMatch(first.body, /You mentioned Monday/);
+
+  const hours = await enquiry(
+    pg,
+    a.businessId,
+    "Hi, regular clean Monday 4 hours please. Thanks, Bo",
+    "Regular house clean",
+  );
+  assert.equal((await row(pg, hours.enquiryId)).date_label, "Mon 5 Oct");
+  const second = await settleAndSend(pg, a.businessId, hours.enquiryId, {
+    "number of hours": "4",
+  });
+  assert.equal(second.sent.ok, true, JSON.stringify(second.sent));
+  assert.doesNotMatch(second.body, /Monday 4/);
+  assert.match(second.body, /Monday 5 October/);
+  // A Monday is no weekend: the weekend rate is never mentioned.
+  assert.doesNotMatch(second.body, /weekends are 20% more/);
+});
+
+const NEW_YEAR = ["Oven clean $60", "Closed 29 December to 2 January"].join("\n");
+
+test("N6: 'Dec 28 to Jan 3' is held and checked day by day, exactly like '28 December to 3 January'", async (t) => {
+  const { pg, a } = await setup(t, NEW_YEAR);
+  for (const [range, spoken] of [
+    ["28 December to 3 January", "28 December to 3 January"],
+    ["Dec 28 to Jan 3", "December 28 to January 3"],
+  ] as const) {
+    const e = await enquiry(
+      pg,
+      a.businessId,
+      `Hi, oven clean please, any day ${range} works. Thanks, Al`,
+      "Oven clean",
+    );
+    const open = (await ledger(pg, e.enquiryId)).filter((i) => i.status === "open");
+    assert.ok(
+      open.some((i) => i.text === `Part of ${range} is in your closed dates`),
+      `${range}: ${JSON.stringify(open)}`,
+    );
+    await settle(pg, e.enquiryId);
+    // Held until the owner says whether they can do the closed days.
+    await assert.rejects(send(pg, a.businessId, e.enquiryId), /Settle what they asked first/);
+    const { body, sent } = await settleAndSend(pg, a.businessId, e.enquiryId);
+    assert.equal(sent.ok, true, JSON.stringify(sent));
+    assert.ok(
+      body.includes(
+        `You mentioned ${spoken} - I'm sorry, I'm not available on Tuesday 29 December, Wednesday 30 December, Thursday 31 December, Friday 1 January or Saturday 2 January.`,
+      ),
+      body,
+    );
+  }
+});
+
+test("REG: 'If there are more windows, say 15, I'll adjust.' is no price", async (t) => {
+  const { pg, a } = await setup(t, BIG_OFF);
+  const e = await enquiry(
+    pg,
+    a.businessId,
+    "Hi, can you quote an oven clean, a fridge clean and the inside windows? Thanks, Jo",
+    "Oven clean",
+  );
+  const { body, sent } = await settleAndSend(pg, a.businessId, e.enquiryId, {}, [
+    [/over \$600/, "apply"],
+  ]);
+  assert.equal(sent.ok, true, JSON.stringify(sent));
+  const add = (said: string) => body.replace("\n\nThanks,", `\n\n${said}\n\nThanks,`);
+  const res = await sendAs(
+    pg,
+    a.businessId,
+    e.enquiryId,
+    add("If there are more windows, say 15, I'll adjust."),
+  );
+  assert.equal(res.ok, true, JSON.stringify(res));
+  // Said as a price, it is still refused.
+  const priced = await sendAs(pg, a.businessId, e.enquiryId, add("Say 400 for the lot."));
+  assert.equal(!priced.ok && priced.reason, "amount_mismatch");
+});
+
+test("REG: 'next Sunday' on a Saturday with Sundays off is a day they don't work, never an either-day ask", async (t) => {
+  const { pg, a } = await setup(t);
+  const e = await enquiry(
+    pg,
+    a.businessId,
+    "Hi, oven clean please, next Sunday? Thanks, Al",
+    "Oven clean",
+    at("2026-10-03"),
+  );
+  const items = await ledger(pg, e.enquiryId);
+  assert.ok(!items.some((i) => i.id.startsWith("date_check:")), JSON.stringify(items));
+  const closed = items.find((i) => i.id.startsWith("closed_day:"));
+  assert.equal(closed?.status, "open", JSON.stringify(items));
+  assert.equal(
+    closed?.text,
+    '"next Sunday" could mean Sun 4 Oct or Sun 11 Oct - a day you don\'t work',
+  );
+  await settle(pg, e.enquiryId);
+  await assert.rejects(send(pg, a.businessId, e.enquiryId), /Settle what they asked first/);
+  const { body, sent } = await settleAndSend(pg, a.businessId, e.enquiryId);
+  assert.equal(sent.ok, true, JSON.stringify(sent));
+  assert.match(body, /You mentioned next Sunday - I don't work Sundays\./);
+  assert.doesNotMatch(body, /which day works/);
+  assert.doesNotMatch(body, /weekends are 20% more/);
+  // When the two days differ in whether they can be worked, the owner is still asked.
+  const thu = await enquiry(
+    pg,
+    a.businessId,
+    "Hi, oven clean please, free next Thursday? Thanks, Al",
+    "Oven clean",
+  );
+  const asked = await ledger(pg, thu.enquiryId);
+  assert.ok(
+    asked.some((i) => i.id === "date_check:next thursday"),
+    JSON.stringify(asked),
+  );
+});
+
+test("OPS: reviewed_send has row level security on, like every other table", async (t) => {
+  const pg = await freshDb(t);
+  const r = await pg.query<{ relname: string; relrowsecurity: boolean }>(
+    "select c.relname, c.relrowsecurity from pg_class c join pg_namespace n on n.oid = c.relnamespace where n.nspname = 'public' and c.relkind = 'r' order by c.relname",
+  );
+  const sends = r.rows.find((x) => x.relname === "reviewed_send");
+  assert.equal(sends?.relrowsecurity, true);
+  assert.deepEqual(
+    r.rows.filter((x) => !x.relrowsecurity).map((x) => x.relname),
+    [],
+  );
+});
+
+// ---------------------------------------------------------------------------
+// Round 3 of the PR #80 review, through the send path
+// ---------------------------------------------------------------------------
+
+const JO_ALL = "Hi, can you quote an oven clean, a fridge clean and the inside windows? Thanks, Jo";
+
+async function preparedReply(
+  t: { after: (fn: () => Promise<void>) => void },
+  business: string,
+  message: string,
+  service: string,
+  over: RegExp,
+) {
+  const { pg, a } = await setup(t, business);
+  const e = await enquiry(pg, a.businessId, message, service);
+  const { body, sent } = await settleAndSend(pg, a.businessId, e.enquiryId, {}, [[over, "apply"]]);
+  assert.equal(sent.ok, true, JSON.stringify(sent));
+  const tryBody = (text: string) => sendAs(pg, a.businessId, e.enquiryId, text);
+  const add = (said: string) => body.replace("\n\nThanks,", `\n\n${said}\n\nThanks,`);
+  return { body, tryBody, add, pg, businessId: a.businessId, enquiryId: e.enquiryId };
+}
+
+test("R3-H1: a discount's amount never stands as another line's price, and neither does the subtotal", async (t) => {
+  const big = await preparedReply(t, BIG_OFF, JO_ALL, "Oven clean", /over \$600/);
+  const refused: string[] = [
+    big.body.replace("- Oven clean: $250", "- Oven clean: $300 (takes over 3 hours)"),
+    big.add("Oven clean is $300 as it is over the standard size."),
+    big.body.replace("- Oven clean: $250", "- Oven clean: $750 before the discount"),
+    big.body.replace("- Oven clean: $250", "- Oven clean subtotal: $750"),
+    big.body.replace("- Oven clean: $250", "- Oven clean: jobs over $600"),
+  ];
+  for (const text of refused) {
+    const res = await big.tryBody(text);
+    notSilent(res, `${text}\n${JSON.stringify(res)}`);
+  }
+  // Written as the amount off, about the whole quote, it stands.
+  for (const said of ["Less $300 for jobs over $600.", "That's $750 before the discount."]) {
+    const res = await big.tryBody(big.add(said));
+    assert.equal(res.ok, true, `${said}: ${JSON.stringify(res)}`);
+  }
+
+  // A percentage discount: -$58 on a $580 job.
+  const pct = await preparedReply(
+    t,
+    [...CLEANING.split("\n"), "Jobs over $500 get 10% off"].join("\n"),
+    MEL,
+    "End of lease clean 3 bedroom",
+    /over \$500/,
+  );
+  for (const text of [
+    pct.body.replace("- Oven clean: $60", "- Oven clean: $58, takes over an hour"),
+    pct.body.replace("- Oven clean: $60", "- Oven clean: $580 before discount"),
+  ]) {
+    const res = await pct.tryBody(text);
+    notSilent(res, `${text}\n${JSON.stringify(res)}`);
+  }
+
+  // The amount off is the fridge's price too: never the windows'.
+  const clash = await preparedReply(
+    t,
+    [
+      "Oven clean $250",
+      "Fridge clean $40",
+      "Inside windows $110",
+      "Jobs over $300 get 10% off",
+    ].join("\n"),
+    JO_ALL,
+    "Oven clean",
+    /over \$300/,
+  );
+  assert.match(clash.body, /: -\$40/);
+  const res = await clash.tryBody(
+    clash.body.replace("- Inside windows: $110", "- Inside windows: $40, a bit less this time"),
+  );
+  notSilent(res, JSON.stringify(res));
+});
+
+test("R3-H2: 'Say 400.' on a $450 quote is refused; 'say 15,' as an example still sends", async (t) => {
+  const big = await preparedReply(t, BIG_OFF, JO_ALL, "Oven clean", /over \$600/);
+  for (const said of [
+    "Say 400.",
+    "Say 400 then.",
+    "Ok, say 400 and we're done.",
+    "Since you asked, say 400 and we're good.",
+  ]) {
+    const res = await big.tryBody(big.add(said));
+    assert.equal(!res.ok && res.reason, "amount_mismatch", `${said}: ${JSON.stringify(res)}`);
+  }
+  const example = await big.tryBody(big.add("If there are more windows, say 15, I'll adjust."));
+  assert.equal(example.ok, true, JSON.stringify(example));
+});
+
+test("R3-M: honest explanations of a 'jobs over' discount send, in the owner's own words", async (t) => {
+  const big = await preparedReply(t, BIG_OFF, JO_ALL, "Oven clean", /over \$600/);
+  for (const said of [
+    "Because the job is over $600, you get $300 off.",
+    "Any job over $600 gets $300 off.",
+    "Any jobs over $600 get $300 off.",
+    "The oven, fridge and windows come to $750, less $300 for jobs over $600.",
+  ]) {
+    const res = await big.tryBody(big.add(said));
+    assert.equal(res.ok, true, `${said}: ${JSON.stringify(res)}`);
+  }
+  // The same figures about one line are still refused.
+  for (const said of ["The oven alone is over $600.", "The oven comes to $750."]) {
+    const res = await big.tryBody(big.add(said));
+    notSilent(res, `${said}: ${JSON.stringify(res)}`);
+  }
+});
+
+test("R3-LOW: 'Saturday, 17' in the reply is Saturday 17 October, never Saturday 3 October", async (t) => {
+  const { pg, a } = await setup(t);
+  const e = await enquiry(
+    pg,
+    a.businessId,
+    "Hi, oven clean please, Saturday, 17 if you can. Thanks, Al",
+    "Oven clean",
+  );
+  assert.equal((await row(pg, e.enquiryId)).date_label, "Sat 17 Oct");
+  const { body, sent } = await settleAndSend(pg, a.businessId, e.enquiryId, {}, [
+    [/surcharge|weekend/i, "apply"],
+  ]);
+  assert.equal(sent.ok, true, JSON.stringify(sent));
+  assert.match(body, /Saturday 17 October/);
+  assert.doesNotMatch(body, /3 October/);
+});
+
+// ---------------------------------------------------------------------------
+// Round 4 of the PR #80 review: the send gate diffs against the prepared reply
+// ---------------------------------------------------------------------------
+
+const PCT_BUSINESS = [...CLEANING.split("\n"), "Jobs over $500 get 10% off"].join("\n");
+const CLASH_BUSINESS = [
+  "Oven clean $250",
+  "Fridge clean $40",
+  "Inside windows $110",
+  "Jobs over $300 get 10% off",
+].join("\n");
+
+type Edit = [string, (body: string, add: (said: string) => string) => string];
+const swap =
+  (from: string, to: string): Edit[1] =>
+  (b) => {
+    assert.ok(b.includes(from), `the prepared reply has "${from}"`);
+    return b.replace(from, to);
+  };
+const say =
+  (said: string): Edit[1] =>
+  (_b, add) =>
+    add(said);
+
+const OVEN = "- Oven clean: $250";
+const WINDOWS = "- Inside windows: $250";
+const OFF = "- $300 off jobs over $600: -$300";
+
+/** Every R3 and R4 attack on the $450 quote (three $250 lines, $300 off jobs over $600). */
+const BIG_ATTACKS: Edit[] = [
+  // Round 3.
+  ["R3 oven over 3 hours", swap(OVEN, "- Oven clean: $300 (takes over 3 hours)")],
+  ["R3 oven over size", say("Oven clean is $300 as it is over the standard size.")],
+  ["R3 oven before discount", swap(OVEN, "- Oven clean: $750 before the discount")],
+  ["R3 oven subtotal", swap(OVEN, "- Oven clean subtotal: $750")],
+  ["R3 oven jobs over", swap(OVEN, "- Oven clean: jobs over $600")],
+  ["R3 oven at threshold", swap(OVEN, "- Oven clean: $600")],
+  ["R3 oven at subtotal", swap(OVEN, "- Oven clean: $750")],
+  ["R3 oven usually", say("Oven clean is usually $600.")],
+  ["R3 fridge alone", say("Fridge clean alone would be $750.")],
+  ["R3 oven at rate", say("Oven clean at $600.")],
+  // Round 4.
+  ["A1", say("Oven, fridge and windows are $250-$300 each.")],
+  ["A2", swap(OVEN, "- Oven clean: $250-$300")],
+  ["A3", say("The balcony comes to $750.")],
+  ["A4", say("- Carpet steam clean: $750 before the discount")],
+  ["A5", say("- Gutters: -$300")],
+  ["A6", say("The oven is $750 before the discount, and the fridge and windows are free.")],
+  ["A7", say("Oven clean comes to $750, fridge and windows included.")],
+  ["A8", swap(OVEN, "- Oven clean. Comes to $750 before the discount.")],
+  ["A9", swap(OVEN, "- Oven clean: see below. $750 subtotal")],
+  ["A10", swap(OVEN, "- Oven clean:\n  $750 before the discount")],
+  ["A11", swap(OVEN, "- Oven clean:\n-$300")],
+  ["A12", swap(OVEN, "- Oven clean! $300 off")],
+  ["A13", swap(OVEN, "- Oven clean: save $300")],
+  ["A14", swap(OVEN, "- Oven clean: $200 off")],
+  ["A15", say("You get $250 off.")],
+  ["A16", swap(OVEN, "- Oven clean: over $600")],
+  ["A17", say("Oven jobs over $600 are $600.")],
+  ["A18", say("The oven clean comes to $750.")],
+  ["A19", say("Oven and fridge come to $750.")],
+  ["A20", swap(OVEN, "- Oven clean: $ 300")],
+  ["A21", swap(OVEN, "- Oven clean: $300.00")],
+  ["A22", swap(OVEN, "- Oven clean: AUD 300")],
+  ["A23", swap(OVEN, "- Oven clean: 300 dollars")],
+  ["A24", swap(OVEN, "- Oven clean: A$300 off")],
+  ["A27", swap(OVEN, "- Oven clean: $250–$300")],
+  ["A28", swap(OVEN, "- Oven clean: $250−$300")],
+  ["A29", swap(WINDOWS, "- Inside windows: $300 discount")],
+  ["A30", say("Oven, fridge and windows: less $300 each.")],
+  ["A31", say("Each of the oven, fridge and windows is $300 off.")],
+  ["A32", swap(OFF, "- Oven clean: -$300")],
+  ["A33", say("A gutter clean would be $300 off too.")],
+  ["A35", say("- Balcony: $300 discount")],
+  ["A36", swap(OVEN, "- Oven clean; $750 before the discount")],
+  ["A37", swap(OVEN, "- Oven clean: $750 subtotal")],
+  ["A38", swap(OVEN, "- Ovens: $750 before the discount")],
+  ["A39", swap(OVEN, "- Ovn clean: $750 before the discount")],
+  ["A40", swap(OVEN, "- Oven clean: jobs over $600 get $600")],
+  ["A41", say("Since the job is over $600, the oven is $600.")],
+  ["A42", say("Say 300.")],
+  ["A43", swap(OVEN, "- Oven clean: $250 -$300")],
+  ["A44", swap(OVEN, "- Oven clean (fridge and windows on top): $750 subtotal")],
+  ["A45", say("Oven $300 off, and the fridge and windows are $250.")],
+  ["A46", say("Oven clean $300.\nOff peak rates apply.")],
+  ["A47", swap(OVEN, "- Oven clean: $300 -off peak")],
+];
+
+/** The collision quote: the 10% off works out to -$40, the fridge's own price. */
+const CLASH_ATTACKS: Edit[] = [
+  [
+    "R3 windows a bit less",
+    swap("- Inside windows: $110", "- Inside windows: $40, a bit less this time"),
+  ],
+  ["C1", swap("- Inside windows: $110", "- Inside windows: $40 off")],
+  ["C2", say("- Gutters: $40")],
+  ["C3", say("- Gutters: -$40")],
+  ["C4", say("Oven, fridge and windows: $40 off each.")],
+  ["C5", say("Save $40 on the windows.")],
+  ["C7", swap("- Inside windows: $110", "- Inside windows: $110-$40")],
+  ["C8", swap("- Inside windows: $110", "- Inside windows. $40 off.")],
+  ["C9", swap("- Inside windows: $110", "- Inside windows: $400 before discount")],
+  ["C10", say("The gutters come to $400.")],
+  ["C11", swap("- Inside windows: $110", "- Inside windows: $40, less if small")],
+  ["C12", swap("- Inside windows: $110", "- Inside windows: $40")],
+];
+
+/** The percent quote: 10% off a $580 job, -$58. */
+const PCT_ATTACKS: Edit[] = [
+  ["R3 oven takes over", swap("- Oven clean: $60", "- Oven clean: $58, takes over an hour")],
+  ["R3 oven before discount", swap("- Oven clean: $60", "- Oven clean: $580 before discount")],
+  ["P1", swap("- Oven clean: $60", "- Oven clean: $58 off")],
+  ["P2", say("- Gutters: -$58")],
+  ["P3", swap("- Oven clean: $60", "- Oven clean: $60-$58")],
+  ["P4", say("The carpets come to $580.")],
+];
+
+test("R4: every R3 and R4 attack is refused or listed for the owner, never sent silently", async (t) => {
+  for (const [business, message, service, over, attacks] of [
+    [BIG_OFF, JO_ALL, "Oven clean", /over \$600/, BIG_ATTACKS],
+    [CLASH_BUSINESS, JO_ALL, "Oven clean", /over \$300/, CLASH_ATTACKS],
+    [PCT_BUSINESS, MEL, "End of lease clean 3 bedroom", /over \$500/, PCT_ATTACKS],
+  ] as const) {
+    const quote = await preparedReply(t, business, message, service, over);
+    for (const [name, edit] of attacks) {
+      const res = await quote.tryBody(edit(quote.body, quote.add));
+      notSilent(res, name);
+    }
+  }
+});
+
+test("R4: honest ways to state the discount send, as the prepared reply or past a warning", async (t) => {
+  const big = await preparedReply(t, BIG_OFF, JO_ALL, "Oven clean", /over \$600/);
+  for (const said of [
+    // R4-H2.
+    "The discount is $300.",
+    "Discount: $300",
+    "$300 has been taken off.",
+    "That's a $300 saving.",
+    // R3-M.
+    "Because the job is over $600, you get $300 off.",
+    "Any job over $600 gets $300 off.",
+    "The oven, fridge and windows come to $750, less $300 for jobs over $600.",
+    // And the rest of the reviewer's honest list.
+    "You save $300.",
+    "All three come to $750.",
+    "Total before discount: $750",
+    "It's $450 after the $300 discount.",
+  ]) {
+    const res = await big.tryBody(big.add(said));
+    assert.equal(res.ok, true, `${said}: ${JSON.stringify(res)}`);
+    assert.ok(res.ok && res.warnings.includes(priceWarning(said)), said);
+  }
+  const clash = await preparedReply(t, CLASH_BUSINESS, JO_ALL, "Oven clean", /over \$300/);
+  for (const said of ["That's 10% off, which is $40.", "A 10% discount ($40) applies."]) {
+    const res = await clash.tryBody(clash.add(said));
+    assert.equal(res.ok, true, `${said}: ${JSON.stringify(res)}`);
+  }
+  const pct = await preparedReply(
+    t,
+    PCT_BUSINESS,
+    MEL,
+    "End of lease clean 3 bedroom",
+    /over \$500/,
+  );
+  for (const said of ["That's 10% off, $58.", "10% off is $58."]) {
+    const res = await pct.tryBody(pct.add(said));
+    assert.equal(res.ok, true, `${said}: ${JSON.stringify(res)}`);
+  }
+  // Sending one: "Send anyway" over exactly the list shown records it.
+  const said = "The discount is $300.";
+  const res = await big.tryBody(big.add(said));
+  assert.ok(res.ok);
+  if (!res.ok) return;
+  // The quote has its own discount: only the price is listed (round 5, item 6).
+  assert.deepEqual(res.warnings, [priceWarning(said)]);
+  const held = await confirm(big.pg, big.businessId, big.enquiryId, res.reviewedSendId);
+  assert.equal(!held.ok && held.reason, "warnings");
+  const sent = await confirm(big.pg, big.businessId, big.enquiryId, res.reviewedSendId, {
+    ack: warningsKey(res.warnings),
+  });
+  assert.equal(sent.ok, true, JSON.stringify(sent));
+});
+
+test("R4: an unedited app reply carries no warnings, in every state these trust tests cover", async (t) => {
+  const cases: [
+    string,
+    string,
+    string,
+    string,
+    [RegExp, string][],
+    Record<string, string>,
+    Date?,
+  ][] = [
+    ["cleaning, EOL + extras", CLEANING, MEL, "End of lease clean 3 bedroom", [], {}],
+    ["cleaning, two days", CLEANING, JASE, "End of lease clean 2 bedroom", [], {}],
+    ["jobs over, $ off", BIG_OFF, JO_ALL, "Oven clean", [[/over \$600/, "apply"]], {}],
+    [
+      "jobs over, % off",
+      PCT_BUSINESS,
+      MEL,
+      "End of lease clean 3 bedroom",
+      [[/over \$500/, "apply"]],
+      {},
+    ],
+    [
+      "jobs over, % off is a line's price",
+      CLASH_BUSINESS,
+      JO_ALL,
+      "Oven clean",
+      [[/over \$300/, "apply"]],
+      {},
+    ],
+    [
+      "hourly",
+      CLEANING,
+      "Hi, regular clean Monday 4 hours please. Thanks, Bo",
+      "Regular house clean",
+      [],
+      { "number of hours": "4" },
+    ],
+    [
+      "closed either-day",
+      CLEANING,
+      "Hi, oven clean please, next Sunday? Thanks, Al",
+      "Oven clean",
+      [],
+      {},
+      at("2026-10-03"),
+    ],
+    [
+      "closed stretch",
+      ["Oven clean $60", "Closed 29 December to 2 January"].join("\n"),
+      "Hi, oven clean please, any day Dec 28 to Jan 3 works. Thanks, Al",
+      "Oven clean",
+      [],
+      {},
+    ],
+    [
+      "weekday, comma, day",
+      CLEANING,
+      "Hi, oven clean please, Saturday, 17 if you can. Thanks, Al",
+      "Oven clean",
+      [[/surcharge|weekend/i, "apply"]],
+      {},
+    ],
+  ];
+  for (const [name, business, message, service, checks, answers, now] of cases) {
+    const { pg, a } = await setup(t, business);
+    const e = await enquiry(pg, a.businessId, message, service, now);
+    const { sent } = await settleAndSend(pg, a.businessId, e.enquiryId, answers, checks);
+    assert.equal(sent.ok, true, `${name}: ${JSON.stringify(sent)}`);
+    assert.deepEqual(sent.ok && sent.warnings, [], name);
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Round 5 of the PR #80 review
+// ---------------------------------------------------------------------------
+
+test("R5-H1: money read across a line break is refused or listed, never recorded silently", async (t) => {
+  const big = await preparedReply(t, BIG_OFF, JO_ALL, "Oven clean", /over \$600/);
+  // Stated totals whose cue is on the line above: refused, as on one line.
+  for (const said of [
+    "Call it\n400.",
+    "Make it\n500 for the lot.",
+    "Total:\n$900",
+    "Since you asked, let's say\n400 and we're good.",
+  ]) {
+    const res = await big.tryBody(big.add(said));
+    assert.equal(!res.ok && res.reason, "amount_mismatch", `${said}: ${JSON.stringify(res)}`);
+  }
+  // A figure split from its "$" by a new line is listed, and cannot be
+  // recorded until the owner acknowledges that list.
+  const split = await big.tryBody(big.body.replace("- Oven clean: $250", "- Oven clean: $\n750"));
+  assert.equal(split.ok, true, JSON.stringify(split));
+  if (!split.ok) return;
+  assert.ok(split.warnings.includes(priceWarning("- Oven clean: $ 750")), JSON.stringify(split));
+  const held = await confirm(big.pg, big.businessId, big.enquiryId, split.reviewedSendId);
+  assert.equal(!held.ok && held.reason, "warnings");
+});
+
+test("R5-H3: a price said for one thing or as a rate sends, listed; only the whole job's figure is a stated total", async (t) => {
+  const big = await preparedReply(t, BIG_OFF, JO_ALL, "Oven clean", /over \$600/);
+  for (const said of ["The oven clean costs $250.", "The price is $250 for the oven."]) {
+    const res = await big.tryBody(big.add(said));
+    assert.equal(res.ok, true, `${said}: ${JSON.stringify(res)}`);
+    assert.ok(res.ok && res.warnings.includes(priceWarning(said)), said);
+  }
+  const { pg, a } = await setup(t);
+  const e = await enquiry(
+    pg,
+    a.businessId,
+    "Hi, regular clean 3 hours this Friday plus the oven please. Thanks, Bo",
+    "Regular house clean",
+  );
+  const { body, sent } = await settleAndSend(pg, a.businessId, e.enquiryId, {
+    "number of hours": "3",
+    hours: "3",
+  });
+  assert.equal(sent.ok, true, JSON.stringify(sent));
+  const add = (said: string) => body.replace("\n\nThanks,", `\n\n${said}\n\nThanks,`);
+  for (const said of [
+    "It costs $55 an hour.",
+    "The price is $55 per hour, minimum 3 hours.",
+    "The oven costs $60.",
+    "It would be $55 an hour.",
+  ]) {
+    const res = await sendAs(pg, a.businessId, e.enquiryId, add(said));
+    assert.equal(res.ok, true, `${said}: ${JSON.stringify(res)}`);
+    assert.ok(res.ok && res.warnings.includes(priceWarning(said)), said);
+  }
+  // Said of the whole job with no line named, a figure that is not the quote is refused.
+  for (const said of [
+    "It would be $300.",
+    "That'll be $300.",
+    "The price is $300.",
+    "Total: $300",
+  ]) {
+    const res = await sendAs(pg, a.businessId, e.enquiryId, add(said));
+    assert.equal(!res.ok && res.reason, "amount_mismatch", said);
+  }
 });

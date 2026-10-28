@@ -4,6 +4,7 @@
 @import "./laser.css";
 @import "./auth.css";
 @import "./public-site.css";
+@import "./trade-threads.css";
 
 @theme {
   --font-sans: "Inter Variable", Inter, ui-sans-serif, system-ui, sans-serif;

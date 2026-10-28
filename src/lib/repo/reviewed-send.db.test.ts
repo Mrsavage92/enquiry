@@ -8,6 +8,7 @@ import { prepareReviewedSendInTransaction } from "./reviewed-send-core.ts";
 import { confirmReviewedSendInTransaction } from "./sent-reply-core.ts";
 import { declineEnquiryInTransaction } from "./close-enquiry-core.ts";
 import type { Channel } from "../../domain/types.ts";
+import { priceDetailWarning, priceWarning, warningsKey } from "../../domain/edit-warnings.ts";
 
 /**
  * CC1-04, CC1-05 and CC1-06 against a real database.
@@ -183,6 +184,7 @@ async function confirm(
   ids: { businessId: string; enquiryId: string },
   reviewedSendId: string,
   staleAttestation = false,
+  acknowledgedWarnings?: string,
 ) {
   return inTransaction(pg, (sql) =>
     confirmReviewedSendInTransaction(sql, {
@@ -191,6 +193,7 @@ async function confirm(
       businessId: ids.businessId,
       userId: USER,
       staleAttestation,
+      ...(acknowledgedWarnings ? { acknowledgedWarnings } : {}),
     }),
   );
 }
@@ -397,7 +400,13 @@ test("P02: a tone-only edit is retained exactly, with the structured amount unch
   const prepared = await prepare(pg, ids, edited);
   assert.equal(prepared.ok, true);
   if (!prepared.ok) return;
-  await confirm(pg, ids, prepared.reviewedSendId);
+  // Round 5 of the PR #80 review: words added on the same line as a prepared
+  // figure can change what it means, so the line is listed for the owner,
+  // and the send is recorded over that list.
+  assert.deepEqual(prepared.warnings, [
+    priceDetailWarning("Lovely to hear from you. That comes to $580."),
+  ]);
+  await confirm(pg, ids, prepared.reviewedSendId, false, warningsKey(prepared.warnings));
 
   const msg = await pg.query<{ body: string }>(
     "select body from message where enquiry_id = $1 and direction = 'outbound'",
@@ -678,9 +687,12 @@ test("a second real send writes version 2, not a second version 1", async () => 
   await confirm(pg, ids, first.reviewedSendId);
 
   // A revised quote at the same amount, reviewed afresh after the state moved.
+  // The owner's own "P.S. still $580." is listed for them to check (round 4 of
+  // the PR #80 review), so the send is recorded over that exact list.
   const second = await prepare(pg, ids, `${DRAFT}\n\nP.S. still $580.`);
   if (!second.ok) return;
-  await confirm(pg, ids, second.reviewedSendId, true);
+  assert.deepEqual(second.warnings, [priceWarning("P.S. still $580.")]);
+  await confirm(pg, ids, second.reviewedSendId, true, warningsKey(second.warnings));
 
   const rows = await pg.query<{ version: number }>(
     "select version from quote_version where enquiry_id = $1 order by version",

@@ -291,10 +291,19 @@ function readOverDiscount(line: string): RuleLineRead | null {
       refuse: "It doesn't say a job size above $0. Write it like: Jobs over $2000 get $100 off.",
     };
   }
-  if (m[2] && (percent <= 0 || percent >= 100)) {
+  // The bound the refusal names: 1% to 99%, never "0.5%" or "99.5%".
+  if (m[2] && (percent < 1 || percent > 99)) {
+    const takes =
+      percent <= 0
+        ? "takes nothing off"
+        : percent < 1
+          ? "is less than 1% off"
+          : percent >= 100
+            ? "takes the whole price off"
+            : "is more than 99% off";
     return {
       details: [],
-      refuse: `A discount of ${percent}% ${percent <= 0 ? "takes nothing off" : "takes the whole price off"}. Write a percentage between 1 and 99.`,
+      refuse: `A discount of ${percent}% ${takes}. Write a percentage between 1 and 99.`,
     };
   }
   if (m[3] && (amountOff <= 0 || amountOff >= over)) {

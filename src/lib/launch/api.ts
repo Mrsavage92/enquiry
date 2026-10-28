@@ -88,12 +88,23 @@ export const joinWaitlist = createServerFn({ method: "POST" })
         ${data.referrer}, ${data.landing_path}
       )
     `;
-      // Fire and forget: a signup must succeed whether or not the welcome
-      // email does, and this is inert until the mailbox is configured.
+      // A signup must succeed whether or not the welcome email does;
+      // welcomeNewSignup never throws, and the send itself is fire and forget.
       const { sendEmailInBackground } = await import("@/lib/email/send.server");
       const { waitlistWelcomeEmail } = await import("@/lib/email/waitlist-welcome");
       const { siteOrigin } = await import("@/lib/site/head");
-      sendEmailInBackground(waitlistWelcomeEmail(data.email, siteOrigin()));
+      const { unsubscribeLinks } = await import("./unsubscribe.server");
+      const { welcomeNewSignup } = await import("./welcome.server");
+      const { reportServerError } = await import("@/lib/server/alert");
+      await welcomeNewSignup(
+        { waitlistId: result.id, email: data.email, origin: siteOrigin() },
+        {
+          links: (id, origin) => unsubscribeLinks(id, origin, sql),
+          build: waitlistWelcomeEmail,
+          send: sendEmailInBackground,
+          report: (error) => reportServerError({ scope: "waitlistWelcome", error }),
+        },
+      );
       return { id: result.id, already: false as const };
     }),
   );

@@ -289,9 +289,11 @@ export function askedLedger(
               : c.either
                 ? `"${c.words}" could mean ${sweptLabel(c.either[0])} or ${sweptLabel(c.either[1])}: check which day they mean`
                 : `Enquiry could not read a date in: "${c.words}"`
-            : c.week
-              ? `Part of ${c.span} is in your closed dates`
-              : `A day they mention is ${reply.closed?.days.includes(new Date(`${c.iso}T00:00:00`).getDay()) ? "one you don't work" : "in your closed dates"}: ${sweptLabel(c.iso)}`,
+            : c.either
+              ? `"${c.span}" could mean ${sweptLabel(c.either[0])} or ${sweptLabel(c.either[1])} - ${reply.closed?.days.includes(new Date(`${c.iso}T00:00:00`).getDay()) ? "a day you don't work" : "both in your closed dates"}`
+              : c.week
+                ? `Part of ${c.span} is in your closed dates`
+                : `A day they mention is ${reply.closed?.days.includes(new Date(`${c.iso}T00:00:00`).getDay()) ? "one you don't work" : "in your closed dates"}: ${sweptLabel(c.iso)}`,
         status: answered ? "answered" : "open",
         ...(notAvailable ? { closed: true as const } : {}),
       });

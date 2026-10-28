@@ -2,8 +2,9 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { readWeekdayWord, sweepDates, readSweep } from "./date-sweep.ts";
 import { readEnquiryBasics } from "./enquiry-basics.ts";
-import { ownerEditWarnings, warningsKey } from "./edit-warnings.ts";
+import { ownerEditWarnings, priceWarning, warningsKey } from "./edit-warnings.ts";
 import { dollarMatches } from "./voice-detect.ts";
+import { amountAgrees } from "../lib/repo/reviewed-send-core.ts";
 import { readBusinessDetails } from "./business-details-read.ts";
 import { frequencyIn } from "./coverage.ts";
 import { frequencyWord } from "./rule-checks.ts";
@@ -243,4 +244,281 @@ test("ALSO: the keys' day is their own, and 'every second week' / 'twice a month
   assert.equal(frequencyIn("every second week for the garden"), "every second week");
   assert.equal(frequencyWord("every second week"), "fortnightly");
   assert.equal(frequencyIn("twice a month please"), "twice a month");
+});
+
+// ---------------------------------------------------------------------------
+// Round 2 of the PR #80 review
+// ---------------------------------------------------------------------------
+
+test("N4: a count after a weekday, or a bare number after a comma, is never its day of the month", () => {
+  const read = (msg: string) => {
+    const sweep = sweepDates(msg, WED);
+    const basics = readEnquiryBasics(msg, WED);
+    return {
+      days: sweep.days.map((d) => `${d.iso} ${d.span}`),
+      unread: sweep.unread,
+      job: basics.jobDate ? `${basics.jobDate.iso} ${basics.jobDate.span}` : "",
+    };
+  };
+  // Monday is ruled out ("If not"): nothing about it, and never "Monday, 3".
+  assert.deepEqual(read("Hi, is Saturday ok? If not Monday, 3 hour clean."), {
+    days: ["2026-10-03 Saturday"],
+    unread: [],
+    job: "2026-10-03 Saturday",
+  });
+  // "Monday 4 hours": the Monday, with four hours of work.
+  for (const msg of [
+    "regular clean Monday 4 hours please",
+    "Can you do Monday, 3 hours",
+    "Monday 3-hour clean please",
+    "Monday 2 bedroom unit",
+  ]) {
+    assert.deepEqual(
+      read(msg),
+      { days: ["2026-10-05 Monday"], unread: [], job: "2026-10-05 Monday" },
+      msg,
+    );
+  }
+  // Still a day of the month: a number of its own, or an ordinal after a comma.
+  assert.deepEqual(read("Monday 5th please").days, ["2026-10-05 Monday 5th"]);
+  assert.deepEqual(read("Monday the 5th please").days, ["2026-10-05 Monday the 5th"]);
+  assert.deepEqual(read("Monday, the 5th please").days, ["2026-10-05 Monday, the 5th"]);
+  assert.deepEqual(read("Monday 5 works").days, ["2026-10-05 Monday 5"]);
+  assert.deepEqual(read("next Thursday, 8th please").days, ["2026-10-08 Thursday, 8th"]);
+});
+
+test("N6: a month-first stretch is every day of it, like the day-first one", () => {
+  const days = (s: string) => sweepDates(s, WED).days.map((d) => [d.iso, d.to ?? ""]);
+  const across = [["2026-12-28", "2027-01-03"]];
+  assert.deepEqual(days("any day 28 December to 3 January works"), across);
+  assert.deepEqual(days("any day Dec 28 to Jan 3 works"), across);
+  assert.deepEqual(days("December 28th through January 3rd"), across);
+  assert.deepEqual(days("Dec 28 - Jan 3"), across);
+  // Inside one month.
+  assert.deepEqual(days("any day Dec 20 to 28"), [["2026-12-20", "2026-12-28"]]);
+  assert.deepEqual(days("Dec 20-28 please"), [["2026-12-20", "2026-12-28"]]);
+  assert.deepEqual(days("between Dec 20 and 28"), [["2026-12-20", "2026-12-28"]]);
+  // "and" without "between" is two days, never a stretch.
+  assert.ok(!days("Dec 20 and 28").some(([, to]) => to));
+});
+
+test("REG: a bare number with no $ and no money words is never money", () => {
+  const read = (s: string) => dollarMatches(s).map((m) => m.amount);
+  assert.deepEqual(read("If there are more windows, say 15, I'll adjust."), []);
+  assert.deepEqual(read("We do all sizes, say 12, 15 or 20 windows."), []);
+  assert.deepEqual(read("say 20 windows or so"), []);
+  // Said as a price, it is still money.
+  assert.deepEqual(read("Say 550 for the lot."), [550]);
+  assert.deepEqual(read("Let's say five hundred and fifty."), [550]);
+  assert.deepEqual(read("Call it 550."), [550]);
+});
+
+test("LOW: a 'jobs over' percentage under 1% or over 99% is refused, as the refusal says", () => {
+  for (const [line, why] of [
+    ["Jobs over $500 get 0.5% off", "A discount of 0.5% is less than 1% off."],
+    ["Jobs over $500 get 99.5% off", "A discount of 99.5% is more than 99% off."],
+  ] as const) {
+    const read = readBusinessDetails(line, WED);
+    assert.deepEqual(read.details, [], line);
+    assert.equal(read.unread.length, 1, line);
+    assert.equal(read.unread[0]?.reason, `${why} Write a percentage between 1 and 99.`, line);
+  }
+  // The ends of the bound stand.
+  assert.equal(readBusinessDetails("Jobs over $500 get 1% off", WED).details.length, 1);
+  assert.equal(readBusinessDetails("Jobs over $500 get 99% off", WED).details.length, 1);
+});
+
+test("R3-H2: only the for-example 'say' is a count: every other 'say 400' is money", () => {
+  const read = (s: string) => dollarMatches(s).map((m) => m.amount);
+  for (const said of [
+    "Say 400.",
+    "Say 400 then.",
+    "Ok, say 400 and we're done.",
+    "Since you asked, say 400 and we're good.",
+  ]) {
+    assert.deepEqual(read(said), [400], said);
+  }
+  assert.deepEqual(read("If there are more windows, say 15, I'll adjust."), []);
+  assert.deepEqual(read("say 15 windows or so"), []);
+});
+
+test("R3-LOW: 'Saturday, 17' is the 17th when the 17th is a Saturday, and asked about when it is not", () => {
+  const sat = sweepDates("Hi, Saturday, 17 if you can", WED);
+  assert.deepEqual(
+    sat.days.map((d) => `${d.iso} ${d.span}`),
+    ["2026-10-17 Saturday, 17"],
+  );
+  assert.equal(readEnquiryBasics("Hi, Saturday, 17 if you can", WED).jobDate?.iso, "2026-10-17");
+  // 3 October is a Saturday: "Monday, 3" is never moved to another month, it is asked.
+  const mon = sweepDates("Monday, 3 please", WED);
+  assert.deepEqual(mon.days, []);
+  assert.deepEqual(mon.unread, ["Monday, 3"]);
+  assert.equal(readEnquiryBasics("Monday, 3 please", WED).jobDate, undefined);
+  // A count after the comma is still no day at all.
+  assert.deepEqual(
+    sweepDates("Can you do Monday, 3 hours", WED).days.map((d) => d.iso),
+    ["2026-10-05"],
+  );
+});
+
+test("R5-H2: only a whole answer sentence, word for word and figure for figure, passes unlisted", () => {
+  const draft = "Hi there,\n\nFor the oven clean, that comes to $60.\n\nThanks,\nSam";
+  const answers = ["Callouts after 5pm are $80."];
+  const add = (said: string) => draft.replace("\n\nThanks,", `\n\n${said}\n\nThanks,`);
+  assert.deepEqual(ownerEditWarnings(add("Callouts after 5pm are $80."), draft, { answers }), []);
+  for (const said of [
+    "Callouts after 5pm are $8",
+    "are $8",
+    "$80",
+    "Callouts after 5pm are $800.",
+  ]) {
+    assert.ok(
+      ownerEditWarnings(add(said), draft, { answers }).includes(priceWarning(said)),
+      `${said} -> ${JSON.stringify(ownerEditWarnings(add(said), draft, { answers }))}`,
+    );
+  }
+});
+
+test("R5-4: a changed sign, symbol or non-ASCII word in a prepared money line is the owner's edit", () => {
+  const draft = [
+    "Hi there,",
+    "",
+    "For the oven clean, the fridge clean and the inside windows, that comes to $450:",
+    "- Oven clean: $250",
+    "- Fridge clean: $250",
+    "- Inside windows: $250",
+    "- $300 off jobs over $600: -$300",
+    "",
+    "Thanks,",
+    "Sam",
+  ].join("\n");
+  const off = "- $300 off jobs over $600: -$300";
+  const header = "For the oven clean, the fridge clean and the inside windows, that comes to $450:";
+  for (const [from, to] of [
+    [off, "- $300 off jobs over $600: +$300"],
+    [off, "- $300 off jobs over $600: $300"],
+    ["- Oven clean: $250", "- Oven clean: $250 еасһ"],
+    [header, header.replace("$450:", "$450+:")],
+    [header, header.replace("$450:", "~$450:")],
+  ] as const) {
+    const body = draft.replace(from, to);
+    assert.ok(
+      ownerEditWarnings(body, draft).includes(priceWarning(to)),
+      `${to} -> ${JSON.stringify(ownerEditWarnings(body, draft))}`,
+    );
+  }
+  // Case and spacing alone are not an edit.
+  assert.deepEqual(
+    ownerEditWarnings(draft.replace("- Oven clean: $250", "- OVEN  CLEAN: $250"), draft),
+    [],
+  );
+});
+
+test("R5-5: prepared money kept word for word but given a new meaning is listed", () => {
+  const draft = [
+    "Hi there,",
+    "",
+    "For the oven clean, the fridge clean and the inside windows, that comes to $450:",
+    "- Oven clean: $250",
+    "- Fridge clean: $250",
+    "- Inside windows: $250",
+    "- $300 off jobs over $600: -$300",
+    "",
+    "Just let me know if you'd like to go ahead.",
+    "",
+    "Thanks,",
+    "Sam",
+  ].join("\n");
+  const oven = "- Oven clean: $250";
+  const listed = (body: string) =>
+    ownerEditWarnings(body, draft).filter((w) => w.startsWith("You changed the price details:"));
+  for (const [name, body] of [
+    ["label detached", draft.replace(oven, "- Whole house. Oven clean: $250")],
+    ["unit on the next line", draft.replace(oven, `${oven}\n  per hour`)],
+    ["Plus GST.", draft.replace("\n\nJust let", "\n\nPlus GST.\n\nJust let")],
+    [
+      "moved under a new heading",
+      draft
+        .replace(`${oven}\n`, "")
+        .replace("\n\nJust let", `\n\nOptional extras, not in the total:\n${oven}\n\nJust let`),
+    ],
+    ["label on the line above", draft.replace(oven, `- Whole house, including\n${oven}`)],
+    ["duplicate bullet", draft.replace(oven, `${oven}\n${oven}`)],
+  ] as const) {
+    assert.ok(
+      listed(body).length > 0,
+      `${name}: ${JSON.stringify(ownerEditWarnings(body, draft))}`,
+    );
+  }
+  // The prepared reply as it stands, or a note away from the figures, lists nothing.
+  assert.deepEqual(ownerEditWarnings(draft, draft), []);
+  assert.deepEqual(
+    listed(draft.replace("Just let me know if you'd like to go ahead.", "Thanks heaps, Jo!")),
+    [],
+  );
+});
+
+test("R5-6: 'a discount the quote does not include' is never said of the quote's own discount, or of a listed price", () => {
+  const draft = "Hi there,\n\nFor the oven clean, that comes to $450.\n\nThanks,\nSam";
+  const add = (said: string) => draft.replace("\n\nThanks,", `\n\n${said}\n\nThanks,`);
+  const wrong = /a discount the quote does not include/;
+  for (const said of [
+    "The discount is $300.",
+    "Discount: $300",
+    "Without the discount it would be $750.",
+  ]) {
+    const warned = ownerEditWarnings(add(said), draft);
+    assert.ok(warned.includes(priceWarning(said)), said);
+    assert.ok(!warned.some((w) => wrong.test(w)), `${said} -> ${JSON.stringify(warned)}`);
+  }
+  // The quote has a discount line: the word alone is not news either.
+  assert.deepEqual(
+    ownerEditWarnings(add("Your discount is applied."), draft, { hasDiscount: true }),
+    [],
+  );
+  // No discount on the quote and no figure: still listed.
+  assert.ok(ownerEditWarnings(add("Mates rates for you."), draft).some((w) => wrong.test(w)));
+});
+
+test("R5-7: money in fullwidth, small or other-script digits, or split by an invisible character, is read", () => {
+  const read = (s: string) => dollarMatches(s).map((m) => [m.amount, m.raw]);
+  assert.deepEqual(read("Total: ＄400"), [[400, "＄400"]]);
+  assert.deepEqual(read("Total: ﹩400"), [[400, "﹩400"]]);
+  assert.deepEqual(read("- Oven clean: $７５０"), [[750, "$７５０"]]);
+  assert.deepEqual(read("- Oven clean: $٧٥٠"), [[750, "$٧٥٠"]]);
+  for (const mark of ["​", "‌", "‍", "⁠", "﻿", "­"]) {
+    assert.deepEqual(
+      dollarMatches(`- Oven clean: $${mark}750`).map((m) => m.amount),
+      [750],
+      `U+${mark.codePointAt(0)!.toString(16)}`,
+    );
+  }
+  assert.deepEqual(read("- Oven clean: $7​50"), [[750, "$7​50"]]);
+  // Through the send check: a stated total in fullwidth is refused, a line in it listed.
+  const draft = "Hi there,\n\nFor the oven clean, that comes to $450.\n\nThanks,\nSam";
+  const price = { kind: "EXACT" as const, amountMinor: 45_000, currency: "AUD" as const };
+  const add = (said: string) => draft.replace("\n\nThanks,", `\n\n${said}\n\nThanks,`);
+  const quote = { draft, lines: [{ label: "Oven clean", amountMinor: 45_000 }] };
+  assert.equal(amountAgrees(add("Total: ＄400"), price, [], [], quote), false);
+  const fullwidth = add("The fridge is $７５０.");
+  assert.equal(amountAgrees(fullwidth, price, [], [], quote), true);
+  assert.ok(ownerEditWarnings(fullwidth, draft).includes(priceWarning("The fridge is $７５０.")));
+});
+
+test("R5-H3: 'Each one costs $250.' is a price per thing, never a stated total", () => {
+  const draft =
+    "Hi there,\n\nFor the oven, fridge and windows, that comes to $450.\n\nThanks,\nSam";
+  const price = { kind: "EXACT" as const, amountMinor: 45_000, currency: "AUD" as const };
+  const lines = [
+    { label: "Oven clean", amountMinor: 25_000 },
+    { label: "Fridge clean", amountMinor: 25_000 },
+    { label: "Inside windows", amountMinor: 25_000 },
+    { label: "$300 off jobs over $600", amountMinor: -30_000 },
+  ];
+  const add = (said: string) => draft.replace("\n\nThanks,", `\n\n${said}\n\nThanks,`);
+  for (const said of ["Each one costs $250.", "It's $250 per item.", "That'll be $250 each."]) {
+    assert.equal(amountAgrees(add(said), price, [], [], { draft, lines }), true, said);
+    assert.ok(ownerEditWarnings(add(said), draft).includes(priceWarning(said)), said);
+  }
+  assert.equal(amountAgrees(add("That'll be $250."), price, [], [], { draft, lines }), false);
 });

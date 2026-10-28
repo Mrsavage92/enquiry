@@ -18,6 +18,10 @@ Disallow: /signup
 Disallow: /q/
 Disallow: /book/
 
+# Unsubscribe links carry a private token; never index them.
+Disallow: /unsubscribe
+Disallow: /api/
+
 # Unlinked render target for public/og.jpg - not a real page.
 Disallow: /og-card
 
