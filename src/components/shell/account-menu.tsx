@@ -1,6 +1,15 @@
 import * as Dropdown from "@radix-ui/react-dropdown-menu";
 import { Link } from "@tanstack/react-router";
-import { ChevronDown, FlaskConical, Pause, RotateCcw, Settings, UserRound } from "lucide-react";
+import {
+  ChevronDown,
+  FlaskConical,
+  LogOut,
+  Pause,
+  RotateCcw,
+  Settings,
+  UserRound,
+} from "lucide-react";
+import { useCanSignOut, useSignOut } from "./use-sign-out";
 import { Button } from "@/components/ui/button";
 import { BUSINESSES } from "@/fixtures";
 import { toast } from "sonner";
@@ -17,6 +26,8 @@ export function AccountMenu({ compact, inverse }: { compact?: boolean; inverse?:
   const reset = usePrototype((s) => s.reset);
   const startSetup = usePrototype((s) => s.startSetup);
   const demoMode = usePrototype((s) => s.demoMode);
+  const canSignOut = useCanSignOut();
+  const signingOut = useSignOut();
   // Live mode shows the tenant's own businesses. Filtering to the fixture
   // "glow" id meant a real workspace vanished from its own selector the
   // moment it had a real uuid.
@@ -131,6 +142,19 @@ export function AccountMenu({ compact, inverse }: { compact?: boolean; inverse?:
             <Pause className="size-4" aria-hidden />
             {paused ? "Resume Enquiry" : "Pause Enquiry"}
           </Dropdown.Item>
+          {canSignOut ? (
+            <>
+              <Dropdown.Separator className="my-1.5 h-px bg-line" />
+              <Dropdown.Item
+                className="flex items-center gap-2 rounded-md px-2 py-2 text-sm outline-none data-[highlighted]:bg-paper-2 data-[highlighted]:shadow-[var(--shadow-mark-focus)]"
+                disabled={signingOut.busy}
+                onSelect={() => signingOut.run()}
+              >
+                <LogOut className="size-4" aria-hidden />
+                {signingOut.busy ? "Signing out..." : "Sign out"}
+              </Dropdown.Item>
+            </>
+          ) : null}
           {/*
             Demo/dev only. "Reset prototype" replaces the workspace arrays with
             F01-F20 sample data - offering that to a signed-in business is

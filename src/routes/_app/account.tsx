@@ -3,6 +3,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { usePrototype } from "@/store/prototype-store";
 import { Building2, CreditCard, Settings2, CircleHelp } from "lucide-react";
 import { WorkspaceDestination } from "@/components/ui/workspace-destination";
+import { SignOutPanel } from "@/components/shell/sign-out";
 
 export const Route = createFileRoute("/_app/account")({
   component: AccountPage,
@@ -48,6 +49,7 @@ function AccountPage() {
             description="Answers and workspace support"
           />
         </div>
+        <SignOutPanel />
       </div>
     </div>
   );
