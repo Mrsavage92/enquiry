@@ -54,6 +54,7 @@ import { activeRules } from "@/domain/decide";
 import { workingHoursChange } from "@/domain/workspace-prefs";
 import { decidingPhrase } from "@/domain/price-compiler";
 import { useFirstBetaActions } from "@/lib/workspace/live-mutations";
+import { ownerError } from "@/lib/owner-error";
 
 const SECTIONS = [
   { id: "all", label: "Overview" },
@@ -157,7 +158,7 @@ export function BrainScreen() {
       .then((h) => live && setHoursNow({ businessId, ...h }))
       .catch((err: unknown) => {
         if (!live) return;
-        setSaveError(err instanceof Error ? err.message : "Could not read your current hours.");
+        setSaveError(ownerError(err));
       });
     return () => {
       live = false;
@@ -642,11 +643,7 @@ export function BrainScreen() {
                       setHoursSaved(null);
                       toast.success(`Undone. ${undo.summary}.`);
                     })
-                    .catch((err: unknown) =>
-                      setHoursError(
-                        err instanceof Error ? err.message : "Could not undo the hours change.",
-                      ),
-                    )
+                    .catch((err: unknown) => setHoursError(ownerError(err)))
                     .finally(() => setUndoingHours(false));
                 }}
               >
@@ -984,9 +981,7 @@ export function BrainScreen() {
                               : "Saved. Enquiry can price these now.",
                         );
                       } catch (err) {
-                        setSaveError(
-                          err instanceof Error ? err.message : "Could not save those prices.",
-                        );
+                        setSaveError(ownerError(err));
                       } finally {
                         setSavingPrices(false);
                       }

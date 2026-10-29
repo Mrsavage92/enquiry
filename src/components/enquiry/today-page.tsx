@@ -49,6 +49,7 @@ import { toast } from "sonner";
 import { PracticeBadge } from "./practice-note";
 import { useDeletePractice } from "@/lib/workspace/use-delete-practice";
 import { usePrefsSaver } from "@/lib/workspace/owner-sync";
+import { ownerError } from "@/lib/owner-error";
 
 function EnquiryRow({ enquiry, prefs }: { enquiry: Enquiry; prefs: WorkspacePrefs }) {
   return (
@@ -210,7 +211,7 @@ function FirstRun({ practice }: { practice?: Enquiry }) {
       const id = await actions.createPractice(business.id);
       void navigate({ to: "/enquiries/$enquiryId", params: { enquiryId: id } });
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Could not open a practice enquiry.");
+      toast.error(ownerError(err));
     } finally {
       setTrying(false);
     }

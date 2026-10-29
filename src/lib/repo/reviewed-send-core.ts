@@ -19,6 +19,7 @@ import { isClosed, lockEnquiry } from "./decision-apply.ts";
 import { ownerEditWarnings, replyMoney, sentencesOf } from "../../domain/edit-warnings.ts";
 import { activeDetails, closedTimesOf } from "../../domain/business-detail.ts";
 import type { ClosedTimes } from "../../domain/compose-reply.ts";
+import { keepsScope, type CoverageFold } from "../../domain/coverage-fold.ts";
 
 /**
  * Preparing a send for review, as pure SQL logic.
@@ -77,6 +78,16 @@ export type PrepareReviewResult =
        * that the app cannot vouch for. Sending anyway is one tap, recorded.
        */
       warnings: string[];
+      /**
+       * Whether the text itself names the decision's amount (both ends of a
+       * range). The send line shows the amount only when it does, and says
+       * "No price in this reply" otherwise (doc 50 S2).
+       */
+      namesAmount: boolean;
+      /** The range the artefact was frozen with, for an estimate. */
+      rangeMinor: { min: number; max: number } | null;
+      /** Recording this reply also confirms what the price covers (doc 51 decision 1). */
+      confirmsCoverage: boolean;
     }
   | {
       ok: false;
@@ -97,6 +108,7 @@ export type PrepareReviewResult =
         | "practice"
         | "unconfirmed_reading"
         | "coverage_unconfirmed"
+        | "scope_removed"
         | "amount_unreadable";
       message: string;
       /**
@@ -515,8 +527,33 @@ type SnapshotRow = {
   draft_body: string | null;
   evaluators: EvaluatorResult[] | null;
   missing: { factField?: string; inferred?: unknown }[] | null;
+  fold: CoverageFold | null;
+  coverage_key: string | null;
   engine_version: string;
 };
+
+/** The message for a folded reply that no longer says what the price covers. */
+export const SCOPE_REMOVED =
+  "Keep the lines that say what the price covers and what it leaves out. The customer reads those, so a reply without them can't be copied.";
+
+/**
+ * Whether a text names the decision's own amount: the total, or both ends of a
+ * range, outside the owner's own answer sentences.
+ */
+export function namesAmount(
+  body: string,
+  price: DecisionPrice | null,
+  ownerTexts: readonly string[] = [],
+): boolean {
+  if (!price) return false;
+  const stated = new Set(
+    moneyOutsideAnswers(body, ownerTexts)
+      .filter((m) => !m.foreign)
+      .map((m) => Math.round(m.amount * 100)),
+  );
+  const required = price.kind === "EXACT" ? [price.amountMinor] : [price.minMinor, price.maxMinor];
+  return required.every((r) => stated.has(r));
+}
 
 /**
  * Freeze what the owner is about to review. Assumes it is ALREADY inside a
@@ -561,6 +598,8 @@ export async function prepareReviewedSendInTransaction(
       decision_snapshot -> 'draft' ->> 'body' as draft_body,
       decision_snapshot -> 'evaluators' as evaluators,
       decision_snapshot -> 'missing' as missing,
+      decision_snapshot -> 'fold' as fold,
+      decision_snapshot -> 'coverage' ->> 'key' as coverage_key,
       engine_version
     from enquiry where id = ${input.enquiryId}
   `;
@@ -589,7 +628,16 @@ export async function prepareReviewedSendInTransaction(
     ...(Array.isArray(enq.owner_texts) ? enq.owner_texts : []),
     ...savedAnswerSentences(input.body, business.saved),
   ];
-  if (moneyFigures(input.body, ownerTexts).length > 0) {
+  // The coverage tap folded into Copy: only while this exact coverage is still
+  // unconfirmed, and only for a reply that still says everything the scope
+  // lines say. Recording it is what confirms the coverage (sent-reply-core).
+  const folding =
+    enq.fold && enq.fold.key === enq.coverage_key
+      ? (await coverageNow(sql, input.enquiryId)) === "unconfirmed"
+        ? enq.fold
+        : null
+      : null;
+  if (!folding && moneyFigures(input.body, ownerTexts).length > 0) {
     const coverage = await coverageNow(sql, input.enquiryId);
     if (coverage === "unconfirmed") {
       return {
@@ -601,7 +649,7 @@ export async function prepareReviewedSendInTransaction(
     }
   }
 
-  const action = enq.action ?? "";
+  const action = folding ? "SEND_QUOTE" : (enq.action ?? "");
   if (!SENDABLE.has(action)) {
     return {
       ok: false,
@@ -646,11 +694,13 @@ export async function prepareReviewedSendInTransaction(
     }
   }
 
-  const price = enq.price ?? null;
-  // Money in the prepared reply's own sentences is the app's; money the owner
-  // wrote is listed for them to check (see `checkMoney`).
+  const price = folding ? folding.price : (enq.price ?? null);
+  // What the owner was shown as the prepared reply: the folded one names the
+  // total its confirmation will authorise. Money in its own sentences is the
+  // app's; money the owner wrote is listed for them to check (see `checkMoney`).
+  const prepared = folding ? folding.body : (enq.draft_body ?? "");
   const quote: QuoteContext = {
-    draft: enq.draft_body ?? "",
+    draft: prepared,
     lines:
       price?.kind === "EXACT" && price.lines?.length
         ? price.lines
@@ -658,7 +708,7 @@ export async function prepareReviewedSendInTransaction(
           ? [{ label: enq.service_label ?? "", amountMinor: price.amountMinor }]
           : [],
   };
-  const implied = enq.implied_amounts ?? [];
+  const implied = folding ? folding.impliedAmountsMinor : (enq.implied_amounts ?? []);
   if (!amountAgrees(input.body, price, implied, ownerTexts, quote)) {
     return {
       ok: false,
@@ -666,6 +716,11 @@ export async function prepareReviewedSendInTransaction(
       message: mismatchMessage(input.body, price, implied, ownerTexts, quote, business.saved),
       amounts: mismatchAmounts(input.body, price, implied, ownerTexts, quote),
     };
+  }
+  // A changed total is said as that, with its fix; a reply that dropped what
+  // the price covers is refused as that.
+  if (folding && !keepsScope(input.body, folding.scope)) {
+    return { ok: false, reason: "scope_removed", message: SCOPE_REMOVED };
   }
 
   const body = normalizeBody(input.body);
@@ -689,11 +744,15 @@ export async function prepareReviewedSendInTransaction(
     decision_revision: string | number;
     amount_minor: string | number | null;
     currency: string | null;
+    range_min_minor: string | number | null;
+    range_max_minor: string | number | null;
+    coverage_key: string | null;
   }>`
     insert into reviewed_send
       (enquiry_id, business_id, reviewed_by, decision_revision, action, channel,
        recipient, body, body_hash, price_kind, amount_minor, range_min_minor,
-       range_max_minor, currency, service_label, reason, evaluators, engine_version, draft_body)
+       range_max_minor, currency, service_label, reason, evaluators, engine_version, draft_body,
+       coverage_key)
     values (
       ${input.enquiryId}, ${input.businessId}, ${input.userId}, ${locked.decisionRevision},
       ${action}, ${input.channel}, ${recipient}, ${body}, ${hash},
@@ -704,7 +763,7 @@ export async function prepareReviewedSendInTransaction(
       ${price?.currency ?? null},
       ${enq.service_label ?? ""}, ${enq.reason ?? ""},
       ${enq.evaluators ? JSON.stringify(enq.evaluators) : null}::jsonb,
-      ${enq.engine_version ?? "0"}, ${enq.draft_body ?? ""}
+      ${enq.engine_version ?? "0"}, ${prepared}, ${folding?.key ?? null}
     )
     on conflict (enquiry_id, body_hash)
       do update set
@@ -722,8 +781,10 @@ export async function prepareReviewedSendInTransaction(
         reason = case when reviewed_send.consumed_at is null then excluded.reason else reviewed_send.reason end,
         evaluators = case when reviewed_send.consumed_at is null then excluded.evaluators else reviewed_send.evaluators end,
         engine_version = case when reviewed_send.consumed_at is null then excluded.engine_version else reviewed_send.engine_version end,
-        draft_body = case when reviewed_send.consumed_at is null then excluded.draft_body else reviewed_send.draft_body end
-    returning id, consumed_at, decision_revision, amount_minor, currency
+        draft_body = case when reviewed_send.consumed_at is null then excluded.draft_body else reviewed_send.draft_body end,
+        coverage_key = case when reviewed_send.consumed_at is null then excluded.coverage_key else reviewed_send.coverage_key end
+    returning id, consumed_at, decision_revision, amount_minor, currency, range_min_minor,
+      range_max_minor, coverage_key
   `;
   if (!row) throw new Error("Could not prepare that send for review.");
 
@@ -743,12 +804,18 @@ export async function prepareReviewedSendInTransaction(
     amountMinor: row.amount_minor === null ? null : Number(row.amount_minor),
     currency: row.currency,
     alreadyConfirmed: Boolean(row.consumed_at),
-    warnings: ownerEditWarnings(body, enq.draft_body ?? "", {
+    warnings: ownerEditWarnings(body, prepared, {
       closed: business.closed,
       answers: ownerTexts,
       hasDiscount: quote.lines.some((l) => l.amountMinor < 0),
       ...(input.now ? { now: input.now } : {}),
     }),
+    namesAmount: namesAmount(body, price, ownerTexts),
+    rangeMinor:
+      row.range_min_minor === null || row.range_max_minor === null
+        ? null
+        : { min: Number(row.range_min_minor), max: Number(row.range_max_minor) },
+    confirmsCoverage: Boolean(row.coverage_key) && !row.consumed_at,
   };
 }
 

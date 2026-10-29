@@ -467,6 +467,12 @@ export type DecisionSnapshot = {
    * facts. `price` above is only set once it is confirmed.
    */
   coverage?: import("./coverage.ts").Coverage;
+  /**
+   * The coverage tap folded into Copy: set only while the coverage above is
+   * unconfirmed and the app is sure what the price covers. Carries the reply
+   * as it reads once confirmed; recording that reply confirms the coverage.
+   */
+  fold?: import("./coverage-fold.ts").CoverageFold;
   /** A "do you do X?" the owner has not answered; nothing is ready until they do. */
   questionPending?: import("./decide.ts").QuestionPending;
   /**
@@ -544,6 +550,11 @@ export type Enquiry = {
    * the price covers) names it, so it can never land on a decision that moved.
    */
   decisionRevision?: number;
+  /**
+   * The owner copied this reviewed text and has not said whether they sent it
+   * (doc 50 7.5). Asked once on return; "Not yet" clears it.
+   */
+  copied?: { reviewedSendId: string; at: string; body: string };
 };
 
 export type BrainChangePreview = {

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { toast } from "sonner";
+import { useDone } from "./done-notice";
 import { Button } from "@/components/ui/button";
 import { useFirstBetaActions } from "@/lib/workspace/live-mutations";
 import { formatMinorAud } from "@/domain/money-format";
@@ -15,6 +15,7 @@ import type { LineChoice } from "@/domain/line-choices";
 import type { RuleChoice } from "@/domain/rule-checks";
 import { AskedList } from "./asked-list";
 import { checkStep, openAskedItems } from "./card-cues";
+import { ownerError } from "@/lib/owner-error";
 
 /** What "That's everything" came back with, for the card around it. */
 export type CoverageOutcome = {
@@ -42,6 +43,7 @@ export function CoverageCheck({
 }) {
   const coverage = enquiry.decision.coverage;
   const actions = useFirstBetaActions();
+  const say = useDone();
   const [more, setMore] = useState(false);
   const [saving, setSaving] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -77,11 +79,10 @@ export function CoverageCheck({
     setError(null);
     try {
       await job();
-      toast.dismiss();
-      toast.success(done);
+      say(done);
       return true;
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not save that. Try again.");
+      setError(ownerError(err));
       return false;
     } finally {
       setSaving(null);
@@ -98,17 +99,16 @@ export function CoverageCheck({
         enquiry.decisionRevision ?? -1,
       );
       if (!res.ok) throw new Error(res.message);
-      toast.dismiss();
       // Saved, but something moved underneath: the card says so and the
       // enquiry (already re-read) is looked at again, never a false "done".
       if (res.reason === "recheck") {
         onConfirmed?.({ recheck: true, editKept: res.editKept?.changes, revision: res.revision });
         return;
       }
-      toast.success("Confirmed. The reply now says exactly what the price covers.");
+      say("Confirmed. The reply now says exactly what the price covers.");
       onConfirmed?.({ editKept: res.editKept?.changes, revision: res.revision });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not save that. Try again.");
+      setError(ownerError(err));
     } finally {
       setSaving(null);
     }
@@ -246,6 +246,7 @@ export function CoverageCheck({
                     <span className="min-w-0 flex-1 text-ink">{describeRule(c.rule)}</span>
                     <Button
                       size="sm"
+                      variant="secondary"
                       className="min-h-11"
                       disabled={saving !== null}
                       onClick={() =>

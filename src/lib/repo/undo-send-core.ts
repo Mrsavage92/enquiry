@@ -1,4 +1,5 @@
 import type { Sql } from "../db.ts";
+import { applyDecision } from "./decision-apply.ts";
 
 /**
  * Undo "I sent this", for real.
@@ -36,6 +37,8 @@ export type UndoRecordedSendResult =
   { ok: true } | { ok: false; reason: "missing" | "too_late" | "moved_on"; message: string };
 
 type PriorState = {
+  /** The coverage confirmation a folded send wrote (doc 51 decision 1): taken back by Undo. */
+  coverage_fact_id?: string;
   after_revision?: number | string;
   decision_state?: string;
   commercial_state?: string;
@@ -140,6 +143,29 @@ export async function undoRecordedSendInTransaction(
       update enquiry set decision_revision = decision_revision + 1, updated_at = now()
       where id = ${input.enquiryId}
     `;
+  }
+
+  // A folded send was the owner's only "That's everything": with the send gone,
+  // its coverage confirmation goes too, and the decision is worked out again so
+  // the folded reply (and its scope check) comes back.
+  if (prior?.coverage_fact_id && !sent.stale_attested) {
+    const retired = await sql<{ id: string }>`
+      update enquiry_fact set superseded = true, updated_at = now()
+      where id = ${prior.coverage_fact_id} and enquiry_id = ${input.enquiryId}
+        and superseded = false
+      returning id
+    `;
+    if (retired.length > 0) {
+      const [who] = await sql<{ service_label: string | null; customer_name: string | null }>`
+        select service_label, customer_name from enquiry where id = ${input.enquiryId}
+      `;
+      await applyDecision(sql, {
+        enquiryId: input.enquiryId,
+        businessId: input.businessId,
+        serviceLabel: who?.service_label ?? "",
+        customerName: who?.customer_name ?? "",
+      });
+    }
   }
 
   await sql`

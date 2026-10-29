@@ -599,9 +599,23 @@ export function noLine(thing: string, details: readonly BusinessDetail[]): strin
 /** Hello, thanks and a name: never content of their own. */
 const PLEASANTRY =
   /^(?:hi|hello|hey|g'?day|morning|thanks|thank you|thx|cheers|regards|kind regards|ta)\b/i;
-/** Words that ask for more than the question: "also", "if so", "as well", "quote". */
-const ASKS_MORE =
-  /\b(?:also|as well|if so|too|quote|price|cost|can you|could you|would you|do you|please|pls|need|needs|want|keen|after|looking|book)\b/i;
+/**
+ * Words that ask for something beside the question: "also", "as well", "too",
+ * "plus". Words that only say more about the thing itself ("Need the tiles
+ * redone before Christmas", "can you quote?") are not: once the owner says
+ * they don't do it, a "which job?" about it would ignore their No.
+ */
+const ASKS_MORE = /\b(?:also|as well|too|plus|another|other)\b/i;
+/** A sentence that only matters if they do the declined thing. */
+const CONDITIONAL_ON_IT = /\bif (?:so|you do|yes|you can)\b/i;
+/**
+ * A second job asked for: a price asked for something ("a quote to paint",
+ * "a price for", "what would you charge"), or trade work named by its verb
+ * ("painted", "retiled", "cleaned"). "Need the tiles redone" names no trade
+ * and no price, so it stays about the declined thing.
+ */
+const WORK_REQUEST =
+  /\b(?:quote|price|charge|cost)\s+(?:for|to|on)\b|\bwhat would you charge\b|\b(?:re)?paint(?:s|ed|ing)?\b|\bretil\w*|\btiling\b|\b(?:clean|plaster|render|polish|stain|seal|sand|install|repair|replace|mow|landscap)\w*\b/i;
 /** Filler that says nothing more: "Just the front fence and the eaves." is three things about it. */
 const FILLER = new Set(["just", "the", "a", "an", "and", "only", "my", "our", "of", "its", "it's"]);
 
@@ -647,9 +661,15 @@ function onlyTheQuestions(
     if (unasked !== sentence.trim() && /\band\b/i.test(words)) return false;
     if (PLEASANTRY.test(words) && words.split(/\s+/).length <= 4) continue;
     if (/^[A-Z][a-z]+(?:\s+[A-Z][a-z]+)?$/.test(words)) continue;
+    // "If so, I'd want a quote for new gutters": it rests on the declined thing.
+    // "as well" beside it still asks for more ("If so, can you quote the house as well").
+    if (CONDITIONAL_ON_IT.test(sentence) && !ASKS_MORE.test(words)) continue;
+    // A job of their own beside it ("a quote to paint the front fence", "the
+    // laundry painted"): never dropped by a plain no.
+    if (WORK_REQUEST.test(words)) return false;
     if (ASKS_MORE.test(words) || mentionsAny(words, serviceStems)) return false;
     const meaningful = words.split(/\s+/).filter((w) => !FILLER.has(w.toLowerCase()));
-    if (meaningful.length > 6) return false;
+    if (meaningful.length > 12) return false;
   }
   return true;
 }

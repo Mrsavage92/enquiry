@@ -55,6 +55,7 @@ const EXTRA_CHOICES = new Set<string>([
   EXTRA_CHOICE.comeBack,
 ]);
 import { applyDecision, isClosed, lockEnquiry } from "./decision-apply.ts";
+import { GREETING_CHOICE, GREETING_FIELD, isGreetingChoice } from "../../domain/greeting.ts";
 import { requireEnquiryAccess } from "./tenancy.server.ts";
 
 /**
@@ -85,6 +86,9 @@ export type AnswerFactResult = {
 
 /** How an owner's choice about an extra reads back in the case file. */
 function displayFor(field: string, value: string): string {
+  if (field.trim().toLowerCase() === GREETING_FIELD) {
+    return value === GREETING_CHOICE.there ? "Greet them as Hi there" : "Greet them by name";
+  }
   if (isCountChoiceField(field)) {
     if (value === COUNT_CHOICE.each) return "Priced per person";
     if (value === COUNT_CHOICE.one) return "One price for the booking";
@@ -259,6 +263,11 @@ export async function answerFactForUser(
   }
   if (input.field.trim().toLowerCase() === "recurring" && value !== "yes" && value !== "no") {
     throw new Error("Answer yes or no.");
+  }
+  // How the reply greets them: "Hi there," or the name read from their
+  // message. Never a name typed here: that goes through the name fact.
+  if (input.field.trim().toLowerCase() === GREETING_FIELD && !isGreetingChoice(value)) {
+    throw new Error("Choose how the reply greets them.");
   }
   if (input.field.trim().toLowerCase() === "ask_service" && value !== "yes" && value !== "no") {
     throw new Error("Choose whether the reply asks them which job they need.");

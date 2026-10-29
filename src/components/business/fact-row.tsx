@@ -17,6 +17,7 @@ import { readBusinessDetails, type BusinessDetailsRead } from "@/domain/business
 import { describeRule } from "@/domain/business-rule";
 import { describeDetail, noteFor, type AnswerDetail } from "@/domain/business-detail";
 import { bodyWithoutTitle } from "@/components/enquiry/card-cues";
+import { ownerError } from "@/lib/owner-error";
 
 type Row = KnowledgeItem & { rulePayload?: unknown };
 
@@ -82,9 +83,7 @@ export function FactRow({
                   : undefined,
               )
               .then(() => toast.success("Put back."))
-              .catch((err: unknown) =>
-                toast.error(err instanceof Error ? err.message : "Could not put it back."),
-              )
+              .catch((err: unknown) => toast.error(ownerError(err)))
         : undefined;
       toast.success(
         res.updatedEnquiries > 0
@@ -93,7 +92,7 @@ export function FactRow({
         undo ? { action: { label: "Undo", onClick: undo } } : undefined,
       );
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Could not remove that.");
+      toast.error(ownerError(err));
     } finally {
       setBusy(false);
     }
@@ -286,7 +285,7 @@ function EditFact({
           : "Changed. No open enquiry used it.",
       );
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not save that change.");
+      setError(ownerError(err));
     } finally {
       setBusy(false);
     }
@@ -391,7 +390,7 @@ function EditAnswer({
       onClose();
       toast.success("Changed. It's offered the next time a customer asks.");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not save that change.");
+      setError(ownerError(err));
     } finally {
       setBusy(false);
     }

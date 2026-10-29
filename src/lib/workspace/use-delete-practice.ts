@@ -3,6 +3,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { useFirstBetaActions } from "@/lib/workspace/live-mutations";
 import { usePrototype } from "@/store/prototype-store";
+import { ownerError } from "@/lib/owner-error";
 
 /**
  * Delete the practice enquiry, then go back to Today. Undo brings a practice
@@ -37,16 +38,14 @@ export function useDeletePractice() {
                       toast.success("Practice enquiry is back, from the start.");
                       void navigate({ to: "/enquiries/$enquiryId", params: { enquiryId: id } });
                     })
-                    .catch((err: unknown) =>
-                      toast.error(err instanceof Error ? err.message : "Could not bring it back."),
-                    ),
+                    .catch((err: unknown) => toast.error(ownerError(err))),
               },
             }
           : undefined,
       );
       void navigate({ to: "/today" });
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Could not delete the practice enquiry.");
+      toast.error(ownerError(err));
     } finally {
       setDeleting(false);
     }

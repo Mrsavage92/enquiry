@@ -1,11 +1,12 @@
 import { useId, useState } from "react";
-import { toast } from "sonner";
+import { useDone } from "./done-notice";
 import { Button } from "@/components/ui/button";
 import { useFirstBetaActions } from "@/lib/workspace/live-mutations";
 import { QUESTION_ANSWER } from "@/domain/service-questions";
 import { ASK_CHOICE, availabilityValue } from "@/domain/customer-asks";
 import type { QuestionPending } from "@/domain/decide";
 import type { Enquiry } from "@/domain/types";
+import { ownerError } from "@/lib/owner-error";
 
 /**
  * A question they asked, answered before any reply is ready: "Do you do mould
@@ -17,6 +18,7 @@ import type { Enquiry } from "@/domain/types";
 export function QuestionAnswer({ enquiry }: { enquiry: Enquiry }) {
   const question = enquiry.decision.questionPending;
   const actions = useFirstBetaActions();
+  const say = useDone();
   const [saving, setSaving] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   if (!question) return null;
@@ -26,10 +28,9 @@ export function QuestionAnswer({ enquiry }: { enquiry: Enquiry }) {
     setError(null);
     try {
       await actions.answerFact(enquiry.id, question.field, value);
-      toast.dismiss();
-      toast.success(done);
+      say(done);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not save that. Try again.");
+      setError(ownerError(err));
     } finally {
       setSaving(null);
     }
@@ -180,18 +181,6 @@ function AvailabilityAnswer(props: Props) {
             done="The reply tells them the days you're free."
           />
         ) : null}
-        {open.length > 1
-          ? open.map((d) => (
-              <Choice
-                key={d.iso}
-                value={value((iso) => (iso === d.iso ? "yes" : "no"))}
-                label={`Only ${d.label}`}
-                primary={false}
-                props={props}
-                done={`The reply says you're free ${d.label} only.`}
-              />
-            ))
-          : null}
         <Choice
           value={value(() => "no")}
           label="No"
@@ -207,6 +196,26 @@ function AvailabilityAnswer(props: Props) {
             props={props}
             done="The reply says you'll check and come back to them."
           />
+        ) : null}
+        {open.length > 1 ? (
+          // One disclosure, never a button per day: at most four on the card.
+          <details className="w-full">
+            <summary className="inline-flex min-h-11 cursor-pointer items-center text-sm font-medium text-mark-strong">
+              Only some days
+            </summary>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {open.map((d) => (
+                <Choice
+                  key={d.iso}
+                  value={value((iso) => (iso === d.iso ? "yes" : "no"))}
+                  label={`Only ${d.label}`}
+                  primary={false}
+                  props={props}
+                  done={`The reply says you're free ${d.label} only.`}
+                />
+              ))}
+            </div>
+          </details>
         ) : null}
       </div>
     </>

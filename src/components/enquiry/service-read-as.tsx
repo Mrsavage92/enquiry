@@ -14,6 +14,7 @@ import {
 import { useFirstBetaActions } from "@/lib/workspace/live-mutations";
 import type { Business, Enquiry } from "@/domain/types";
 import { cn } from "@/lib/utils";
+import { ownerError } from "@/lib/owner-error";
 
 const OTHER = "__other__";
 
@@ -76,7 +77,7 @@ export function ServiceChooser({
       await actions.setService(enquiry.id, value);
       toast.success("Service confirmed.");
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Could not save that.");
+      toast.error(ownerError(err));
     } finally {
       setSaving(false);
     }
@@ -154,9 +155,7 @@ export function ServiceChooser({
                 toast.dismiss();
                 toast.success("The reply asks them which job they need.");
               })
-              .catch((err: unknown) =>
-                toast.error(err instanceof Error ? err.message : "Could not save that."),
-              )
+              .catch((err: unknown) => toast.error(ownerError(err)))
               .finally(() => setSaving(false));
           }}
         >
