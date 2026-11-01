@@ -1,104 +1,99 @@
 # Enquiry - Independent Progress Critique
 
-**Review date:** 2026-10-26 (Australia/Brisbane)  
-**Default branch head reviewed:** [`3ea795e`](https://github.com/Mrsavage92/enquiry/commit/3ea795ed9d9fc693a6a19de7b9d6fabf93957117) on `main`  
-**Product code head reviewed:** [`02cf586`](https://github.com/Mrsavage92/enquiry/commit/02cf58674e130e3ff68aecba3b788b96863d3b6e)  
-**Previous critique commit:** [`3ea795e`](https://github.com/Mrsavage92/enquiry/commit/3ea795ed9d9fc693a6a19de7b9d6fabf93957117)  
+**Review date:** 2026-11-02 (Australia/Brisbane)  
+**Default branch head reviewed:** [`59bfa78`](https://github.com/Mrsavage92/enquiry/commit/59bfa7851fbd8f97c4c49e091628222d3a01c54f) on `main`  
+**Comparison baseline:** previous critique commit [`6de6e66`](https://github.com/Mrsavage92/enquiry/commit/6de6e666f8c49fda5e27079adf7b8645c41c6321)  
 **Execution authority:** [`docs/CURRENT_PHASE.md`](./CURRENT_PHASE.md), not this critique
 
 ## Verdict against the enquiry-to-booking vision
 
-**No material movement this week. The candidate remains safer than it was before trust pass 11, but it is still not a safe first-beta candidate.**
+**There is real product movement in the review-to-action part of the journey, but the current candidate is not safe for first beta. Governance and production-schema risk have worsened to critical.**
 
-There are zero commits after the previous critique. The only commit above the product code head is last week's critique itself. No current source, test evidence, gate, open PR or relevant Notion record changed during the reporting period.
+PR [#81](https://github.com/Mrsavage92/enquiry/pull/81) materially improves the middle of the vision:
 
-The established strengths therefore remain unchanged:
+> messy inbound enquiry -> understood Decision Object -> relevant checks -> minimum blocker -> explainable next action -> human-authorised action
 
-> messy inbound enquiry -> interpreted Decision Object -> relevant business checks -> minimum blocker -> explainable next action -> human-authorised reply
+The merged laser screen reduces interaction cost, keeps Copy distinct from "sent", preserves warnings and refusals, improves greeting and coverage handling, and persists a seven-day copied marker. PR [#87](https://github.com/Mrsavage92/enquiry/pull/87) restores a usable sign-out path. These are genuine product and operational improvements, not only visual or documentation activity.
 
-Trust pass 11 still provides meaningful date, closed-day, pricing-ledger, promise and reviewed-send safeguards. Both the product commit and the current documentation-only head retain successful Vercel statuses.
-
-The unresolved end of the vision also remains unchanged:
+The candidate still does not prove the complete vision:
 
 > later customer update -> recomputed decision -> booked or lost -> downstream handoff
 
-Current source still routes quote acceptance, customer updates, lost state and external booking confirmation through prototype-store actions. No durable server-authoritative lifecycle evidence, first-beta telemetry, successful real-provider benchmark or completed readiness item appeared this week.
+Current source still routes customer updates, quote acceptance, lost state and external booking confirmation through prototype-store actions. No new server-authoritative outcome-loop evidence, durable beta telemetry, successful real-provider benchmark or completed beta-gate item appeared.
+
+More seriously, PR #81 merged despite `CURRENT_PHASE.md` still naming UI1 as the sole active slice and despite the previous critique's explicit hold for authority, migration sequencing, independent review and device evidence. GitHub records no review or review thread for the PR. The merge also introduced migration `0014_laser_send.sql`, while the repository contains no evidence that it was applied to production before deployment.
 
 ## What materially moved since the previous review
 
-**Nothing material moved.**
-
-| Area | Current observation | Assessment |
+| Area | Observed movement | Assessment |
 |---|---|---|
-| Default branch | `main` is identical to previous critique commit `3ea795e` | No product, test, authority or release change |
-| Product code | Still ends at trust pass 11, `02cf586`, from 2026-10-16 | Prior progress retained; no new progress |
-| PR #81 | Still open at `46e44bf`, last updated 2026-10-16 | Not counted as progress; 35 commits and 120 files, diverged 35 ahead / 9 behind `main` |
-| PR #21 | Old documentation handover remains open | No product effect |
-| Deployment | Vercel remains successful for `02cf586` and `3ea795e` | Stable deployment signal, not new readiness evidence |
-| CI | No associated GitHub Actions workflow runs | No new independent regression evidence |
-| Beta gate | 0/92 checked | No first-beta readiness movement |
-| Public traffic gate | 6/23 checked | No public-readiness movement |
-| Relevant Notion sources | No relevant page changed; latest core edit remains 2026-09-11 | No strategy, decision, roadmap, validation or growth movement |
-
-A Notion search result titled "Readiness and test evidence" was reviewed and excluded because it belongs to an unrelated consulting-site release review, not Enquiry.
+| Default branch | Two product commits landed after `6de6e66`: PR #81 at `9d282b9` and PR #87 at `59bfa78`; integrated comparison changes 92 files | Material code movement |
+| Laser flow | One-screen phone/desktop review flow, reduced taps, safer greeting and coverage logic, Copy/sent separation, persisted copied state | Real enquiry-to-action progress |
+| Account operations | Desktop account menu and mobile Account page now expose sign-out | Real baseline usability fix, not core vision progress |
+| PR #81 integration | Rebased onto the prior product head before merge; Vercel is green | Previous stale-branch issue closed |
+| Independent review | No GitHub PR review, review thread or Actions run exists for #81 | Required evidence absent |
+| Final-head validation | PR body claims 1,388 tests at earlier branch commit `c8f70d7`; no equivalent evidence is attached to final merge `9d282b9` or current head | Implementation claim, not independently reproduced |
+| Production schema | `0014_laser_send.sql` adds `reviewed_send.coverage_key` and `copied_at`; current code reads and writes both | Runtime dependency landed; production application unknown |
+| Device/accessibility evidence | PR records no iPhone testing, no 200% text walk and other incomplete acceptance checks | Safe-beta proof did not move enough |
+| Readiness gates | Beta remains 0/92; public traffic remains 6/23 | No milestone-gate movement |
+| Notion sources | Product HQ, strategy, decisions, roadmap, validation and growth sources show no relevant update after September | No new external authority or decision evidence |
 
 ## Important decisions
 
-**No new product or sequencing decision was recorded this week.**
-
-The governing decisions remain:
-
-- **[Observed]** `CURRENT_PHASE.md` still defines UI1 as the sole active slice and says it is landed but not independently signed off.
-- **[Observed]** R2E and R2F remain explicitly prepared but not authorised until `CURRENT_PHASE.md` activates them.
-- **[Observed]** PR #81 remains unmerged and unrebased against current `main`.
-- **[Observed]** The A$15 founding offer and A$29 post-launch price remain centralised in `offer.ts`; payments are not open.
-- **[Observed]** Founder-only decisions on GST/ABN, the founding-price cut-off and paid-subscription terms remain open.
-- **[Inference]** In the absence of a new authority decision, agents must not use landed R2E/R2F-adjacent code, research briefs, the handover or this critique as permission for further scope.
+- **[Observed]** Copy is not treated as sent. A copied reply is stored as a temporary marker; the owner must later confirm "Sent it?" before a send is recorded.
+- **[Observed]** Coverage confirmation can be folded into the owner-authorised send only when the decision's stored coverage key still matches.
+- **[Observed]** Greeting uses a customer name only when the evidence threshold is met; otherwise the reply uses "Hi there".
+- **[Observed]** SMS and WhatsApp deep links remain behind a default-off flag.
+- **[Observed]** `CURRENT_PHASE.md`, `PHASE_REGISTRY.md` and `AGENTS.project.md` were not updated to authorise the merged slice. UI1 remains the documented execution authority; R2E/R2F remain prepared but not authorised.
+- **[Implementation claim]** PR #81 says its browser walks, typecheck, lint, build and 1,388 tests passed on its branch.
+- **[Inference]** Merging the implementation did not itself change phase authority or sign off readiness. Repository policy explicitly forbids inferring permission from landed code.
 
 ## Blockers
 
-1. **Execution authority is unresolved.** UI1 remains the active slice while substantial interpretation, decision and reviewed-send behaviour already exists on `main`. Another week without reconciliation increases the chance of accidental scope-by-precedent.
-2. **PR #81 is stale and highly divergent.** Its 120-file interaction rewrite is 35 commits ahead and 9 behind `main`. Its 1,388-test and browser-walk claims were made against the branch, not the current integrated candidate.
-3. **The lifecycle is not server-authoritative end to end.** `acceptQuote`, `markLost`, `receiveClientReply` and `confirmExternalBooking` still depend on prototype-store paths.
-4. **Real-provider interpretation remains unproven.** The newest checked-in benchmark remains 2026-09-07: real mode is 1 pass / 15 skipped, and the one pass intentionally makes no provider call.
-5. **Known decision-quality defects remain open.** The handover still records count loss, missed date forms/closed periods, dropped questions, money-in-words bypasses, no service-area check and conditional/negated rule misreads.
-6. **Readiness evidence is static.** There is still no current-head Actions run, independent full-suite record, durable beta telemetry, real-device proof or checked first-beta requirement.
-7. **Connected planning sources are stale.** Product HQ, strategy, decisions, architecture, validation, roadmap and growth pages remain unverified and last edited between 2026-08-24 and 2026-09-11. They cannot resolve October repository conflicts.
+1. **Production migration state is unknown and potentially service-breaking.** Current workspace loading calls `loadCopied`, which selects `reviewed_send.copied_at`; the copy and send paths update `copied_at` and read/write `coverage_key`. If migration 0014 was not applied, authenticated workspace and laser-flow requests can fail at runtime. A green Vercel build does not prove the production database schema.
+2. **The merged slice lacks the required independent review.** `CLAUDE.md` requires independent review before merge and re-review after fixes. GitHub shows no review record or review threads for #81.
+3. **Execution authority contradicts deployed code.** UI1 remains the sole active slice, while the broad 88-file laser-flow PR is now on `main`. The authority conflict warned about in the previous critique became an actual merge.
+4. **Final integrated validation is incomplete.** PR #81's test claim is tied to an earlier branch commit. There is no Actions run for the final merge/current head, no iPhone evidence, no 200% text walk and no full recorded tap-path/device matrix.
+5. **The lifecycle remains incomplete.** Customer updates, acceptance, lost outcome and external booking confirmation still use prototype-store paths; downstream handoff is not demonstrated.
+6. **Decision-quality and provider evidence remain weak.** Previously recorded count, date, question, money-word, service-area and rule-reading defects have no new closure evidence. The latest checked-in real-provider benchmark remains 2026-09-07 at 1 pass / 15 skipped, with no actual successful provider interpretation.
+7. **Telemetry and readiness remain unproven.** The beta telemetry spec has no demonstrated production events, the beta gate is 0/92 and the public-traffic gate is 6/23.
 
 ## Milestone risk
 
 | Risk | Level | Trend | Evidence |
 |---|---|---|---|
-| First-beta readiness | **High** | **Flat** | No lifecycle, provider, telemetry or gate evidence changed |
-| Phase authority and sequencing | **Critical** | **Worsening by age** | Authority conflict persisted another week; PR #81 remains large and divergent |
-| Decision and customer trust | **High** | **Flat** | Prior trust fixes remain, but known interpretation gaps received no closure evidence |
-| Deployment and operations | **Medium** | **Stable** | Vercel is green; broad CI and live behavioural evidence remain absent |
-| Validation and learning | **High** | **Flat** | No real-provider run, external beta evidence or telemetry |
+| Production runtime/schema | **Critical** | **New / worsening** | Migration 0014 is required by current reads and writes; application evidence is absent |
+| Phase authority and sequencing | **Critical** | **Worsened** | PR #81 merged while UI1 remains the only authorised slice |
+| First-beta readiness | **High** | **Slightly improving, still blocked** | Operator action path improved; lifecycle, device, provider, telemetry and gate evidence did not |
+| Human-authorised reply safety | **Medium-High** | **Improving** | Copy/sent separation, warning preservation, greeting and coverage safeguards landed |
+| Decision correctness | **High** | **Flat** | Known interpretation defects have no new regression closure |
+| Validation quality | **High** | **Worsened relative to change size** | Large merge, no recorded independent review or final-head Actions evidence |
+| Booked/lost/handoff completion | **High** | **Flat** | Prototype-store outcome paths remain |
 | Public/commercial readiness | **High** | **Flat** | 17 public-traffic items and founder/legal decisions remain open |
 
-There is no evidence-backed milestone date to revise. The risk is not a new regression; it is that the existing blockers have not moved.
+There is still no evidence-backed milestone date to revise. The merged UX work shortens the owner path, but it does not remove the beta-critical lifecycle, validation or operational blockers.
 
 ## Next three priorities
 
-1. **Resolve authority and dispose of PR #81 deliberately.** Product management must make `CURRENT_PHASE.md` match the intended work before any broad merge. Then either rebase and independently review PR #81 as an explicitly authorised slice, reduce it, or close it. Do not merge by inertia.
-2. **Close the truth-critical decision gaps on current `main`.** Convert the 77-enquiry probe findings into focused regressions for counts, date variants and closed periods, customer questions, money in words, service area and conditional/negated business rules. Include later customer updates, not only initial intake.
-3. **Complete and prove the durable enquiry outcome loop when authorised.** Persist later inbound updates, recomputed Decision Objects, review outcomes, booked/lost and handoff evidence server-side; then run the real-provider non-fixture benchmark, two-tenant isolation, reload persistence, full current-head checks, phone/desktop QA and production smoke before checking any readiness item.
+1. **Prove the production schema and live authenticated path immediately.** Confirm migration 0014 is present in production, applying it through the established migration process if absent. Then smoke-test authenticated workspace load, prepare/copy, return after reload, "Sent it?", undo and sign-out against the deployed current head. Record exact evidence; do not treat Vercel success as database proof.
+2. **Restore governance and independently review the integrated slice.** Reconcile `CURRENT_PHASE.md` through the authorised product-management process, but do not edit it from this critique. Perform a post-merge independent review of #81 at current head, including the full suite, tenant isolation, attack cases, iPhone/device checks, 200% text and reduced-motion checks. Hold further product merges until critical findings and authority are resolved.
+3. **Close the durable outcome loop when explicitly authorised.** Move later inbound updates, recomputation, booked/lost and downstream handoff onto server-authoritative paths, add production telemetry, then rerun the real-provider non-fixture benchmark and readiness gates. Preserve the merged Copy-not-sent and warning/refusal semantics.
 
 ## Evidence and confidence
 
-**Observed facts, high confidence:** zero commits since the previous critique; exact branch comparison; current authority and gate files; source search on the default branch; PR #81 state/divergence/file count; Vercel statuses; absence of associated Actions runs; Notion page edit times and verification state.
+**Observed facts, high confidence:** two integrated commits and their actual diff; PR states, file counts, review records and status checks; current repository source; migration 0014 contents; unchanged authority and phase files; current gate counts; dated benchmark; unchanged Notion source edit history.
 
-**Implementation claims, not independently reproduced:** PR #80's 1,374 passing tests, PR #81's 1,388 passing tests, the handover's 12/12 production check, production migration state and the 77-enquiry probe.
+**Implementation claims, not independently reproduced:** PR #81's 1,388 passing tests and browser walks; PR #87's local checks; prior handover production checks; any production migration application outside the repository.
 
-**Inferences:** product readiness is unchanged; authority risk has worsened only through continued non-resolution; PR #81 cannot be treated as integrated progress.
+**Inferences:** PR #81 is genuine product progress but not safe-beta completion; absence of migration evidence creates a critical runtime risk because current code directly references the new columns; merging without documented authority materially worsens governance risk.
 
-**Unknowns:** external credential revocation, deployed environment keys, production migration state, real signup persistence, real-device behaviour, live-provider quality and any founder action not recorded in the connected sources.
+**Unknowns:** actual production migration 0014 state, final-head full-suite result, live authenticated laser-flow behaviour, real-device behaviour, deployed feature flags and environment keys, live-provider quality, beta telemetry delivery and any founder decision not recorded in connected sources.
 
 ## Practical handoff for the implementation agent
 
-- Start from current `main`; read `AGENTS.project.md` and `CURRENT_PHASE.md` before acting.
-- There is no new authorised scope in this review. Do not start R2E/R2F work or merge PR #81 from this critique.
-- Keep PR #81 isolated until authority, rebase, migration sequencing, independent review and device evidence are explicit.
-- If asked to work within an authorised slice, preserve trust pass 11's warning/refusal semantics and add focused regressions for the known probe gaps.
-- Report exact commands, failures, baseline comparisons and production evidence. Do not convert implementation claims into checked readiness items.
-- Stop after the authorised slice. This critique does not sign off UI1, activate a later phase or pass either readiness gate.
+- Start from current `main` at `59bfa78`; read `AGENTS.project.md` and `CURRENT_PHASE.md` before acting.
+- Do not begin another feature. First produce evidence for migration 0014 and the live authenticated laser path.
+- Review PR #81 as integrated code, not as an accepted claim. Run checks against current head and record command, commit, result, device and environment.
+- Preserve Copy != sent, exact-text/revision prechecks, warning/refusal behavior, safe greeting fallback and coverage-key validation.
+- Do not use this critique to alter phase authority, acceptance criteria or sequencing. Escalate the authority mismatch to the owner of `CURRENT_PHASE.md`.
+- Do not mark UI1, R2E, R2F, beta readiness or public readiness complete from this review.
