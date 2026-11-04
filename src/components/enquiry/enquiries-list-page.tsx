@@ -102,7 +102,7 @@ export function EnquiriesListPage() {
           />
         </div>
 
-        <div className="mt-5">
+        <div className="enquiries-list-card mt-5">
           <div className="enquiries-column-head" aria-hidden>
             <span>Customer</span>
             <span>Service</span>

@@ -1,0 +1,68 @@
+{
+  "schema_version": 2,
+  "reference_url": "https://culturedcode.com/things/",
+  "captured_at": "2026-10-29",
+  "slug": "things-3",
+  "scope": "Enquiry in-app UI (enquiry screen, list, pricing setup, onboarding). Not yet applied: copy to the app root as tokens.lock.json when the build starts.",
+  "brand_accent": "#654ac2",
+  "color": {
+    "body_bg": "#f2f5f7",
+    "card_bg": "#ffffff",
+    "text_primary": "#303336",
+    "text_secondary": "#55606e",
+    "text_muted_replacement": "#5f6670",
+    "brand_accent": "#654ac2",
+    "cta_bg": "#654ac2",
+    "cta_text": "#ffffff",
+    "notes": "Things' own muted greys (#8e9196 = 2.89:1, rgba(0,15,36,.46) = 3.14:1 on #f2f5f7) fail WCAG and are NOT adopted. Secondary text uses #55606e (5.84:1 on bg, 6.39:1 on card); fainter meta uses #5f6670 (5.30:1 on bg, 5.80:1 on card). Accent stays violet (5.79:1 on bg, 6.34:1 on card; white on violet 6.34:1)."
+  },
+  "typography": {
+    "heading_family": "ui-sans-serif, -apple-system, BlinkMacSystemFont, Roboto, sans-serif",
+    "body_family": "ui-sans-serif, -apple-system, BlinkMacSystemFont, Roboto, sans-serif",
+    "heading_weights": [400, 600, 700],
+    "heading_style": "regular-weight large headings (h1 24px/400 on mobile); bold reserved for small labels",
+    "body_size": "18px",
+    "body_line_height": 1.4,
+    "scale_px_seen": [13, 13.5, 15, 15.3, 16, 18, 20.25, 24],
+    "label_style": "13-13.5px at 700 for small section labels",
+    "letter_spacing": "normal"
+  },
+  "spacing": {
+    "rhythm": "generous; one idea per block, wide margins, list rows breathe",
+    "cta_border_radius": "6px"
+  },
+  "radius": {
+    "card": "18px",
+    "control_small": "3px-6px",
+    "pill_or_button": "6px"
+  },
+  "shadow": {
+    "card": "0 2px 8px rgba(0,0,0,0.10), 0 0 2px rgba(0,0,0,0.10)",
+    "raised": "0 2px 10px rgba(0,0,0,0.10), 0 0 0 1px rgba(0,0,0,0.05)",
+    "hairline_under": "0 1px 0 rgba(38,52,74,0.15)"
+  },
+  "motion": {
+    "framer_motion_detected": false,
+    "notes": "Quiet. No scroll-triggered entrances on the reference; keep transitions short and functional."
+  },
+  "layout": {
+    "density": "sparse",
+    "pattern": "single centered column, one primary action, content in white rounded cards on a soft grey ground"
+  },
+  "icons": { "family": "custom glyphs; rounded, single-weight" },
+  "forbidden_additions": [
+    "gradient_mesh", "grain_texture", "border_glow", "glassmorphism",
+    "grid_lines", "gradient_text", "framer_motion_entrances", "hover_scale"
+  ],
+  "mapping_to_current_tokens": {
+    "--color-paper (#fafafc)": "-> #f2f5f7 ground",
+    "--color-raised (#ffffff)": "keep #ffffff, add 18px radius + card shadow",
+    "--color-ink (#1c1b1f)": "-> #303336",
+    "--color-ink-2 (#4f4b55)": "-> #55606e",
+    "--color-stone (#68656d)": "-> #5f6670",
+    "--color-line (#eceaf0)": "-> hairline shadow 0 1px 0 rgba(38,52,74,.15) on rows",
+    "--font-sans (Inter)": "-> system UI stack (ui-sans-serif, -apple-system, Roboto)",
+    "headings (semibold/bold)": "-> regular weight, larger size; bold only for small labels",
+    "violet #654ac2": "kept as the only accent"
+  }
+}

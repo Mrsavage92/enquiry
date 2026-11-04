@@ -1,0 +1,493 @@
+/*
+  Things layer for the in-app screens (2026-10-29). Built only from
+  tokens.lock.json (reference: culturedcode.com/things): system UI type,
+  regular-weight large headings with bold kept for small labels, #303336 ink on
+  a #f2f5f7 ground, white cards with an 18px radius and the card shadow, 3-6px
+  control radii, generous spacing and violet #654ac2 as the only accent.
+
+  Scope: any document that holds the app shell (.app-root) or the onboarding
+  page (.auth-page--app). Tokens sit on html so dialogs, sheets and toasts that
+  portal out of .app-root pick them up too. The marketing pages, login and
+  signup never match, so they keep the UI1 look unchanged.
+
+  Every text pair below is measured in src/lib/ui1-contrast.test.ts.
+*/
+html:has(.app-root),
+html:has(.auth-page--app) {
+  --font-sans: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+
+  --color-paper: #f2f5f7;
+  --color-work: #f2f5f7;
+  --color-raised: #ffffff;
+  /* Recessed surfaces (segmented track, hover rows): stone 4.71:1, ink-2 5.19:1. */
+  --color-paper-2: #e4e8ec;
+  --color-ink: #303336;
+  --color-ink-2: #55606e;
+  --color-stone: #5f6670;
+  --color-stone-on-paper-2: #5f6670;
+  --color-line: #dee1e5;
+  --color-line-strong: #c9cfd6;
+  /* A necessary control boundary: 3.89:1 on white, 3.55:1 on the ground. */
+  --color-line-control: #7a828d;
+  --color-sidebar: #e9edf0;
+  --color-sidebar-fg: #303336;
+  --color-sidebar-muted: #5f6670;
+  --color-nav-active: #ffffff;
+  --color-nav-active-fg: #654ac2;
+  --color-mark: #654ac2;
+  --color-mark-hover: #5a41ad;
+  --color-reply: #ffffff;
+  --color-notebook: #f2f5f7;
+
+  --radius-card: 18px;
+  --radius-control: 6px;
+  --shadow-card: 0 2px 8px rgba(0, 0, 0, 0.1), 0 0 2px rgba(0, 0, 0, 0.1);
+  --shadow-raised: 0 2px 10px rgba(0, 0, 0, 0.1), 0 0 0 1px rgba(0, 0, 0, 0.05);
+  --shadow-hairline: 0 1px 0 rgba(38, 52, 74, 0.15);
+  --shadow-border: var(--shadow-card);
+  --shadow-border-hover: var(--shadow-raised);
+
+  background: var(--color-paper);
+}
+
+.app-root {
+  font-family: var(--font-sans);
+  font-size: 15px;
+}
+
+/* ---------- Type: regular large headings, bold small labels ---------- */
+.app-root h1,
+.auth-page--app h1 {
+  font-weight: 400;
+  letter-spacing: 0;
+}
+.app-root .ui-page-header h1,
+.app-root header > h1 {
+  font-size: 24px;
+  line-height: 1.25;
+}
+.app-root .page-rule,
+.app-root .eyebrow::before {
+  display: none;
+}
+.app-root .eyebrow {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-stone);
+}
+.app-root .ui-page-description,
+.app-root .ui-date {
+  font-size: 15px;
+  color: var(--color-ink-2);
+}
+.app-root .ui-section-heading h2 {
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.4;
+  color: var(--color-ink-2);
+}
+
+/* ---------- Page ground and rhythm ---------- */
+.app-root #main {
+  background: var(--color-paper);
+}
+.app-root .ui-page {
+  max-width: 880px;
+  padding: 40px 32px 64px;
+}
+.app-root .ui-page-header {
+  margin-bottom: 28px;
+}
+@media (max-width: 860px) {
+  .app-root .ui-page {
+    padding: 28px 20px 48px;
+  }
+}
+
+/* ---------- Shell: sidebar and phone tab bar ---------- */
+.app-root .app-sidebar {
+  background: var(--color-sidebar);
+  border-right-color: transparent;
+  box-shadow: inset -1px 0 0 rgba(38, 52, 74, 0.08);
+}
+.app-root .app-sidebar nav [aria-current="page"],
+.app-root .primary-selection .selection-track-indicator {
+  background: var(--color-nav-active);
+  border-radius: var(--radius-control);
+  box-shadow: var(--shadow-card);
+}
+.app-root .app-sidebar nav a,
+.app-root .app-sidebar nav button {
+  border-radius: var(--radius-control);
+}
+.app-root .app-sidebar button[aria-label="Account menu"] {
+  border: 0;
+  border-radius: var(--radius-control);
+  background: var(--color-raised);
+  box-shadow: var(--shadow-card);
+}
+.app-root .app-sidebar a:hover,
+.app-root .app-sidebar nav a:hover {
+  background: rgba(255, 255, 255, 0.6);
+}
+.app-root .app-nav {
+  background: var(--color-raised);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  border-top-color: transparent;
+  box-shadow: 0 -1px 0 rgba(38, 52, 74, 0.15);
+}
+.app-root .phone-nav-icon-active,
+.app-root .app-nav .selection-track-indicator {
+  background: transparent;
+}
+
+/* ---------- Cards ---------- */
+.app-root .today-start,
+.app-root .today-enquiry-row,
+.app-root .business-destinations,
+.app-root .settings-groups,
+.app-root .enquiries-list-card,
+.app-root .more-destinations,
+.app-root .more-page .more-workspace {
+  border: 0;
+  border-radius: var(--radius-card);
+  background: var(--color-raised);
+  box-shadow: var(--shadow-card);
+}
+.app-root .today-start {
+  padding: 28px 28px 24px;
+  margin-bottom: 32px;
+}
+.app-root .today-start-kicker {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-mark);
+}
+.app-root .today-start h2 {
+  margin-top: 8px;
+  font-size: 24px;
+  font-weight: 400;
+  line-height: 1.25;
+}
+.app-root .today-start-meta {
+  margin-top: 8px;
+  font-size: 15px;
+  line-height: 1.5;
+}
+.app-root .today-start-next {
+  font-weight: 400;
+  font-size: 18px;
+}
+.app-root .today-catchup {
+  border-radius: var(--radius-card);
+  background: var(--color-raised);
+  box-shadow: var(--shadow-card);
+  padding: 16px 20px;
+}
+.app-root .today-enquiries {
+  gap: 12px;
+}
+.app-root .today-enquiry-row {
+  padding: 18px 20px;
+}
+.app-root .today-enquiry-row:hover {
+  background: var(--color-raised);
+  box-shadow: var(--shadow-raised);
+}
+
+/* ---------- Grouped list rows (business, settings, more) ---------- */
+.app-root .business-destination {
+  min-height: 64px;
+  padding: 16px 20px;
+  gap: 16px;
+  border-bottom: 0;
+  box-shadow: var(--shadow-hairline);
+}
+.app-root .business-destination:last-child {
+  box-shadow: none;
+}
+.app-root .business-destination:hover,
+.app-root .business-destination:focus-visible {
+  background: #f7f9fa;
+}
+.app-root .business-destination strong {
+  font-size: 16px;
+  font-weight: 400;
+}
+.app-root .business-destination small {
+  font-size: 13px;
+}
+.app-root .ui-icon-tile,
+.app-root .workspace-destination-icon,
+.app-root .business-identity-icon {
+  width: 28px;
+  height: 28px;
+  flex: 0 0 28px;
+  background: transparent;
+  border-radius: 0;
+}
+.app-root .business-identity-icon {
+  color: var(--color-ink-2);
+}
+/* One accent: the per-row category tints were decoration, not status. */
+.app-root .ui-icon-tile:is(.tone-violet, .tone-amber, .tone-green, .tone-rose, .tone-neutral) {
+  color: var(--color-mark);
+}
+.app-root .workspace-destination-icon {
+  color: var(--color-mark);
+}
+.app-root .business-picker select {
+  font-size: 18px;
+  font-weight: 400;
+}
+.app-root .business-groups {
+  margin-top: 24px;
+}
+.app-root .business-group h2 {
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.app-root .settings-groups {
+  margin-top: 28px;
+  overflow: hidden;
+}
+.app-root .settings-group {
+  border-bottom: 0;
+  box-shadow: var(--shadow-hairline);
+}
+.app-root .settings-group:last-child {
+  box-shadow: none;
+}
+.app-root .settings-group > summary {
+  min-height: 72px;
+  padding: 16px 20px;
+  border-radius: 0;
+}
+.app-root .settings-group > summary:hover {
+  background: #f7f9fa;
+}
+.app-root .settings-group > summary strong {
+  font-size: 16px;
+  font-weight: 400;
+}
+.app-root .settings-group > summary small {
+  margin-top: 2px;
+  line-height: 1.5;
+}
+.app-root .settings-group-content {
+  padding: 4px 20px 24px 64px;
+}
+
+.app-root .more-destinations {
+  overflow: hidden;
+}
+.app-root .more-destinations > li + li {
+  border-top: 0;
+  box-shadow: inset 0 1px 0 rgba(38, 52, 74, 0.15);
+}
+
+/* ---------- Enquiry list ---------- */
+.app-root .enquiries-list-card {
+  overflow: hidden;
+}
+.app-root .enquiries-column-head {
+  background: transparent;
+  border-radius: 0;
+  border-bottom: 0;
+  box-shadow: var(--shadow-hairline);
+  padding: 14px 20px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-stone);
+}
+.app-root .enquiries-list-row {
+  padding: 18px 20px;
+  background: transparent;
+}
+.app-root .enquiries-list-row:hover {
+  background: #f7f9fa;
+}
+.app-root .enquiries-list-card .divide-line > :not(:last-child) {
+  border-bottom-color: #dee1e5;
+}
+.app-root .enquiries-list-row .text-base {
+  font-size: 16px;
+  font-weight: 400;
+}
+.app-root .customer-avatar,
+.app-root li:nth-child(n) .customer-avatar {
+  background: var(--color-paper-2);
+  color: var(--color-ink-2);
+  font-weight: 700;
+}
+@media (max-width: 860px) {
+  .app-root .enquiries-list-row {
+    padding: 18px 16px;
+  }
+}
+
+/* ---------- Segmented filter (iOS segmented control) ---------- */
+.app-root [role="tablist"].selection-track {
+  border-radius: var(--radius-control);
+  background: var(--color-paper-2);
+}
+.app-root [role="tablist"] .selection-track-indicator {
+  background: var(--color-raised);
+  border-radius: 5px;
+  box-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.12),
+    0 0 0 0.5px rgba(0, 0, 0, 0.06);
+}
+.app-root [role="tablist"] [role="tab"] {
+  border-radius: 5px;
+}
+.app-root [role="tablist"] [role="tab"][aria-selected="true"] {
+  background-color: var(--color-raised);
+  color: var(--color-ink);
+}
+.app-root [role="tablist"][data-indicator="ready"] [role="tab"][aria-selected="true"] {
+  background-color: transparent;
+}
+.app-root [role="tablist"] [role="tab"][aria-selected="true"] span {
+  color: var(--color-ink-2);
+}
+
+/* ---------- Controls: 6px radius, no side stripes ---------- */
+.app-root .field,
+.auth-page--app .field {
+  border-radius: var(--radius-control);
+}
+.app-root .callout {
+  border-left: 0;
+  border-radius: var(--radius-control);
+  padding: 12px 14px;
+}
+
+/* ---------- Empty states ---------- */
+.app-root .workspace-empty > span:first-child {
+  background: transparent;
+  color: var(--color-mark);
+}
+.app-root .workspace-empty > p:nth-of-type(1),
+.app-root .ui-empty h3 {
+  font-size: 20px;
+  font-weight: 400;
+}
+.app-root .workspace-empty > p:nth-of-type(2),
+.app-root .ui-empty p {
+  font-size: 15px;
+  color: var(--color-ink-2);
+}
+
+/* ---------- Laser enquiry screen ---------- */
+.app-root .laser-scroll,
+.app-root .laser-summary {
+  background: var(--color-paper);
+}
+.app-root .laser-summary {
+  border-bottom: 0;
+  box-shadow: var(--shadow-hairline);
+}
+.app-root .laser-summary h1 {
+  font-size: 24px;
+  line-height: 30px;
+  font-weight: 400;
+}
+.app-root .laser-summary-line {
+  font-size: 15px;
+  line-height: 20px;
+}
+.app-root .laser-verdict {
+  font-size: 15px;
+  font-weight: 700;
+}
+.app-root .laser-icon-button {
+  border-radius: var(--radius-control);
+}
+.app-root .laser-icon-button:hover {
+  background: var(--color-paper-2);
+}
+.app-root .laser-column {
+  gap: 20px;
+  padding: 20px 16px 24px;
+}
+.app-root .laser-message-toggle {
+  padding: 16px 18px;
+  border-radius: var(--radius-card);
+  background: var(--color-raised);
+  box-shadow: var(--shadow-card);
+}
+.app-root .laser-message-text {
+  font-size: 16px;
+  line-height: 24px;
+}
+.app-root .laser-step {
+  padding: 20px;
+  border-radius: var(--radius-card);
+  background: var(--color-raised);
+  box-shadow: var(--shadow-card);
+}
+.app-root .laser-step-heading {
+  font-size: 18px;
+  line-height: 24px;
+  font-weight: 400;
+}
+.app-root .laser-reply-label {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-stone);
+  margin-bottom: 8px;
+}
+.app-root .laser-reply-box {
+  border-radius: var(--radius-control);
+  box-shadow: var(--shadow-card);
+}
+.app-root .laser-reply-text,
+.app-root .laser-reply-read {
+  padding: 16px 18px;
+}
+.app-root .laser-review,
+.app-root .laser-toggle {
+  border-radius: var(--radius-control);
+}
+.app-root .laser-bar {
+  border-top: 0;
+  box-shadow: 0 -1px 0 rgba(38, 52, 74, 0.15);
+}
+
+/* ---------- Account / sign out ---------- */
+.app-root .account-identity button {
+  border-color: var(--color-line-control);
+  border-radius: var(--radius-control);
+}
+
+/* ---------- Onboarding (AuthLayout variant="app") ---------- */
+.auth-page--app {
+  background: var(--color-paper);
+  font-family: var(--font-sans);
+}
+.auth-page--app .auth-content {
+  border: 0;
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
+}
+.auth-page--app .auth-title {
+  font-size: 24px;
+  font-weight: 400;
+}
+.auth-page--app .onboarding-preview {
+  border-left-color: #dee1e5;
+  color: var(--color-ink-2);
+}
+.auth-page--app .onboarding-preview h2 {
+  font-weight: 400;
+}
+.auth-page--app .onboarding-preview-note {
+  border-top-color: #dee1e5;
+}
+.auth-page--app .onboarding-actions {
+  border-top: 0;
+  box-shadow: inset 0 1px 0 rgba(38, 52, 74, 0.15);
+}

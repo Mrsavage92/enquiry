@@ -260,7 +260,7 @@ function Onboarding() {
 
   if (existing) {
     return (
-      <AuthLayout wide>
+      <AuthLayout wide variant="app">
         <h1 className="text-2xl font-semibold tracking-tight">You already have a workspace</h1>
         <p className="mt-3 max-w-prose text-base leading-relaxed text-ink-2">
           {existing} is set up, so setup will not run again and nothing here is saved. Change your
@@ -279,7 +279,7 @@ function Onboarding() {
   }
 
   return (
-    <AuthLayout wide>
+    <AuthLayout wide variant="app">
       {workspaceCheckError ? (
         <p className="mb-4 text-sm text-warn" role="status">
           {workspaceCheckError}
