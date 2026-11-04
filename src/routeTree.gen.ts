@@ -48,6 +48,7 @@ import { Route as AppTrustIndexRouteImport } from './routes/_app/trust/index'
 import { Route as AppTrustAccessRouteImport } from './routes/_app/trust/access'
 import { Route as AppTrustAuditRouteImport } from './routes/_app/trust/audit'
 import { Route as AppTrustAutomationRouteImport } from './routes/_app/trust/automation'
+import { Route as ApiInboundFormRouteImport } from './routes/api/inbound/form'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -243,6 +244,11 @@ const AppTrustAutomationRoute = AppTrustAutomationRouteImport.update({
   path: '/automation',
   getParentRoute: () => AppTrustRouteRoute,
 } as any)
+const ApiInboundFormRoute = ApiInboundFormRouteImport.update({
+  id: '/api/inbound/form',
+  path: '/api/inbound/form',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -281,6 +287,7 @@ export interface FileRoutesByFullPath {
   '/trust/access': typeof AppTrustAccessRoute
   '/trust/audit': typeof AppTrustAuditRoute
   '/trust/automation': typeof AppTrustAutomationRoute
+  '/api/inbound/form': typeof ApiInboundFormRoute
   '/enquiries/': typeof AppEnquiriesIndexRoute
   '/trust/': typeof AppTrustIndexRoute
 }
@@ -319,6 +326,7 @@ export interface FileRoutesByTo {
   '/trust/access': typeof AppTrustAccessRoute
   '/trust/audit': typeof AppTrustAuditRoute
   '/trust/automation': typeof AppTrustAutomationRoute
+  '/api/inbound/form': typeof ApiInboundFormRoute
   '/enquiries': typeof AppEnquiriesIndexRoute
   '/trust': typeof AppTrustIndexRoute
 }
@@ -361,6 +369,7 @@ export interface FileRoutesById {
   '/_app/trust/access': typeof AppTrustAccessRoute
   '/_app/trust/audit': typeof AppTrustAuditRoute
   '/_app/trust/automation': typeof AppTrustAutomationRoute
+  '/api/inbound/form': typeof ApiInboundFormRoute
   '/_app/enquiries/': typeof AppEnquiriesIndexRoute
   '/_app/trust/': typeof AppTrustIndexRoute
 }
@@ -403,6 +412,7 @@ export interface FileRouteTypes {
     | '/trust/access'
     | '/trust/audit'
     | '/trust/automation'
+    | '/api/inbound/form'
     | '/enquiries/'
     | '/trust/'
   fileRoutesByTo: FileRoutesByTo
@@ -441,6 +451,7 @@ export interface FileRouteTypes {
     | '/trust/access'
     | '/trust/audit'
     | '/trust/automation'
+    | '/api/inbound/form'
     | '/enquiries'
     | '/trust'
   id:
@@ -482,6 +493,7 @@ export interface FileRouteTypes {
     | '/_app/trust/access'
     | '/_app/trust/audit'
     | '/_app/trust/automation'
+    | '/api/inbound/form'
     | '/_app/enquiries/'
     | '/_app/trust/'
   fileRoutesById: FileRoutesById
@@ -507,6 +519,7 @@ export interface RootRouteChildren {
   BookBookingIdRoute: typeof BookBookingIdRoute
   DevClipboardTestRoute: typeof DevClipboardTestRoute
   QEnquiryIdRoute: typeof QEnquiryIdRoute
+  ApiInboundFormRoute: typeof ApiInboundFormRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -784,6 +797,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppTrustAutomationRouteImport
       parentRoute: typeof AppTrustRouteRoute
     }
+    '/api/inbound/form': {
+      id: '/api/inbound/form'
+      path: '/api/inbound/form'
+      fullPath: '/api/inbound/form'
+      preLoaderRoute: typeof ApiInboundFormRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -873,6 +893,7 @@ const rootRouteChildren: RootRouteChildren = {
   BookBookingIdRoute: BookBookingIdRoute,
   DevClipboardTestRoute: DevClipboardTestRoute,
   QEnquiryIdRoute: QEnquiryIdRoute,
+  ApiInboundFormRoute: ApiInboundFormRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

@@ -5,6 +5,7 @@ import {
   Building2,
   ChevronDown,
   Clock3,
+  Globe,
   MonitorSmartphone,
   Plug,
   ShieldCheck,
@@ -20,6 +21,7 @@ import { integrationStatusLabel } from "@/domain/labels";
 import { useLiveTrustMutations } from "@/lib/workspace/live-mutations";
 import { usePrefsSaver } from "@/lib/workspace/owner-sync";
 import { isTimeZone, WORKING_DAY_CHOICES } from "@/domain/workspace-prefs";
+import { WebsiteFormSettings } from "@/components/settings/website-form";
 
 export function SettingsPage() {
   const businesses = usePrototype((s) => s.businesses);
@@ -180,6 +182,15 @@ export function SettingsPage() {
               />
             </div>
           </SettingsGroup>
+          {!demoMode && id ? (
+            <SettingsGroup
+              icon={Globe}
+              title="Website form"
+              description="Enquiries from your own website's form"
+            >
+              <WebsiteFormSettings businessId={id} />
+            </SettingsGroup>
+          ) : null}
           <SettingsGroup
             icon={ShieldCheck}
             title="Permissions"
