@@ -104,19 +104,18 @@ export const createManualEnquiry = createServerFn({ method: "POST" })
   })
   .handler(async ({ context, data }) => {
     const { getSql, withTransaction } = await import("@/lib/db");
-    const { requireBusinessAccess, recordAudit } = await import("@/lib/repo/tenancy.server");
-    const { insertManualEnquiry, interpretAndApply } =
-      await import("@/lib/repo/manual-enquiry-core");
+    const { requireBusinessAccess } = await import("@/lib/repo/tenancy.server");
+    const { createEnquiryAndRead } = await import("@/lib/repo/enquiry-intake-core");
     const { createInterpreter } = await import("@/lib/interpret/index.server");
     const businessId = await requireBusinessAccess(context.userId, data.businessId);
 
     // Decide it on arrival, from this business's own confirmed rules, and
-    // persist the enquiry with its inbound message in one transaction. An
-    // enquiry stored with no decision is an enquiry the desk cannot show and
-    // the owner cannot act on - the whole point is that it arrives already
-    // worked out, or already knowing what it needs.
-    const { enquiryId, messageId } = await withTransaction((sql) =>
-      insertManualEnquiry(sql, {
+    // persist the enquiry with its inbound message in one transaction, then
+    // read it best-effort. The website form (/api/inbound/form) goes through
+    // exactly the same function, so both arrive decided the same way.
+    const result = await createEnquiryAndRead(
+      { sql: await getSql(), runInTransaction: withTransaction, interpreter: createInterpreter() },
+      {
         businessId,
         body: data.body,
         customerName: data.customerName,
@@ -124,47 +123,15 @@ export const createManualEnquiry = createServerFn({ method: "POST" })
         customerPhone: data.customerPhone,
         serviceLabel: data.serviceLabel,
         intakeNote: data.intakeNote,
-      }),
+      },
+      {
+        actor: context.userId,
+        summary: "Enquiry added by hand",
+        detail: data.intakeNote || undefined,
+      },
     );
-
-    await recordAudit(businessId, {
-      actor: context.userId,
-      summary: "Enquiry added by hand",
-      detail: data.intakeNote || undefined,
-      objectType: "enquiry",
-      objectId: enquiryId,
-    });
-
-    // Best-effort reading of the message: a slow, failed, or unconfigured
-    // interpreter must never fail this request or lose the enquiry that
-    // already committed above. interpretAndApply itself never throws for a
-    // classified interpreter failure (it records the honest audit line and
-    // returns); this catch is only for an unexpected exception elsewhere in
-    // the step (e.g. a query failure while writing facts).
-    //
-    // Kept as an inline await rather than fired-and-forgotten: the operator
-    // gets any read facts on this same response instead of a page reload
-    // later, and the interpreter's own timeout (8s) bounds how long that
-    // takes - interpretAndApply's internal write guards are what keep this
-    // wait safe against a confirm landing on another tab in the meantime.
-    try {
-      const sql = await getSql();
-      await interpretAndApply(sql, {
-        enquiryId,
-        businessId,
-        messageId,
-        rawMessage: data.body,
-        interpreter: createInterpreter(),
-        // The reads that build the prompt, and the provider call itself, run on
-        // the pool - a model taking eight seconds must not hold a transaction
-        // open. Everything it writes afterwards runs inside ONE, because a
-        // `for update` issued on a pooled connection is released at the end of
-        // its own statement and guards nothing.
-        runInTransaction: withTransaction,
-      });
-    } catch (err) {
-      console.error("[interpret] best-effort read of a new enquiry failed:", err);
-    }
+    if (!result.created) throw new Error("Could not create the enquiry.");
+    const enquiryId = result.enquiryId;
 
     return { ok: true as const, enquiryId };
   });

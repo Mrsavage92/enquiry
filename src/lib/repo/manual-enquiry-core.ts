@@ -49,6 +49,13 @@ export type InsertManualEnquiryInput = {
    * migrations/0012 and practice-core.ts.
    */
   practice?: boolean;
+  /**
+   * Where it came from. "manual" (the default) is the owner typing or pasting;
+   * "form" is the business's own website form posting through
+   * /api/inbound/form. Only the recorded source, channel and intake differ:
+   * the reading and the decision are the same for both.
+   */
+  source?: "manual" | "form";
   /** Injected so the year a written date lands in is testable. */
   now?: Date;
 };
@@ -220,6 +227,7 @@ export async function insertManualEnquiry(
     (basics.dates.approx ? `"${basics.dates.approx.span}"` : null) ??
     (basics.dates.preference ? `Prefers ${basics.dates.preference}` : null);
 
+  const source = input.source ?? "manual";
   const rows = await sql<{ id: string }>`
     insert into enquiry (
       business_id, customer_name, customer_email, customer_phone, source,
@@ -228,7 +236,7 @@ export async function insertManualEnquiry(
       practice, received_at, updated_at
     ) values (
       ${input.businessId}, ${customerName}, ${input.customerEmail},
-      ${input.customerPhone || null}, ${"manual"}, ${input.serviceLabel},
+      ${input.customerPhone || null}, ${source}, ${input.serviceLabel},
       ${dateLabel},
       ${"OPEN"}, ${state.decisionState}, ${state.commercialState},
       ${state.responsibility},
@@ -244,9 +252,9 @@ export async function insertManualEnquiry(
     insert into message
       (enquiry_id, direction, channel, at, from_addr, to_addr, body, intake)
     values (
-      ${enquiryId}, ${"inbound"}, ${"manual"}, now(),
+      ${enquiryId}, ${"inbound"}, ${source}, now(),
       ${input.customerEmail || customerName || "Customer"}, ${""},
-      ${input.body}, ${"manual"}
+      ${input.body}, ${source === "form" ? "channel" : "manual"}
     )
     returning id
   `;

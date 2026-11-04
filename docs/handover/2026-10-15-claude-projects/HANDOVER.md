@@ -37,6 +37,10 @@ A one-screen flow, enquiry in to reply sent in the fewest taps (clean quote: 2 t
 3. Apply migration `0014_laser_send.sql` to production first. Renumber it if it collides.
 4. The founder runs the 2-minute iPhone check at `/dev/clipboard-test` before "Open in Messages" is switched on.
 
+## Website form inbound (2026-10-29)
+
+`POST /api/inbound/form` lets a business's own website form send enquiries straight in, through the same creation path as a pasted enquiry. Gloss Beauty is the first trial. How it works, and the go-live steps (migration `0016_inbound_form.sql` first), are in `docs/handover/2026-10-29-website-form-inbound.md`.
+
 ## Next work, in order
 
 1. **Launch week:** confirm real sign-ups persist and that the share card renders on LinkedIn.
