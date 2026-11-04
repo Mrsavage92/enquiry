@@ -1,4 +1,5 @@
 import { WORKING_DAY_CHOICES } from "./workspace-prefs.ts";
+import { isRegion } from "./service-area.ts";
 
 /**
  * Business details that are not prices: a note the owner wants shown on the
@@ -54,6 +55,10 @@ export type FeeDetail = {
    * Sunday). Without it the fee concerns every quote.
    */
   days?: number[];
+  /** "Before 6am starts add $50": only on a job starting before this time ("06:00"). */
+  startsBefore?: string;
+  /** "After 6pm add $40": only on a job starting at or after this time ("18:00"). */
+  startsAfter?: string;
 };
 /** "Exterior painting only if single storey": when a job qualifies at all. */
 export type EligibilityDetail = {
@@ -98,6 +103,51 @@ export type DiscountDetail = {
 };
 
 /**
+ * "Mobile service for 3 or more people": a booking for fewer is not one the
+ * owner takes as asked. `alternative` is what they offer smaller bookings
+ * instead ("Solo and two-person bookings use the elopement package"), said in
+ * the reply when it turns a booking down.
+ */
+export type MinimumPartyDetail = {
+  kind: "minimum_party";
+  count: number;
+  text: string;
+  alternative?: string;
+};
+
+/**
+ * "Travel quoted per job": a part of the price the owner works out each
+ * time. The reply says it is quoted separately and never names a figure, so
+ * the total it states is never taken as the whole cost.
+ */
+export type QuotedSeparatelyDetail = {
+  kind: "quoted_separately";
+  /** "Travel", "Parking". */
+  item: string;
+  text: string;
+};
+
+/**
+ * "We cover the Sunshine Coast and Hinterland": the regions the owner works
+ * in (see service-area.ts). A job clearly outside them is flagged, an unknown
+ * location is asked about, and nothing is quoted as normal for a place the
+ * owner never said they cover.
+ */
+export type ServiceAreaDetail = {
+  kind: "service_area";
+  /** Region keys from service-area.ts: "sunshine coast", "sunshine coast hinterland". */
+  areas: string[];
+  /** The owner's own words for the area: "the Sunshine Coast and Hinterland". */
+  said: string;
+  text: string;
+  /** "beyond on request": a job outside is the owner's call, not a no. */
+  onRequest?: boolean;
+};
+
+/** "Non-refundable deposit secures the date": carried as a note when a booking is offered. */
+export type DepositDetail = { kind: "deposit"; text: string };
+
+/**
  * The owner's own answer to a question customers ask ("Are you insured?"),
  * saved the first time they type it and offered again, never sent unasked.
  */
@@ -121,6 +171,10 @@ export type WorkingHoursDetail = {
 export const FREQUENCIES = ["weekly", "fortnightly", "monthly", "regular"] as const;
 
 export type BusinessDetail =
+  | MinimumPartyDetail
+  | QuotedSeparatelyDetail
+  | ServiceAreaDetail
+  | DepositDetail
   | NoteDetail
   | DiscountDetail
   | AnswerDetail
@@ -145,6 +199,10 @@ export const DETAIL_KINDS = [
   "discount",
   "answer",
   "working_hours",
+  "minimum_party",
+  "quoted_separately",
+  "service_area",
+  "deposit",
 ] as const;
 
 const MONTH_DAY = /^(\d{2})-(\d{2})$/;
@@ -239,6 +297,11 @@ function parseMoneyRule(
     if (valid.length !== days.length || valid.length === 7) {
       return { ok: false, reason: "Say which days the fee is for." };
     }
+    const before = text(r.startsBefore);
+    const after = text(r.startsAfter);
+    if ((before && !HHMM.test(before)) || (after && !HHMM.test(after))) {
+      return { ok: false, reason: "Say the time the fee starts or stops." };
+    }
     return {
       ok: true,
       detail: {
@@ -248,6 +311,8 @@ function parseMoneyRule(
         text: words,
         ...withService,
         ...(valid.length ? { days: valid.sort((a, b) => a - b) } : {}),
+        ...(before ? { startsBefore: before } : {}),
+        ...(after ? { startsAfter: after } : {}),
       },
     };
   }
@@ -337,6 +402,8 @@ function parseMoneyRule(
     }
     return { ok: true, detail: { kind: "answer", topic, question, text: words } };
   }
+  const party = parsePlaceRule(r, text);
+  if (party) return party;
   if (r.kind === "working_hours") {
     const days = text(r.workingDays);
     const start = text(r.hoursStart);
@@ -354,6 +421,58 @@ function parseMoneyRule(
     };
   }
   return { ok: false, reason: `Unknown business detail: ${String(r.kind)}` };
+}
+
+const HHMM = /^([01]\d|2[0-3]):[0-5]\d$/;
+
+/** Minimum bookings, things quoted separately, the service area and a deposit note. */
+function parsePlaceRule(
+  r: Record<string, unknown>,
+  text: (v: unknown) => string,
+): { ok: true; detail: BusinessDetail } | { ok: false; reason: string } | null {
+  const words = text(r.text);
+  if (r.kind === "minimum_party") {
+    const count = r.count;
+    if (typeof count !== "number" || !Number.isInteger(count) || count < 2 || count > 50 || !words) {
+      return { ok: false, reason: "A minimum booking needs how many people, at least 2." };
+    }
+    const alternative = text(r.alternative);
+    return {
+      ok: true,
+      detail: { kind: "minimum_party", count, text: words, ...(alternative ? { alternative } : {}) },
+    };
+  }
+  if (r.kind === "quoted_separately") {
+    const item = text(r.item);
+    if (!item || !words || item.length > 40) {
+      return { ok: false, reason: "Say what is quoted separately." };
+    }
+    return { ok: true, detail: { kind: "quoted_separately", item, text: words } };
+  }
+  if (r.kind === "service_area") {
+    const raw = Array.isArray(r.areas) ? r.areas : [];
+    const areas = raw.filter((a): a is string => typeof a === "string" && isRegion(a));
+    const said = text(r.said);
+    if (areas.length === 0 || areas.length !== raw.length) {
+      return { ok: false, reason: "A service area needs regions Enquiry knows." };
+    }
+    if (!said || !words) return { ok: false, reason: "Say the area you cover." };
+    return {
+      ok: true,
+      detail: {
+        kind: "service_area",
+        areas: [...new Set(areas)],
+        said,
+        text: words,
+        ...(r.onRequest === true ? { onRequest: true } : {}),
+      },
+    };
+  }
+  if (r.kind === "deposit") {
+    if (!words) return { ok: false, reason: "Say what the deposit is." };
+    return { ok: true, detail: { kind: "deposit", text: words } };
+  }
+  return null;
 }
 
 /** "07:00" -> "7am", "17:30" -> "5:30pm". */
@@ -548,6 +667,14 @@ export function describeDetail(detail: BusinessDetail): string {
       return `Saved as an answer for: ${detail.topic} - "${detail.text}"`;
     case "working_hours":
       return `Working hours: ${detail.workingDays}, ${clock(detail.hoursStart)} to ${clock(detail.hoursEnd)}`;
+    case "minimum_party":
+      return `Bookings for ${detail.count} or more people${detail.alternative ? ` - ${detail.alternative.replace(/[.]+$/, "")}` : ""}`;
+    case "quoted_separately":
+      return `${detail.item} quoted separately, never a set figure`;
+    case "service_area":
+      return `You cover ${detail.said}${detail.onRequest ? ", further on request" : ""}`;
+    case "deposit":
+      return detail.text;
   }
 }
 
@@ -619,6 +746,14 @@ export function detailEffect(detail: BusinessDetail): string {
       return `Offered with one tap when a customer asks "${detail.question}". Never sent unless you choose it.`;
     case "working_hours":
       return "Saved as your working hours in Settings, the one place they are kept. Follow-ups count only these hours.";
+    case "minimum_party":
+      return `When fewer than ${detail.count} people are booking, Enquiry asks you before anything is quoted: tell them, or quote anyway. When they haven't said how many, the reply asks them.`;
+    case "quoted_separately":
+      return `The reply says ${detail.item.toLowerCase()} is quoted separately and never names a figure for it.`;
+    case "service_area":
+      return "A job in a place outside your area is flagged for you before anything is quoted. When the place isn't clear, the reply asks where the job is.";
+    case "deposit":
+      return "Carried as a note on a reply that offers a booking.";
   }
 }
 
@@ -626,7 +761,14 @@ export function detailEffect(detail: BusinessDetail): string {
 export function detailSection(
   detail: BusinessDetail,
 ): "policy" | "service" | "capacity" | "operating" {
-  if (detail.kind === "not_offered" || detail.kind === "eligibility") return "service";
+  if (
+    detail.kind === "not_offered" ||
+    detail.kind === "eligibility" ||
+    detail.kind === "service_area" ||
+    detail.kind === "minimum_party"
+  ) {
+    return "service";
+  }
   if (detail.kind === "closed_days" || detail.kind === "closed_dates") return "capacity";
   if (detail.kind === "answer" || detail.kind === "working_hours") return "operating";
   return "policy";
@@ -657,6 +799,14 @@ export function detailTitle(detail: BusinessDetail): string {
       return "Your answer";
     case "working_hours":
       return "Working hours";
+    case "minimum_party":
+      return "Minimum booking";
+    case "quoted_separately":
+      return `Quoted separately: ${detail.item}`;
+    case "service_area":
+      return "Service area";
+    case "deposit":
+      return "Deposit";
   }
 }
 

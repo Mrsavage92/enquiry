@@ -14,7 +14,7 @@ import {
   type UnreadLine,
 } from "./price-sentence.ts";
 import { pluraliseUnit } from "./business-rule.ts";
-import { readRuleLine } from "./business-rules-read.ts";
+import { PARTY_ALTERNATIVE, readRuleLine } from "./business-rules-read.ts";
 
 /**
  * Everything an owner wrote in "Add a business detail", sorted: prices it can
@@ -216,7 +216,7 @@ function answerFor(line: string): AnswerDetail | null {
  */
 /** "don't", "not", "never": the line says what the owner does not do. */
 const NEGATED =
-  /\b(?:don'?t|do\s+not|doesn'?t|does\s+not|not|never|isn'?t|aren'?t|won'?t|can'?t|cannot)\b/i;
+  /\b(?:don'?t|do\s+not|doesn'?t|does\s+not|not|never|isn'?t|aren'?t|won'?t|can'?t|cannot|no\s+longer|any\s?more|discontinued|stopped)\b/i;
 /** A price, a percentage, a time or a run of days: read as a rule, a "not" turns it upside down. */
 const NEGATION_TROUBLE =
   /[$%]|\d\s*(?:am|pm)\b|\b(?:mon|tue|wed|thu|fri|sat|sun)[a-z]*\s*(?:-|–|to|through|thru|till|until)\s*(?:mon|tue|wed|thu|fri|sat|sun)/i;
@@ -238,6 +238,10 @@ function readLine(line: string, now: Date): LineRead {
       ],
     };
   }
+  // "Service area: Sunshine Coast and Hinterland", "Mobile service for 3 or
+  // more people": one rule about the whole line, never split at its "and".
+  const whole = readRuleLine(line, now);
+  if (whole?.details.some((d) => WHOLE_LINE.has(d.kind))) return readPart(line, now);
   const parts = dayParts(line);
   if (parts.length === 1) return readPart(line, now);
   const reads = parts.map((p) => readPart(p, now));
@@ -269,9 +273,40 @@ function readLine(line: string, now: Date): LineRead {
   };
 }
 
+/** Rules read from the whole line at once. */
+const WHOLE_LINE = new Set(["minimum_party", "service_area", "quoted_separately", "deposit"]);
+
+/**
+ * "Mobile service for 3 or more people" with "Solo and two-person bookings
+ * use the elopement package" on the next line: one rule, the second line what
+ * the owner offers a smaller booking, so it is never a stray note.
+ */
+function joinAlternatives(lines: string[], now: Date): string[] {
+  const out: string[] = [];
+  for (let i = 0; i < lines.length; i += 1) {
+    const line = lines[i]!;
+    const next = lines[i + 1];
+    const party = readRuleLine(line, now)?.details.find((d) => d.kind === "minimum_party");
+    if (
+      party?.kind === "minimum_party" &&
+      !party.alternative &&
+      next &&
+      PARTY_ALTERNATIVE.test(next) &&
+      !HAS_AMOUNT.test(next)
+    ) {
+      out.push(`${line.replace(/[.;,]+\s*$/, "")} (${next.trim().replace(/[.;]+$/, "")})`);
+      i += 1;
+      continue;
+    }
+    out.push(line);
+  }
+  return out;
+}
+
 export function readBusinessDetails(text: string, now: Date = new Date()): BusinessDetailsRead {
   const out: BusinessDetailsRead = { prices: [], unread: [], details: [] };
-  const joined = joinTiers(splitLines(text));
+  const tiered = joinTiers(splitLines(text));
+  const joined = { ...tiered, lines: joinAlternatives(tiered.lines, now) };
   out.unread.push(...joined.refused);
   for (const line of joined.lines) {
     const read = readLine(line, now);

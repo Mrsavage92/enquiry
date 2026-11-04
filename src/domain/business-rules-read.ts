@@ -1,4 +1,5 @@
 import type { BusinessDetail } from "./business-detail.ts";
+import { readAreas } from "./service-area.ts";
 
 /**
  * Owner sentences that are rules about money or eligibility, read into rules a
@@ -608,9 +609,177 @@ export function namesADate(line: string): boolean {
   );
 }
 
+const NUM = String.raw`(\d{1,2}|two|three|four|five|six|seven|eight|nine|ten)`;
+const PEOPLE = String.raw`(?:people|persons?|ppl|guests|clients|pax)`;
+const NUM_WORDS: Record<string, number> = {
+  two: 2,
+  three: 3,
+  four: 4,
+  five: 5,
+  six: 6,
+  seven: 7,
+  eight: 8,
+  nine: 9,
+  ten: 10,
+};
+function countOf(raw: string): number {
+  return NUM_WORDS[raw.toLowerCase()] ?? Number(raw);
+}
+/** "Mobile service for 3 or more people", "for 3+ people". */
+const PARTY_FOR = new RegExp(
+  String.raw`\bfor\s+${NUM}\s*(?:\+|or\s+more|plus|and\s+(?:over|above|up))\s*${PEOPLE}\b`,
+  "i",
+);
+/** "Minimum 3 people", "Minimum booking 3 people", "min group size of 4 guests". */
+const PARTY_MIN = new RegExp(
+  String.raw`\bmin(?:imum)?(?:\s+(?:booking|party|group|size|number))*\s*(?:is|of|:|-)?\s*${NUM}\s*${PEOPLE}\b`,
+  "i",
+);
+/** "Bookings need at least 3 people", "no fewer than 4 guests". */
+const PARTY_LEAST = new RegExp(
+  String.raw`\b(?:at\s+least|a\s+minimum\s+of|no\s+(?:fewer|less)\s+than)\s+${NUM}\s*${PEOPLE}\b`,
+  "i",
+);
+/** What the owner offers a smaller booking: "solo and two-person bookings use the elopement package". */
+export const PARTY_ALTERNATIVE =
+  /^\s*(?:solo|single|one|1|two|2|smaller|fewer|under|less|for\s+(?:1|2|one|two)\b|groups?\s+(?:of|under|smaller)|bookings?\s+(?:of|under|for)\s+(?:1|2|one|two|fewer|less))\b|\belopement\b/i;
+
+/**
+ * "Mobile service for 3 or more people (solo and two-person bookings go to
+ * the elopement package)": the smallest booking the owner takes, and what
+ * they offer a smaller one when they say.
+ */
+function readMinimumParty(line: string): RuleLineRead | null {
+  if (HAS_AMOUNT.test(line)) return null;
+  const m = PARTY_FOR.exec(line) ?? PARTY_MIN.exec(line) ?? PARTY_LEAST.exec(line);
+  if (!m) return null;
+  const count = countOf(m[1]!);
+  if (!(count >= 2 && count <= 50)) return null;
+  const paren = /\(([^)]+)\)/.exec(line);
+  const [head, ...rest] = line.replace(/\([^)]*\)/g, " ").split(/\s*(?:;|\.\s|\s-\s|\s–\s)\s*/);
+  const tail = (paren?.[1] ?? rest.join(" ")).trim().replace(/[.;]+$/, "");
+  const alternative = tail && PARTY_ALTERNATIVE.test(tail) ? capitalFirst(tail) : undefined;
+  if (tail && !alternative) return null;
+  const text = (head ?? line).replace(/\s+/g, " ").trim().replace(/[.;,]+$/, "");
+  return {
+    details: [
+      { kind: "minimum_party", count, text, ...(alternative ? { alternative: `${alternative}.` } : {}) },
+    ],
+  };
+}
+
+/** What can be quoted separately: travel, parking, materials. */
+const SEPARATE_ITEM =
+  /^\s*(?:the\s+|our\s+|my\s+|all\s+)?(travel|parking|tolls?|accommodation|materials|paint|supplies|mileage|call[- ]?outs?)(?:\s+(?:fees?|costs?|charges?))?\b/i;
+/** "quoted per job", "quoted on location", "is extra": priced each time, never a set figure. */
+const SEPARATE_WORDS =
+  /\b(?:quoted?|priced|charged|worked\s+out|calculated|costed)\s+(?:separately|per\s+(?:job|booking|event|wedding)|on\s+(?:request|location|application|enquiry|the\s+day)|individually|case\s+by\s+case|depending\b|by\s+distance|each\s+time|as\s+needed)|\bextra\b|\bon\s+top\b|\bnot\s+included\b|\bseparate(?:ly)?\b/i;
+
+function readQuotedSeparately(line: string): RuleLineRead | null {
+  if (HAS_AMOUNT.test(line) || /\d\s*%/.test(line)) return null;
+  const item = SEPARATE_ITEM.exec(line);
+  if (!item || !SEPARATE_WORDS.test(line)) return null;
+  const word = item[1]!.toLowerCase().replace(/^call[- ]?outs?$/, "call-out");
+  return {
+    details: [
+      {
+        kind: "quoted_separately",
+        item: capitalFirst(word),
+        text: line.trim().replace(/[.;]+$/, ""),
+      },
+    ],
+  };
+}
+
+/** "Service area: Sunshine Coast and Hinterland", "Areas we cover - Brisbane northside". */
+const AREA_LABEL =
+  /^\s*(?:service\s+areas?|areas?\s+(?:we\s+|i\s+)?(?:cover(?:ed)?|service[ds]?|serve[ds]?)|coverage(?:\s+area)?)\s*(?::|-|–|is|are)\s*(.+?)\s*$/i;
+/** "We cover the Sunshine Coast", "We only work on the Sunshine Coast", "We service Brisbane northside only". */
+const AREA_WE =
+  /^\s*(?:we|i)\s+(?:only\s+)?(?:cover|service|serve|travel\s+(?:to|across|throughout)|work\s+(?:in|on|across|throughout|around))\s+(.+?)\s*$/i;
+/** "beyond on request", "outside that by arrangement with travel": further is the owner's call. */
+const ON_REQUEST =
+  /\b(?:beyond|outside|further|elsewhere|other\s+areas?)\b[^.;]*\b(?:on\s+request|by\s+(?:request|arrangement)|ask|enquire|travel|possible)\b/i;
+
+function readServiceArea(line: string): RuleLineRead | null {
+  if (HAS_AMOUNT.test(line)) return null;
+  const m = AREA_LABEL.exec(line) ?? AREA_WE.exec(line);
+  if (!m) return null;
+  const [area, ...rest] = m[1]!.split(/\s*(?:;|\(|\s-\s|\s–\s|,\s*(?=(?:beyond|outside|further|elsewhere|other)\b))\s*/i);
+  const said = (area ?? "")
+    .replace(/\s+only\s*$/i, "")
+    .replace(/[.!,]+$/, "")
+    .trim();
+  const areas = said ? readAreas(said) : null;
+  if (!areas) return null;
+  const tail = rest.join(" ");
+  if (tail && !ON_REQUEST.test(tail)) return null;
+  return {
+    details: [
+      {
+        kind: "service_area",
+        areas,
+        said,
+        text: line.trim().replace(/[.;]+$/, ""),
+        ...(tail ? { onRequest: true } : {}),
+      },
+    ],
+  };
+}
+
+/** "Deposit required to secure the date", "Non-refundable deposit secures the date". */
+const DEPOSIT_WORDS =
+  /\b(?:secures?|holds?|locks?\s+in|confirms?|reserves?|required|needed|payable|due|to\s+(?:secure|book|hold|confirm|lock|reserve))\b|\bnon[- ]?refundable\b/i;
+
+function readDeposit(line: string): RuleLineRead | null {
+  if (!/\bdeposits?\b/i.test(line) || !DEPOSIT_WORDS.test(line) || /\?/.test(line)) return null;
+  if (/\bno\s+deposit\b/i.test(line)) return null;
+  const text = line
+    .trim()
+    .replace(/^\s*deposits?\s*[:\-–]\s*/i, "")
+    .replace(/[.;]+$/, "");
+  return { details: [{ kind: "deposit", text: capitalFirst(text) }] };
+}
+
+/** "Before 6am starts add $50", "After 6pm add $40": a fee for a job starting at that time. */
+const START_TIME = /\b(before|after|from)\s+(\d{1,2})(?:[:.](\d{2}))?\s*(am|pm)\b/i;
+const ADD_WORDS = /\b(?:add(?:s|ed)?|extra|surcharge|plus|more|fees?|charges?|loading)\b|\+/i;
+
+function readTimeFee(line: string): RuleLineRead | null {
+  if ((line.match(ALL_AMOUNTS) ?? []).length !== 1) return null;
+  const time = START_TIME.exec(line);
+  const amount = new RegExp(AMOUNT).exec(line);
+  if (!time || !amount || !ADD_WORDS.test(line)) return null;
+  if (/\bper\b|\/\s*[a-z]|\ban?\s+(?:hour|person|head)\b/i.test(line)) return null;
+  let hour = Number(time[2]) % 12;
+  if (time[4]!.toLowerCase() === "pm") hour += 12;
+  const at = `${String(hour).padStart(2, "0")}:${time[3] ?? "00"}`;
+  const before = time[1]!.toLowerCase() === "before";
+  return {
+    details: [
+      {
+        kind: "fee",
+        amount: amountOf(amount[1]!),
+        label: before ? "Early start fee" : "After-hours fee",
+        text: line.trim().replace(/[.;]+$/, ""),
+        ...(before ? { startsBefore: at } : { startsAfter: at }),
+      },
+    ],
+  };
+}
+
+function capitalFirst(s: string): string {
+  return s ? s[0]!.toUpperCase() + s.slice(1) : s;
+}
+
 function readOne(written: string, now: Date): RuleLineRead | null {
   if (NEGATED.test(written)) return null;
   return (
+    readMinimumParty(written) ??
+    readServiceArea(written) ??
+    readQuotedSeparately(written) ??
+    readDeposit(written) ??
+    readTimeFee(written) ??
     readClosedDates(written, now) ??
     readMinimum(written) ??
     readSurcharge(written) ??
